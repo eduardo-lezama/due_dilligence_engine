@@ -2,28 +2,50 @@
 Financials specialist node — agente tool-lane del grafo LangGraph.
 
 Qué hace:
-    Lee el ticker del estado, llama al EdgarAdapter para obtener datos
-    financieros reales de SEC EDGAR vía XBRL, y escribe el FinancialsReport
-    en el estado.
+    Lee ticker del estado, llama a EdgarAdapter para obtener datos XBRL
+    reales de SEC EDGAR, y escribe un FinancialsReport validado en el estado.
 
-Por qué tool-lane (no LLM-lane):
-    Los datos financieros son deterministas — vienen directamente del filing
-    XBRL de la SEC. No hay interpretación cualitativa aquí. El LLM no toca
-    estos números (ADR-005: zero hallucination numérica).
+Tool-lane (no LLM):
+    Los datos financieros son 100% deterministas — vienen del filing XBRL
+    de la SEC. El LLM nunca toca estos números (ADR-005: zero hallucination
+    numérica). Este nodo es puramente fetch + parse.
 
-Estado actual: STUB — implementación real en Task 6.
+Nota sobre el import a nivel de módulo:
+    EdgarAdapter se importa en el top del archivo (no lazy) para que
+    pytest-mock pueda interceptarlo con mocker.patch().
 """
 
+from __future__ import annotations
+
+import structlog
+
 from due_diligence.graph.state import AnalysisState
+from due_diligence.tools.edgar import EdgarAdapter
+
+log = structlog.get_logger()
 
 
 def financials_node(state: AnalysisState) -> dict:
     """
-    Stub del Financials specialist. Implementación real en Task 6.
+    Obtiene datos financieros XBRL de EDGAR y devuelve un FinancialsReport.
 
-    En producción: llamará a EdgarAdapter.fetch_raw() + parse_financials()
-    y devolverá un FinancialsReport con datos XBRL reales.
+    Args:
+        state: Estado del grafo — usa state["ticker"].
+
+    Returns:
+        {"financials": FinancialsReport} — solo la clave que este nodo produce.
+        LangGraph hace el merge con el resto del estado.
     """
-    # Stub: devuelve None para indicar que no hay datos todavía
-    # Task 6 reemplazará esto con la llamada real al EdgarAdapter
-    return {"financials": None}
+    ticker = state["ticker"]
+    log.info("financials_node_start", ticker=ticker)
+
+    # fetch_raw: llamada de red (o mock en tests)
+    # parse_financials: función pura — transforma dict → FinancialsReport
+    raw = EdgarAdapter.fetch_raw(ticker)
+    report = EdgarAdapter.parse_financials(raw)
+
+    log.info("financials_node_complete", ticker=ticker, revenue_periods=len(report.revenue))
+
+    # Devolver SOLO la clave que este nodo produce — no el estado completo.
+    # LangGraph hace el merge automáticamente: state = {**state, **result}
+    return {"financials": report}

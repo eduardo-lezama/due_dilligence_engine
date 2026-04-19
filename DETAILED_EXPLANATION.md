@@ -449,4 +449,83 @@ Se reemplazarán con lógica real en Tasks 5 y 6. El patrón de "stub primero, i
 
 ---
 
-*Última actualización: 2026-04-19 — Phase 1a Tasks 1-4 completadas.*
+---
+
+### Task 5: Supervisor node (`src/due_diligence/agents/supervisor.py`)
+
+#### ¿Qué se hizo?
+Se implementó el primer nodo real del grafo. Recibe `{"ticker": "AAPL"}` y escribe `cik`, `as_of_date`, `run_id` en el estado antes de que los especialistas corran.
+
+#### Ticker vs CIK — ¿por qué resolver esto aquí?
+
+El ticker ("AAPL") es el nombre que usa el mercado. La SEC usa internamente el CIK ("Central Index Key") — un entero único por empresa, ej: `320193` para Apple. EDGAR no busca por ticker, busca por CIK. El Supervisor hace esta resolución una sola vez para todo el análisis:
+
+```python
+company = Company(ticker)          # edgartools: busca en el índice de la SEC
+cik = str(company.cik).zfill(10)   # 320193 → "0000320193" (formato estándar de 10 dígitos)
+latest_10k = company.get_filings(form="10-K").latest()
+as_of_date = str(latest_10k.period_of_report)  # "2024-09-28"
+```
+
+`zfill(10)` rellena con ceros a la izquierda para cumplir el formato estándar de la SEC.
+
+#### `as_of_date` como string ISO
+
+Ya explicado en Task 3: el checkpointer de SQLite serializa el estado a JSON. `datetime.date` no es JSON-serializable; el string `"2024-09-28"` sí. Los nodos que necesiten un objeto `date` hacen `date.fromisoformat(state["as_of_date"])`.
+
+#### `run_id` — identificador del análisis
+
+UUID truncado a 12 caracteres. Es el `thread_id` que el checkpointer de SQLite usa para separar los estados de distintos análisis en la misma base de datos. Sin `thread_id`, todos los análisis compartirían el mismo estado y se mezclarían.
+
+#### Campos cross-cutting inicializados aquí
+
+```python
+return {
+    ...
+    "citations": [],
+    "unverified_claims": [],
+    "cost_usd": 0.0,
+}
+```
+
+El Supervisor inicializa estas listas vacías para que los agentes LLM downstream puedan hacer `state["citations"].append(...)` sin comprobar si la lista existe. Solo se inicializan una vez, aquí.
+
+#### Lección de mocking: imports top-level vs lazy
+
+En Task 5 descubrimos una regla importante de `pytest-mock`:
+
+`mocker.patch("modulo.Nombre")` solo funciona si `Nombre` es un atributo del módulo en el momento del patch. Con lazy imports dentro de la función (`from edgar import Company` dentro del `def`), `Company` no existe en el namespace del módulo y el patch falla con `AttributeError`.
+
+La solución es siempre importar a nivel de módulo lo que necesites mockear en tests. En este proyecto, `edgar` siempre está disponible (está en `uv.lock`), así que top-level import es la opción correcta.
+
+---
+
+### Task 6: Financials specialist node (`src/due_diligence/agents/financials.py`)
+
+#### ¿Qué se hizo?
+Se reemplazó el stub con la implementación real. El nodo llama a `EdgarAdapter` (de Phase 0) y devuelve un `FinancialsReport` con datos XBRL reales.
+
+#### La implementación es mínima — ¿por qué?
+
+```python
+def financials_node(state: AnalysisState) -> dict:
+    ticker = state["ticker"]
+    raw = EdgarAdapter.fetch_raw(ticker)
+    report = EdgarAdapter.parse_financials(raw)
+    return {"financials": report}
+```
+
+Solo 4 líneas de lógica. Toda la complejidad (XBRL parsing, MetricValue, FCF calculado) ya vive en `EdgarAdapter` de Phase 0. El nodo es un wrapper thin que:
+1. Lee del estado.
+2. Llama al adapter.
+3. Devuelve solo la clave que produce.
+
+Este es el patrón correcto para nodos tool-lane: delegan en el adapter, no reimplementan lógica.
+
+#### ¿Por qué devolver solo `{"financials": report}`?
+
+LangGraph hace el merge automáticamente: `new_state = {**old_state, **node_result}`. Si el nodo devolviera el estado completo, sobreescribiría las claves que otros nodos escribieron. Al devolver solo la clave propia, cada nodo es responsable únicamente de su output. Esto es lo que el test `test_financials_node_only_returns_financials_key` verifica explícitamente.
+
+---
+
+*Última actualización: 2026-04-19 — Phase 1a Tasks 1-6 completadas.*

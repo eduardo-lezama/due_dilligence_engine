@@ -238,4 +238,215 @@ Esta fase se implementó sin pausas didácticas, violando la regla "Modo Profeso
 
 ---
 
-*Última actualización: 2026-04-19 — Phase 0 completada.*
+---
+
+## Phase 1a — LangGraph Skeleton + Financials Specialist
+
+### Contexto: ¿qué es Phase 1a y qué objetivo tiene?
+
+Phase 1 se dividió en tres milestones para no abarcar demasiado de golpe:
+- **1a** (actual): montar el esqueleto del grafo con estado, nodos básicos, y el especialista de Financials.
+- **1b**: añadir los 4 especialistas restantes (Management, Filings, Market, Competitive) con fan-out paralelo y HITL.
+- **1c**: agentes finales (Valuation, Value Expert, Critic) y archivador.
+
+Al terminar Phase 1a, el comando `due-diligence analyze AAPL` debería correr de extremo a extremo y devolver datos reales de EDGAR en un estado LangGraph validado.
+
+---
+
+### Task 1: Stub report schemas (`src/due_diligence/schemas/reports.py`)
+
+#### ¿Qué se hizo?
+Se definieron los modelos Pydantic para los outputs de todos los agentes, aunque la mayoría son **stubs** — modelos con `stub=True` y todos los campos opcionales.
+
+#### ¿Por qué crear schemas de agentes que no existen todavía?
+
+`AnalysisState` (Task 3) necesita tipar todos los campos que el grafo puede contener. Si escribimos `financials: NotRequired[FinancialsReport]`, Python necesita que `FinancialsReport` ya exista en tiempo de importación. Lo mismo para `ManagementReport`, `MarketReport`, etc.
+
+El truco es definirlos como **stubs**: modelos válidos que se pueden instanciar pero con todos los campos opcionales y un flag `stub=True`. El agente que los implemente de verdad hará dos cosas: rellenar los campos y cambiar `stub=False`.
+
+```python
+class ManagementReport(BaseModel):
+    ticker: str
+    stub: bool = True          # <- marca que este output es un placeholder
+    insider_ownership_pct: Optional[float] = None  # se rellenará en Phase 1b
+    # ...
+```
+
+Este patrón permite que el sistema compile y los tests pasen aunque los agentes no estén implementados. Es la diferencia entre "el grafo existe y corre" (Phase 1a) y "el grafo produce análisis reales" (Phase 1b/1c).
+
+#### `CheckpointInput` y `ValuationInput` — los modelos de HITL
+
+```python
+class CheckpointInput(BaseModel):
+    checkpoint_id: str    # "checkpoint_1" o "checkpoint_2"
+    user_notes: str = ""  # observaciones libres del usuario
+    proceed: bool = True  # False = abortar el análisis
+
+class ValuationInput(CheckpointInput):
+    wacc_pct: float = 9.0              # coste de capital
+    terminal_growth_pct: float = 2.5  # crecimiento terminal
+    projection_years: int = 10
+```
+
+HITL = Human In The Loop. En Phase 1b, el grafo se pausará dos veces usando `interrupt()` de LangGraph para esperar que el usuario revise los datos y aporte sus hipótesis de valoración. `CheckpointInput` / `ValuationInput` serializan esa input de forma tipada — no un dict libre. Están diseñados para funcionar en CLI ahora y en webapp más adelante.
+
+---
+
+### Task 2: MCE gate — directorios `agents/` y `graph/` con sus `CLAUDE.md`
+
+#### ¿Qué se hizo?
+Se crearon los directorios `src/due_diligence/graph/` y `src/due_diligence/agents/` con sus `__init__.py` y sus `CLAUDE.md`. Se resolvió MCE-03 de `mce-evolution.md`.
+
+#### Recordatorio: ¿qué es el patrón MCE?
+
+`docs/mce-evolution.md` es un registro de trabajo estructural diferido con **triggers verificables**. En lugar de crear toda la estructura de directorios al inicio (cuando no sabemos qué necesitaremos), definimos "cuando exista X, crear Y". Al arrancar cada fase o crear un directorio nuevo, revisamos la lista para ejecutar los items cuyo trigger se cumplió.
+
+MCE-03 decía: "cuando se cree `src/due_diligence/agents/`, crear su `CLAUDE.md`". Al crear el directorio en Phase 1a, se cumplió el trigger y se creó el archivo.
+
+#### ¿Qué contiene `graph/CLAUDE.md`?
+Las reglas del módulo `graph/`:
+- `state.py` solo define `AnalysisState` — nada más.
+- `graph.py` solo define `build_graph()` — importa nodos de `agents/`, no implementa lógica.
+- `build_graph(checkpointer=None)` acepta checkpointer opcional — los tests pasan `MemorySaver()` (sin SQLite), producción pasa `SqliteSaver`.
+
+#### ¿Qué contiene `agents/CLAUDE.md`?
+Las reglas de los nodos:
+- Cada agente es una función pura: `def agent_node(state) -> dict`.
+- Devuelve **solo las claves que modifica**, nunca el estado completo.
+- Agentes "tool-lane" (Financials, Market): llaman adapters, sin LLM.
+- Agentes "LLM-lane" (Management, Filings, Competitive): usan `get_client()`, emiten Citations.
+
+---
+
+### Task 3: `AnalysisState` — la pizarra del grafo
+
+#### ¿Qué se hizo?
+Se creó `src/due_diligence/graph/state.py` con la definición del estado compartido de todo el grafo LangGraph.
+
+#### ¿Qué es un TypedDict?
+
+Un TypedDict es una forma de decirle a Python: "un dict con estas claves específicas y estos tipos". A diferencia de Pydantic, **no valida en runtime** — es solo un contrato de tipos que herramientas como mypy/pyright verifican en análisis estático. LangGraph lo usa porque necesita poder serializar/deserializar el estado a JSON (para el checkpointer de SQLite), y los dicts son trivialmente serializables.
+
+```python
+class AnalysisState(TypedDict):
+    ticker: str                       # obligatorio
+    cik: NotRequired[str]             # opcional — lo escribe el Supervisor
+    financials: NotRequired[FinancialsReport]  # lo escribe el Financials agent
+    # ...
+```
+
+#### `NotRequired` — ¿qué problema resuelve?
+
+Sin `NotRequired`, Python esperaría que todos los campos estuvieran en el dict al crearlo. Pero al invocar el grafo, solo tenemos el ticker:
+
+```python
+graph.invoke({"ticker": "AAPL"})  # <- no tenemos nada más en este punto
+```
+
+Los demás campos aparecen a medida que los nodos corren. `NotRequired` indica exactamente eso: "este campo puede no estar presente en el dict". Es una feature de Python 3.11+ para TypedDict.
+
+#### ¿Por qué `as_of_date` es `str` y no `datetime.date`?
+
+El checkpointer de SQLite serializa el estado a JSON. `datetime.date` no es JSON-serializable por defecto, pero un string `"2024-09-28"` sí. El nodo que lo use hace `date.fromisoformat(state["as_of_date"])` para convertir.
+
+#### ¿Por qué `checkpoint_user_input` es `dict` y no `CheckpointInput`?
+
+Si `state.py` importara `CheckpointInput` de `schemas/reports.py`, y `reports.py` a su vez necesitara importar algo de `state.py` en el futuro, tendríamos una importación circular. Usar `dict` aquí es un compromiso deliberado: el nodo que consuma el input hace la conversión `CheckpointInput(**state["checkpoint1_user_input"])`.
+
+#### El flujo de datos a través del estado
+
+```
+START
+  │  {"ticker": "AAPL"}
+  ▼
+supervisor_node
+  │  añade: cik, as_of_date, run_id
+  ▼
+financials_node
+  │  añade: financials (FinancialsReport con datos XBRL reales)
+  ▼
+[Phase 1b: más nodos en paralelo via Send()]
+[Phase 1c: valuation, synthesis, critique]
+  ▼
+END  ←  estado completo con todos los campos
+```
+
+Cada nodo recibe el estado completo y devuelve un dict con solo las claves que modificó. LangGraph hace el merge (actualiza el estado con el dict parcial).
+
+---
+
+### Regla nueva: documentación del código
+
+En esta sesión se añadió una regla a `CLAUDE.md`: todo archivo Python generado debe incluir:
+1. **Docstring de archivo** — qué hace el módulo, por qué existe, cómo encaja en la arquitectura.
+2. **Docstrings de funciones y clases** — conciso: qué hace, qué recibe, qué devuelve.
+3. **Comentarios inline didácticos** — cuando el WHY no es obvio.
+
+A partir de Task 3, todos los archivos generados siguen esta regla. Los archivos de Phase 0 (config.py, edgar.py, client.py) se documentarán cuando se modifiquen.
+
+---
+
+---
+
+### Task 4: Esqueleto del grafo (`src/due_diligence/graph/graph.py`)
+
+#### ¿Qué se hizo?
+Se creó `graph.py` con `build_graph()`, y stubs mínimos de `supervisor_node` y `financials_node` para que el grafo compile. Las implementaciones reales llegan en Tasks 5 y 6.
+
+#### `StateGraph` — cómo LangGraph construye un grafo
+
+```python
+builder = StateGraph(AnalysisState)   # le dice qué forma tiene el estado
+builder.add_node("supervisor", supervisor_node)
+builder.add_node("financials", financials_node)
+builder.add_edge(START, "supervisor")
+builder.add_edge("supervisor", "financials")
+builder.add_edge("financials", END)
+graph = builder.compile(checkpointer=checkpointer)
+```
+
+El proceso es declarativo: primero describes la estructura, luego `compile()` valida que todos los nodos son alcanzables, que no hay ciclos inesperados, y devuelve el `CompiledGraph` ejecutable.
+
+#### ¿Por qué `build_graph()` es una factory function?
+
+Si el grafo fuera un objeto global al nivel del módulo, estaría compilado con un checkpointer fijo. Pero tests y producción necesitan checkpointers distintos:
+
+| Contexto | Checkpointer | Por qué |
+|---|---|---|
+| Tests | `MemorySaver()` | Sin SQLite, estado en RAM, se limpia automáticamente |
+| Producción | `SqliteSaver(conn)` | Persiste el estado entre runs, permite resumir análisis |
+| Sin persistencia | `None` | Grafo stateless, útil para pruebas rápidas |
+
+Con la factory, cada llamada crea un grafo fresco con el checkpointer deseado.
+
+#### Phase 1a vs Phase 1b — la diferencia en el grafo
+
+Phase 1a es lineal: `supervisor → financials`. Phase 1b añadirá fan-out con `Send()`:
+
+```python
+# Phase 1b: el supervisor lanzará todos los especialistas en paralelo
+def route_to_specialists(state):
+    return [
+        Send("mgmt", state),
+        Send("filings", state),
+        Send("market", state),
+        Send("competitive", state),
+        Send("financials", state),
+    ]
+
+builder.add_conditional_edges("supervisor", route_to_specialists)
+```
+
+`Send()` clona el estado y lo envía a varios nodos simultáneamente. LangGraph los ejecuta en paralelo y hace el merge de los resultados automáticamente.
+
+#### Los stubs de `supervisor.py` y `financials.py`
+
+Creados solo para que `graph.py` pueda importarlos. Devuelven valores hardcodeados:
+- `supervisor_node` devuelve `{"cik": "STUB", ...}`
+- `financials_node` devuelve `{"financials": None}`
+
+Se reemplazarán con lógica real en Tasks 5 y 6. El patrón de "stub primero, implementar después" permite construir el grafo antes de tener todos los agentes, y verificar que la estructura es correcta.
+
+---
+
+*Última actualización: 2026-04-19 — Phase 1a Tasks 1-4 completadas.*

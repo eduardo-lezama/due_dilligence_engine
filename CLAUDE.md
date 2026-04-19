@@ -59,6 +59,20 @@ Reglas:
 
 ---
 
+## Documentación del código (obligatorio en este proyecto)
+
+Todo código generado debe incluir:
+
+1. **Docstring de archivo** — primera línea después de los imports, explica qué hace el módulo, por qué existe y cómo encaja en la arquitectura. 3-5 líneas.
+2. **Docstrings de funciones y clases** — en toda función o clase no trivial. Conciso: qué hace, qué recibe, qué devuelve, qué efecto tiene.
+3. **Comentarios inline didácticos** — cuando el WHY no es obvio: decisiones de diseño, workarounds, invariantes que deben preservarse, conexiones con ADRs.
+
+El objetivo es que Eduardo pueda leer cualquier archivo y entender qué hace sin necesidad de contexto externo.
+
+**Nota**: esta regla tiene prioridad sobre el principio global "default to no comments". Eduardo está aprendiendo el ecosistema IA/agentic — los comentarios son parte del aprendizaje.
+
+---
+
 ## Principios de diseño de código (recordatorio denso)
 
 - **YAGNI ruthless**: rechazar cualquier componente no justificado por un requisito actual.

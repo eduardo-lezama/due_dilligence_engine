@@ -528,4 +528,82 @@ LangGraph hace el merge automáticamente: `new_state = {**old_state, **node_resu
 
 ---
 
-*Última actualización: 2026-04-19 — Phase 1a Tasks 1-6 completadas.*
+---
+
+### Task 7: Test end-to-end + comando `analyze`
+
+#### ¿Qué se hizo?
+Se extendió `test_graph_1a.py` con dos tests que invocan el grafo completo, y se añadió el comando `due-diligence analyze AAPL` al CLI.
+
+#### El test end-to-end — qué hace diferente a los tests unitarios
+
+Los tests de Tasks 5 y 6 prueban cada nodo en aislamiento. El test end-to-end prueba que los nodos **se conectan correctamente**:
+
+```python
+graph = build_graph(checkpointer=MemorySaver())
+config = {"configurable": {"thread_id": "test-run-1a"}}
+result = graph.invoke({"ticker": "AAPL"}, config=config)
+
+assert result["cik"] == "0000320193"           # lo escribió supervisor_node
+assert isinstance(result["financials"], ...)   # lo escribió financials_node
+assert result["financials"].revenue[0].value == pytest.approx(391_035_000_000)
+```
+
+`graph.invoke()` corre el grafo de extremo a extremo: `START → supervisor → financials → END`. El estado final es el merge de lo que cada nodo devolvió. Si los nodos devolvieran el estado completo en lugar de solo sus claves, este test lo detectaría porque los datos se sobreescribirían.
+
+#### `thread_id` — por qué es obligatorio con checkpointer
+
+Cuando el grafo tiene un checkpointer (MemorySaver o SqliteSaver), LangGraph necesita un `thread_id` para saber en qué "slot" guardar el estado. Sin `thread_id`, LangGraph lanza un error. Cada test usa un `thread_id` distinto para no contaminar el estado de otros tests.
+
+```python
+config = {"configurable": {"thread_id": "test-run-1a"}}
+result = graph.invoke({"ticker": "AAPL"}, config=config)
+```
+
+En producción, `thread_id = f"{ticker}-latest"` — permite re-invocar el mismo análisis y reanudar desde donde se quedó si se interrumpió.
+
+#### El comando `analyze` — diferencias con `get-financials`
+
+`get-financials` (Phase 0) llama directamente al adapter: `EdgarAdapter.fetch_raw()`. Es un comando de debug.
+
+`analyze` (Phase 1a) corre el grafo LangGraph completo con SqliteSaver. La diferencia clave:
+
+| | `get-financials` | `analyze` |
+|---|---|---|
+| Llama a | EdgarAdapter directamente | Grafo LangGraph |
+| Persistencia | Ninguna | SQLite (`data/analyses.db`) |
+| Checkpointer | No | SqliteSaver |
+| Expandible | No (hardcoded) | Sí — añadir nodos en Phase 1b/1c |
+
+#### `SqliteSaver` vs `MemorySaver`
+
+- `MemorySaver`: estado en RAM. Se pierde al cerrar el proceso. Perfecto para tests.
+- `SqliteSaver`: estado en `data/analyses.db`. Persiste entre ejecuciones del CLI. Permite reanudar análisis interrumpidos y, en Phase 2, comparar análisis históricos.
+
+---
+
+### Phase 1a — Visión de conjunto
+
+Con los 7 tasks completados, Phase 1a está terminada. Lo que se construyó:
+
+```
+src/due_diligence/
+├── graph/
+│   ├── state.py       ← AnalysisState TypedDict (la pizarra)
+│   └── graph.py       ← build_graph() factory
+├── agents/
+│   ├── supervisor.py  ← ticker→CIK, as_of_date, run_id
+│   └── financials.py  ← EdgarAdapter wrapper, tool-lane
+└── schemas/
+    └── reports.py     ← Stubs Pydantic para agentes futuros
+```
+
+Tests: 32 passing, 0 real API calls.
+
+El comando `uv run due-diligence analyze AAPL` ahora corre el grafo completo contra EDGAR real y muestra una tabla de financials.
+
+Lo que Phase 1b añadirá: Management, Filings, Market, Competitive specialists en paralelo vía `Send()`, más los dos checkpoints HITL donde el usuario podrá revisar datos y aportar hipótesis de valoración.
+
+---
+
+*Última actualización: 2026-04-19 — Phase 1a completada (Tasks 1-7 + DoD).*

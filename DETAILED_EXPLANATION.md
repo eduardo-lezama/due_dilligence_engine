@@ -606,4 +606,109 @@ Lo que Phase 1b añadirá: Management, Filings, Market, Competitive specialists 
 
 ---
 
-*Última actualización: 2026-04-19 — Phase 1a completada (Tasks 1-7 + DoD).*
+---
+
+### Fixes de integración — del código al live run
+
+Al ejecutar `uv run due-diligence analyze AAPL` por primera vez aparecieron 4 problemas reales. Documentados aquí porque cada uno enseña algo relevante sobre el stack.
+
+---
+
+#### Fix 1: `langgraph-checkpoint-sqlite` — paquete separado
+
+**Error:** `ModuleNotFoundError: No module named 'langgraph.checkpoint.sqlite'`
+
+**Causa:** A partir de LangGraph 1.x, el checkpointer de SQLite se separó del paquete core y vive en `langgraph-checkpoint-sqlite`. El import `from langgraph.checkpoint.sqlite import SqliteSaver` sigue siendo el mismo, pero hay que instalar el paquete adicional.
+
+**Solución:** añadir `langgraph-checkpoint-sqlite>=2.0.0` a `pyproject.toml` y `uv sync`.
+
+**Lección:** las librerías grandes tienden a descomponer funcionalidades opcionales en paquetes separados para reducir el tamaño del install base. Al actualizar una librería, vale la pena revisar el changelog por si algún módulo se movió a un paquete propio.
+
+---
+
+#### Fix 2: `ANTHROPIC_API_KEY` opcional — OpenAI como proveedor principal
+
+**Problema:** `config.py` tenía `ANTHROPIC_API_KEY: str = Field(...)` — el `...` en Pydantic significa "obligatorio". Sin la key, el sistema no arrancaba aunque no se fuera a usar Claude.
+
+**Solución:** cambiar a `Field("")` (string vacío por defecto) y añadir lógica en `LLMClient.complete()`:
+
+```python
+if not settings.anthropic_api_key:
+    return self._complete_openai(messages, system, max_tokens)
+```
+
+Si la key está vacía, va directo a OpenAI sin intentar Anthropic. Esto cumple el espíritu de ADR-004 (provider-agnostic): el sistema funciona con cualquier proveedor disponible.
+
+**Lección sobre `monkeypatch` vs `.env`:** al actualizar los tests descubrimos que `monkeypatch.delenv("KEY")` elimina la variable del entorno del proceso, pero `pydantic-settings` también lee el archivo `.env` del disco. El env var tiene prioridad sobre el archivo, así que `monkeypatch.setenv("KEY", "")` (valor vacío) sí sobreescribe el `.env`. `delenv` no es suficiente cuando el `.env` proporciona un fallback.
+
+---
+
+#### Fix 3: edgartools 5.x — nueva API de statements financieros
+
+**Error:** `AttributeError: 'EntityFacts' object has no attribute 'us_gaap'`
+
+**Causa:** edgartools 5.x eliminó la API de bajo nivel `facts.us_gaap.ConceptName.to_dataframe()` y la reemplazó con statements financieros normalizados:
+
+| Versión anterior | Versión 5.x |
+|---|---|
+| `facts.us_gaap.RevenueFromContract....to_dataframe()` | `facts.income_statement().to_dataframe()` |
+| `facts.us_gaap.GrossProfit.to_dataframe()` | `facts.balance_sheet().to_dataframe()` |
+| `facts.us_gaap.NetCashProvided....to_dataframe()` | `facts.cashflow_statement().to_dataframe()` |
+
+Los tres métodos devuelven un `MultiPeriodStatement` cuyo `.to_dataframe()` tiene:
+- **Índice**: nombre del concepto XBRL (e.g., `RevenueFromContractWithCustomerExcludingAssessedTax`)
+- **Columnas**: `label`, metadatos, y columnas fiscales `FY 2025`, `FY 2024`, `FY 2023`...
+
+```python
+inc_df = facts.income_statement().to_dataframe()
+# inc_df.loc['GrossProfit']['FY 2025'] → 195201000000.0
+```
+
+La ventaja del nuevo API: edgartools normaliza internamente los distintos nombres XBRL que cada empresa usa para el mismo concepto. Con el API viejo había que conocer exactamente qué nombre usaba cada empresa.
+
+**Formato del `raw` dict preservado:** solo `fetch_raw` cambió internamente. El dict que devuelve (`"annual"`, `"balance_sheet"`, `"shares"`) es idéntico al anterior — `parse_financials` y todos los tests con fixtures no necesitaron cambios.
+
+---
+
+#### Fix 4: carácter Unicode `✓` en terminal Windows
+
+**Error:** `UnicodeEncodeError: 'charmap' codec can't encode character '\u2713'`
+
+**Causa:** el terminal de Windows usa por defecto la codepage cp1252, que no incluye el carácter ✓ (U+2713). Rich intenta escribirlo y falla.
+
+**Solución:** reemplazar `[green]✓[/green]` por `[green]OK[/green]` en el CLI. Simple y robusto en cualquier terminal.
+
+**Lección:** en proyectos que corren en Windows, evitar caracteres Unicode decorativos (✓, →, ▶, emojis) en output de terminal a menos que se fuerce UTF-8 explícitamente (`PYTHONUTF8=1` o `Console(force_jupyter=False)`).
+
+---
+
+### Resultado del live run
+
+```
+Due Diligence Analysis — AAPL
+Phase 1a: Supervisor + Financials specialist
+
+OK Run ID:      a13c7077-51e
+OK CIK:         0000320193
+OK As of date:  2025-09-27
+
+           Financials — 10-K FY2025
++--------------------------------------------------+
+| Metric           | Value (USD B) | Period | Source     |
+| Revenue          |         416.2 | FY2025 | XBRL       |
+| Gross Profit     |         195.2 | FY2025 | XBRL       |
+| Operating Income |         133.1 | FY2025 | XBRL       |
+| Net Income       |         112.0 | FY2025 | XBRL       |
+| Free Cash Flow   |          98.8 | FY2025 | calculated  |
+| Total Debt       |          90.7 | FY2025 | XBRL       |
+| Cash + STI       |          35.9 | FY2025 | XBRL       |
++--------------------------------------------------+
+
+Specialists pending (Phase 1b): mgmt, filings, market, competitive
+```
+
+Todos los números vienen de EDGAR XBRL — cero hallucination. FCF marcado como `calculated` (OCF - Capex, no existe en el filing). Phase 1a verificada en producción.
+
+---
+
+*Última actualización: 2026-04-20 — Phase 1a completada con live run verificado.*

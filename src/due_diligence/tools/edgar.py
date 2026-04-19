@@ -1,3 +1,28 @@
+"""
+EdgarAdapter — interfaz con SEC EDGAR para datos financieros XBRL.
+
+Qué hace este módulo:
+    Proporciona EdgarAdapter con dos métodos estáticos:
+    - fetch_raw(ticker): obtiene datos XBRL crudos de EDGAR vía edgartools
+    - parse_financials(raw): transforma el dict crudo en FinancialsReport validado
+
+Por qué separar fetch y parse:
+    - fetch_raw: I/O de red, no determinista, requiere EDGAR
+    - parse_financials: función pura, determinista, 100% testable con fixtures
+    - Permite cachear el raw y reusarlo
+    - Los tests pueden usar parse_financials con fixtures JSON sin llamar a EDGAR
+
+Edgartools 5.x:
+    Usa la nueva API: facts.income_statement(), balance_sheet(), cashflow_statement()
+    que devuelven MultiPeriodStatement con columnas 'FY 2025', 'FY 2024', etc.
+    El formato del dict devuelto es compatible con parse_financials existente.
+
+Uso en tests:
+    - NO usar fetch_raw en tests (llamadas reales a EDGAR)
+    - Usar fixtures JSON guardados con --save-fixture en el CLI
+    - parse_financials(fixture) es 100% determinista y rápido
+"""
+
 from __future__ import annotations
 
 from datetime import date

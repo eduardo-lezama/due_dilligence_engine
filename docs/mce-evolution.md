@@ -32,8 +32,8 @@ Lista viva de trabajo estructural (subdirectorios `CLAUDE.md`, skills, slash-com
 - **Estimación**: 60-100 líneas
 - **Prioridad**: alta
 
-### MCE-03 — Subdirectorio `src/due_diligence/agents/CLAUDE.md`
-- **Trigger**: creación de `src/due_diligence/agents/` (Fase 1)
+### MCE-03 — Subdirectorio `src/due_diligence/agents/CLAUDE.md` — **TRIGGER CUMPLIDO (Phase 1a)**
+- **Trigger**: creación de `src/due_diligence/agents/` (Fase 1) ✓
 - **Acción**: cómo implementar un especialista — Pydantic schema del output, node function pattern, fan-out vía `Send()`, testing con fixtures, citations mandatory (ADR-005).
 - **Estimación**: 80-120 líneas
 - **Prioridad**: alta
@@ -126,6 +126,9 @@ Creado en Phase 0 scaffolding. Contiene convenciones para data-source adapters (
 
 ### MCE-04 — Subdirectorio `src/due_diligence/llm/CLAUDE.md` — RESUELTO 2026-04-19
 Creado en Phase 0 scaffolding. Contiene reglas del provider wrapper (no imports directos de anthropic/openai, fallback, prompt caching). Vive en `src/due_diligence/llm/CLAUDE.md`.
+
+### MCE-03 — Subdirectorio `src/due_diligence/agents/CLAUDE.md` — RESUELTO 2026-04-19
+Creado en Phase 1a. Contiene convenciones para specialist agent nodes (función pura, return parcial, tool vs LLM lane, citas obligatorias, testing). Vive en `src/due_diligence/agents/CLAUDE.md`.
 
 ### MCE-05 — Subdirectorio `tests/CLAUDE.md` — RESUELTO 2026-04-19
 Creado en Phase 0 scaffolding. Contiene convenciones de fixture-first testing (zero API calls, naming, pytest-mock, coverage mínima). Vive en `tests/CLAUDE.md`.

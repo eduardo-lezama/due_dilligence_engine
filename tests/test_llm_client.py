@@ -3,8 +3,10 @@ from unittest.mock import MagicMock, patch
 
 
 def test_complete_uses_anthropic_by_default(monkeypatch):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-    monkeypatch.setenv("SEC_USER_AGENT", "Test test@example.com")
+    # Parchear el objeto settings directamente — settings ya está instanciado,
+    # setenv no lo afecta retroactivamente sin reload de config.py
+    import due_diligence.config as cfg_mod
+    monkeypatch.setattr(cfg_mod.settings, "anthropic_api_key", "sk-test")
 
     mock_response = MagicMock()
     mock_response.content = [MagicMock(text="mocked answer")]

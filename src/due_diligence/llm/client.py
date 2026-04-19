@@ -35,6 +35,10 @@ class LLMClient:
         max_tokens: int = 4096,
     ) -> str:
         model = model or settings.default_model
+        # Si no hay API key de Anthropic configurada, ir directo a OpenAI
+        if not settings.anthropic_api_key:
+            log.info("llm_complete", provider="openai", reason="no_anthropic_key")
+            return self._complete_openai(messages, system, max_tokens)
         try:
             result = self._complete_anthropic(messages, model, system, max_tokens)
             log.debug("llm_complete", provider="anthropic", model=model)

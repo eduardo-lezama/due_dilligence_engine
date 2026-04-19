@@ -9,7 +9,7 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
-    anthropic_api_key: str = Field(..., validation_alias="ANTHROPIC_API_KEY")
+    anthropic_api_key: str = Field("", validation_alias="ANTHROPIC_API_KEY")
     openai_api_key: str = Field("", validation_alias="OPENAI_API_KEY")
     sec_user_agent: str = Field(..., validation_alias="SEC_USER_AGENT")
 

@@ -17,7 +17,16 @@ class DataUnavailableError(Exception):
 class EdgarAdapter:
     @staticmethod
     def fetch_raw(ticker: str) -> dict[str, Any]:
-        """Live EDGAR fetch. Use parse_financials(fixture) in tests instead."""
+        """
+        Live EDGAR fetch via edgartools 5.x API. Use parse_financials(fixture) in tests.
+
+        edgartools 5.x cambió de facts.us_gaap.Concept.to_dataframe() a
+        facts.income_statement() / balance_sheet() / cashflow_statement(),
+        que devuelven MultiPeriodStatement con columnas 'FY 2025', 'FY 2024', etc.
+        El formato del dict devuelto es idéntico al anterior para que parse_financials
+        no necesite cambios.
+        """
+        import pandas as pd
         from edgar import Company, set_identity  # type: ignore[import]
 
         set_identity(settings.sec_user_agent)
@@ -26,54 +35,71 @@ class EdgarAdapter:
         company = Company(ticker)
         facts = company.get_facts()
 
-        def _extract_annual(concept: str, years: int = 5) -> list[dict]:
-            try:
-                df = getattr(facts.us_gaap, concept).to_dataframe()
-                annual = df[df["form"].isin(["10-K", "10-K/A"])].copy()
-                annual = annual.sort_values("end", ascending=False).head(years)
-                return [
-                    {
-                        "year": row["end"].year,
-                        "value": float(row["val"]),
-                        "period": f"FY{row['end'].year}",
-                    }
-                    for _, row in annual.iterrows()
-                ]
-            except AttributeError:
-                raise DataUnavailableError(f"{ticker}: XBRL concept '{concept}' not found")
-
-        def _extract_point(concept: str, period: str) -> dict:
-            try:
-                df = getattr(facts.us_gaap, concept).to_dataframe()
-                latest = df[df["form"].isin(["10-K", "10-K/A"])].sort_values("end").iloc[-1]
-                return {"value": float(latest["val"]), "period": period}
-            except (AttributeError, IndexError):
-                raise DataUnavailableError(f"{ticker}: XBRL concept '{concept}' not found")
-
         filings = company.get_filings(form="10-K")
         latest_10k = filings.latest()
         fy_end = str(latest_10k.period_of_report)
         fy_label = f"FY{fy_end[:4]}"
 
-        revenue = _extract_annual("RevenueFromContractWithCustomerExcludingAssessedTax")
+        # Obtener los tres estados financieros como DataFrames
+        # Índice = concepto XBRL, columnas = ['label', ..., 'FY 2025', 'FY 2024', ...]
+        inc_df = facts.income_statement().to_dataframe()
+        bs_df = facts.balance_sheet().to_dataframe()
+        cf_df = facts.cashflow_statement().to_dataframe()
+
+        def _fy_cols(df: Any) -> list[str]:
+            """FY columns sorted descending: ['FY 2025', 'FY 2024', ...]."""
+            return sorted([c for c in df.columns if c.startswith("FY ")], reverse=True)
+
+        def _get_annual(df: Any, concept: str, n: int = 5) -> list[dict]:
+            """Extrae hasta n años de un concepto. Devuelve [] si no existe."""
+            if concept not in df.index:
+                return []
+            row = df.loc[concept]
+            result = []
+            for col in _fy_cols(df)[:n]:
+                val = row.get(col)
+                if pd.notna(val):
+                    # 'FY 2025' → 'FY2025' para consistencia con el fixture format
+                    period = col.replace("FY ", "FY")
+                    result.append({"value": float(val), "period": period})
+            return result
+
+        def _get_point(df: Any, concept: str, period: str) -> dict:
+            """Extrae el valor más reciente de un concepto puntual (balance sheet)."""
+            if concept not in df.index:
+                raise DataUnavailableError(f"{ticker}: XBRL concept '{concept}' not found")
+            row = df.loc[concept]
+            for col in _fy_cols(df):
+                val = row.get(col)
+                if pd.notna(val):
+                    return {"value": float(val), "period": period}
+            raise DataUnavailableError(f"{ticker}: '{concept}' has no annual data")
+
+        # --- Income statement ---
+        revenue = _get_annual(inc_df, "RevenueFromContractWithCustomerExcludingAssessedTax")
         if not revenue:
-            revenue = _extract_annual("Revenues")
+            revenue = _get_annual(inc_df, "Revenues")
+        if not revenue:
+            raise DataUnavailableError(f"{ticker}: revenue concept not found in income statement")
 
-        lt_debt = _extract_point("LongTermDebt", fy_label)
+        # --- Balance sheet ---
+        # LongTermDebt en edgartools 5.x ya incluye la porción corriente
+        lt_debt = _get_point(bs_df, "LongTermDebt", fy_label)
+
+        # ShortTermBorrowings: deuda a corto plazo distinta de la porción corriente del LTD
+        # (muchas empresas no lo tienen — defaulta a 0 sin fallar)
         st_debt_value = 0.0
-        try:
-            st_debt = _extract_point("ShortTermBorrowings", fy_label)
-            st_debt_value = st_debt["value"]
-        except DataUnavailableError:
-            pass
+        if "ShortTermBorrowings" in bs_df.index:
+            try:
+                st_debt_value = _get_point(bs_df, "ShortTermBorrowings", fy_label)["value"]
+            except DataUnavailableError:
+                pass
 
-        cash = _extract_point("CashAndCashEquivalentsAtCarryingValue", fy_label)
+        cash = _get_point(bs_df, "CashAndCashEquivalentsAtCarryingValue", fy_label)
+
+        # STI (marketable securities a corto plazo): no aparece en el BS normalizado
+        # de edgartools 5.x para todas las empresas — defaulta a 0
         sti_value = 0.0
-        try:
-            sti = _extract_point("AvailableForSaleSecuritiesDebtSecuritiesCurrent", fy_label)
-            sti_value = sti["value"]
-        except DataUnavailableError:
-            pass
 
         raw = {
             "ticker": ticker.upper(),
@@ -82,25 +108,27 @@ class EdgarAdapter:
             "source_filing": f"10-K {fy_label}",
             "annual": {
                 "revenue": revenue,
-                "gross_profit": _extract_annual("GrossProfit"),
-                "operating_income": _extract_annual("OperatingIncomeLoss"),
-                "net_income": _extract_annual("NetIncomeLoss"),
-                "operating_cash_flow": _extract_annual(
-                    "NetCashProvidedByUsedInOperatingActivities"
+                "gross_profit": _get_annual(inc_df, "GrossProfit"),
+                "operating_income": _get_annual(inc_df, "OperatingIncomeLoss"),
+                "net_income": _get_annual(inc_df, "NetIncomeLoss"),
+                "operating_cash_flow": _get_annual(
+                    cf_df, "NetCashProvidedByUsedInOperatingActivities"
                 ),
-                "capex": _extract_annual("PaymentsToAcquirePropertyPlantAndEquipment"),
+                "capex": _get_annual(cf_df, "PaymentsToAcquirePropertyPlantAndEquipment"),
             },
             "balance_sheet": {
-                "total_assets": _extract_point("Assets", fy_label),
+                "total_assets": _get_point(bs_df, "Assets", fy_label),
                 "long_term_debt": lt_debt,
                 "short_term_debt": {"value": st_debt_value, "period": fy_label},
                 "cash_and_equivalents": cash,
                 "short_term_investments": {"value": sti_value, "period": fy_label},
             },
             "shares": {
-                "shares_outstanding": _extract_point(
-                    "CommonStockSharesOutstanding", fy_label
-                ),
+                # facts.shares_outstanding: propiedad directa en edgartools 5.x
+                "shares_outstanding": {
+                    "value": float(facts.shares_outstanding),
+                    "period": fy_label,
+                },
             },
         }
 

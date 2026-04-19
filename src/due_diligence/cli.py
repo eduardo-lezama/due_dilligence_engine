@@ -113,9 +113,9 @@ def analyze_cmd(
         config = {"configurable": {"thread_id": f"{ticker.upper()}-latest"}}
         result = graph.invoke({"ticker": ticker.upper()}, config=config)
 
-    console.print(f"[green]✓[/green] Run ID:      {result.get('run_id', 'n/a')}")
-    console.print(f"[green]✓[/green] CIK:         {result.get('cik', 'n/a')}")
-    console.print(f"[green]✓[/green] As of date:  {result.get('as_of_date', 'n/a')}")
+    console.print(f"[green]OK[/green] Run ID:      {result.get('run_id', 'n/a')}")
+    console.print(f"[green]OK[/green] CIK:         {result.get('cik', 'n/a')}")
+    console.print(f"[green]OK[/green] As of date:  {result.get('as_of_date', 'n/a')}")
 
     if result.get("financials"):
         report = result["financials"]

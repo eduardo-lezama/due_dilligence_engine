@@ -712,3 +712,809 @@ Todos los números vienen de EDGAR XBRL — cero hallucination. FCF marcado como
 ---
 
 *Última actualización: 2026-04-20 — Phase 1a completada con live run verificado.*
+
+---
+
+---
+
+## Phase 1b — Especialistas paralelos + HITL
+
+### Contexto: ¿qué añade Phase 1b?
+
+Phase 1a construyó un DAG lineal sin LLMs. Phase 1b introduce tres cosas nuevas:
+1. **4 nodos especialistas** que hacen llamadas LLM reales para análisis cualitativo
+2. **Fan-out con `Send()`** para ejecutarlos en paralelo
+3. **HITL con `interrupt()`** para que el usuario revise datos antes de continuar
+
+---
+
+### Tarea previa: MCE-06 — hook de seguridad para `.env`
+
+#### ¿Qué se hizo?
+Se configuró un hook `PreToolUse` en `.claude/settings.json` que bloquea lecturas accidentales de archivos sensibles (`.env`, `*.pem`, `*.key`). El hook corre un script Python que inspecciona el path del archivo antes de permitir la lectura.
+
+#### ¿Qué es un hook en Claude Code?
+Los hooks son comandos shell que se ejecutan automáticamente en respuesta a eventos del ciclo de vida de Claude Code. El formato es:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "Read",
+      "hooks": [{ "type": "command", "command": "..." }]
+    }]
+  }
+}
+```
+
+`PreToolUse` sobre `Read` corre antes de cada lectura de archivo. El comando recibe JSON por stdin con el path que se va a leer. Si devuelve `{"continue": false}`, la lectura se bloquea.
+
+#### ¿Por qué Python en lugar de bash/jq?
+En Windows, `jq` no está disponible por defecto. `uv run python` sí está — y el comando inline es suficientemente corto. El hook usa `re.search` para matchear patrones de rutas sensibles.
+
+---
+
+### ADR-012: Fuentes de datos del Management Agent
+
+#### ¿Qué se decidió?
+Antes de escribir el agente, se documentó en `docs/adr/ADR-012` qué fuentes usa y por qué. La decisión cubre el "EDGAR trifecta" + Tavily:
+
+| Fuente | Qué aporta |
+|---|---|
+| DEF 14A (proxy statement) | Compensación ejecutiva, % ownership, composición del board |
+| Form 4 | Compras/ventas de acciones por insiders en tiempo real |
+| 10-K Item 10 | Bios de directores: formación, historial, experiencia |
+| Tavily (búsqueda web) | Contexto cualitativo: entrevistas, noticias, reputación |
+
+#### ¿Por qué no basta con los financials?
+Los estados financieros muestran los *resultados* de la gestión, no las *características* de los gestores. Un CEO mediocre puede heredar un negocio excelente y hacer parecer buenos sus primeros años. Para juzgar la calidad del management necesitas saber: ¿cuánto tiempo lleva? ¿Tiene skin in the game? ¿Cómo compensa al equipo? ¿Ha asignado capital bien en el pasado? Ninguna de estas preguntas tiene respuesta en el income statement.
+
+#### ¿Por qué Tavily y no OpenAI web search?
+OpenAI tiene `web_search_preview` en su Responses API, pero usarlo requeriría cambiar el formato de llamada en nuestro LLM wrapper — un cambio que afecta a todo el sistema. Tavily es provider-agnostic: funciona igual independientemente de si el LLM backend es Claude u OpenAI. Free tier de 1000 búsquedas/mes es suficiente para uso personal.
+
+---
+
+### Task 1b-T1: `management_agent` — el primer especialista LLM
+
+#### ¿Qué se construyó?
+
+Tres archivos nuevos y dos extendidos:
+
+```
+src/due_diligence/
+├── tools/
+│   ├── edgar.py         ← + EdgarManagementAdapter (DEF 14A, Form 4, 10-K §10)
+│   └── tavily.py        ← nuevo: TavilyAdapter + format_tavily_for_prompt()
+└── agents/
+    └── management.py    ← nuevo: nodo LangGraph completo
+tests/
+└── test_agents_1b.py    ← nuevo: 9 tests, 100% mockeados
+```
+
+#### ¿Cómo funciona el nodo por dentro?
+
+El flujo del nodo `management_agent(state) -> dict`:
+
+```
+state["ticker"] = "AAPL"
+    │
+    ├─ EdgarManagementAdapter.fetch_def14a_text("AAPL")   → texto DEF 14A (12k chars)
+    ├─ EdgarManagementAdapter.fetch_form4_transactions()  → lista de dicts
+    ├─ EdgarManagementAdapter.fetch_10k_item10("AAPL")    → texto Item 10 (8k chars)
+    └─ TavilyAdapter.search([4 queries])                  → lista de resultados web
+    │
+    └─ get_client().complete(system=_SYSTEM_PROMPT, messages=[contexto])
+        │
+        └─ _parse_llm_response(json_text, "AAPL")
+            │
+            └─ return {"mgmt": ManagementReport(stub=False, citations=[...])}
+```
+
+#### ¿Qué hace el LLM exactamente?
+
+El LLM recibe todo el contexto (DEF 14A, Form 4, Item 10, Tavily) en el mensaje de usuario y una instrucción en el system prompt: "responde las 5 preguntas del §3 del checklist usando SOLO el contexto proporcionado. Devuelve JSON válido."
+
+Lo que el LLM **hace**: interpreta texto, resume, extrae insights cualitativos.
+Lo que el LLM **no hace**: inventar cifras. Los números (ownership %, compensation $) tienen que venir del texto de EDGAR que recibe — si no están, dice "not available". Esto cumple ADR-005.
+
+#### Degraded mode — ¿qué pasa si Tavily no está configurado?
+
+`TavilyAdapter.search()` comprueba si `settings.tavily_api_key` está vacío. Si lo está, devuelve lista vacía y loguea un warning. El agente continúa con solo las fuentes EDGAR. Esto sigue el principio "tools fallan loud" (ADR invariante #5): no aborta, pero sí avisa.
+
+#### ¿Por qué `_parse_llm_response` tiene fallback?
+
+Los LLMs ocasionalmente devuelven texto rodeando el JSON, o el JSON tiene un campo mal tipado. La función extrae el JSON buscando el primer `{` y el último `}`, intenta parsearlo, y si falla devuelve un `ManagementReport` parcial con el texto crudo en `compensation_structure_notes`. El agente nunca lanza excepción — siempre devuelve algo usable. Esto es consistente con "el sistema sigue funcionando aunque un agente falle".
+
+#### `uv sync --extra dev` — el bug de entorno
+
+Durante los tests descubrimos que `uv sync` (sin `--extra dev`) elimina las dependencias del grupo dev (pytest, pytest-mock, etc.) del entorno. El comando correcto para este proyecto es siempre:
+
+```bash
+uv sync --extra dev        # instala prod + dev
+uv run python -m pytest    # usa el Python del venv (no el sistema)
+```
+
+`uv run pytest` (sin `python -m`) puede tomar el pytest del PATH del sistema, que usa Python 3.11 en lugar del Python 3.12 del venv. El síntoma es `ModuleNotFoundError: No module named 'due_diligence'` aunque el paquete esté instalado.
+
+---
+
+---
+
+### Tarea 1b-T2 — Filings Agent (`agents/filings.py`)
+
+#### ¿Qué cubre este agente?
+
+El `filings_agent` responde las secciones **§1 (Business Understanding)** y **§7 (Risks & Red Flags)** del checklist canónico. Estas dos secciones son las que responde el propio 10-K anual de la empresa.
+
+| Checklist | Fuente EDGAR | Pregunta clave |
+|---|---|---|
+| §1.1 Two-minute story | Item 1 (Business) | ¿Qué vende y cómo gana dinero? |
+| §1.2 Revenue decomposition | Item 1 (Business) | Segmentos, geografías, % recurrente |
+| §7.2 Regulatory exposure | Item 1A (Risk Factors) | Riesgos declarados formalmente |
+| §7.3 Disruption vector | Item 1A (Risk Factors) | ¿Quién puede destruir el modelo? |
+| §7.4 Accounting red flags | Item 7 (MD&A) | Cambios en políticas, restatements |
+| §7.8 Cycle position | Item 7 (MD&A) | ¿En qué punto del ciclo opera? |
+
+#### Por qué no usa Tavily (a diferencia del management agent)
+
+El `management_agent` usa Tavily para complementar datos cualitativos de management que no están en los filings (track record, reputación, decisiones pasadas).
+
+El `filings_agent` **no necesita Tavily** porque las secciones §1 y §7 están completamente cubiertas por el propio 10-K. Más aún: la empresa tiene obligación legal de declarar todos los riesgos materiales en el Item 1A. Si omite un riesgo relevante, se expone a responsabilidad civil. El 10-K es aquí la fuente más completa posible — no hay valor adicional de búsqueda web para estas preguntas.
+
+#### Las tres secciones del 10-K y cómo las extrae edgartools
+
+```python
+tenk = filing.obj()                          # → TenK object de edgartools
+business_text    = str(tenk.business or "")  # Item 1
+risk_text        = str(tenk.risk_factors or "")  # Item 1A
+mda_text         = str(tenk.management_discussion or "")  # Item 7
+```
+
+El objeto `TenK` de edgartools 5.x expone las secciones como atributos semánticos (no `item_1`, `item_1a`, sino `business`, `risk_factors`, `management_discussion`). Esto es importante — usar el nombre numérico lanzaría `AttributeError`.
+
+Los tres métodos viven en `EdgarFilingsAdapter` en `tools/edgar.py`, separados de `EdgarManagementAdapter` para dejar claro qué datos sirven a qué agente.
+
+#### El JSON que devuelve el LLM
+
+```json
+{
+  "business_description": "Apple designs smartphones, computers...",
+  "risk_factors_summary": "Key risks: App Store regulation, supply chain...",
+  "mda_highlights": "FY2024 revenue $391B, services grew 13%...",
+  "citations": [...]
+}
+```
+
+El LLM recibe las tres secciones etiquetadas como `SOURCE 1/2/3` para que las citations apunten a `"10-K Item 1"`, `"10-K Item 1A"` o `"10-K Item 7"` correctamente.
+
+#### Patrón compartido con management_agent
+
+Los dos agentes son **idénticos en estructura** (fetch fuentes → prompt → LLM → parse → return dict). La diferencia es qué fuentes usan y qué sección del checklist cubren. En Phase 1b los dos siguientes agentes (`market_agent`, `competitive_agent`) usarán el mismo patrón.
+
+---
+
+---
+
+### Tarea 1b-T3 — Market Agent (`agents/market.py`)
+
+#### ¿Qué es diferente aquí? Tool-lane vs LLM-lane
+
+Este es el primer agente de la "tool-lane" en Phase 1b. Los tres anteriores (financials, management, filings) usan LLM para interpretar texto. El market agent **no usa LLM** — los precios son datos exactos, no interpretables.
+
+La distinción importa: si un agente LLM "interpreta" el precio, podría introducir sesgo en datos que deberían ser deterministas. El precio actual de AAPL es $182.52 — no hay interpretación posible. La interpretación (¿está barato o caro?) sucede en el `valuation_agent` de Phase 1c, cuando ya tiene todos los datos financieros.
+
+#### Las dos fuentes y por qué cada una
+
+| Fuente | Dato | Por qué esta fuente |
+|---|---|---|
+| **Polygon.io** | Precio actual, 52w high/low, market cap | Datos de mercado auditables. ADR-011 prohíbe Yahoo Finance/yfinance. |
+| **Finnhub** | Noticias recientes (30 días) | Asocia noticias a tickers específicos — sin ambigüedad. |
+
+#### Cómo funciona el 52-week range
+
+No hay un endpoint directo "dame el 52w range". Se resuelve así:
+
+```python
+# Iterar todos los candles diarios del último año
+for agg in client.list_aggs(ticker, 1, "day", one_year_ago, today, adjusted=True):
+    highs.append(agg.high)
+    lows.append(agg.low)
+
+price_52w_high = max(highs)
+price_52w_low = min(lows)
+```
+
+`list_aggs` devuelve un iterador de `Agg` (open/high/low/close/volume por día). Calculamos el máximo y mínimo sobre el año completo.
+
+#### MetricValue en lugar de float
+
+Los precios se devuelven como `MetricValue(value=182.52, unit="USD", period="2026-04-20", source="Polygon")`, no como floats desnudos. Esto es consistente con todo el sistema — cada número lleva su unidad, período y fuente para trazabilidad. El `valuation_agent` puede calcular ratios sabiendo exactamente qué representa cada valor.
+
+#### Degraded mode simétrico
+
+Los tres adapters (Tavily, Polygon, Finnhub) siguen el mismo patrón: si la API key no está configurada, devuelven un resultado vacío/none en lugar de lanzar excepción. El agente continúa y produce un reporte parcial. Esto permite desarrollar y testear sin necesitar todas las keys configuradas.
+
+---
+
+---
+
+### Fix crítico: ROIC en `FinancialsReport`
+
+#### El gap que existía
+
+El sistema tenía revenue, márgenes, FCF, deuda — pero no ROIC. Sin ROIC no hay:
+- §2.5: evidencia de moat estructural (ROIC >15% sostenido)
+- §4.4: valor creado sobre el coste de capital (ROIC > WACC)
+- Comparación con peers en el competitive_agent
+
+#### Cómo se calcula ROIC en el sistema
+
+```
+effective_tax_rate = IncomeTaxExpenseBenefit / PreTaxIncome   (XBRL, most recent year)
+NOPAT = OperatingIncomeLoss × (1 − effective_tax_rate)        (por año)
+IC = StockholdersEquity + TotalDebt − Cash                    (punto en tiempo, más reciente)
+ROIC = NOPAT / IC                                             (por año, usando IC más reciente)
+```
+
+**Nota importante sobre la aproximación:** usamos el IC del año más reciente para calcular el ROIC de todos los años de la serie. Para un análisis riguroso se necesitaría IC año a año, lo que requeriría stitch de múltiples filings. Para el propósito de este sistema (análisis de tendencia) es suficiente.
+
+#### ROIC de Apple FY2025: 87%
+
+Parece muy alto, pero es correcto. Apple tiene ROIC extremadamente alto porque:
+1. **Asset-light model**: outsourcing total de manufactura (Foxconn)
+2. **Buyback masivo**: equity book reducida a ~$73B con $2.8T de market cap
+3. Con equity pequeña, el denominador IC es pequeño → ROIC enorme
+
+Esta es exactamente la señal que busca el sistema: ROIC muy alto = moat estructural fuerte.
+
+#### Nuevos campos en `FinancialsReport`
+
+```python
+roic_series: list[MetricValue]     # [(FY2025, 0.874), (FY2024, ...)]
+invested_capital: MetricValue      # IC más reciente en USD
+stockholders_equity: MetricValue   # Book equity más reciente
+```
+
+También se actualizó el fixture `aapl_xbrl_raw.json` a FY2025 (estaba stale en FY2024).
+
+---
+
+---
+
+### Tarea 1b-T4 — Competitive Agent (`agents/competitive.py`)
+
+#### ¿Qué lo hace diferente de los otros agentes LLM?
+
+Es el único agente que **consume output de otro agente** como input. En lugar de fetchear EDGAR de nuevo, lee `state["financials"]` — el `FinancialsReport` ya calculado por `financials_node`. Esto es clave para la arquitectura fan-out: cada especialista produce un output independiente, pero pueden leer los outputs de los nodos anteriores.
+
+```python
+financials: FinancialsReport | None = state.get("financials")
+financials_text = _format_financials_for_prompt(financials)
+```
+
+#### Los dos inputs al LLM
+
+**Input 1 — Datos cuantitativos del FinancialsReport:**
+```
+ROIC series: FY2025: 87.4%, FY2024: 78.2%, FY2023: 65.1%
+Gross margin: FY2025: 46.9%, FY2024: 46.2%, FY2023: 44.1%
+Operating margin: FY2025: 31.9%, FY2024: 31.5%
+Free cash flow: FY2025: $98.8B, FY2024: $108.8B
+```
+
+**Input 2 — Tavily web research:**
+4 queries sobre competitive landscape, pricing power, disruption threats, margin benchmarks.
+
+El LLM recibe ambos inputs etiquetados como fuentes separadas — puede citar "Financial data: ROIC series" o una URL de Tavily en las citations.
+
+#### Validación del moat_classification
+
+El LLM puede devolver cualquier string. El parser valida contra la lista permitida:
+
+```python
+moat = moat_raw if moat_raw in ("wide", "narrow", "none") else "none"
+```
+
+Si el LLM inventa "moderate" o "strong", se convierte a "none" en lugar de propagar un valor inválido.
+
+#### Peer ROIC: deferred por ADR-005
+
+`peer_roic_comparison` siempre queda vacío en Phase 1b. La razón: para comparar ROIC con peers de forma determinista (sin hallucination), necesitaría fetchear XBRL de 2-3 empresas adicionales — doblar el tiempo y coste del análisis. Se implementa en Phase 1c, cuando el valuation_agent tenga el contexto completo para elegir los peers correctos.
+
+---
+
+*Última actualización: 2026-04-20 — Phase 1b COMPLETA. Los 4 especialistas implementados (70 tests, verde).*
+
+---
+
+---
+
+### Tarea 1b-T5 — Fan-out con `Send()` y checkpoint HITL (`graph.py` + `checkpoint.py`)
+
+#### ¿Qué se construyó?
+
+El cableado que conecta los 4 especialistas al grafo y los ejecuta en paralelo, con un punto de pausa HITL entre la fase de análisis y la futura fase de valoración.
+
+```
+src/due_diligence/
+├── agents/
+│   └── checkpoint.py    ← nuevo: checkpoint1_node con interrupt()
+└── graph/
+    └── graph.py         ← actualizado: fan-out Send() × 4 + checkpoint1
+
+tests/
+└── test_graph_1b.py     ← nuevo: 7 tests de estructura + comportamiento
+```
+
+---
+
+#### El fan-out con `Send()` — paralelismo en LangGraph
+
+En Phase 1a el grafo era lineal: `supervisor → financials → END`. Los 4 especialistas de Phase 1b son **independientes entre sí** — no necesitan esperar al resultado de los otros. Esto es un caso perfecto para paralelismo.
+
+LangGraph implementa el fan-out con `Send()`:
+
+```python
+from langgraph.types import Send
+
+def _route_to_specialists(state: AnalysisState) -> list[Send]:
+    return [
+        Send("management", state),
+        Send("filings", state),
+        Send("market", state),
+        Send("competitive", state),
+    ]
+
+builder.add_conditional_edges("financials", _route_to_specialists)
+```
+
+`add_conditional_edges` recibe una función que devuelve a qué nodo ir a continuación. Cuando esa función devuelve `list[Send]` en lugar de un string, LangGraph ejecuta **todos en paralelo**. Cada `Send()` recibe una copia del estado actual, lo que garantiza que los nodos no interfieren entre sí mientras corren.
+
+**El fan-in es automático**: cuando los 4 especialistas terminan, LangGraph hace el merge de sus 4 dicts de retorno en el estado compartido. No hay que sincronizar manualmente — es parte del contrato de `Send()`.
+
+#### HITL con `interrupt()` — Human In The Loop
+
+```python
+from langgraph.types import interrupt
+
+def checkpoint1_node(state: AnalysisState) -> dict:
+    user_input = interrupt({
+        "phase": "checkpoint1",
+        "ticker": state["ticker"],
+        "message": "Phase 1b complete. Review and confirm to proceed to valuation.",
+        "available_reports": [...],
+    })
+    return {"checkpoint1_user_input": user_input or {}}
+```
+
+`interrupt()` hace tres cosas:
+1. **Serializa el estado completo** al checkpointer (MemorySaver en tests, SqliteSaver en producción).
+2. **Pausa el grafo** — `graph.invoke()` retorna el estado actual sin completar el run.
+3. **Espera input** — el grafo se reanuda cuando el usuario llama `graph.invoke(Command(resume=value), config=config)`.
+
+En el diagrama de flujo:
+
+```
+financials_node
+    │
+    ├─ Send("management", state) ──→ management_agent  ─┐
+    ├─ Send("filings", state)    ──→ filings_agent     ─┤
+    ├─ Send("market", state)     ──→ market_agent      ─┤ merge automático
+    └─ Send("competitive", state)──→ competitive_agent ─┤
+                                                         ▼
+                                                 checkpoint1_node
+                                                 interrupt() ← pausa aquí
+                                                         │
+                                                         ▼ (Phase 1c)
+                                                 valuation_agent → ...
+```
+
+#### Comportamiento de `interrupt()` — lo que aprendimos al testear
+
+Había una suposición incorrecta que los tests corrigieron: se asumía que `graph.invoke()` lanzaría `GraphInterrupt` al encontrar un `interrupt()`. La realidad es diferente:
+
+| Contexto | Comportamiento real |
+|---|---|
+| `interrupt()` llamado **fuera del grafo** (directo) | Lanza `RuntimeError("Called get_config outside of a runnable context")` |
+| `graph.invoke()` **con MemorySaver** llega a `interrupt()` | `invoke()` retorna normalmente con el estado actual — NO propaga excepción |
+| Para verificar que el grafo está pausado | `graph.get_state(config).next == ("checkpoint1",)` |
+| Para reanudar | `graph.invoke(Command(resume=user_input), config=config)` |
+
+LangGraph captura internamente la señal de interrupt y gestiona la pausa sin exponerla como excepción al llamador. Esto hace que el código del cliente sea más limpio — no necesita `try/except`.
+
+#### Los tests del grafo Phase 1b
+
+`test_graph_1b.py` cubre tres categorías:
+
+**Estructura estática** (sin correr el grafo):
+- `test_build_graph_1b_has_all_specialist_nodes` — los 5 nuevos nodos están registrados
+- `test_route_to_specialists_returns_four_sends` — la función de routing devuelve 4 `Send()`
+- `test_route_to_specialists_targets` — los 4 `Send()` apuntan a los nodos correctos
+
+**Comportamiento del checkpoint**:
+- `test_checkpoint1_raises_outside_runnable_context` — `interrupt()` fuera del grafo lanza `RuntimeError`
+
+**End-to-end** (grafo completo con MemorySaver + todo mockeado):
+- `test_graph_1b_fanout_pauses_at_checkpoint1` — verifica que el grafo pausa y `get_state().next == ("checkpoint1",)`
+- `test_graph_1b_state_has_all_four_reports_after_fanout` — los 4 reports con `stub=False` están en el estado tras el fan-out
+
+#### Test stale de Phase 1a que se actualizó
+
+`test_graph_1a_state_has_no_stub_fields_for_later_agents` verificaba que `mgmt`, `filings`, etc. **no existían** en Phase 1a. Con Phase 1b cableada, ahora sí existen. El test se renombró a `test_graph_1b_state_has_specialist_fields` y sus aserciones se invirtieron: verifica que los 4 campos **sí existen** tras el fan-out.
+
+Este cambio de dirección es normal en desarrollo incremental: los tests de "esto todavía no existe" tienen fecha de caducidad — cuando se implementa la feature, el test cambia de "no debe existir" a "debe existir y con estas propiedades".
+
+---
+
+### Phase 1b — Visión de conjunto final
+
+Con los 5 tasks completados, Phase 1b está terminada. El estado del sistema:
+
+```
+src/due_diligence/
+├── tools/
+│   ├── edgar.py        ← EdgarAdapter + EdgarFilingsAdapter + EdgarManagementAdapter + ROIC
+│   ├── tavily.py       ← TavilyAdapter (búsqueda web)
+│   ├── polygon.py      ← PolygonAdapter (precios, market cap)
+│   └── finnhub.py      ← FinnhubAdapter (noticias)
+├── agents/
+│   ├── supervisor.py   ← ticker→CIK, as_of_date, run_id
+│   ├── financials.py   ← EdgarAdapter wrapper, tool-lane
+│   ├── management.py   ← LLM-lane: DEF14A + Form4 + §10 + Tavily → §3 checklist
+│   ├── filings.py      ← LLM-lane: 10-K §1/1A/7 → §1 + §7 checklist
+│   ├── market.py       ← tool-lane: Polygon + Finnhub (sin LLM)
+│   ├── competitive.py  ← LLM-lane: state["financials"] + Tavily → §2 checklist
+│   └── checkpoint.py   ← HITL: interrupt() entre Phase 1b y 1c
+└── graph/
+    ├── state.py        ← AnalysisState (ampliado con checkpoint inputs)
+    └── graph.py        ← build_graph() con fan-out Send() + checkpoint1
+```
+
+Tests: 77 passing, 0 real API calls.
+
+Flujo completo Phase 1b:
+```
+START → supervisor → financials → [management | filings | market | competitive] → checkpoint1(HITL) → END
+```
+
+Lo que Phase 1c añadirá: `valuation_agent`, `value_expert` (síntesis + VERDICT), `critic_agent`, y `checkpoint2` (segundo HITL antes del veredicto final).
+
+---
+
+*Última actualización: 2026-04-20 — Phase 1b COMPLETA. Fan-out + HITL cableados. 77 tests, verde.*
+
+---
+
+---
+
+## Phase 1c — Valuation + Value Expert + Critic + Archiver
+
+### Contexto: ¿qué cierra Phase 1c?
+
+Phase 1b terminó con el grafo pausado en `checkpoint1`, con los 4 especialistas completos pero sin ningún juicio de inversión. Phase 1c añade la segunda mitad: el cálculo de valor intrínseco y la síntesis final con VERDICT.
+
+```
+checkpoint1 → checkpoint2 → valuation → value_expert → critic → archiver → END
+```
+
+---
+
+### Fix previo: modelos OpenAI actualizados
+
+Antes de implementar Phase 1c, se actualizaron dos decisiones de configuración:
+
+1. **`openai_fallback_model`**: `gpt-4o-mini` → `gpt-4.1` — el mini era demasiado débil para síntesis cualitativa.
+2. **Nuevo `openai_expert_model`**: `gpt-5.4-mini` — para value_expert y critic, donde la calidad de razonamiento importa más.
+3. **Fix en `_complete_openai()`**: el método ahora acepta un `model` parameter explícito. Antes ignoraba el modelo solicitado y siempre usaba el fallback. Ahora los agentes pueden especificar qué modelo OpenAI quieren directamente.
+
+---
+
+### Tarea 1c-T1: `checkpoint2_node` + `valuation_agent`
+
+#### checkpoint2 — el segundo HITL
+
+`checkpoint2_node` pausa el grafo justo antes de que corra la valoración. Muestra al usuario el FCF, market cap y ROIC disponibles, y pide los assumptions del DCF:
+
+```python
+user_input = interrupt({
+    "phase": "checkpoint2",
+    "context": {"latest_fcf": "$98.8B (FY2025)", "market_cap": "$2800B", ...},
+    "defaults": {"wacc_pct": 9.0, "terminal_growth_pct": 2.5, "projection_years": 10},
+})
+return {"checkpoint2_user_input": user_input or {}}
+```
+
+Si el usuario reanuda con `{}`, el `valuation_agent` usa los defaults internos.
+
+#### valuation_agent — aritmética pura, zero LLM
+
+El único agente del sistema que hace cálculos matemáticos explícitos. No llama al LLM — todos los números salen de Python.
+
+**DCF en dos etapas:**
+```
+Phase 1 (years 1–N):  FCF crece a near_term_growth por año
+Phase 2 (terminal):   FCF crece a terminal_growth en perpetuidad (Gordon Growth Model)
+
+PV = Σ FCF_t/(1+WACC)^t + [FCF_N * (1+g) / (WACC−g)] / (1+WACC)^N
+```
+
+El near-term growth se determina así (en orden de prioridad):
+1. Si el usuario lo proporcionó en checkpoint2 → se usa ese
+2. Si hay ≥2 puntos de FCF histórico → se calcula el CAGR (capped a [−15%, +30%])
+3. Default: 7%
+
+**Reverse DCF** — búsqueda binaria de 60 iteraciones para encontrar el growth que iguala el DCF al market cap actual. Responde: "¿qué crecimiento está pagando el mercado hoy?"
+
+**Sensitivity table 3×3**: WACC ± 1% × near-term growth ± 5%. Permite ver el rango de valores razonables sin re-ejecutar el análisis.
+
+**Múltiplos deterministas**: EV/EBIT, EV/FCF, P/E, earnings yield (EBIT/EV). Todos desde EDGAR + Polygon.
+
+---
+
+### Tarea 1c-T2: `value_expert_agent`
+
+#### El cerebro del sistema
+
+Es el único agente que recibe todos los reports simultáneamente y los sintetiza en un juicio de inversión. La diferencia respecto a los agentes de Phase 1b:
+
+| Agentes Phase 1b | Value Expert |
+|---|---|
+| Una fuente de datos | Todos los reports |
+| Análisis acotado | Síntesis transversal |
+| Output factual | Output interpretativo + VERDICT |
+
+#### Las 9 secciones del checklist
+
+El sistema prompt instruye al LLM a cubrir exactamente las 9 secciones del `checklist-value-investing.md`:
+
+```
+§1 Business understanding   §2 Moat analysis        §3 Management assessment
+§4 Financial quality        §5 Growth/reinvestment  §6 Valuation
+§7 Risks & red flags        §8 Psychological lens   §9 Decision frame
+```
+
+Más el VERDICT: `BUY | HOLD | SELL` + confidence (0-1) + suggested_sizing_pct (0-20%).
+
+#### VERDICT rubric (en el system prompt)
+
+```
+BUY:  moat claro + management alineado + DCF upside >20% + sin red flags materiales
+HOLD: señales mixtas, valoración justa, o datos insuficientes
+SELL: moat deteriorando O value trap O DCF downside >20% con red flags
+```
+
+#### Invariante ADR-009
+
+El system prompt incluye explícitamente: "Never generate numbers not present in the provided context." Si el LLM intenta inventar una cifra, la instrucción lo prohíbe. El VERDICT es una interpretación — nunca un número nuevo.
+
+---
+
+### Tarea 1c-T3: `critic_agent`
+
+#### El problema del sesgo de confirmación
+
+Si pedimos al value_expert que critique su propio análisis, tiende a minimizar los riesgos ("si bien existen riesgos, consideramos que..."). Es el problema de confirmation bias estructural en los LLMs cuando se les pide auto-crítica.
+
+La solución: el critic es un agente separado con instrucciones opuestas. Su única misión es encontrar fallos.
+
+#### Lo que el critic NO ve
+
+El critic recibe los datos crudos (financials, risk factors, valuation numbers) y el VERDICT del Expert — pero **no** recibe el razonamiento completo del Expert. Esto evita el efecto de anclaje: el critic no puede racionalizar su camino hacia la misma conclusión que el Expert si no conoce el argumento.
+
+#### Output del critic
+
+```json
+{
+  "weaknesses": ["debilidad específica 1", "debilidad específica 2", ...],
+  "contra_thesis": "El argumento más sólido para NO comprar.",
+  "pre_mortem_scenario": "En 3 años, el thesis falló porque..."
+}
+```
+
+Nota importante: el critic no emite un VERDICT alternativo. Su rol no es contradecir — es añadir perspectiva. Eduardo toma la decisión final viendo ambas caras.
+
+---
+
+### Tarea 1c-T4: `archiver_node`
+
+#### Dos formatos, dos propósitos
+
+**Markdown** (`data/reports/AAPL-2026-04-21.md`):
+- Legible por humanos, abre en cualquier editor
+- Contiene: header con VERDICT, tabla de valoración, sensitivity table, 9 secciones del Expert, bullets del Critic
+- En Phase 2 se indexará para RAG comparativo entre análisis
+
+**SQLite** (`data/analyses.db`, tabla `analyses`):
+- Una fila por análisis ejecutado
+- Campos: ticker, run_id, as_of_date, verdict, confidence, sizing_pct, dcf_upside, moat, report_path
+- Permite queries: "dame todos los BUY con ROIC > 20%"
+- En Phase 2 será la fuente del sistema de memoria
+
+#### El archiver devuelve `{}`
+
+Es el único nodo del grafo que devuelve un dict vacío. Su trabajo es un efecto secundario (I/O) — no produce ningún output que otros nodos necesiten consumir. LangGraph acepta `{}` como return válido de un nodo.
+
+---
+
+### Tarea 1c-T5: CLI `analyze` — el loop de checkpoints
+
+#### Por qué un loop y no un invoke() único
+
+Phase 1a usaba un único `graph.invoke()` porque el grafo era lineal. Con dos `interrupt()`, el patrón cambia:
+
+```python
+# Cada invoke() corre hasta el próximo interrupt() o hasta END
+graph.invoke({"ticker": ticker}, config=config)          # corre hasta checkpoint1
+graph.invoke(Command(resume={}), config=config)           # corre hasta checkpoint2
+graph.invoke(Command(resume=assumptions), config=config)  # corre hasta END
+```
+
+`Command(resume=value)` es el objeto de LangGraph para reanudar un grafo pausado. El mismo `config` (con el mismo `thread_id`) le dice al checkpointer en qué estado estaba.
+
+#### El diseño de la UX en cada checkpoint
+
+**Checkpoint 1** — el CLI muestra una tabla con los 4 specialists y sus resultados clave (moat, insider %, precio, FCF). Pide confirmación simple: "¿Continuar? [s/n]"
+
+**Checkpoint 2** — muestra FCF, market cap y ROIC disponibles como contexto, y pide los 4 assumptions del DCF con defaults interactivos:
+```
+WACC % [9.0]: _
+Terminal growth % [2.5]: _
+Projection years [10]: _
+Near-term FCF growth % [auto from history]: _
+```
+
+**Output final** — panel con VERDICT (verde/amarillo/rojo según BUY/HOLD/SELL), 9 secciones del Expert, bullets del Critic, ruta del markdown guardado.
+
+---
+
+### Phase 1c — Visión de conjunto final
+
+Con los 5 tasks completados, Phase 1 (a+b+c) está terminada:
+
+```
+src/due_diligence/
+├── tools/           edgar, tavily, polygon, finnhub
+├── agents/
+│   ├── supervisor, financials, management, filings, market, competitive
+│   ├── checkpoint (checkpoint1 + checkpoint2)
+│   ├── valuation, value_expert, critic, archiver
+└── graph/           state, graph (12 nodos)
+```
+
+Tests: 152 passing, 0 real API calls.
+
+Flujo completo:
+```
+START → supervisor → financials
+      → [management | filings | market | competitive]  ← paralelo via Send()
+      → checkpoint1 (HITL: review)
+      → checkpoint2 (HITL: DCF assumptions)
+      → valuation → value_expert → critic → archiver → END
+```
+
+Comando de producción: `uv run due-diligence analyze AAPL`
+
+Lo que Phase 2 añadirá: ChromaDB local con embeddings de los reports archivados, tool `retrieve_similar_analyses` para el value_expert, y news ingestion continuo para el market agent.
+
+---
+
+*Última actualización: 2026-04-21 — Phase 1c COMPLETA. 152 tests, verde. CLI con checkpoints interactivos.*
+
+---
+
+---
+
+### Issues descubiertos en el primer live run
+
+#### Issue 1: SqliteSaver corrompe los objetos Pydantic entre reanudaciones
+
+**Síntoma:** El CLI llegaba hasta checkpoint2, pero Phase 1c (valuation, value_expert, critic, archiver) nunca ejecutaba. El report quedaba vacío.
+
+**Causa raíz:** LangGraph serializa el estado del grafo con msgpack cuando usa `SqliteSaver`. Msgpack no conoce los tipos Pydantic del proyecto (`FinancialsReport`, `ManagementReport`, etc.). Al restaurar el estado entre los tres `invoke()` del CLI, los objetos Pydantic llegaban corruptos o como dicts — lo que hacía que los nodos de Phase 1c fallaran silenciosamente.
+
+**Por qué es un problema de Phase 1:** El CLI interactivo hace tres invocaciones separadas al grafo:
+```python
+graph.invoke({"ticker": ...})           # corre hasta checkpoint1
+graph.invoke(Command(resume={}))        # corre hasta checkpoint2
+graph.invoke(Command(resume=assumptions)) # corre hasta END
+```
+Entre cada invocación, LangGraph serializa el estado completo (con todos los objetos Pydantic) a SQLite y lo restaura en la siguiente llamada. Si la serialización falla, el estado llega roto.
+
+**Solución Phase 1:** Cambiar `SqliteSaver` → `MemorySaver` en el CLI. Estado en RAM durante el run — sin serialización/deserialización entre reanudaciones. Los tres `invoke()` comparten el mismo proceso Python, así que los objetos Pydantic no se tocan.
+
+```python
+# Antes (roto):
+conn = sqlite3.connect(db_path)
+checkpointer = SqliteSaver(conn)
+
+# Ahora (funciona):
+checkpointer = MemorySaver()
+```
+
+**Consecuencia asumida:** Si el usuario cierra el terminal a mitad del análisis, pierde el progreso. Aceptable para Phase 1 — el run completo dura ~2 minutos.
+
+**La persistencia real NO depende del checkpointer.** El `archiver_node` (que corre al final del grafo) escribe el report a `data/reports/<TICKER>-<DATE>.md` y una fila a `data/analyses.db`. El checkpointer es solo para los interrupts HITL durante el run — no para persistir el análisis entre sesiones.
+
+**Solución definitiva para Phase 5 (webapp):** Cuando el grafo corra en background y el usuario quiera reanudar tras cerrar el navegador, se necesita `SqliteSaver` con serialización correcta. La solución será implementar `__get_pydantic_core_schema__` en los modelos Pydantic para que msgpack pueda serializarlos, o usar `JsonPlusSerializer` correctamente. Se documentará en un ADR al arrancar Phase 5.
+
+---
+
+#### Issue 2: El log mostraba `model=claude-sonnet-4-5` al usar OpenAI
+
+**Síntoma:** Los logs mostraban `model=claude-sonnet-4-5 provider=openai` — un nombre de modelo Claude mientras se usaba OpenAI.
+
+**Causa:** `client.py` logueaba `settings.default_model` (un nombre Claude) antes de resolver al modelo OpenAI real.
+
+**Fix:** El cliente ahora resuelve el modelo OpenAI real antes de loguearlo:
+```python
+oai_model = model if not model.startswith("claude") else settings.openai_fallback_model
+log.info("llm_complete", provider="openai", model=oai_model)
+```
+
+---
+
+#### Issue 3: polygon.io → massive.com (renombrado)
+
+**Síntoma:** polygon.io redirige a massive.com. El OAuth de registro entraba en bucle.
+
+**Diagnóstico:** Polygon.io fue adquirida y renombrada a Massive. Solo el sitio web cambió — el API endpoint `https://api.polygon.io` sigue funcionando igual. El paquete `polygon-api-client` no requiere ningún cambio.
+
+**Para registrarse:** ir a massive.com, usar email/password (no OAuth). La API key obtenida funciona con el código existente sin modificaciones.
+
+---
+
+#### Issue 4 (causa raíz real): `Command(resume={})` con dict vacío no funciona en LangGraph
+
+**Síntoma:** Phase 1c nunca ejecutaba. `get_state().next` seguía siendo `('checkpoint1',)` después de `invoke(Command(resume={}))`.
+
+**Causa raíz:** En LangGraph, `Command(resume=valor)` requiere un valor **truthy**. El dict vacío `{}` es falsy en Python — LangGraph lo trata como "sin valor de resume" y no avanza el grafo. El checkpoint vuelve a interrumpir inmediatamente.
+
+**Cómo se encontró:** Añadiendo diagnóstico `get_state().next` después de cada invoke. Output revelador:
+```
+DEBUG after cp1 resume: next=('checkpoint1',)  ← el graph no avanzó
+DEBUG after cp2 resume: next=('checkpoint2',)  ← ídem
+```
+
+Después, tests de bisección aislaron que `Command(resume="proceed")` funcionaba pero `Command(resume={})` no.
+
+**Fix:**
+```python
+# Roto:
+graph.invoke(Command(resume={}), config=config)
+
+# Funciona:
+graph.invoke(Command(resume={"proceed": True}), config=config)
+```
+
+También actualizado en `checkpoint1_node`: el nodo ahora devuelve `{"proceed": True}` como fallback en lugar de `{}`.
+
+**Nota importante para futuro:** cualquier `Command(resume=valor)` en LangGraph debe usar un valor truthy. Evitar `{}`, `None`, `False`, `0` como valores de resume.
+
+---
+
+#### Issue 5: GPT-5.x usa `max_completion_tokens`, no `max_tokens`
+
+**Síntoma:** `BadRequestError: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.`
+
+**Causa:** OpenAI cambió el nombre del parámetro en los modelos GPT-5.x. Los modelos 4.x aceptan `max_tokens`; los 5.x requieren `max_completion_tokens`.
+
+**Fix:** En `client.py`, cambiar `max_tokens=max_tokens` por `max_completion_tokens=max_tokens`. El parámetro nuevo es compatible con todos los modelos OpenAI actuales.
+
+---
+
+#### Issue 6: `polygon-api-client` devuelve lista en `get_previous_close_agg`
+
+**Síntoma:** `warning: polygon_prev_close_failed error="'list' object has no attribute 'close'"`. El precio actual siempre era `None`.
+
+**Causa:** El SDK de Polygon cambió la API — `get_previous_close_agg()` ahora devuelve `[PreviousClose]` (lista) en lugar de `PreviousClose` (objeto único).
+
+**Fix:** Detección dinámica del tipo de retorno:
+```python
+prev_result = client.get_previous_close_agg(ticker, adjusted=True)
+prev = prev_result[0] if isinstance(prev_result, list) else prev_result
+price_current = prev.close
+```
+
+---
+
+*Última actualización: 2026-04-21 — Phase 1 COMPLETA (1a + 1b + 1c). Live run verificado con AAPL. 152 tests, verde.*

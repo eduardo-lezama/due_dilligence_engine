@@ -41,10 +41,12 @@ class Settings(BaseSettings):
     # --- Market Data APIs ---
     polygon_api_key: str = Field("", validation_alias="POLYGON_API_KEY")  # Datos de mercado
     finnhub_api_key: str = Field("", validation_alias="FINNHUB_API_KEY")  # Datos alternativos de mercado
+    tavily_api_key: str = Field("", validation_alias="TAVILY_API_KEY")    # Búsqueda web para agentes (ADR-012)
 
     # --- Model Configuration ---
-    default_model: str = Field("claude-sonnet-4-6", validation_alias="DEFAULT_MODEL")  # Modelo principal
-    openai_fallback_model: str = Field("gpt-4o-mini", validation_alias="OPENAI_FALLBACK_MODEL")  # Fallback si Claude falla
+    default_model: str = Field("claude-sonnet-4-6", validation_alias="DEFAULT_MODEL")  # Modelo principal (Claude)
+    openai_fallback_model: str = Field("gpt-4.1", validation_alias="OPENAI_FALLBACK_MODEL")  # Fallback general (management, filings, competitive)
+    openai_expert_model: str = Field("gpt-5.4-mini", validation_alias="OPENAI_EXPERT_MODEL")    # Modelo para value_expert y critic
 
     # --- Paths ---
     db_path: str = Field("data/analyses.db", validation_alias="DB_PATH")  # SQLite database

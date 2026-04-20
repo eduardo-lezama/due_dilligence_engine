@@ -18,6 +18,8 @@ Estos son principios arquitectónicos. Violarlos requiere discusión explícita 
 
 5. **Tools fallan loud** — nunca fallback silencioso de "tool roto" a "LLM inventa número". Error explícito + log + aborto de rama si la métrica es crítica.
 
+6. **Prompts de agentes alineados con el checklist canónico** — antes de escribir o modificar el prompt de cualquier agente especialista, leer la sección correspondiente de [`docs/checklist-value-investing.md`](docs/checklist-value-investing.md). Cada agente debe cubrir exactamente las preguntas de "su" sección (Management → §3, Filings → §1+§7, Competitive → §2, Valuation → §6, Value Expert → §8+§9). Un prompt que no cubre su sección equivale a un sistema que no hace lo que promete.
+
 ---
 
 ## Stack (Fase 0-1)
@@ -43,6 +45,16 @@ Reglas:
 - **Un hecho = un lugar**. Stack, invariantes y convenciones viven aquí. Decisiones viven en `docs/adr/`. Checklist de dominio en `docs/checklist-value-investing.md`. No duplicar.
 - Si detectas duplicación, señalarla y proponer consolidar.
 - Si detectas patrón repetible (p.ej. 2º especialista con estructura idéntica al 1º), proponer empaquetarlo como skill y anotarlo en `mce-evolution.md`.
+
+---
+
+## Context7 — documentación de librerías
+
+Antes de asumir cualquier API de librería desde memoria de entrenamiento, consultar Context7:
+1. Primero: servidor MCP hosteado `mcp__claude_ai_Context7__*` (resolve-library-id → query-docs)
+2. Fallback si cuota agotada: servidor `context7-personal`
+
+Aplicar siempre para: edgartools, LangGraph, Pydantic, Tavily, polygon-api-client, finnhub, typer, structlog, y cualquier librería con API que pueda haber cambiado desde el entrenamiento.
 
 ---
 

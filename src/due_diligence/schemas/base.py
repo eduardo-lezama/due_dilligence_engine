@@ -75,6 +75,13 @@ class FinancialsReport(BaseModel):
     # Share data
     shares_outstanding: MetricValue
 
+    # ROIC (Return on Invested Capital) — calculado de XBRL, no generado por LLM.
+    # NOPAT = OperatingIncome × (1 − effective_tax_rate); IC = Equity + Debt − Cash.
+    # La serie usa el IC del año más reciente para todos los años (aproximación — ver edgar.py).
+    roic_series: list[MetricValue] = Field(default_factory=list)  # ROIC como ratio (ej: 0.87 = 87%)
+    invested_capital: Optional[MetricValue] = None   # IC más reciente en USD
+    stockholders_equity: Optional[MetricValue] = None  # Book equity más reciente en USD
+
     # Meta
     source_filing: str  # Filing de origen (ej: "10-K FY2025")
     citations: list[Citation] = Field(default_factory=list)

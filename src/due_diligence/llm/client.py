@@ -77,17 +77,20 @@ class LLMClient:
             Texto de la respuesta del LLM
         """
         model = model or settings.default_model
-        # Si no hay API key de Anthropic configurada, ir directo a OpenAI
+        # Si no hay API key de Anthropic configurada, ir directo a OpenAI.
         if not settings.anthropic_api_key:
-            log.info("llm_complete", provider="openai", reason="no_anthropic_key")
-            return self._complete_openai(messages, system, max_tokens)
+            # Resolver el modelo OpenAI real antes de loguear para evitar
+            # confusión al ver "claude-*" en los logs siendo provider=openai.
+            oai_model = model if (model and not model.startswith("claude")) else settings.openai_fallback_model
+            log.info("llm_complete", provider="openai", reason="no_anthropic_key", model=oai_model)
+            return self._complete_openai(messages, system, max_tokens, model=oai_model)
         try:
             result = self._complete_anthropic(messages, model, system, max_tokens)
             log.debug("llm_complete", provider="anthropic", model=model)
             return result
         except Exception as e:
             log.warning("anthropic_failed_falling_back", error=str(e), model=model)
-            return self._complete_openai(messages, system, max_tokens)
+            return self._complete_openai(messages, system, max_tokens, model=model)
 
     def _complete_anthropic(
         self, messages: list[dict], model: str, system: Optional[str], max_tokens: int
@@ -101,18 +104,32 @@ class LLMClient:
         return response.content[0].text
 
     def _complete_openai(
-        self, messages: list[dict], system: Optional[str], max_tokens: int
+        self, messages: list[dict], system: Optional[str], max_tokens: int,
+        model: Optional[str] = None,
     ) -> str:
-        """Llamada a la API de OpenAI GPT-4 (fallback)."""
+        """
+        Llamada a la API de OpenAI.
+
+        model: si el caller pasa un modelo Claude (empieza por 'claude-'), se ignora
+               y se usa openai_fallback_model. Si pasa un modelo OpenAI explícito
+               (ej. 'gpt-5.4-mini'), se usa ese directamente.
+        """
         client = self._get_openai()
+        # Ignorar modelos Claude si llegan aquí por fallback
+        if model and not model.startswith("claude"):
+            resolved_model = model
+        else:
+            resolved_model = settings.openai_fallback_model
         oai_messages = []
         if system:
             oai_messages.append({"role": "system", "content": system})
         oai_messages.extend(messages)
+        # GPT-5.x usa max_completion_tokens en lugar de max_tokens.
+        # max_completion_tokens funciona en todos los modelos OpenAI actuales.
         response = client.chat.completions.create(
-            model=settings.openai_fallback_model,
+            model=resolved_model,
             messages=oai_messages,
-            max_tokens=max_tokens,
+            max_completion_tokens=max_tokens,
         )
         return response.choices[0].message.content
 

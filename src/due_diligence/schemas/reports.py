@@ -93,13 +93,16 @@ class ValuationReport(BaseModel):
     """Reporte de valuation (DCF, múltiplos, sensitivity)."""
     ticker: str
     stub: bool = True
-    dcf_intrinsic_value: Optional[MetricValue] = None  # Valor intrínseco DCF
+    dcf_intrinsic_value: Optional[MetricValue] = None  # Valor intrínseco DCF (equity value total)
+    dcf_upside_pct: Optional[float] = None             # (intrinsic - market_cap) / market_cap
     reverse_dcf_implied_growth: Optional[float] = None  # Growth implícito en precio actual
-    ev_ebitda_multiple: Optional[MetricValue] = None  # Múltiplo EV/EBITDA
-    pe_multiple: Optional[MetricValue] = None  # Múltiplo P/E
-    magic_formula_rank: Optional[int] = None  # Rank según Magic Formula
-    sensitivity_table: list[dict] = Field(default_factory=list)  # Tabla de sensibilidad
-    assumptions: Optional[ValuationInput] = None  # Assumptions usadas
+    ev_ebit_multiple: Optional[MetricValue] = None      # EV/EBIT (Greenblatt — EBITDA no disponible en XBRL básico)
+    ev_fcf_multiple: Optional[MetricValue] = None       # EV/FCF (Owner earnings proxy)
+    pe_multiple: Optional[MetricValue] = None           # P/E (market_cap / net_income)
+    earnings_yield_pct: Optional[float] = None          # EBIT/EV × 100 — componente Magic Formula
+    magic_formula_rank: Optional[int] = None            # Rank según Magic Formula (requiere peer list — None en Phase 1)
+    sensitivity_table: list[dict] = Field(default_factory=list)  # Tabla de sensibilidad WACC × growth
+    assumptions: Optional[ValuationInput] = None        # Assumptions usadas en el DCF
 
 
 class ValueExpertReport(BaseModel):

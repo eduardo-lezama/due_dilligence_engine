@@ -32,8 +32,8 @@ def test_parse_financials_revenue_values(aapl_raw):
 
     report = EdgarAdapter.parse_financials(aapl_raw)
     assert len(report.revenue) >= 2
-    assert report.revenue[0].value == pytest.approx(391_035_000_000)
-    assert report.revenue[0].period == "FY2024"
+    assert report.revenue[0].value == pytest.approx(416_161_000_000)
+    assert report.revenue[0].period == "FY2025"
     assert report.revenue[0].source == "XBRL"
 
 
@@ -41,7 +41,7 @@ def test_parse_financials_free_cash_flow_is_computed(aapl_raw):
     from due_diligence.tools.edgar import EdgarAdapter
 
     report = EdgarAdapter.parse_financials(aapl_raw)
-    expected_fcf = 118_254_000_000 - 9_447_000_000
+    expected_fcf = 111_482_000_000 - 12_715_000_000  # OCF - capex FY2025
     assert report.free_cash_flow[0].value == pytest.approx(expected_fcf)
     assert report.free_cash_flow[0].source == "calculated"
 
@@ -50,7 +50,7 @@ def test_parse_financials_total_debt_is_sum_of_lt_and_st(aapl_raw):
     from due_diligence.tools.edgar import EdgarAdapter
 
     report = EdgarAdapter.parse_financials(aapl_raw)
-    expected_debt = 85_750_000_000 + 10_912_000_000
+    expected_debt = 90_678_000_000 + 0  # LT debt FY2025, no ST borrowings
     assert report.total_debt.value == pytest.approx(expected_debt)
 
 
@@ -58,7 +58,7 @@ def test_parse_financials_cash_includes_short_term_investments(aapl_raw):
     from due_diligence.tools.edgar import EdgarAdapter
 
     report = EdgarAdapter.parse_financials(aapl_raw)
-    expected_cash = 29_943_000_000 + 35_228_000_000
+    expected_cash = 35_934_000_000 + 0  # Cash FY2025, STI=0 in this filing
     assert report.cash_and_equivalents.value == pytest.approx(expected_cash)
 
 
@@ -66,4 +66,30 @@ def test_parse_financials_source_filing(aapl_raw):
     from due_diligence.tools.edgar import EdgarAdapter
 
     report = EdgarAdapter.parse_financials(aapl_raw)
-    assert report.source_filing == "10-K FY2024"
+    assert report.source_filing == "10-K FY2025"
+
+
+def test_parse_financials_roic_series(aapl_raw):
+    """ROIC calculado correctamente desde income statement + balance sheet."""
+    from due_diligence.tools.edgar import EdgarAdapter
+
+    report = EdgarAdapter.parse_financials(aapl_raw)
+
+    assert len(report.roic_series) >= 1
+    assert report.roic_series[0].unit == "ratio"
+    assert report.roic_series[0].period == "FY2025"
+    # FY2025: tax_rate = 20719/132729 ≈ 15.6%, NOPAT = 133050×0.844 ≈ 112245M
+    # IC = 73733 + 90678 - 35934 ≈ 128477M → ROIC ≈ 0.874
+    assert report.roic_series[0].value == pytest.approx(0.874, abs=0.01)
+
+
+def test_parse_financials_invested_capital(aapl_raw):
+    """Invested Capital = Equity + Debt - Cash."""
+    from due_diligence.tools.edgar import EdgarAdapter
+
+    report = EdgarAdapter.parse_financials(aapl_raw)
+
+    assert report.invested_capital is not None
+    expected_ic = 73_733_000_000 + 90_678_000_000 - 35_934_000_000
+    assert report.invested_capital.value == pytest.approx(expected_ic)
+    assert report.stockholders_equity.value == pytest.approx(73_733_000_000)

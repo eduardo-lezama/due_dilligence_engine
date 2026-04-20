@@ -26,6 +26,7 @@ Cada ADR sigue: Status · Context · Decision · Consequences · Alternatives.
 | [009](ADR-009-verdict-plus-analysis.md) | Value Expert: análisis estructurado + veredicto | Accepted | 1 |
 | [010](ADR-010-nas-deploy-target.md) | Deploy target NAS QNAP TS264 | Accepted | 5 |
 | [011](ADR-011-us-data-sources.md) | Fuentes de datos US Fase 1 | Accepted | 1, 3 |
+| [012](ADR-012-management-agent-data-sources.md) | Fuentes de datos Management Agent (EDGAR trifecta + Tavily) | Accepted | 1b+ |
 
 ## Cómo añadir un ADR
 1. Crear `ADR-NNN-slug.md` incrementando N.

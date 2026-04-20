@@ -10,6 +10,7 @@ dependencies = [
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
     "edgartools>=2.0.0",
+    "tavily-python>=0.3.0",
     "polygon-api-client>=1.0.0",
     "finnhub-python>=2.0.0",
     "typer[all]>=0.12.0",

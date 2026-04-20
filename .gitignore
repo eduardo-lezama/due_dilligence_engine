@@ -11,3 +11,5 @@ build/
 *.egg-info/
 .mypy_cache/
 .ruff_cache/
+.claude/settings.json
+.claude/settings.local.json

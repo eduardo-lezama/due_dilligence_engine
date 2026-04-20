@@ -69,15 +69,21 @@ def test_graph_1a_end_to_end(mocker):
 
     # Verificar que el Financials specialist escribió un report válido con datos reales
     assert isinstance(result["financials"], FinancialsReport)
-    assert result["financials"].revenue[0].value == pytest.approx(391_035_000_000)
+    assert result["financials"].revenue[0].value == pytest.approx(416_161_000_000)
 
 
-def test_graph_1a_state_has_no_stub_fields_for_later_agents(mocker):
-    """mgmt, filings, market, competitive no existen en el estado — se añaden en Phase 1b."""
+def test_graph_1b_state_has_specialist_fields(mocker):
+    """
+    Con Phase 1b cableada, el estado contiene los 4 reports de los especialistas.
+
+    Este test reemplaza el test de Phase 1a que verificaba que esos campos NO existían.
+    Ahora que el fan-out está implementado, verificamos que SÍ se populan.
+    Los agentes externos están mockeados — zero llamadas a EDGAR.
+    """
     mock_company = mocker.MagicMock()
     mock_company.cik = 320193
     mock_latest = mocker.MagicMock()
-    mock_latest.period_of_report = "2024-09-28"
+    mock_latest.period_of_report = "2025-09-27"
     mock_company.get_filings.return_value.latest.return_value = mock_latest
     mocker.patch("due_diligence.agents.supervisor.Company", return_value=mock_company)
     mocker.patch(
@@ -85,15 +91,43 @@ def test_graph_1a_state_has_no_stub_fields_for_later_agents(mocker):
         return_value=FIXTURE,
     )
 
+    # Mock los 4 especialistas para que el fan-out complete
+    mocker.patch("due_diligence.agents.management.EdgarManagementAdapter.fetch_def14a_text", return_value="")
+    mocker.patch("due_diligence.agents.management.EdgarManagementAdapter.fetch_form4_transactions", return_value=[])
+    mocker.patch("due_diligence.agents.management.EdgarManagementAdapter.fetch_10k_item10", return_value="")
+    mocker.patch("due_diligence.agents.management.TavilyAdapter.search", return_value=[])
+    mock_mgmt = mocker.MagicMock()
+    mock_mgmt.complete.return_value = '{"compensation_structure_notes":"N/A","capital_allocation_summary":"N/A","citations":[]}'
+    mocker.patch("due_diligence.agents.management.get_client", return_value=mock_mgmt)
+
+    mocker.patch("due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_business", return_value="")
+    mocker.patch("due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_risk_factors", return_value="")
+    mocker.patch("due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_mda", return_value="")
+    mock_filings = mocker.MagicMock()
+    mock_filings.complete.return_value = '{"citations":[]}'
+    mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_filings)
+
+    mocker.patch("due_diligence.agents.market.PolygonAdapter.fetch_market_data",
+                 return_value={"price_current": None, "price_52w_high": None, "price_52w_low": None,
+                               "market_cap": None, "company_name": None, "as_of_date": None})
+    mocker.patch("due_diligence.agents.market.FinnhubAdapter.fetch_company_news", return_value=[])
+
+    mocker.patch("due_diligence.agents.competitive.TavilyAdapter.search", return_value=[])
+    mock_comp = mocker.MagicMock()
+    mock_comp.complete.return_value = '{"moat_classification":"none","moat_sources":[],"citations":[]}'
+    mocker.patch("due_diligence.agents.competitive.get_client", return_value=mock_comp)
+
     from langgraph.checkpoint.memory import MemorySaver
     from due_diligence.graph.graph import build_graph
 
-    graph = build_graph(checkpointer=MemorySaver())
-    config = {"configurable": {"thread_id": "test-run-1a-b"}}
-    result = graph.invoke({"ticker": "AAPL"}, config=config)
+    checkpointer = MemorySaver()
+    graph = build_graph(checkpointer=checkpointer)
+    config = {"configurable": {"thread_id": "test-run-1b-fields"}}
+    graph.invoke({"ticker": "AAPL"}, config=config)
 
-    # NotRequired: estos campos no deben existir hasta que los agentes de Phase 1b corran
-    assert "mgmt" not in result
-    assert "filings" not in result
-    assert "market" not in result
-    assert "competitive" not in result
+    # Inspeccionar el estado pausado en checkpoint1
+    state = graph.get_state(config).values
+    assert "mgmt" in state
+    assert "filings" in state
+    assert "market" in state
+    assert "competitive" in state

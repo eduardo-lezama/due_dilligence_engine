@@ -207,12 +207,13 @@ def _format_context(state: AnalysisState) -> str:
         lines.append("")
 
     # --- Historical CAGR anchor (ADR-019) ---
-    # Inyectado DESPUÉS de la sección de Valuation para que el LLM lo encuentre
-    # inmediatamente disponible al redactar §6.
-    cagr = state.get("historical_cagr_5y")  # type: ignore[typeddict-item]
+    # Inyectado DESPUÉS de la sección de Valuation. Usa el span real de años
+    # (no siempre 5y — FSLR con 4 periodos XBRL tiene un CAGR de 3 años).
+    cagr = state.get("historical_cagr_5y")        # type: ignore[typeddict-item]
+    cagr_years = state.get("historical_cagr_years", 5)  # type: ignore[typeddict-item]
     if cagr is not None:
         lines.append("## HISTORICAL CONTEXT (for §6 Valuation)")
-        lines.append(f"Revenue 5y CAGR (from XBRL): {cagr:.1%}")
+        lines.append(f"Revenue {cagr_years}y CAGR (from XBRL, last {cagr_years} fiscal years): {cagr:.1%}")
         lines.append(
             "Compare this to the reverse-DCF implied growth above. "
             "If implied growth > CAGR, the market is pricing acceleration. "

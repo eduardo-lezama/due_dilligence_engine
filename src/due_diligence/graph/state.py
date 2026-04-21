@@ -73,10 +73,11 @@ class AnalysisState(TypedDict):
     peer_financials: NotRequired[list[FinancialsReport]]
 
     # --- Historical context Phase 2 (ADR-019) ---
-    # CAGR de revenue a 5 años calculado por financials_node desde XBRL.
-    # Viaja al Value Expert para anclar §6 Valuation: contrasta implied growth
-    # del reverse DCF contra la tasa histórica real de crecimiento de ingresos.
-    historical_cagr_5y: NotRequired[float]
+    # CAGR de revenue calculado por financials_node desde XBRL.
+    # historical_cagr_years indica el span real (puede ser 3 si solo hay 4 periodos).
+    # Viaja al Value Expert para anclar §6 Valuation vs implied growth del reverse DCF.
+    historical_cagr_5y: NotRequired[float]    # el valor del CAGR (nombre legacy, no siempre 5y)
+    historical_cagr_years: NotRequired[int]   # span real en años (1-5)
 
     # --- HITL: inputs del usuario en los checkpoints (Phase 1b) ---
     # dict en lugar de Pydantic para evitar dependency circular en state.py;

@@ -228,11 +228,13 @@ def test_system_prompt_v2_requires_thesis_breaker():
 
 
 def test_format_context_injects_historical_cagr():
-    """Con historical_cagr_5y en el state, _format_context lo incluye en el contexto."""
+    """Con historical_cagr_5y + historical_cagr_years, _format_context usa el span real."""
     from due_diligence.agents.value_expert import _format_context
-    context = _format_context({"ticker": "AAPL", "historical_cagr_5y": 0.074})
-    assert "7.4%" in context or "0.074" in context
-    assert "CAGR" in context or "Historical" in context or "historical" in context
+    # Con 4 años reales (FSLR-like)
+    context = _format_context({"ticker": "FSLR", "historical_cagr_5y": 0.258, "historical_cagr_years": 3})
+    assert "25.8%" in context
+    assert "3y" in context  # debe decir "3y", no "5y"
+    assert "CAGR" in context
 
 
 def test_format_context_omits_cagr_block_when_absent():

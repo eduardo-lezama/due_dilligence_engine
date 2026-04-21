@@ -45,35 +45,76 @@ The pipeline:
 
 ## Architecture
 
-```
-                     ┌──────────────────────────┐
-                     │       SUPERVISOR          │
-                     └──────────────┬────────────┘
-                                    │ Send() fan-out
-     ┌─────────────┬───────────┬────┴─────┬──────────────┐
-     ▼             ▼           ▼          ▼              ▼
- Financials    Management   Filings    Market &     Competitive
-  (XBRL)      (Form4/DEF14A) (10-K RAG)  News       & Moat
-     └─────────────┴───────────┴──────────┴──────────────┘
-                                    │ join
-                          ┌─────────▼──────────┐
-                          │   CHECKPOINT 1     │  ← HITL
-                          └─────────┬──────────┘
-                          ┌─────────▼──────────┐
-                          │    VALUATION        │  (tool-lane only)
-                          └─────────┬──────────┘
-                          ┌─────────▼──────────┐
-                          │   CHECKPOINT 2     │  ← HITL
-                          └─────────┬──────────┘
-                          ┌─────────▼──────────┐
-                          │   VALUE EXPERT      │  (synthesis + verdict)
-                          └─────────┬──────────┘
-                          ┌─────────▼──────────┐
-                          │      CRITIC         │  (pre-mortem)
-                          └─────────┬──────────┘
-                          ┌─────────▼──────────┐
-                          │     ARCHIVER        │  → report.md + SQLite
-                          └────────────────────┘
+```mermaid
+flowchart TD
+    CLI(["`**CLI**
+    due-diligence analyze TICKER`"]) --> SUP
+
+    SUP["`**Supervisor**
+    ticker → CIK · routing`"]
+
+    SUP -->|Send fan-out| FIN
+    SUP -->|Send fan-out| MGT
+    SUP -->|Send fan-out| FIL
+    SUP -->|Send fan-out| MKT
+    SUP -->|Send fan-out| CMP
+
+    FIN["`**Financials**
+    EDGAR XBRL · ROIC · FCF
+    _tool-lane_`"]
+    MGT["`**Management**
+    DEF14A · Form4 · Tavily
+    _tool + LLM_`"]
+    FIL["`**Filings RAG**
+    10-K §1/§1A/§7
+    _LLM + citations_`"]
+    MKT["`**Market & News**
+    Polygon · Finnhub
+    _tool-lane_`"]
+    CMP["`**Competitive & Moat**
+    ROIC series · Tavily
+    _LLM + citations_`"]
+
+    FIN & MGT & FIL & MKT & CMP --> CP1
+
+    CP1{"`**Checkpoint 1**
+    moat + management review
+    ← HITL interrupt`"}
+
+    CP1 --> VAL
+
+    VAL["`**Valuation**
+    DCF · reverse DCF · multiples
+    sensitivity table · _tool-lane_`"]
+
+    VAL --> CP2
+
+    CP2{"`**Checkpoint 2**
+    WACC · growth · years
+    ← HITL interrupt`"}
+
+    CP2 --> EXP
+
+    EXP["`**Value Expert**
+    9-section synthesis
+    BUY / HOLD / SELL + sizing`"]
+
+    EXP --> CRT
+
+    CRT["`**Critic**
+    contra-thesis · pre-mortem
+    _independent model_`"]
+
+    CRT --> ARC
+
+    ARC["`**Archiver**
+    report.md · SQLite row`"]
+
+    style CP1 fill:#f5a623,color:#000
+    style CP2 fill:#f5a623,color:#000
+    style EXP fill:#4a90d9,color:#fff
+    style CRT fill:#e74c3c,color:#fff
+    style ARC fill:#27ae60,color:#fff
 ```
 
 ---

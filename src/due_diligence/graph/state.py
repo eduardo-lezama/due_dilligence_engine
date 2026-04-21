@@ -72,6 +72,12 @@ class AnalysisState(TypedDict):
     peers: NotRequired[list[str]]
     peer_financials: NotRequired[list[FinancialsReport]]
 
+    # --- Historical context Phase 2 (ADR-019) ---
+    # CAGR de revenue a 5 años calculado por financials_node desde XBRL.
+    # Viaja al Value Expert para anclar §6 Valuation: contrasta implied growth
+    # del reverse DCF contra la tasa histórica real de crecimiento de ingresos.
+    historical_cagr_5y: NotRequired[float]
+
     # --- HITL: inputs del usuario en los checkpoints (Phase 1b) ---
     # dict en lugar de Pydantic para evitar dependency circular en state.py;
     # el nodo que los consume hace CheckpointInput(**state["checkpoint1_user_input"])

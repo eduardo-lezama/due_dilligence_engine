@@ -1720,3 +1720,51 @@ archiver_node → ## Material Events (8-K, last 12 months)
 - `src/due_diligence/agents/market.py`: llama a `fetch_8k_events`, popula campo.
 - `src/due_diligence/agents/archiver.py`: tabla de eventos o mensaje explícito "no events".
 - `tests/test_edgar_events.py`: 4 tests — filtrado por item, sin coincidencias, múltiples items, fallo de filing individual.
+
+---
+
+### Task 6: Value Expert prompt v2 + historical 5y revenue CAGR (ADR-019)
+
+#### El problema que resuelve
+
+Los reportes de Phase 1 mostraban el Expert **parafraseando** los reports de especialistas en lugar de integrarlos. El §6 Valuation decía "DCF muestra 28% upside" sin contrastar contra el CAGR histórico ni el implied growth. El §9 terminaba con "monitor execution" — un placeholder, no un thesis-breaker.
+
+El problema era del prompt: "rellena 9 secciones" incentiva summary-por-sección, no síntesis cross-secciones.
+
+#### Los dos cambios que trabajan juntos
+
+**1. CAGR histórico de revenue (en `financials.py`)**
+
+`_compute_revenue_cagr_5y(revenue_series)` calcula el CAGR a 5 años desde la serie XBRL:
+- Índice 0 = más reciente, índice 4 = más antiguo (máximo 4 intervalos = 5 periodos)
+- Fallback al span disponible si hay < 5 periodos
+- Retorna `None` si < 2 puntos o valor más antiguo ≤ 0
+
+`financials_node` escribe `historical_cagr_5y` en el state junto con `financials`.
+
+**2. Prompt v2 (en `value_expert.py`)**
+
+La declaración de intent cambia de "synthesize" a "INTEGRATE and ADJUDICATE":
+
+```
+Your task is NOT to summarize — it is to INTEGRATE and ADJUDICATE conflicting signals.
+```
+
+Tres reglas duras nuevas:
+- **Regla 2**: nombrar ≥2 señales conflictivas y adjudicarlas con razonamiento.
+- **Regla 3**: §6 DEBE contrastar implied growth vs CAGR histórico.
+- **Regla 4**: §9 DEBE nombrar un thesis-breaker como condición observable concreta.
+
+**El CAGR viaja al Expert** vía `_format_context` como un bloque `## HISTORICAL CONTEXT` inmediatamente después del bloque de Valuation. Los eventos 8-K del MarketReport también se inyectan en el contexto para que §7 Risks pueda incluir restatements (Item 4.02).
+
+#### Por qué el schema no cambia
+
+`ValueExpertReport` sigue teniendo los mismos 9 keys + VERDICT. Cambiar el schema requeriría actualizar el archiver, SQLite, y el Critic. El prompt v2 produce mejor razonamiento sin tocar el contrato de datos downstream.
+
+#### Archivos modificados
+
+- `src/due_diligence/agents/financials.py`: `_compute_revenue_cagr_5y` + escribe `historical_cagr_5y` al state.
+- `src/due_diligence/graph/state.py`: `historical_cagr_5y: NotRequired[float]`.
+- `src/due_diligence/agents/value_expert.py`: `_SYSTEM_PROMPT` reescrito (prompt v2) + CAGR y 8-K events en `_format_context`.
+- `tests/test_financials_agent.py`: 5 tests nuevos (CAGR helper + state output).
+- `tests/test_value_expert.py`: 7 tests nuevos (prompt v2 + context injection).

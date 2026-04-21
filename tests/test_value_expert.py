@@ -197,3 +197,67 @@ def test_format_context_handles_missing_reports():
     """Con solo ticker no falla — devuelve contexto mínimo."""
     context = _format_context({"ticker": "AAPL"})
     assert "AAPL" in context
+
+
+# ---------------------------------------------------------------------------
+# Tests: Value Expert prompt v2 (ADR-019)
+# ---------------------------------------------------------------------------
+
+def test_system_prompt_v2_declares_integration_intent():
+    """El prompt v2 debe declarar explícitamente que la tarea es INTEGRAR, no resumir."""
+    from due_diligence.agents.value_expert import _SYSTEM_PROMPT
+    assert "integrate" in _SYSTEM_PROMPT.lower() or "adjudic" in _SYSTEM_PROMPT.lower()
+
+
+def test_system_prompt_v2_requires_conflicting_signals():
+    """El prompt v2 debe exigir nombrar señales conflictivas."""
+    from due_diligence.agents.value_expert import _SYSTEM_PROMPT
+    assert "conflicting" in _SYSTEM_PROMPT.lower() or "conflict" in _SYSTEM_PROMPT.lower()
+
+
+def test_system_prompt_v2_requires_cagr_contrast():
+    """§6 Valuation debe contrastar implied growth vs CAGR histórico."""
+    from due_diligence.agents.value_expert import _SYSTEM_PROMPT
+    assert "cagr" in _SYSTEM_PROMPT.lower() or "historical" in _SYSTEM_PROMPT.lower()
+
+
+def test_system_prompt_v2_requires_thesis_breaker():
+    """§9 Decision Frame debe incluir thesis-breaker concreto y observable."""
+    from due_diligence.agents.value_expert import _SYSTEM_PROMPT
+    assert "thesis" in _SYSTEM_PROMPT.lower() and "break" in _SYSTEM_PROMPT.lower()
+
+
+def test_format_context_injects_historical_cagr():
+    """Con historical_cagr_5y en el state, _format_context lo incluye en el contexto."""
+    from due_diligence.agents.value_expert import _format_context
+    context = _format_context({"ticker": "AAPL", "historical_cagr_5y": 0.074})
+    assert "7.4%" in context or "0.074" in context
+    assert "CAGR" in context or "Historical" in context or "historical" in context
+
+
+def test_format_context_omits_cagr_block_when_absent():
+    """Sin historical_cagr_5y en el state, el bloque CAGR no aparece."""
+    from due_diligence.agents.value_expert import _format_context
+    context = _format_context({"ticker": "AAPL"})
+    assert "CAGR" not in context or "Revenue" not in context  # no bloque historical context
+
+
+def test_format_context_includes_material_events():
+    """Con eventos 8-K en market report, aparecen en el contexto del Expert."""
+    from due_diligence.agents.value_expert import _format_context
+    from due_diligence.schemas.reports import MarketReport
+    state = {
+        "ticker": "AAPL",
+        "market": MarketReport(
+            ticker="AAPL",
+            stub=False,
+            material_events=[{
+                "filing_date": "2025-10-15",
+                "item_numbers": ["4.02"],
+                "summary_text": "Restatement of Q2 results.",
+                "filing_url": "https://sec.gov/8k",
+            }],
+        ),
+    }
+    context = _format_context(state)
+    assert "4.02" in context or "Restatement" in context or "material" in context.lower()

@@ -54,36 +54,37 @@ log = structlog.get_logger()
 
 _SYSTEM_PROMPT = """You are an elite value investing analyst in the tradition of Buffett, Munger, Fisher, and Greenblatt.
 
-Your task: synthesize the specialist reports into a complete 9-section investment analysis and issue a final VERDICT.
+Your task is NOT to summarize the specialist reports — it is to INTEGRATE and ADJUDICATE conflicting signals across them, then issue a VERDICT.
 
 RULES — NON-NEGOTIABLE:
 1. Every numerical claim must come VERBATIM from the provided reports. Never generate, estimate, or interpolate numbers.
-2. If a section lacks sufficient data, say so explicitly rather than speculating.
-3. The VERDICT must be one of: "BUY", "HOLD", or "SELL". No other values.
-4. Confidence (0.0–1.0) reflects how much evidence supports the verdict, not how good the company is.
-5. suggested_sizing_pct is your recommended position size as % of a concentrated 10-position portfolio (max 20% per position).
-6. Return ONLY valid JSON. No markdown fences, no preamble, no commentary outside the JSON.
+2. You MUST name at least 2 conflicting signals across the specialist reports and explain how you adjudicate them. Example: "moat classified 'narrow' but ROIC=25% — I adjudicate as narrow because margin compression in MD&A overrides the trailing ROIC."
+3. §6 Valuation MUST explicitly contrast the reverse-DCF implied growth against the historical 5y revenue CAGR (provided in context as HISTORICAL CONTEXT). State whether the market is pricing in expansion, contraction, or continuation vs the historical rate.
+4. §9 Decision Frame MUST name the thesis-breaker as a concrete, observable condition. Example: "thesis breaks if gross margin prints below 35% for two consecutive quarters." Vague phrases like "monitor execution" are not acceptable.
+5. §7 Risks MUST incorporate any 8-K material events from context (especially Item 4.02 restatements), not only 10-K Item 1A.
+6. If a section lacks sufficient data, say so explicitly rather than speculating.
+7. Return ONLY valid JSON. No markdown fences, no preamble, no commentary outside the JSON.
 
 VERDICT RUBRIC:
-- BUY: clear moat + quality management + DCF upside >20% + no material red flags
-- HOLD: mixed signals, fair value, or insufficient data for conviction
-- SELL: deteriorating moat OR value trap OR DCF downside >20% with red flags
+- BUY: moat confirmed + quality management + DCF upside >20% + no material 8-K red flags + conflicting signals resolved in favor of the bull case.
+- HOLD: conflicting signals unresolved, fair value, or data insufficient for conviction.
+- SELL: deteriorating moat OR value trap OR DCF downside >20% with red flags OR recent Item 4.02 restatement.
 
 OUTPUT SCHEMA:
 {
   "business_understanding": "<§1: 3-4 sentences. What does it do, how does it make money, circle of competence>",
-  "moat_analysis": "<§2: 3-4 sentences. Moat type, ROIC evidence, widening or eroding>",
-  "management_assessment": "<§3: 3-4 sentences. Ownership, compensation alignment, capital allocation track record>",
-  "financial_quality": "<§4: 3-4 sentences. FCF conversion, balance sheet, margin trends, earnings quality>",
-  "growth_reinvestment": "<§5: 2-3 sentences. Reinvestment rate, incremental ROIC, runway>",
-  "valuation_section": "<§6: 3-4 sentences. DCF upside/downside, reverse DCF implied growth, multiples vs history>",
-  "risks": "<§7: 3-4 sentences. Top 3 risks from filings + market news>",
-  "psychological_lens": "<§8: 2-3 sentences. Why might this be mispriced? Contrarian thesis or consensus trap?>",
-  "decision_frame": "<§9: 2-3 sentences. How does this fit a concentrated value portfolio? Sizing rationale>",
+  "moat_analysis": "<§2: integrate ROIC evidence with qualitative moat classification. If they conflict, adjudicate explicitly with reasoning.>",
+  "management_assessment": "<§3: skin in the game (insider %) + capital allocation track record + earnings call Q&A tone if available. Quote one verbatim phrase from transcripts if available.>",
+  "financial_quality": "<§4: FCF conversion, balance sheet, margin trends, earnings quality>",
+  "growth_reinvestment": "<§5: reinvestment rate, incremental ROIC, runway>",
+  "valuation_section": "<§6: MUST contrast reverse-DCF implied growth vs historical 5y revenue CAGR. State the spread and what it implies about market expectations.>",
+  "risks": "<§7: include any 8-K material events (especially Item 4.02) PLUS top risks from 10-K Item 1A>",
+  "psychological_lens": "<§8: why might this be mispriced? Contrarian thesis or consensus trap?>",
+  "decision_frame": "<§9: MUST state the thesis-breaker as a concrete observable condition. No vague placeholders.>",
   "verdict": "BUY" | "HOLD" | "SELL",
   "verdict_confidence": <0.0 to 1.0>,
   "suggested_sizing_pct": <0.0 to 20.0>,
-  "verdict_rationale": "<2-3 sentences explaining WHY this verdict. Reference specific numbers from the valuation section (DCF upside, multiples, ROIC) and the key qualitative factor that tips the decision. This is the executive summary a busy investor reads first.>"
+  "verdict_rationale": "<2-3 sentences: WHY this verdict. Reference specific numbers and name the key adjudicated conflict that drove the decision.>"
 }"""
 
 
@@ -162,6 +163,12 @@ def _format_context(state: AnalysisState) -> str:
             )
         if market.recent_news_summary:
             lines.append(f"Recent news: {market.recent_news_summary}")
+        # 8-K material events para §7 Risks (ADR-017 + ADR-019)
+        if market.material_events:
+            lines.append("Material 8-K events:")
+            for e in market.material_events:
+                items_str = ", ".join(e.get("item_numbers", []))
+                lines.append(f"  [{e.get('filing_date', '?')}] Items {items_str}: {e.get('summary_text', '')[:200]}")
         lines.append("")
 
     # --- Competitive ---
@@ -197,6 +204,20 @@ def _format_context(state: AnalysisState) -> str:
                 f"DCF assumptions: WACC={a.wacc_pct}%, terminal_growth={a.terminal_growth_pct}%, "
                 f"years={a.projection_years}"
             )
+        lines.append("")
+
+    # --- Historical CAGR anchor (ADR-019) ---
+    # Inyectado DESPUÉS de la sección de Valuation para que el LLM lo encuentre
+    # inmediatamente disponible al redactar §6.
+    cagr = state.get("historical_cagr_5y")  # type: ignore[typeddict-item]
+    if cagr is not None:
+        lines.append("## HISTORICAL CONTEXT (for §6 Valuation)")
+        lines.append(f"Revenue 5y CAGR (from XBRL): {cagr:.1%}")
+        lines.append(
+            "Compare this to the reverse-DCF implied growth above. "
+            "If implied growth > CAGR, the market is pricing acceleration. "
+            "If implied growth < CAGR, the market is pricing deceleration."
+        )
         lines.append("")
 
     return "\n".join(lines)

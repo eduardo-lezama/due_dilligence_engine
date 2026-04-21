@@ -87,6 +87,77 @@ class FinnhubAdapter:
         log.info("finnhub_news_complete", ticker=ticker, articles=len(articles))
         return articles
 
+    @staticmethod
+    def fetch_transcripts(ticker: str, quarters: int = 4) -> list[dict[str, Any]]:
+        """
+        Obtiene los últimos `quarters` earnings call transcripts de Finnhub (ADR-016).
+
+        Cada item devuelto contiene:
+            id, year, quarter, date, prepared_remarks (str), qa (str)
+
+        Los turnos de prepared_remarks y Q&A se separan detectando el marcador
+        "Q&A" en los primeros 80 caracteres del turno — heurístico suficiente para
+        la mayoría de transcripts de Finnhub.
+
+        Devuelve [] si FINNHUB_API_KEY no está configurada o hay error de red.
+        """
+        if not settings.finnhub_api_key:
+            log.warning("finnhub_transcripts_skipped", reason="FINNHUB_API_KEY not configured")
+            return []
+
+        import finnhub  # type: ignore[import]
+
+        client = finnhub.Client(api_key=settings.finnhub_api_key)
+
+        try:
+            listing = client.transcripts_list(ticker) or {}
+        except Exception as e:
+            log.warning("finnhub_transcripts_list_failed", ticker=ticker, error=str(e))
+            return []
+
+        # Ordenar por (year, quarter) descendente y tomar los N más recientes
+        items = sorted(
+            listing.get("transcripts", []),
+            key=lambda x: (x.get("year", 0), x.get("quarter", 0)),
+            reverse=True,
+        )[:quarters]
+
+        results: list[dict[str, Any]] = []
+        for item in items:
+            tid = item.get("id")
+            if not tid:
+                continue
+            try:
+                full = client.transcripts(tid) or {}
+            except Exception as e:
+                log.warning("finnhub_transcript_fetch_failed", id=tid, error=str(e))
+                continue
+
+            # Separar prepared_remarks de Q&A por presencia del marcador en el turno
+            prepared: list[str] = []
+            qa: list[str] = []
+            in_qa = False
+            for turn in full.get("transcript", []):
+                text = " ".join(turn.get("speech", []))
+                # Heurístico: si el turno empieza con "Q&A" o contiene el término es transición
+                snippet = text[:80].lower()
+                if not in_qa and ("q&a" in snippet or "question-and-answer" in snippet):
+                    in_qa = True
+                bucket = qa if in_qa else prepared
+                bucket.append(f"{turn.get('speaker', '?')}: {text}")
+
+            results.append({
+                "id": tid,
+                "year": item.get("year"),
+                "quarter": item.get("quarter"),
+                "date": item.get("time"),
+                "prepared_remarks": "\n".join(prepared),
+                "qa": "\n".join(qa),
+            })
+
+        log.info("finnhub_transcripts_fetched", ticker=ticker, count=len(results))
+        return results
+
 
 def format_news_for_prompt(articles: list[dict[str, Any]], max_articles: int = 5) -> str:
     """

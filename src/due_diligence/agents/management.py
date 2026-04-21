@@ -38,6 +38,7 @@ from due_diligence.llm.client import get_client
 from due_diligence.schemas.base import Citation
 from due_diligence.schemas.reports import ManagementReport
 from due_diligence.tools.edgar import EdgarManagementAdapter, format_form4_for_prompt
+from due_diligence.tools.finnhub import FinnhubAdapter
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
 
 log = structlog.get_logger()
@@ -59,6 +60,7 @@ Analyze the provided context and answer the checklist questions below.
 RULES:
 - Base every claim ONLY on the provided context. Never invent facts.
 - For each qualitative claim, include a citation with the source document/URL and an exact excerpt.
+- When citing earnings call transcripts (SOURCE 5), set source_url to "Finnhub transcript <id>" and copy the speaker's verbatim sentence into `excerpt`.
 - If information is not available in the context, say "Not available in provided sources."
 - Return ONLY valid JSON matching the schema below. No markdown, no explanation outside JSON.
 
@@ -81,6 +83,28 @@ OUTPUT SCHEMA:
 }"""
 
 
+def _format_transcripts(transcripts: list[dict]) -> str:
+    """
+    Formatea transcripts de earnings calls como bloque de texto para el prompt.
+
+    Incluye los últimos quarters ordenados de más reciente a más antiguo.
+    Prepared remarks truncados a 2000 chars, Q&A a 3000 chars — balance entre
+    riqueza de contexto y tamaño del context window del LLM.
+    """
+    if not transcripts:
+        return "No recent earnings call transcripts available."
+    lines = [f"{len(transcripts)} recent earnings calls (most recent first):"]
+    for t in transcripts:
+        head = f"[{t.get('year')}-Q{t.get('quarter')}] {t.get('date', '')}"
+        lines.append(f"\n### {head}")
+        remarks = (t.get("prepared_remarks") or "")[:2000]
+        qa = (t.get("qa") or "")[:3000]
+        lines.append(f"Prepared remarks (excerpt):\n{remarks}")
+        if qa:
+            lines.append(f"Q&A (excerpt):\n{qa}")
+    return "\n".join(lines)
+
+
 def _build_user_prompt(
     ticker: str,
     company_name: str,
@@ -88,6 +112,7 @@ def _build_user_prompt(
     form4_text: str,
     item10_text: str,
     tavily_text: str,
+    transcripts_text: str = "",
 ) -> str:
     """
     Construye el prompt de usuario con todo el contexto de fuentes.
@@ -114,6 +139,11 @@ def _build_user_prompt(
 
 ## SOURCE 4: Web Research
 {tavily_text}
+
+---
+
+## SOURCE 5: Earnings Call Transcripts (Finnhub)
+{transcripts_text or "No earnings call transcripts available."}
 
 ---
 
@@ -213,6 +243,11 @@ def management_agent(state: AnalysisState) -> dict:
     tavily_results = TavilyAdapter.search(tavily_queries)
     tavily_text = format_tavily_for_prompt(tavily_results)
 
+    # --- 2b. Earnings call transcripts (ADR-016) — SOURCE 5 ---
+    # Devuelve [] si FINNHUB_API_KEY no configurada (degraded mode limpio).
+    transcripts = FinnhubAdapter.fetch_transcripts(ticker, quarters=4)
+    transcripts_text = _format_transcripts(transcripts)
+
     # --- 3. Construir prompt y llamar al LLM ---
     user_prompt = _build_user_prompt(
         ticker=ticker,
@@ -221,6 +256,7 @@ def management_agent(state: AnalysisState) -> dict:
         form4_text=form4_text,
         item10_text=item10_text,
         tavily_text=tavily_text,
+        transcripts_text=transcripts_text,
     )
 
     log.info("management_agent_llm_call", ticker=ticker)

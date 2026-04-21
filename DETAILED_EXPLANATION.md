@@ -1636,3 +1636,44 @@ El patrón es el mismo que `financials_node`: `EdgarAdapter.fetch_raw` + `parse_
 - `src/due_diligence/cli.py`: prompt de peers con skip explícito; pasa `peers_raw` en el `Command(resume=...)`.
 - `src/due_diligence/agents/archiver.py`: renderiza tabla ROIC o mensaje "skipped".
 - `tests/test_peers_agent.py`: 5 tests — fetch correcto, lista vacía, key ausente, fallo por peer, excepción inesperada.
+
+---
+
+### Task 4: Earnings call transcripts como primary source (ADR-016)
+
+#### Concepto
+
+Un **earnings call transcript** es la transcripción de la llamada trimestral en que el management presenta resultados y responde preguntas de analistas. Finnhub los sirve estructurados por speaker y sección (prepared remarks vs Q&A).
+
+La diferencia respecto a los 10-K es fundamental: el 10-K está revisado por abogados y diseñado para compliance. La Q&A de un earnings call es tiempo real — el CEO responde en vivo a preguntas hostiles sobre márgenes, guidance, competencia. La evasión, la precisión, la confianza con la que citan sus propios números — todas son señales de calidad de management que el 10-K no captura.
+
+#### Cómo funciona
+
+```
+FinnhubAdapter.fetch_transcripts(ticker, quarters=4)
+    │  transcripts_list(ticker) → lista de {id, year, quarter, time}
+    │  Ordena desc, toma N más recientes
+    │  Para cada uno: transcripts(id) → {transcript: [{speaker, speech}, ...]}
+    │  Separa prepared_remarks / Q&A por heurístico "Q&A" en los primeros 80 chars
+    │
+    ▼  list[dict]
+_format_transcripts(transcripts)
+    │  "N recent earnings calls (most recent first):"
+    │  Para cada uno: head + prepared (hasta 2000 chars) + Q&A (hasta 3000 chars)
+    ▼  str
+management_agent → SOURCE 5 en _build_user_prompt
+```
+
+La función respeta el patrón degraded mode: si `FINNHUB_API_KEY` no está configurada, devuelve `[]` inmediatamente — el prompt incluye "No earnings call transcripts available." y el LLM continúa con las 4 fuentes existentes.
+
+#### Relación con la arquitectura
+
+- Cero cambio de schema. `ManagementReport.citations` ya existe — el LLM puede citar frases de transcripts igual que cita fragmentos del DEF 14A.
+- Cero cambio de grafo. `management_agent` ya es un nodo en el fan-out; simplemente tiene un SOURCE más.
+- El `_build_user_prompt` recibe `transcripts_text: str = ""` con default vacío — los tests existentes no necesitan actualizarse.
+
+#### Archivos modificados
+
+- `src/due_diligence/tools/finnhub.py`: nuevo método `FinnhubAdapter.fetch_transcripts` + helper `_format_transcripts` en `management.py`.
+- `src/due_diligence/agents/management.py`: import de `FinnhubAdapter`, llamada en el agente, SOURCE 5 en el prompt, regla de citación de transcripts en `_SYSTEM_PROMPT`.
+- `tests/test_finnhub_transcripts.py`: 4 tests — lista correcta, sin key, fallo de lista, fallo de transcript individual.

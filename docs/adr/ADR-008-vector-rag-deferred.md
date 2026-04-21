@@ -1,7 +1,8 @@
 # ADR-008: Vector RAG diferido a Fase 2
 
-**Status**: Accepted
+**Status**: Superseded by [ADR-013](ADR-013-rag-trigger-same-ticker.md)
 **Date**: 2026-04-19
+**Superseded on**: 2026-04-21
 
 ## Context
 El usuario sugirió vector store para que el Value Expert recupere análisis pasados de empresas comparables (mismo sector, mismo moat pattern) como contexto adicional. Es un buen patrón, pero en cold-start el corpus es < 5 análisis — el RAG aporta poco y añade complejidad (embeddings, indexing, similarity, deduplicación).

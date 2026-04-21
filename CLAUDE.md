@@ -71,6 +71,12 @@ Aplicar siempre para: edgartools, LangGraph, Pydantic, Tavily, polygon-api-clien
 
 ---
 
+## Diagramas
+
+Cualquier diagrama en documentación (README, CLAUDE.md, ADRs, DETAILED_EXPLANATION.md) debe usar **Mermaid**, no ASCII art. GitHub renderiza Mermaid nativamente. Usar bloques ` ```mermaid `.
+
+---
+
 ## Documentación del código (obligatorio en este proyecto)
 
 Todo código generado debe incluir:

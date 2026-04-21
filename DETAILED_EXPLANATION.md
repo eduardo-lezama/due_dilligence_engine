@@ -1723,6 +1723,44 @@ archiver_node → ## Material Events (8-K, last 12 months)
 
 ---
 
+### Task 7: Socratic Checkpoints reales (ADR-018)
+
+#### El problema que resuelve
+
+Phase 1 tenía `typer.confirm("Proceed?")` — una pregunta binaria sin fricción. Eduardo aprobaba sin pensar. El objetivo dual del sistema (decidir + aprender) no se cumplía. Un sistema Socratic debe forzar articulación consciente de lo que sabes sobre la empresa antes de aprobar el análisis.
+
+#### Qué es una pregunta Socratic en este contexto
+
+Una pregunta anclada en datos reales del state, no genérica. En lugar de "¿qué piensas del management?", el sistema genera: "Moat clasificado 'narrow' pero ROIC es 87%. ¿Qué señal reconciliaría esto?"
+
+La pregunta es posible porque el sistema tiene los números — `competitive.moat_classification` y `financials.roic_series[0].value` — y puede detectar la incoherencia automáticamente. Sin esos datos, la pregunta no se genera (graceful degradation).
+
+#### Cómo funciona `_build_socratic_questions`
+
+```python
+def _build_socratic_questions(state) -> list[str]:
+    # Patrón 1: moat 'narrow'/'none' pero ROIC alto → pregunta de reconciliación
+    # Patrón 2: insider ownership < 1% → pregunta de alineación
+    # Patrón 3: CEO tenure > 12 años → pregunta de sucesión
+    # Siempre: pregunta de peers (ADR-015)
+```
+
+Es heurístico puro — sin LLM, sin coste adicional. Los patrones son fijos pero cubren las señales más frecuentes en análisis value. Se pueden ampliar con nuevos triggers según feedback real.
+
+#### Checkpoint 2 con anchor histórico
+
+Antes de pedir WACC y growth, el CLI muestra el CAGR histórico a 5 años (calculado por `financials_node`) y pide justificación: *"Why do your DCF assumptions diverge (or align) with this historical rate?"*
+
+Esto combate el anchoring cómodo a defaults (WACC=9%, growth=2.5%) sin contrastar con historia. Las justificaciones se guardan en el state y llegan al Value Expert como contexto.
+
+#### Archivos modificados
+
+- `src/due_diligence/agents/checkpoint.py`: `_build_socratic_questions` + preguntas en checkpoint1 payload + CAGR en checkpoint2 payload.
+- `src/due_diligence/cli.py`: `_render_socratic_questions` (helper), Socratic questions renderizadas con respuestas free-text, CAGR anchor antes de DCF assumptions.
+- `tests/test_checkpoint_socratic.py`: 7 tests — peer prompt siempre presente, detección de moat/ROIC mismatch, ownership bajo, CEO tenure, no pregunta para caso consistente, degraded sin data.
+
+---
+
 ### Task 6: Value Expert prompt v2 + historical 5y revenue CAGR (ADR-019)
 
 #### El problema que resuelve

@@ -124,6 +124,35 @@ def _show_checkpoint1_summary(state: dict) -> None:
     console.print(table)
 
 
+def _render_socratic_questions(state: dict) -> dict:
+    """
+    Muestra las preguntas Socratic generadas por _build_socratic_questions
+    y recoge respuestas free-text del usuario (ADR-018).
+
+    Las respuestas se devuelven como dict {qN: {question, answer}} para incluirlas
+    en el resume value del checkpoint1 → llegan al state y al Value Expert.
+    Skip permitido: respuesta vacía (Enter) = no se registra.
+    """
+    from due_diligence.agents.checkpoint import _build_socratic_questions
+
+    questions = _build_socratic_questions(state)
+    if not questions:
+        return {}
+
+    console.print("\n[bold yellow]-- Socratic Questions (ADR-018) --[/bold yellow]")
+    console.print("[dim]Answer with your own knowledge — or press Enter to skip each.[/dim]\n")
+
+    answers: dict = {}
+    for i, q in enumerate(questions, 1):
+        console.print(f"[bold]{i}.[/bold] {q}")
+        ans = typer.prompt("   Your answer", default="")
+        if ans.strip():
+            answers[f"q{i}"] = {"question": q, "answer": ans.strip()}
+        console.print()
+
+    return answers
+
+
 def _ask_dcf_assumptions(state: dict) -> dict:
     """Muestra el hint de valoración y recoge los assumptions DCF del usuario."""
     console.print("\n[bold yellow]-- Checkpoint 2: DCF Assumptions --[/bold yellow]\n")
@@ -411,7 +440,14 @@ def analyze_cmd(
         console.print("[yellow]Analysis stopped at checkpoint 1.[/yellow]")
         return
 
-    # Peer tickers para comparación ROIC (ADR-015). Skip explícito con Enter vacío.
+    # ── Checkpoint 1 Socratic (ADR-018) ───────────────────────────────────
+    # Renderizar preguntas ancladas en datos y recoger respuestas free-text.
+    # Las respuestas enriquecen el contexto del Value Expert con conocimiento
+    # tácito del usuario (e.g. "sé que AAPL tiene moat wider que 'narrow' porque X").
+    socratic_answers = _render_socratic_questions(state)
+
+    # Peer tickers (ADR-015) — la última pregunta Socratic ya lo cubre, pero
+    # lo extraemos explícitamente para el resume value.
     peers_raw = typer.prompt(
         "\nPeer tickers (comma-separated, e.g. MSFT,GOOGL,AMZN)"
         "\n  — press Enter to skip (moat analysis will use 10-K only)",
@@ -426,14 +462,32 @@ def analyze_cmd(
     # ── Reanudar: checkpoint1 → peers_node → checkpoint2 ──────────────────
     # NOTE: Command(resume={}) no funciona en LangGraph — dict vacío es falsy
     # y LangGraph no procesa el resume. Usar un valor truthy explícito.
-    # peers_raw se parsea a lista en checkpoint1_node.
     with console.status("[bold green]Passing checkpoint 1 + fetching peer data…"):
-        graph.invoke(Command(resume={"proceed": True, "peers": peers_raw}), config=config)
+        graph.invoke(
+            Command(resume={"proceed": True, "peers": peers_raw, "answers": socratic_answers}),
+            config=config,
+        )
 
     state = graph.get_state(config).values
 
-    # checkpoint2: pedir assumptions DCF
+    # ── Checkpoint 2 — CAGR anchor + assumptions DCF ──────────────────────
+    # Mostrar CAGR histórico antes de pedir WACC/growth (ADR-018).
+    cagr = state.get("historical_cagr_5y")
+    if cagr is not None:
+        console.print(f"\n[bold yellow]Historical 5y revenue CAGR (from XBRL): {cagr:.1%}[/bold yellow]")
+        console.print(
+            "Your proposed growth rate should be defensible against this anchor.\n"
+        )
+        growth_justification = typer.prompt(
+            "Why do your DCF assumptions diverge (or align) with this historical rate?",
+            default="",
+        )
+    else:
+        growth_justification = ""
+
     assumptions = _ask_dcf_assumptions(state)
+    if growth_justification:
+        assumptions["growth_justification"] = growth_justification
 
     # ── Reanudar: checkpoint2 → valuation → expert → critic → archiver ────
     with console.status("[bold green]Running Phase 1c (valuation + expert + critic)…"):

@@ -35,6 +35,73 @@ from due_diligence.graph.state import AnalysisState
 log = structlog.get_logger()
 
 
+def _build_socratic_questions(state: AnalysisState) -> list[str]:
+    """
+    Genera 1-3 preguntas Socratic ancladas en los datos del state (ADR-018).
+
+    Cada pregunta surge de un patrón detectado en los outputs de los especialistas.
+    Si un especialista no está disponible, su patrón se salta — nunca se generan
+    preguntas sin datos reales que las anclen.
+
+    La pregunta de peers (ADR-015) siempre se incluye como última pregunta.
+
+    Por qué heurístico y no LLM:
+        Las preguntas son patrones fijos sobre señales conocidas (moat vs ROIC,
+        ownership, tenure). Un LLM añadiría coste y no-determinismo a un paso
+        que es de estructuración, no de razonamiento. Si los patrones resultan
+        limitantes, se pueden añadir triggers en futuras fases.
+    """
+    qs: list[str] = []
+    competitive = state.get("competitive")  # type: ignore[typeddict-item]
+    financials = state.get("financials")    # type: ignore[typeddict-item]
+    mgmt = state.get("mgmt")               # type: ignore[typeddict-item]
+
+    # --- Patrón 1: Moat vs ROIC mismatch ---
+    if (
+        competitive is not None
+        and not competitive.stub
+        and competitive.moat_classification
+        and financials is not None
+        and financials.roic_series
+    ):
+        roic = financials.roic_series[0].value
+        moat = competitive.moat_classification
+        if moat == "narrow" and roic > 0.20:
+            qs.append(
+                f"Moat classified '{moat}' but ROIC is {roic:.0%}. "
+                "What specific signal would reconcile this, or indicate moat erosion in the future?"
+            )
+        elif moat == "none" and roic > 0.15:
+            qs.append(
+                f"No moat identified yet ROIC is {roic:.0%}. "
+                "Is this cyclical/temporary, or is there a structural advantage the qualitative review missed?"
+            )
+
+    # --- Patrón 2: Insider ownership bajo ---
+    if mgmt is not None and not mgmt.stub and mgmt.insider_ownership_pct is not None:
+        if mgmt.insider_ownership_pct < 1.0:
+            qs.append(
+                f"Insider ownership is {mgmt.insider_ownership_pct:.2f}%. "
+                "Would you weigh this as misaligned incentives or normal for a company of this size?"
+            )
+
+    # --- Patrón 3: CEO tenure largo ---
+    if mgmt is not None and not mgmt.stub and mgmt.ceo_tenure_years is not None:
+        if mgmt.ceo_tenure_years > 12:
+            qs.append(
+                f"CEO has been in role for {mgmt.ceo_tenure_years:.0f} years. "
+                "Do you see this as a continuity asset or a succession risk?"
+            )
+
+    # --- Peer prompt — siempre presente (ADR-015) ---
+    qs.append(
+        "Which 3-5 peer tickers would you benchmark this company against? "
+        "(press Enter to skip — moat analysis will use 10-K data only)"
+    )
+
+    return qs
+
+
 def checkpoint1_node(state: AnalysisState) -> dict:
     """
     Checkpoint HITL entre Phase 1b (especialistas) y Phase 1c (valoración).
@@ -56,6 +123,10 @@ def checkpoint1_node(state: AnalysisState) -> dict:
 
     # Construir el resumen que se presenta al usuario en el checkpoint.
     # Solo incluimos los campos que ya existen en el estado (NotRequired).
+    # Generar preguntas Socratic ancladas en los datos actuales (ADR-018).
+    # El CLI las renderiza para que el usuario responda antes de continuar.
+    socratic_questions = _build_socratic_questions(state)
+
     summary: dict = {
         "phase": "checkpoint1",
         "ticker": ticker,
@@ -67,11 +138,8 @@ def checkpoint1_node(state: AnalysisState) -> dict:
             field for field in ("mgmt", "filings", "market", "competitive")
             if state.get(field) is not None  # type: ignore[literal-required]
         ],
-        # ADR-015: el CLI lee este campo para mostrar el prompt de peers al usuario.
-        "peer_prompt": (
-            "Peer tickers (comma-separated, e.g. MSFT,GOOGL,AMZN) "
-            "— press Enter to skip (moat analysis will use 10-K only)"
-        ),
+        # ADR-018: preguntas Socratic para el CLI
+        "socratic_questions": socratic_questions,
     }
 
     # interrupt() serializa el estado y suspende el grafo.
@@ -130,6 +198,9 @@ def checkpoint2_node(state: AnalysisState) -> dict:
     if financials is not None and financials.roic_series:
         roic_hint = f"{financials.roic_series[0].value:.1%} ({financials.roic_series[0].period})"
 
+    # CAGR histórico como anchor para las asunciones de growth (ADR-018 + ADR-019)
+    cagr_5y = state.get("historical_cagr_5y")  # type: ignore[typeddict-item]
+
     summary: dict = {
         "phase": "checkpoint2",
         "ticker": ticker,
@@ -142,6 +213,8 @@ def checkpoint2_node(state: AnalysisState) -> dict:
             "current_price": price_hint,
             "market_cap": market_cap_hint,
             "latest_roic": roic_hint,
+            # Anchor histórico: el usuario puede comparar su growth propuesto vs historia
+            "historical_revenue_cagr_5y": f"{cagr_5y:.1%}" if cagr_5y is not None else "unavailable",
         },
         "defaults": {
             "wacc_pct": 9.0,

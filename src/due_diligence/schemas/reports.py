@@ -63,13 +63,20 @@ class MarketReport(BaseModel):
     recent_news_summary: Optional[str] = None  # Resumen de noticias recientes
 
 
+class PeerROIC(BaseModel):
+    """ROIC de un peer ticker para comparación tabular en el reporte. ADR-015."""
+    ticker: str          # Ej: "MSFT"
+    roic: float          # Ratio, ej: 0.22 (22%)
+    period: str          # Ej: "FY2025"
+
+
 class CompetitiveReport(BaseModel):
     """Reporte de análisis competitivo y moat."""
     ticker: str
     stub: bool = True
     moat_classification: Optional[str] = None  # "wide", "narrow", "none"
     moat_sources: list[str] = Field(default_factory=list)  # Fuentes del moat
-    peer_roic_comparison: list[MetricValue] = Field(default_factory=list)  # ROIC vs peers
+    peer_roic_comparison: list[PeerROIC] = Field(default_factory=list)  # ROIC de peers (ADR-015)
     citations: list[Citation] = Field(default_factory=list)
 
 

@@ -40,7 +40,7 @@ import structlog
 from due_diligence.graph.state import AnalysisState
 from due_diligence.llm.client import get_client
 from due_diligence.schemas.base import Citation, FinancialsReport
-from due_diligence.schemas.reports import CompetitiveReport
+from due_diligence.schemas.reports import CompetitiveReport, PeerROIC
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
 
 log = structlog.get_logger()
@@ -209,12 +209,13 @@ def _parse_llm_response(response_text: str, ticker: str) -> CompetitiveReport:
         moat_raw = data.get("moat_classification", "none")
         moat = moat_raw if moat_raw in ("wide", "narrow", "none") else "none"
 
+        # peer_roic_comparison se inyecta después del parse — ver competitive_agent()
         return CompetitiveReport(
             ticker=ticker,
             stub=False,
             moat_classification=moat,
             moat_sources=data.get("moat_sources", []),
-            peer_roic_comparison=[],  # deferred a Phase 1c
+            peer_roic_comparison=[],
             citations=citations,
         )
 
@@ -272,11 +273,30 @@ def competitive_agent(state: AnalysisState) -> dict:
     # --- 4. Parsear respuesta ---
     report = _parse_llm_response(response_text, ticker)
 
+    # --- 5. Poblar peer_roic_comparison desde state["peer_financials"] (ADR-015) ---
+    # peers_node ya corrió antes que competitive_agent (ver graph.py).
+    # Si el usuario no aportó peers, peer_financials = [] y este bloque no produce nada.
+    peer_reports: list[FinancialsReport] = state.get("peer_financials", []) or []  # type: ignore[typeddict-item]
+    peer_roic: list[PeerROIC] = []
+    for peer_rep in peer_reports:
+        if peer_rep.roic_series:
+            mv = peer_rep.roic_series[0]  # valor más reciente
+            peer_roic.append(PeerROIC(
+                ticker=peer_rep.ticker,
+                roic=mv.value,
+                period=mv.period,
+            ))
+
+    # Pydantic models son inmutables por defecto — usar model_copy para añadir peers
+    if peer_roic:
+        report = report.model_copy(update={"peer_roic_comparison": peer_roic})
+
     log.info(
         "competitive_agent_complete",
         ticker=ticker,
         moat=report.moat_classification,
         citations=len(report.citations),
+        peers=len(peer_roic),
     )
 
     return {"competitive": report}

@@ -67,15 +67,26 @@ def checkpoint1_node(state: AnalysisState) -> dict:
             field for field in ("mgmt", "filings", "market", "competitive")
             if state.get(field) is not None  # type: ignore[literal-required]
         ],
+        # ADR-015: el CLI lee este campo para mostrar el prompt de peers al usuario.
+        "peer_prompt": (
+            "Peer tickers (comma-separated, e.g. MSFT,GOOGL,AMZN) "
+            "— press Enter to skip (moat analysis will use 10-K only)"
+        ),
     }
 
     # interrupt() serializa el estado y suspende el grafo.
     # Retorna cuando el usuario llama graph.invoke(Command(resume=<value>)).
     user_input = interrupt(summary)
 
-    # Garantizar valor no vacío — LangGraph no procesa correctamente {} como
-    # resume value (lo trata como falsy). El nodo downstream usa .get() de todas formas.
-    return {"checkpoint1_user_input": user_input if user_input else {"proceed": True}}
+    # Extraer peers del input del usuario. El CLI pasa {"proceed": True, "peers": "MSFT,GOOGL"}.
+    # Convertir string CSV a lista de tickers normalizados. Input vacío → [].
+    peers_raw = (user_input or {}).get("peers", "") if isinstance(user_input, dict) else ""
+    peers = [p.strip().upper() for p in peers_raw.split(",") if p.strip()] if isinstance(peers_raw, str) else []
+
+    return {
+        "checkpoint1_user_input": user_input if user_input else {"proceed": True},
+        "peers": peers,
+    }
 
 
 def checkpoint2_node(state: AnalysisState) -> dict:

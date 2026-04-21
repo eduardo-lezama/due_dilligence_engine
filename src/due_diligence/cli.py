@@ -411,11 +411,24 @@ def analyze_cmd(
         console.print("[yellow]Analysis stopped at checkpoint 1.[/yellow]")
         return
 
-    # ── Reanudar: checkpoint1 → checkpoint2 ───────────────────────────────
+    # Peer tickers para comparación ROIC (ADR-015). Skip explícito con Enter vacío.
+    peers_raw = typer.prompt(
+        "\nPeer tickers (comma-separated, e.g. MSFT,GOOGL,AMZN)"
+        "\n  — press Enter to skip (moat analysis will use 10-K only)",
+        default="",
+    )
+    if peers_raw.strip():
+        peers_display = [t.strip().upper() for t in peers_raw.split(",") if t.strip()]
+        console.print(f"[dim]Peers: {', '.join(peers_display)}[/dim]")
+    else:
+        console.print("[dim]Peers skipped — moat analysis will use 10-K only.[/dim]")
+
+    # ── Reanudar: checkpoint1 → peers_node → checkpoint2 ──────────────────
     # NOTE: Command(resume={}) no funciona en LangGraph — dict vacío es falsy
     # y LangGraph no procesa el resume. Usar un valor truthy explícito.
-    with console.status("[bold green]Passing checkpoint 1…"):
-        graph.invoke(Command(resume={"proceed": True}), config=config)
+    # peers_raw se parsea a lista en checkpoint1_node.
+    with console.status("[bold green]Passing checkpoint 1 + fetching peer data…"):
+        graph.invoke(Command(resume={"proceed": True, "peers": peers_raw}), config=config)
 
     state = graph.get_state(config).values
 

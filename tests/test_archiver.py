@@ -17,7 +17,7 @@ import sqlite3
 import pytest
 from pathlib import Path
 
-from due_diligence.agents.archiver import archiver_node, _render_markdown, _ensure_db
+from due_diligence.agents.archiver import archiver_node, _render_markdown, _render_citations_section, _ensure_db
 from due_diligence.schemas.reports import (
     ValueExpertReport, CriticReport, ValuationReport, CompetitiveReport,
 )
@@ -215,3 +215,64 @@ def test_ensure_db_is_idempotent(tmp_path):
     db_path = str(tmp_path / "test.db")
     _ensure_db(db_path)
     _ensure_db(db_path)  # segunda llamada — no debe lanzar excepción
+
+
+# ---------------------------------------------------------------------------
+# Tests: citations section (ADR-014)
+# ---------------------------------------------------------------------------
+
+from due_diligence.schemas.reports import ManagementReport, MarketReport
+from due_diligence.schemas.base import Citation
+
+
+def test_render_markdown_includes_citations_section():
+    """La sección '## Sources & Citations' aparece cuando hay citas en los reportes."""
+    state = {
+        "ticker": "AAPL",
+        "as_of_date": "2025-09-28",
+        "run_id": "abc123",
+        "mgmt": ManagementReport(
+            ticker="AAPL",
+            stub=False,
+            insider_ownership_pct=0.03,
+            citations=[
+                Citation(
+                    claim="Tim Cook owns 3.3M shares",
+                    source_url="https://sec.gov/Archives/edgar/data/320193/DEF14A.htm",
+                    excerpt="Timothy D. Cook beneficially owns 3,279,321 shares",
+                    confidence=0.95,
+                ),
+            ],
+        ),
+    }
+    md = _render_markdown(state)
+    assert "## Sources & Citations" in md
+    assert "Timothy D. Cook beneficially owns 3,279,321 shares" in md
+    assert "https://sec.gov/Archives/edgar/data/320193/DEF14A.htm" in md
+    assert "Management" in md
+
+
+def test_render_markdown_no_citations_section_when_empty():
+    """Sin citas, la sección '## Sources & Citations' no aparece."""
+    md = _render_markdown({"ticker": "XYZ"})
+    assert "## Sources & Citations" not in md
+
+
+def test_render_markdown_includes_market_news_section():
+    """La sección '## Market & News' se renderiza con la URL inline."""
+    state = {
+        "ticker": "AAPL",
+        "market": MarketReport(
+            ticker="AAPL",
+            stub=False,
+            recent_news_summary=(
+                "Recent news (last 30 days, 1 articles):\n"
+                "[1] Cook steps down, Ternus takes over.\n"
+                "    Source: Reuters | URL: https://reuters.com/aapl-cook\n"
+                "    Apple announced today..."
+            ),
+        ),
+    }
+    md = _render_markdown(state)
+    assert "## Market & News" in md
+    assert "https://reuters.com/aapl-cook" in md

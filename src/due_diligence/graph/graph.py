@@ -42,6 +42,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
 from due_diligence.agents.checkpoint import checkpoint1_node, checkpoint2_node
+from due_diligence.agents.peers import peers_node
 from due_diligence.agents.competitive import competitive_agent
 from due_diligence.agents.filings import filings_agent
 from due_diligence.agents.financials import financials_node
@@ -115,6 +116,7 @@ def build_graph(
 
     # --- Nodos HITL Phase 1b/1c ---
     builder.add_node("checkpoint1", checkpoint1_node)
+    builder.add_node("peers", peers_node)        # Phase 2 — ADR-015
     builder.add_node("checkpoint2", checkpoint2_node)
 
     # --- Nodos Phase 1c ---
@@ -138,10 +140,12 @@ def build_graph(
     for specialist in ("management", "filings", "market", "competitive"):
         builder.add_edge(specialist, "checkpoint1")
 
-    # --- checkpoint1 → checkpoint2 → valuation (Phase 1c) ---
-    # Entre checkpoint1 y checkpoint2 no hay processing — el usuario pasa de
-    # "revisar resultados" a "aportar assumptions DCF" en dos pasos separados.
-    builder.add_edge("checkpoint1", "checkpoint2")
+    # --- checkpoint1 → peers → checkpoint2 → valuation (Phase 1c) ---
+    # peers_node fetcha XBRL de los peer tickers aportados por el usuario en
+    # Checkpoint 1. Si el usuario hizo skip (peers=[]), el nodo devuelve []
+    # inmediatamente sin llamar a EDGAR. ADR-015.
+    builder.add_edge("checkpoint1", "peers")
+    builder.add_edge("peers", "checkpoint2")
     builder.add_edge("checkpoint2", "valuation")
 
     # Phase 1c: valuation → value_expert → critic → archiver → END

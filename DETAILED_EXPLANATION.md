@@ -1518,3 +1518,121 @@ price_current = prev.close
 ---
 
 *Última actualización: 2026-04-21 — Phase 1 COMPLETA (1a + 1b + 1c). Live run verificado con AAPL. 152 tests, verde.*
+
+---
+
+## Phase 2 — Transparencia, nuevas fuentes, síntesis real
+
+### Task 1: Citations visibility + Market & News en el markdown report (ADR-014)
+
+#### Concepto
+
+Una **cita** (`Citation`) es un objeto Pydantic que cada agente LLM produce cuando hace una afirmación verificable. Contiene:
+- `claim`: la afirmación textual ("Tim Cook owns 3.3M shares")
+- `source_url`: la URL del documento que la respalda (DEF14A en EDGAR, transcript de Finnhub, etc.)
+- `excerpt`: el fragmento verbatim del documento que contiene la evidencia
+- `confidence`: un score 0.0-1.0 del match (verificado por substring-match en Phase 1)
+
+#### Por qué existe
+
+ADR-005 establece que **todo claim cualitativo debe rastrearse a fuente primaria**. Phase 1 construyó la captura: cada agente LLM (`management`, `filings`, `competitive`) emite citas validadas como parte de su reporte Pydantic. Pero el `archiver_node` las ignoraba al renderizar el markdown — el trail de auditoría existía en memoria pero era invisible en el artefacto final.
+
+Task 1 completa la segunda mitad del ADR-005: la visualización. Sin ella, el sistema podía afirmar que "no alucinó" pero el lector no podía comprobarlo.
+
+#### Cómo funciona
+
+```
+_render_markdown(state)
+    │
+    ├─ ... (secciones existentes: valuation, expert, critic)
+    │
+    ├─ ## Market & News          ← NUEVO: MarketReport.recent_news_summary con URLs inline
+    │
+    ├─ _render_citations_section(state)   ← NUEVO
+    │   ├─ state["mgmt"].citations
+    │   ├─ state["filings"].citations
+    │   └─ state["competitive"].citations
+    │
+    └─ --- footer ---
+```
+
+`_render_citations_section` itera sobre los tres agentes LLM, agrupa sus citas por agente, y renderiza cada una:
+
+```markdown
+## Sources & Citations
+
+### Management
+- **Tim Cook owns 3.3M shares** (confidence: 95%)
+  > Timothy D. Cook beneficially owns 3,279,321 shares
+  Source: [https://sec.gov/.../DEF14A.htm](https://sec.gov/.../DEF14A.htm)
+```
+
+Si ningún agente tiene citas (o todos son stubs), la función devuelve `[]` y la sección no aparece — degraded mode limpio.
+
+#### Relación con la arquitectura
+
+- No toca ningún agente, schema, ni nodo del grafo. Solo `archiver.py`.
+- El `MarketReport.recent_news_summary` ya contenía URLs inline (formato Finnhub/Tavily). Añadir la sección `## Market & News` al render es la forma más simple de exponerlas.
+- El formato de la sección Citations (claim + excerpt + URL) está pensado para que en Phase 2.5 (RAG) el parser de corpus pueda extraer claim-evidence pairs automáticamente.
+
+#### Archivos modificados
+
+- `src/due_diligence/agents/archiver.py`: añadida `_render_citations_section()` + bloque Market & News en `_render_markdown`.
+- `tests/test_archiver.py`: 3 tests nuevos — citations section presente, citations section ausente cuando vacía, Market & News section con URL inline.
+
+---
+
+### Task 3: Peer ROIC comparison — user-supplied (ADR-015)
+
+#### Concepto
+
+**Peer ROIC comparison** es la capacidad del sistema de mostrar, junto al ROIC de la empresa analizada, los ROICs de 3-5 empresas comparables elegidas por el usuario. El resultado es una tabla en el reporte markdown que permite contextualizar: "¿es el ROIC de AAPL del 25% alto o bajo respecto a sus peers reales?"
+
+#### Por qué user-supplied y no automático
+
+La alternativa obvia (descubrir peers por SIC code SEC) se rechazó en ADR-015 porque los SIC codes son ruidosos — un mismo código puede agrupar empresas sin relación económica real. Eduardo conoce mejor sus peers que cualquier heurística. Además, *preguntar* tiene valor Socratic: te fuerza a articular explícitamente "¿contra quién compite esta empresa hoy?".
+
+El skip está habilitado explícitamente: si pulsas Enter sin escribir nada, el sistema continúa normalmente y el reporte dice "Peer comparison skipped by user" en lugar de la tabla.
+
+#### Cómo funciona — el flujo en el grafo
+
+```
+checkpoint1_node  ←── usuario escribe peers en CLI
+      │
+      ▼
+peers_node                           ← NUEVO: tool-lane, sin LLM
+   para cada peer en state["peers"]:
+     EdgarAdapter.fetch_raw(peer)
+     EdgarAdapter.parse_financials(raw)
+   → state["peer_financials"] = [FinancialsReport, ...]
+      │
+      ▼
+checkpoint2_node
+      │
+      ▼
+competitive_agent  ←── lee state["peer_financials"]
+   construye list[PeerROIC]
+   → CompetitiveReport.peer_roic_comparison = [PeerROIC(...), ...]
+      │
+      ▼
+archiver_node  ←── renderiza tabla ## Peer Comparison — ROIC
+```
+
+El patrón es el mismo que `financials_node`: `EdgarAdapter.fetch_raw` + `parse_financials` = cero nueva superficie de tooling, cero LLM para los números.
+
+#### Degraded mode
+
+- `peers=[]` (skip) → `peers_node` devuelve `[]` inmediatamente, el archiver muestra "Peer comparison skipped by user".
+- Un peer con fallo (ticker inválido, XBRL corrupto) → `log.warning` + omisión, el resto continúa. Fail-loud por peer, no por batch.
+
+#### Archivos modificados
+
+- `src/due_diligence/graph/state.py`: añadidos `peers: NotRequired[list[str]]` y `peer_financials: NotRequired[list[FinancialsReport]]`.
+- `src/due_diligence/schemas/reports.py`: nuevo modelo `PeerROIC(ticker, roic, period)`, campo `peer_roic_comparison: list[PeerROIC]` en `CompetitiveReport`.
+- `src/due_diligence/agents/peers.py`: nuevo nodo `peers_node`.
+- `src/due_diligence/agents/competitive.py`: construye `list[PeerROIC]` desde `state["peer_financials"]` y lo inyecta en el reporte.
+- `src/due_diligence/agents/checkpoint.py`: incluye prompt de peers en el payload del interrupt.
+- `src/due_diligence/graph/graph.py`: inserta `peers_node` entre `checkpoint1` y `checkpoint2`.
+- `src/due_diligence/cli.py`: prompt de peers con skip explícito; pasa `peers_raw` en el `Command(resume=...)`.
+- `src/due_diligence/agents/archiver.py`: renderiza tabla ROIC o mensaje "skipped".
+- `tests/test_peers_agent.py`: 5 tests — fetch correcto, lista vacía, key ausente, fallo por peer, excepción inesperada.

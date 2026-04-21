@@ -66,6 +66,12 @@ class AnalysisState(TypedDict):
     market: NotRequired[MarketReport]             # Precio actual, 52w, market cap (Polygon)
     competitive: NotRequired[CompetitiveReport]   # Moat analysis, peer ROIC comparison
 
+    # --- Peer comparison Phase 2 (ADR-015) ---
+    # peers: tickers aportados por el usuario en Checkpoint 1 (puede ser [] si skip)
+    # peer_financials: FinancialsReport de cada peer, fetched por peers_node
+    peers: NotRequired[list[str]]
+    peer_financials: NotRequired[list[FinancialsReport]]
+
     # --- HITL: inputs del usuario en los checkpoints (Phase 1b) ---
     # dict en lugar de Pydantic para evitar dependency circular en state.py;
     # el nodo que los consume hace CheckpointInput(**state["checkpoint1_user_input"])

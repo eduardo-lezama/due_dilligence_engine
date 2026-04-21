@@ -188,6 +188,26 @@ def _render_markdown(state: AnalysisState) -> str:
         if critique.pre_mortem_scenario:
             lines += ["**Pre-mortem scenario:**", "", critique.pre_mortem_scenario, ""]
 
+    # --- Peer ROIC comparison (ADR-015) ---
+    competitive = state.get("competitive")    # type: ignore[typeddict-item]
+    if competitive and not competitive.stub and competitive.peer_roic_comparison:
+        lines += ["## Peer Comparison — ROIC", ""]
+        lines += ["| Ticker (peer) | ROIC | Period |", "|---|---|---|"]
+        for pr in competitive.peer_roic_comparison:
+            lines.append(f"| {pr.ticker} | {pr.roic:.1%} | {pr.period} |")
+        lines.append("")
+    elif competitive and not competitive.stub:
+        # Peer comparison explícitamente skipped por el usuario — informar al lector
+        lines += ["## Peer Comparison — ROIC", "", "Peer comparison skipped by user.", ""]
+
+    # --- Market & News (ADR-014: news URLs preserved inline) ---
+    market = state.get("market")              # type: ignore[typeddict-item]
+    if market and not market.stub and market.recent_news_summary:
+        lines += ["## Market & News", "", market.recent_news_summary, ""]
+
+    # --- Citations appendix (ADR-014) ---
+    lines += _render_citations_section(state)
+
     # --- Footer ---
     lines += [
         "---",
@@ -195,6 +215,38 @@ def _render_markdown(state: AnalysisState) -> str:
     ]
 
     return "\n".join(lines)
+
+
+def _render_citations_section(state: AnalysisState) -> list[str]:
+    """
+    Agrupa todas las citas de los agentes LLM por agente y las renderiza.
+
+    Cada cita muestra: claim, excerpt verbatim, confidence y URL clickable.
+    Solo incluye agentes con citas reales (stub=False y citations no vacío).
+    Referencia ADR-014: auditoría del trail de claims cualitativos.
+    """
+    groups: list[tuple[str, list]] = []
+    for field, label in [
+        ("mgmt", "Management"),
+        ("filings", "Filings (10-K)"),
+        ("competitive", "Competitive & Moat"),
+    ]:
+        rep = state.get(field)  # type: ignore[literal-required]
+        if rep is not None and not rep.stub and getattr(rep, "citations", None):
+            groups.append((label, rep.citations))
+    if not groups:
+        return []
+    lines: list[str] = ["## Sources & Citations", ""]
+    for label, cits in groups:
+        lines.append(f"### {label}")
+        lines.append("")
+        for c in cits:
+            conf = f"{c.confidence:.0%}"
+            lines.append(f"- **{c.claim}** (confidence: {conf})")
+            lines.append(f"  > {c.excerpt}")
+            lines.append(f"  Source: [{c.source_url}]({c.source_url})")
+            lines.append("")
+    return lines
 
 
 # ---------------------------------------------------------------------------

@@ -617,3 +617,82 @@ def format_form4_for_prompt(transactions: list[dict]) -> str:
             f"{t['shares']:,.0f} shares {price_str} | {t['transaction_date']}"
         )
     return "\n".join(lines)
+
+
+class EdgarEventsAdapter:
+    """
+    Adapter para obtener eventos materiales 8-K de los últimos N meses.
+
+    Los 8-K son filings ad-hoc que las empresas presentan ante la SEC cuando
+    ocurre un evento material entre los filings periódicos (10-K, 10-Q). Son
+    la fuente primary-source para detectar eventos críticos sin depender de APIs
+    de noticias comerciales. ADR-017.
+
+    Items cubiertos por defecto:
+        - 2.02: Results of Operations (earnings release)
+        - 4.02: Non-Reliance on Previously Issued Financial Statements (RESTATEMENT)
+        - 5.02: Departure/Appointment of Directors and Officers
+
+    Item 4.02 es señal roja crítica — indica restatement contable. Si aparece
+    en el lookback window, el Value Expert debe degradar el VERDICT hacia SELL/HOLD.
+    """
+
+    @staticmethod
+    def fetch_8k_events(
+        ticker: str,
+        items: list[str] | None = None,
+        months: int = 12,
+    ) -> list[dict]:
+        """
+        Obtiene eventos 8-K materiales del ticker en la ventana especificada.
+
+        Args:
+            ticker: Ticker de la empresa (e.g. "AAPL").
+            items: Items 8-K a filtrar. Default: ["2.02", "4.02", "5.02"].
+            months: Ventana de búsqueda en meses. Default: 12 (año fiscal completo).
+
+        Returns:
+            list[dict] con campos: filing_date, item_numbers, summary_text, filing_url.
+            Lista vacía si no hay eventos relevantes o todos los filings fallan.
+        """
+        if items is None:
+            items = ["2.02", "4.02", "5.02"]
+
+        from datetime import date, timedelta
+        from edgar import Company, set_identity  # type: ignore[import]
+
+        set_identity(settings.sec_user_agent)
+        company = Company(ticker)
+        start_date = (date.today() - timedelta(days=months * 30)).isoformat()
+
+        try:
+            filings = list(company.get_filings(form="8-K", date=f"{start_date}:"))
+        except Exception as e:
+            log.warning("edgar_events_filings_fetch_failed", ticker=ticker, error=str(e))
+            return []
+
+        events: list[dict] = []
+        for f in filings:
+            try:
+                obj = f.obj()
+                filed_items = list(getattr(obj, "items", []) or [])
+                matching = [i for i in filed_items if i in items]
+                if not matching:
+                    continue
+                summary = str(getattr(obj, "summary", "") or "")[:600]
+                events.append({
+                    "filing_date": str(f.filing_date),
+                    "item_numbers": matching,
+                    "summary_text": summary,
+                    "filing_url": getattr(f, "filing_url", ""),
+                })
+            except Exception as e:
+                log.debug(
+                    "edgar_events_filing_parse_failed",
+                    ticker=ticker,
+                    error=str(e),
+                )
+                continue
+
+        log.info("edgar_events_fetched", ticker=ticker, count=len(events), months=months)
+        return events

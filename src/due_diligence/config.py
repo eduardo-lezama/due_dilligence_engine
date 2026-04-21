@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     # Aumentar a 4 si quieres contexto histórico extra (coste ~2x en SOURCE 5).
     transcript_quarters: int = Field(2, validation_alias="TRANSCRIPT_QUARTERS")
 
+    # Ventana de búsqueda de 8-K materiales (ADR-017).
+    # 12 meses captura el año fiscal completo — restatements (4.02) y cambios de
+    # management (5.02) siguen siendo relevantes aunque ocurrieran hace 9-10 meses.
+    events_lookback_months: int = Field(12, validation_alias="EVENTS_LOOKBACK_MONTHS")
+
     # --- Paths ---
     db_path: str = Field("data/analyses.db", validation_alias="DB_PATH")  # SQLite database
     reports_dir: str = Field("data/reports", validation_alias="REPORTS_DIR")  # Directorio de reportes

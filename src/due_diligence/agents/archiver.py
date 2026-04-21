@@ -205,6 +205,21 @@ def _render_markdown(state: AnalysisState) -> str:
     if market and not market.stub and market.recent_news_summary:
         lines += ["## Market & News", "", market.recent_news_summary, ""]
 
+    # --- Material Events — 8-K (ADR-017) ---
+    if market and not market.stub:
+        if market.material_events:
+            lines += ["## Material Events (8-K, last 12 months)", ""]
+            lines += ["| Date | Item(s) | Summary | Source |", "|---|---|---|---|"]
+            for e in market.material_events:
+                items_str = ", ".join(e.get("item_numbers", []))
+                summary = (e.get("summary_text") or "")[:200].replace("\n", " ")
+                url = e.get("filing_url", "")
+                link = f"[filing]({url})" if url else "—"
+                lines.append(f"| {e.get('filing_date', '?')} | {items_str} | {summary} | {link} |")
+            lines.append("")
+        else:
+            lines += ["## Material Events (8-K, last 12 months)", "", "No material 8-K events in the last 12 months.", ""]
+
     # --- Citations appendix (ADR-014) ---
     lines += _render_citations_section(state)
 

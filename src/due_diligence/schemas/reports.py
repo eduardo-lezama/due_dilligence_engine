@@ -53,7 +53,7 @@ class FilingsRAGReport(BaseModel):
 
 
 class MarketReport(BaseModel):
-    """Reporte de datos de mercado (precio, market cap, noticias)."""
+    """Reporte de datos de mercado (precio, market cap, noticias, eventos 8-K)."""
     ticker: str
     stub: bool = True
     price_current: Optional[MetricValue] = None  # Precio actual
@@ -61,6 +61,7 @@ class MarketReport(BaseModel):
     price_52w_low: Optional[MetricValue] = None  # Mínimo 52 semanas
     market_cap: Optional[MetricValue] = None  # Capitalización de mercado
     recent_news_summary: Optional[str] = None  # Resumen de noticias recientes
+    material_events: list[dict] = Field(default_factory=list)  # Eventos 8-K materiales (ADR-017)
 
 
 class PeerROIC(BaseModel):

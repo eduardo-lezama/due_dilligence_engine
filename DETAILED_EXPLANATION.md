@@ -1677,3 +1677,46 @@ La función respeta el patrón degraded mode: si `FINNHUB_API_KEY` no está conf
 - `src/due_diligence/tools/finnhub.py`: nuevo método `FinnhubAdapter.fetch_transcripts` + helper `_format_transcripts` en `management.py`.
 - `src/due_diligence/agents/management.py`: import de `FinnhubAdapter`, llamada en el agente, SOURCE 5 en el prompt, regla de citación de transcripts en `_SYSTEM_PROMPT`.
 - `tests/test_finnhub_transcripts.py`: 4 tests — lista correcta, sin key, fallo de lista, fallo de transcript individual.
+
+---
+
+### Task 5: 8-K event tracking desde EDGAR (ADR-017)
+
+#### Concepto
+
+Los **8-K** son filings ad-hoc que las empresas presentan en SEC EDGAR cuando ocurre un evento material — fuera del ciclo anual del 10-K. Son la fuente más autoritativa para detectar cambios entre los filings anuales, sin depender de APIs de noticias comerciales.
+
+Los tres Items que el sistema rastrea:
+- **2.02** — Results of Operations (earnings release): confirmación primaria de resultados trimestrales.
+- **4.02** — Non-Reliance on Previously Issued Financial Statements: **restatement contable**, la señal roja más crítica disponible en EDGAR. Un Item 4.02 reciente debería degradar automáticamente cualquier VERDICT hacia HOLD o SELL.
+- **5.02** — Departure/Appointment of Directors and Officers: cambios de CEO/CFO que el 10-K anual podría no reflejar si ocurrieron a mitad del año.
+
+#### Por qué 12 meses (no 6)
+
+Los Items 4.02 y 5.02 no prescriben en 6 meses — un restatement de hace 10 meses sigue siendo relevante para evaluar la calidad del reporting, y un CEO que tomó el cargo hace 9 meses sigue siendo "nuevo" en términos de track record. El año completo captura el ciclo fiscal sin añadir ruido de eventos demasiado antiguos. Configurable con `EVENTS_LOOKBACK_MONTHS` en `.env`.
+
+#### Cómo funciona
+
+```
+market_agent
+    EdgarEventsAdapter.fetch_8k_events(ticker, months=12)
+        │  Company(ticker).get_filings(form="8-K", date="YYYY-MM-DD:")
+        │  Para cada filing: f.obj().items → filtrar por [2.02, 4.02, 5.02]
+        │  summary_text[:600], filing_url
+        ▼  list[dict]
+    MarketReport.material_events = [...]
+        │
+archiver_node → ## Material Events (8-K, last 12 months)
+    │  Si hay eventos: tabla | Date | Item(s) | Summary | Source |
+    │  Si no hay: "No material 8-K events in the last 12 months."
+    │  (fail-loud: siempre presente si market report existe)
+```
+
+#### Archivos modificados
+
+- `src/due_diligence/tools/edgar.py`: nueva clase `EdgarEventsAdapter` con `fetch_8k_events`.
+- `src/due_diligence/schemas/reports.py`: campo `material_events: list[dict]` en `MarketReport`.
+- `src/due_diligence/config.py`: setting `EVENTS_LOOKBACK_MONTHS` (default 12).
+- `src/due_diligence/agents/market.py`: llama a `fetch_8k_events`, popula campo.
+- `src/due_diligence/agents/archiver.py`: tabla de eventos o mensaje explícito "no events".
+- `tests/test_edgar_events.py`: 4 tests — filtrado por item, sin coincidencias, múltiples items, fallo de filing individual.

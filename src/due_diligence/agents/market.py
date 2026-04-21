@@ -38,9 +38,11 @@ from __future__ import annotations
 
 import structlog
 
+from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
 from due_diligence.schemas.base import MetricValue
 from due_diligence.schemas.reports import MarketReport
+from due_diligence.tools.edgar import EdgarEventsAdapter
 from due_diligence.tools.finnhub import FinnhubAdapter, format_news_for_prompt
 from due_diligence.tools.polygon import PolygonAdapter
 
@@ -72,6 +74,15 @@ def market_agent(state: AnalysisState) -> dict:
     news_articles = FinnhubAdapter.fetch_company_news(ticker)
     recent_news_summary = format_news_for_prompt(news_articles)
 
+    # --- 3. Eventos materiales 8-K desde EDGAR (ADR-017) ---
+    # Lookback controlado por settings.events_lookback_months (default 12).
+    # Filtra Items 2.02 (earnings), 4.02 (restatement), 5.02 (mgmt changes).
+    # Item 4.02 es señal roja crítica — restatement contable.
+    material_events = EdgarEventsAdapter.fetch_8k_events(
+        ticker,
+        months=settings.events_lookback_months,
+    )
+
     report = MarketReport(
         ticker=ticker,
         stub=False,
@@ -80,6 +91,7 @@ def market_agent(state: AnalysisState) -> dict:
         price_52w_low=price_52w_low,
         market_cap=market_cap,
         recent_news_summary=recent_news_summary,
+        material_events=material_events,
     )
 
     log.info(
@@ -87,6 +99,7 @@ def market_agent(state: AnalysisState) -> dict:
         ticker=ticker,
         price=market_data.get("price_current"),
         news_articles=len(news_articles),
+        material_events=len(material_events),
     )
 
     return {"market": report}

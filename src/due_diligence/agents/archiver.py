@@ -89,14 +89,33 @@ def _render_markdown(state: AnalysisState) -> str:
     if sizing is not None:
         lines.append(f"| Suggested sizing | {sizing:.0f}% of portfolio |")
     lines.append("")
+    if synthesis and not synthesis.stub and synthesis.verdict_rationale:
+        lines += [f"> {synthesis.verdict_rationale}", ""]
 
     # --- Valuation summary table ---
     valuation = state.get("valuation")      # type: ignore[typeddict-item]
     if valuation and not valuation.stub:
         lines += ["## Valuation Summary", ""]
+
+        # Precio actual vs intrínseco por acción (primera tabla — más relevante)
+        if valuation.price_current is not None or valuation.dcf_intrinsic_per_share is not None:
+            lines += ["### Price vs Intrinsic Value (per share)", ""]
+            lines.append("| | Per share |")
+            lines.append("|---|---|")
+            if valuation.price_current:
+                lines.append(f"| Market price | **${valuation.price_current.value:.2f}** |")
+            if valuation.dcf_intrinsic_per_share:
+                upside_str = ""
+                if valuation.price_current and valuation.price_current.value > 0:
+                    pct = (valuation.dcf_intrinsic_per_share.value - valuation.price_current.value) / valuation.price_current.value * 100
+                    upside_str = f" ({pct:+.1f}%)"
+                lines.append(f"| DCF intrinsic (per share) | **${valuation.dcf_intrinsic_per_share.value:.2f}**{upside_str} |")
+            lines.append("")
+
+        # Métricas agregadas
         rows = []
         if valuation.dcf_intrinsic_value:
-            rows.append(("DCF equity value", f"${valuation.dcf_intrinsic_value.value/1e9:.0f}B"))
+            rows.append(("DCF equity value (total)", f"${valuation.dcf_intrinsic_value.value/1e9:.0f}B"))
         if valuation.dcf_upside_pct is not None:
             rows.append(("DCF upside vs market cap", f"{valuation.dcf_upside_pct:+.1f}%"))
         if valuation.reverse_dcf_implied_growth is not None:
@@ -110,6 +129,7 @@ def _render_markdown(state: AnalysisState) -> str:
         if valuation.earnings_yield_pct is not None:
             rows.append(("Earnings yield (EBIT/EV)", f"{valuation.earnings_yield_pct:.1f}%"))
         if rows:
+            lines += ["### Aggregate Metrics", ""]
             lines.append("| Metric | Value |")
             lines.append("|---|---|")
             for label, val in rows:

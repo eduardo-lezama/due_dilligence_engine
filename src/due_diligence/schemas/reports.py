@@ -94,7 +94,9 @@ class ValuationReport(BaseModel):
     ticker: str
     stub: bool = True
     dcf_intrinsic_value: Optional[MetricValue] = None  # Valor intrínseco DCF (equity value total)
+    dcf_intrinsic_per_share: Optional[MetricValue] = None  # Valor intrínseco por acción
     dcf_upside_pct: Optional[float] = None             # (intrinsic - market_cap) / market_cap
+    price_current: Optional[MetricValue] = None        # Precio de mercado actual (copia de MarketReport)
     reverse_dcf_implied_growth: Optional[float] = None  # Growth implícito en precio actual
     ev_ebit_multiple: Optional[MetricValue] = None      # EV/EBIT (Greenblatt — EBITDA no disponible en XBRL básico)
     ev_fcf_multiple: Optional[MetricValue] = None       # EV/FCF (Owner earnings proxy)
@@ -126,6 +128,7 @@ class ValueExpertReport(BaseModel):
     verdict: Optional[str] = None  # ADR-009: BUY/SELL/HOLD (requerido cuando no stub)
     verdict_confidence: Optional[float] = None  # Confianza en el verdict (0.0-1.0)
     suggested_sizing_pct: Optional[float] = None  # % de portfolio sugerido
+    verdict_rationale: Optional[str] = None  # 2-3 frases: por qué este verdict
 
 
 class CriticReport(BaseModel):

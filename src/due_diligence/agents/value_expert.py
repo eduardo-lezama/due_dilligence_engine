@@ -82,7 +82,8 @@ OUTPUT SCHEMA:
   "decision_frame": "<§9: 2-3 sentences. How does this fit a concentrated value portfolio? Sizing rationale>",
   "verdict": "BUY" | "HOLD" | "SELL",
   "verdict_confidence": <0.0 to 1.0>,
-  "suggested_sizing_pct": <0.0 to 20.0>
+  "suggested_sizing_pct": <0.0 to 20.0>,
+  "verdict_rationale": "<2-3 sentences explaining WHY this verdict. Reference specific numbers from the valuation section (DCF upside, multiples, ROIC) and the key qualitative factor that tips the decision. This is the executive summary a busy investor reads first.>"
 }"""
 
 
@@ -246,6 +247,7 @@ def _parse_response(response_text: str, ticker: str) -> ValueExpertReport:
             verdict=verdict,
             verdict_confidence=confidence,
             suggested_sizing_pct=sizing,
+            verdict_rationale=data.get("verdict_rationale"),
         )
 
     except Exception as e:

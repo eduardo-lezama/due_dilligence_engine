@@ -222,17 +222,87 @@ def _show_verdict(state: dict) -> None:
 
     verdict = synthesis.verdict or "N/A"
     color = {"BUY": "bold green", "HOLD": "bold yellow", "SELL": "bold red"}.get(verdict, "white")
+    border = color.split()[-1]
     confidence = synthesis.verdict_confidence or 0.0
     sizing = synthesis.suggested_sizing_pct or 0.0
+    rationale = synthesis.verdict_rationale or ""
 
-    console.print(Panel(
+    # Panel del VERDICT con rationale
+    body = (
         f"[{color}]{verdict}[/{color}]  "
-        f"confidence: {confidence:.0%}  |  suggested sizing: {sizing:.0f}%",
-        title="VERDICT",
-        border_style=color.split()[-1],  # solo el color, sin "bold"
-    ))
+        f"confidence: {confidence:.0%}  |  suggested sizing: {sizing:.0f}%"
+    )
+    if rationale:
+        body += f"\n\n{rationale}"
 
-    # Mostrar secciones del Expert
+    console.print(Panel(body, title="VERDICT", border_style=border))
+
+    # Tabla de comparación precio actual vs intrínseco + múltiplos
+    valuation = state.get("valuation")
+    if valuation and not valuation.stub:
+        console.print()
+
+        # --- Comparación por acción ---
+        price_mv = valuation.price_current
+        dcf_ps = valuation.dcf_intrinsic_per_share
+        if price_mv is not None or dcf_ps is not None:
+            ps_table = Table(title="Price vs Intrinsic Value (per share)", box=box.SIMPLE_HEAVY)
+            ps_table.add_column("", style="bold")
+            ps_table.add_column("Value", justify="right")
+            ps_table.add_column("Notes", justify="left")
+
+            if price_mv is not None:
+                ps_table.add_row("Market price", f"${price_mv.value:.2f}", "current")
+            if dcf_ps is not None:
+                delta = ""
+                if price_mv is not None and price_mv.value > 0:
+                    pct = (dcf_ps.value - price_mv.value) / price_mv.value * 100
+                    color = "green" if pct > 0 else "red"
+                    delta = f"[{color}]{pct:+.1f}% vs market[/{color}]"
+                ps_table.add_row("DCF intrinsic (per share)", f"${dcf_ps.value:.2f}", delta)
+
+            # Equity value total para contexto
+            if valuation.dcf_intrinsic_value:
+                mcap_str = ""
+                if valuation.dcf_upside_pct is not None:
+                    color = "green" if valuation.dcf_upside_pct > 0 else "red"
+                    mcap_str = f"[{color}]{valuation.dcf_upside_pct:+.1f}% vs market cap[/{color}]"
+                ps_table.add_row(
+                    "DCF equity value (total)",
+                    f"${valuation.dcf_intrinsic_value.value/1e9:.0f}B",
+                    mcap_str,
+                )
+            if valuation.reverse_dcf_implied_growth is not None:
+                ps_table.add_row(
+                    "Reverse DCF implied growth",
+                    f"{valuation.reverse_dcf_implied_growth:.1%}",
+                    "embedded in market price",
+                )
+            console.print(ps_table)
+
+        # --- Múltiplos ---
+        mult_table = Table(title="Valuation Multiples", box=box.SIMPLE_HEAVY)
+        mult_table.add_column("Multiple", style="bold")
+        mult_table.add_column("Value", justify="right")
+
+        if valuation.ev_ebit_multiple:
+            mult_table.add_row("EV/EBIT", f"{valuation.ev_ebit_multiple.value:.1f}x")
+        if valuation.ev_fcf_multiple:
+            mult_table.add_row("EV/FCF", f"{valuation.ev_fcf_multiple.value:.1f}x")
+        if valuation.pe_multiple:
+            mult_table.add_row("P/E", f"{valuation.pe_multiple.value:.1f}x")
+        if valuation.earnings_yield_pct is not None:
+            mult_table.add_row("Earnings yield (EBIT/EV)", f"{valuation.earnings_yield_pct:.1f}%")
+        if valuation.assumptions:
+            a = valuation.assumptions
+            mult_table.add_row(
+                "[dim]DCF assumptions[/dim]",
+                f"[dim]WACC {a.wacc_pct}% / g={a.terminal_growth_pct}% / {a.projection_years}y[/dim]",
+            )
+        if mult_table.row_count:
+            console.print(mult_table)
+
+    # Secciones del Expert
     sections = [
         ("Business", synthesis.business_understanding),
         ("Moat", synthesis.moat_analysis),

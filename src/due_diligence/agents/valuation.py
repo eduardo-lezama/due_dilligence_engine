@@ -207,13 +207,24 @@ def valuation_agent(state: AnalysisState) -> dict:
         if financials.cash_and_equivalents is not None:
             cash = financials.cash_and_equivalents.value
 
-    # --- 3. Extraer market cap del MarketReport ---
+    # --- 3. Extraer market cap y precio del MarketReport ---
     market_cap: Optional[float] = None
+    price_current_mv: Optional[MetricValue] = None
     as_of_date: str = "N/A"
+    shares: Optional[float] = None
     if market is not None and market.market_cap is not None:
         market_cap = market.market_cap.value
         if market.market_cap.period:
             as_of_date = market.market_cap.period
+    if market is not None and market.price_current is not None:
+        price_current_mv = market.price_current
+
+    # Shares outstanding: desde FinancialsReport (EDGAR XBRL) si disponible,
+    # o derivado de market_cap / price como aproximación.
+    if financials is not None and financials.shares_outstanding is not None:
+        shares = financials.shares_outstanding.value
+    elif market_cap is not None and price_current_mv is not None and price_current_mv.value > 0:
+        shares = market_cap / price_current_mv.value
 
     # --- 4. Near-term growth: user override > historical CAGR > default 7% ---
     if assumptions.revenue_growth_yr1_pct is not None:
@@ -238,6 +249,7 @@ def valuation_agent(state: AnalysisState) -> dict:
 
     # --- 5. DCF ---
     dcf_value: Optional[MetricValue] = None
+    dcf_per_share: Optional[MetricValue] = None
     dcf_upside: Optional[float] = None
 
     if base_fcf is not None and base_fcf > 0:
@@ -248,6 +260,13 @@ def valuation_agent(state: AnalysisState) -> dict:
             period=fcf_period,
             source="calculated",
         )
+        if shares is not None and shares > 0:
+            dcf_per_share = MetricValue(
+                value=round(equity_value / shares, 2),
+                unit="USD/share",
+                period=fcf_period,
+                source="calculated",
+            )
         if market_cap is not None and market_cap > 0:
             dcf_upside = round((equity_value - market_cap) / market_cap * 100, 1)
     else:
@@ -307,6 +326,8 @@ def valuation_agent(state: AnalysisState) -> dict:
         ticker=ticker,
         stub=False,
         dcf_intrinsic_value=dcf_value,
+        dcf_intrinsic_per_share=dcf_per_share,
+        price_current=price_current_mv,
         dcf_upside_pct=dcf_upside,
         reverse_dcf_implied_growth=reverse_growth,
         ev_ebit_multiple=ev_ebit_mv,

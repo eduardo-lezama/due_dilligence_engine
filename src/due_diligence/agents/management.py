@@ -33,6 +33,7 @@ from typing import Any
 
 import structlog
 
+from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
 from due_diligence.llm.client import get_client
 from due_diligence.schemas.base import Citation
@@ -244,8 +245,10 @@ def management_agent(state: AnalysisState) -> dict:
     tavily_text = format_tavily_for_prompt(tavily_results)
 
     # --- 2b. Earnings call transcripts (ADR-016) — SOURCE 5 ---
+    # quarters controlado por settings.transcript_quarters (default 2).
+    # Configurable en .env con TRANSCRIPT_QUARTERS=N si se quiere más contexto histórico.
     # Devuelve [] si FINNHUB_API_KEY no configurada (degraded mode limpio).
-    transcripts = FinnhubAdapter.fetch_transcripts(ticker, quarters=4)
+    transcripts = FinnhubAdapter.fetch_transcripts(ticker, quarters=settings.transcript_quarters)
     transcripts_text = _format_transcripts(transcripts)
 
     # --- 3. Construir prompt y llamar al LLM ---

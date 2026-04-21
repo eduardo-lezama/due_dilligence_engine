@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     openai_fallback_model: str = Field("gpt-4.1", validation_alias="OPENAI_FALLBACK_MODEL")  # Fallback general (management, filings, competitive)
     openai_expert_model: str = Field("gpt-5.4-mini", validation_alias="OPENAI_EXPERT_MODEL")    # Modelo para value_expert y critic
 
+    # --- Feature tuning ---
+    # Número de earnings call transcripts a inyectar en management_agent (SOURCE 5).
+    # 2 quarters captura el tono actual del management con la mitad de tokens vs 4.
+    # Aumentar a 4 si quieres contexto histórico extra (coste ~2x en SOURCE 5).
+    transcript_quarters: int = Field(2, validation_alias="TRANSCRIPT_QUARTERS")
+
     # --- Paths ---
     db_path: str = Field("data/analyses.db", validation_alias="DB_PATH")  # SQLite database
     reports_dir: str = Field("data/reports", validation_alias="REPORTS_DIR")  # Directorio de reportes

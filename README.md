@@ -2,9 +2,13 @@
 
 Sistema agentic personal de análisis fundamental de empresas con filosofía **value investing**. Multi-agente basado en LangGraph, provider-agnostic (Claude + OpenAI), con énfasis en **zero hallucination en datos numéricos** y modo **Socratic HITL** que combina análisis automatizado con aprendizaje continuo del usuario.
 
-**Estado actual**: diseño aprobado, pendiente de implementación.
+**Estado actual**: Phase 1 (1a + 1b + 1c) completa y verificada en producción.
 **Owner**: Eduardo (uso personal, no comercial).
-**Fecha del diseño**: 2026-04-19.
+**Última actualización**: 2026-04-21.
+
+```bash
+uv run due-diligence analyze AAPL   # pipeline completo con HITL
+```
 
 ---
 
@@ -68,6 +72,7 @@ Las decisiones arquitectónicas viven como archivos individuales en [`docs/adr/`
 | [009](docs/adr/ADR-009-verdict-plus-analysis.md) | Value Expert: análisis estructurado + veredicto | Accepted |
 | [010](docs/adr/ADR-010-nas-deploy-target.md) | Deploy target NAS QNAP TS264 | Accepted |
 | [011](docs/adr/ADR-011-us-data-sources.md) | Fuentes de datos US Fase 1 | Accepted |
+| [012](docs/adr/ADR-012-management-agent-data-sources.md) | Fuentes de datos Management Agent (EDGAR trifecta + Tavily) | Accepted |
 
 Ver [`docs/adr/README.md`](docs/adr/README.md) para la política de ADRs y cómo añadir uno nuevo.
 
@@ -190,13 +195,13 @@ Cada especialista:
 - Emite outputs schema-validated (Pydantic).
 - Adjunta citas con substring-match validado.
 
-| Agente | Tool-lane | LLM-lane | Modelo sugerido |
+| Agente | Tool-lane | LLM-lane | Modelo actual |
 |---|---|---|---|
-| Financials | `edgartools.get_financials()`, `compute_ratios()` | — | GPT-4o-mini (solo orquesta) |
-| Mgmt & Skin | `get_form4()`, `get_def14a_compensation()` | Parsea DEF 14A + shareholder letters | Haiku + Sonnet synth |
-| Filings RAG | — | Chunks del 10-K MD&A + risk factors, citas | Sonnet |
-| Market & News | `get_prices()`, `get_news()` | — | GPT-4o-mini |
-| Competitive & Moat | `get_peer_financials()` | Peer comparison + moat tag | Sonnet |
+| Financials | `edgartools` XBRL, ROIC calc | — | (sin LLM) |
+| Mgmt & Skin | Form 4, DEF 14A, 10-K §10, Tavily | Síntesis cualitativa §3 checklist | `gpt-4.1` |
+| Filings RAG | 10-K §1/1A/7 (edgartools) | Síntesis §1+§7 checklist | `gpt-4.1` |
+| Market & News | Polygon (precios, MCap), Finnhub (noticias) | — | (sin LLM) |
+| Competitive & Moat | ROIC series del estado, Tavily | Clasificación moat §2 checklist | `gpt-4.1` |
 
 **Valuation Agent**
 - Recibe inputs del usuario del Checkpoint 2 (WACC, growth, terminal).
@@ -204,15 +209,14 @@ Cada especialista:
 - Output: rango de intrinsic values + sensitivity table.
 
 **Value Expert (síntesis)**
-- Modelo top (Opus preferente, GPT-4o fallback).
+- Modelo: `gpt-5.4-mini` (configurable via `OPENAI_EXPERT_MODEL` en `.env`).
 - Inputs: todos los outputs de especialistas + Valuation + Checkpoint inputs.
-- Output: markdown en 9 secciones + bloque VERDICT (ver ADR-009).
-- Prompt caching agresivo: el checklist canónico + rúbrica de verdict se cachea (cada análisis reutiliza).
+- Output: análisis en 9 secciones + `verdict_rationale` (2-3 frases) + VERDICT BUY/HOLD/SELL + confidence + sizing sugerido (ver ADR-009).
 
 **Critic Agent**
-- Modelo distinto al Expert (si Expert=Opus → Critic=GPT-4o, y viceversa). Diversidad cognitiva.
+- Modelo: `gpt-5.4-mini` (mismo que Expert — diversidad viene del prompt opuesto).
 - Ejecuta pre-mortem: "si este veredicto es erróneo en 3 años, ¿razón más probable?".
-- Output: 3-5 bullets de weaknesses + contra-thesis.
+- Output: 3-5 bullets de weaknesses + contra-thesis + pre-mortem scenario.
 
 **Archiver**
 - Persiste report markdown, SQLite row, raw cache.
@@ -284,38 +288,28 @@ Cada fase entrega un **MVP funcional y verificable**. No se avanza a la siguient
 
 Dividida en 3 milestones. No se avanza al siguiente hasta que el anterior esté end-to-end funcional.
 
-#### Fase 1a — LangGraph skeleton + Financials specialist (1 sesión)
-**Entregable**: pipeline mínimo que corre. `due-diligence analyze AAPL` ejecuta el grafo, pasa por el Supervisor, lanza el Financials specialist, y devuelve un `AnalysisState` parcial válido.
-- `AnalysisState` (TypedDict) con todos los campos definidos (stubs para los agentes no implementados).
-- Supervisor node: valida ticker → resuelve CIK → decide routing básico.
-- Financials specialist: reutiliza `EdgarAdapter` de Phase 0, emite `FinancialsReport` al State.
-- LangGraph `StateGraph` con SQLite checkpointer.
-- Schemas Pydantic para todos los outputs de agente (`ManagementReport`, `FilingsRAGReport`, `MarketReport`, `CompetitiveReport` — stubs en Fase 1a).
-- Tests con fixtures para el grafo completo (no solo el adapter).
+#### ~~Fase 1a~~ ✓ COMPLETA (2026-04-20)
+LangGraph skeleton + Supervisor + Financials specialist. `due-diligence analyze AAPL` extrae datos XBRL reales de EDGAR FY2025 end-to-end. ROIC calculado desde XBRL.
 
-**Definition of done**: `due-diligence analyze AAPL` ejecuta sin errores, el State contiene `financials` completo con datos XBRL reales, los demás campos son stubs marcados explícitamente.
+#### ~~Fase 1b~~ ✓ COMPLETA (2026-04-20)
+4 especialistas en paralelo vía `Send()` fan-out + checkpoint1 HITL:
+- `management_agent` — DEF14A + Form4 + 10-K §10 + Tavily → §3 checklist
+- `filings_agent` — 10-K §1/§1A/§7 → §1+§7 checklist
+- `market_agent` — Polygon (precio, MCap, 52w) + Finnhub (noticias), tool-lane
+- `competitive_agent` — ROIC series + Tavily → §2 checklist (moat)
 
-#### Fase 1b — 4 especialistas restantes + 2 checkpoints Socráticos (2 sesiones)
-**Entregable**: los 5 especialistas en paralelo + HITL funcional.
-- Mgmt & Skin specialist: Form 4 + DEF 14A (compensación) + cartas a accionistas vía LLM con citas.
-- Filings RAG specialist: chunking del 10-K MD&A + risk factors, citas con substring-match.
-- Market & News specialist: precios históricos (Polygon) + noticias (Finnhub).
-- Competitive & Moat specialist: peer comparison + moat classification vía LLM con citas.
-- Validation post-hoc de citas: substring-match contra filing cacheado.
-- Checkpoint 1 (Socratic): `interrupt()` tras join de los 5 especialistas. CLI muestra resumen moat + mgmt con explicación didáctica, pide input al usuario.
-- Checkpoint 2 (Socratic): `interrupt()` antes de Valuation. CLI pide supuestos DCF (WACC, growth, terminal).
+#### ~~Fase 1c~~ ✓ COMPLETA (2026-04-21)
+Pipeline completo verificado en producción con AAPL y FSLR:
+- `valuation_agent` — DCF + reverse DCF + multiples + sensitivity table 3×3, zero LLM
+- `value_expert_agent` — 9 secciones + `verdict_rationale` + VERDICT, modelo `gpt-5.4-mini`
+- `critic_agent` — red-team: weaknesses + contra-thesis + pre-mortem, modelo `gpt-5.4-mini`
+- `archiver_node` — markdown con precio actual vs intrínseco por acción + SQLite row
+- CLI interactivo con 2 checkpoints HITL: revisión de especialistas + assumptions DCF
 
-**Definition of done**: análisis end-to-end de AAPL con los 5 especialistas reales, ≥90% citations verificables, ambos checkpoints funcionales con input del usuario.
-
-#### Fase 1c — Valuation + Value Expert + Critic + Archiver + CLI final (1-2 sesiones)
-**Entregable**: `due-diligence analyze <TICKER>` completo con veredicto y report persistido.
-- Valuation Agent: DCF + reverse DCF + multiples comp + Magic Formula — todo tool-based, zero LLM numeric generation.
-- Value Expert: síntesis en 9 secciones + bloque VERDICT. Modelo Opus / gpt-4o. Prompt caching del checklist.
-- Critic Agent: pre-mortem con modelo distinto al Expert. Output: 3-5 bullets de weaknesses + contra-thesis.
-- Archiver: markdown report + SQLite row + raw cache. Hash para deduplicación.
-- CLI `analyze` con `rich` panels: progress durante ejecución, checkpoints interactivos, report final.
-
-**Definition of done**: análisis end-to-end de 3 tickers (AAPL, KO, + 1 small-cap) con zero alucinaciones numéricas auditadas, veredicto coherente, report.md persistido, usuario puede modificar supuestos DCF en Checkpoint 2 y ver efecto en intrinsic value.
+**Limitaciones conocidas de Phase 1:**
+- Solo empresas US con 10-K (foreign private issuers con 20-F: ASML, SAP, etc. no soportados hasta Phase 3)
+- Checkpointer usa `MemorySaver` (no persiste entre sesiones — aceptable para run de ~3 min)
+- `peer_roic_comparison` vacío hasta Phase 2 (requiere XBRL de peers)
 
 ### Fase 2 — RAG de memoria + news
 **Precondition**: ≥10 análisis archivados (o umbral menor si quality lo justifica).
@@ -420,7 +414,7 @@ Dividida en 3 milestones. No se avanza al siguiente hasta que el anterior esté 
 
 ## 11. Next step
 
-Phase 0 completada (2026-04-19). Siguiente: **Phase 1a** — LangGraph skeleton + `AnalysisState` + Supervisor + Financials specialist end-to-end.
+Phase 0 completada (2026-04-19). Phase 1 (1a + 1b + 1c) completada (2026-04-21). Siguiente: **Phase 2** — RAG de memoria + ChromaDB + peer ROIC comparison.
 
 ---
 

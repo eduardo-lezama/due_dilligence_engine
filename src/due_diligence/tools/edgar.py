@@ -76,17 +76,30 @@ class EdgarAdapter:
             return sorted([c for c in df.columns if c.startswith("FY ")], reverse=True)
 
         def _get_annual(df: Any, concept: str, n: int = 10) -> list[dict]:
-            """Extrae hasta n años de un concepto. Devuelve [] si no existe."""
+            """Extrae hasta n años de un concepto. Devuelve [] si no existe.
+
+            Si df.loc[concept] devuelve un DataFrame (concepto con filas duplicadas,
+            como ocurre en algunas empresas que usan el mismo concepto XBRL con
+            contextos distintos), tomamos la primera fila para evitar que pd.notna()
+            reciba una Series en lugar de un escalar.
+            """
             if concept not in df.index:
                 return []
             row = df.loc[concept]
+            # Protección contra duplicados: si hay varias filas con el mismo concepto
+            # (DataFrame en lugar de Series), usar la primera.
+            if row.ndim == 2:  # DataFrame con filas duplicadas (ndim=2), no Series (ndim=1)
+                row = row.iloc[0]
             result = []
             for col in _fy_cols(df)[:n]:
                 val = row.get(col)
-                if pd.notna(val):
-                    # 'FY 2025' → 'FY2025' para consistencia con el fixture format
-                    period = col.replace("FY ", "FY")
-                    result.append({"value": float(val), "period": period})
+                try:
+                    if pd.notna(val):
+                        period = col.replace("FY ", "FY")
+                        result.append({"value": float(val), "period": period})
+                except (ValueError, TypeError):
+                    # val es una Series en contextos inesperados — skip
+                    pass
             return result
 
         def _get_point(df: Any, concept: str, period: str) -> dict:
@@ -94,10 +107,15 @@ class EdgarAdapter:
             if concept not in df.index:
                 raise DataUnavailableError(f"{ticker}: XBRL concept '{concept}' not found")
             row = df.loc[concept]
+            if row.ndim == 2:  # DataFrame con duplicados — tomar la primera fila
+                row = row.iloc[0]
             for col in _fy_cols(df):
                 val = row.get(col)
-                if pd.notna(val):
-                    return {"value": float(val), "period": period}
+                try:
+                    if pd.notna(val):
+                        return {"value": float(val), "period": period}
+                except (ValueError, TypeError):
+                    pass
             raise DataUnavailableError(f"{ticker}: '{concept}' has no annual data")
 
         # --- Income statement ---
@@ -108,19 +126,43 @@ class EdgarAdapter:
             raise DataUnavailableError(f"{ticker}: revenue concept not found in income statement")
 
         # --- Balance sheet ---
-        # LongTermDebt en edgartools 5.x ya incluye la porción corriente
-        lt_debt = _get_point(bs_df, "LongTermDebt", fy_label)
+        # LongTermDebt: distintas empresas usan distintos conceptos XBRL.
+        # Intentamos en orden de prevalencia; si ninguno existe, total_debt = 0.
+        lt_debt = None
+        for _lt_concept in ("LongTermDebt", "LongTermDebtNoncurrent",
+                             "LongTermDebtAndCapitalLeaseObligations",
+                             "LongTermNotesPayable"):
+            if _lt_concept in bs_df.index:
+                try:
+                    lt_debt = _get_point(bs_df, _lt_concept, fy_label)
+                    break
+                except DataUnavailableError:
+                    pass
+        if lt_debt is None:
+            lt_debt = {"value": 0.0, "period": fy_label}
 
-        # ShortTermBorrowings: deuda a corto plazo distinta de la porción corriente del LTD
-        # (muchas empresas no lo tienen — defaulta a 0 sin fallar)
+        # ShortTermBorrowings + porción corriente de LTD (opcional — no todas las empresas)
         st_debt_value = 0.0
-        if "ShortTermBorrowings" in bs_df.index:
-            try:
-                st_debt_value = _get_point(bs_df, "ShortTermBorrowings", fy_label)["value"]
-            except DataUnavailableError:
-                pass
+        for _st_concept in ("ShortTermBorrowings", "LongTermDebtCurrent",
+                             "NotesPayableCurrent", "DebtCurrent"):
+            if _st_concept in bs_df.index:
+                try:
+                    st_debt_value += _get_point(bs_df, _st_concept, fy_label)["value"]
+                except DataUnavailableError:
+                    pass
 
-        cash = _get_point(bs_df, "CashAndCashEquivalentsAtCarryingValue", fy_label)
+        # Cash and equivalents
+        cash = None
+        for _cash_concept in ("CashAndCashEquivalentsAtCarryingValue",
+                               "CashAndCashEquivalents", "Cash"):
+            if _cash_concept in bs_df.index:
+                try:
+                    cash = _get_point(bs_df, _cash_concept, fy_label)
+                    break
+                except DataUnavailableError:
+                    pass
+        if cash is None:
+            cash = {"value": 0.0, "period": fy_label}
 
         # STI (marketable securities a corto plazo): no aparece en el BS normalizado
         # de edgartools 5.x para todas las empresas — defaulta a 0

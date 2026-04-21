@@ -12,23 +12,27 @@ Por qué una factory function y no un objeto global:
     Si el grafo fuera un objeto global, no podríamos intercambiar el
     checkpointer entre llamadas.
 
-Flujo Phase 1a (lineal):
-    START → supervisor_node → financials_node → END
+Flujo completo (Phase 1a + 1b + 1c + Phase 2):
 
-Flujo Phase 1b (paralelo, con Send()):
-    START → supervisor_node → financials_node
-          → [Send() fan-out a 4 especialistas en paralelo]
-          → management_agent, filings_agent, market_agent, competitive_agent
-          → checkpoint1_node (HITL: pausa para revisión humana)
-          → END
+    START
+      → supervisor_node          (CIK, as_of_date, run_id)
+      → financials_node          (XBRL → FinancialsReport + historical_cagr_5y)
+      → [Send() fan-out × 4]:
+          management_agent       (EDGAR DEF14A + Form4 + transcripts + Tavily → ManagementReport)
+          filings_agent          (EDGAR 10-K → FilingsRAGReport)
+          market_agent           (Polygon + Finnhub + 8-K events → MarketReport)
+          competitive_agent      (ROIC + Tavily → CompetitiveReport)
+      → checkpoint1_node         (HITL: Socratic questions + peer prompt — Phase 2)
+      → peers_node               (EDGAR XBRL para cada peer ticker — Phase 2, ADR-015)
+      → checkpoint2_node         (HITL: CAGR anchor + DCF assumptions)
+      → valuation_agent          (DCF + reverse DCF + multiples → ValuationReport)
+      → value_expert_agent       (síntesis integrada + VERDICT — prompt v2 Phase 2)
+      → critic_agent             (contra-tesis + pre-mortem → CriticReport)
+      → archiver_node            (markdown + SQLite)
+      → END
 
-    Cada Send() crea una copia del estado y la pasa al especialista.
-    LangGraph recoge los 4 dicts de retorno y los merge en el estado
-    compartido automáticamente. Los edges de los 4 especialistas convergen
-    en checkpoint1 (fan-in implícito: LangGraph espera a que todos terminen).
-
-Flujo Phase 1c (pendiente):
-    → valuation_agent → synthesis_agent → checkpoint2 → critic_agent → END
+Cada Send() crea una copia del estado y la pasa al especialista.
+LangGraph recoge los 4 dicts de retorno y los merge automáticamente.
 
 Este módulo solo ensambla — la lógica vive en agents/.
 """
@@ -85,22 +89,22 @@ def build_graph(
     checkpointer: Optional[BaseCheckpointSaver] = None,
 ) -> object:
     """
-    Construye y compila el grafo de análisis Phase 1b.
+    Construye y compila el grafo de análisis completo (Phase 1 + Phase 2).
 
     Args:
         checkpointer: Saver para persistir el estado entre runs.
                       None = sin persistencia (útil en tests sin checkpointer).
-                      MemorySaver = in-memory (tests con thread_id).
-                      SqliteSaver = producción.
+                      MemorySaver = in-memory (tests con thread_id, producción CLI).
+                      SqliteSaver = Phase 5 (webapp, resume entre sesiones).
 
     Returns:
         CompiledGraph listo para llamar con .invoke() o .stream().
 
     Nota sobre interrupt() y checkpointer:
-        checkpoint1_node usa interrupt(), que requiere un checkpointer para
-        serializar el estado. En tests sin checkpointer, interrupt() lanza
-        GraphInterrupt que se puede capturar con pytest.raises().
-        En producción, SqliteSaver persiste el estado entre reanudaciones.
+        checkpoint1_node y checkpoint2_node usan interrupt(), que requiere
+        un checkpointer para serializar el estado. En tests sin checkpointer,
+        interrupt() lanza GraphInterrupt capturable con pytest.raises().
+        En CLI se usa MemorySaver (SqliteSaver diferido a Phase 5, ADR-020).
     """
     builder = StateGraph(AnalysisState)
 

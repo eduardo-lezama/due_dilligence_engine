@@ -86,11 +86,12 @@ Lista viva de trabajo estructural (subdirectorios `CLAUDE.md`, skills, slash-com
 - **Estimación**: ~80 líneas
 - **Prioridad**: baja
 
-### MCE-12 — Vector RAG de memoria
-- **Trigger**: **≥10 análisis archivados** en SQLite + arranque de Fase 2
-- **Acción**: implementar según ADR-008 — ChromaDB local, embeddings `text-embedding-3-small`, tool `retrieve_similar_analyses` expuesto al Value Expert, ablation test con/sin RAG.
+### MCE-12 — Vector RAG de memoria (Phase 2.5)
+- **Trigger**: **≥3 análisis del mismo ticker** en SQLite (trigger corregido — ver ADR-013, que supersede ADR-008)
+- **Rationale**: el caso de uso real es delta entre re-análisis del mismo ticker, no comparación cross-ticker (que ya cubre el peer comparison user-supplied de ADR-015).
+- **Acción**: ChromaDB local, embeddings `text-embedding-3-small`, corpus = "analysis fingerprint" (VERDICT + moat + DCF assumptions + critic weaknesses), tool `retrieve_similar_analyses` expuesto al Value Expert. Ablation test con/sin RAG.
 - **Estimación**: módulo completo (no solo MCE)
-- **Prioridad**: alta cuando Fase 2 arranque
+- **Prioridad**: alta cuando se tengan ≥3 análisis del mismo ticker
 
 ### MCE-13 — Adapters CAD + EU
 - **Trigger**: arranque Fase 3 (analyst US maduro, portfolio con interés canadiense o europeo)

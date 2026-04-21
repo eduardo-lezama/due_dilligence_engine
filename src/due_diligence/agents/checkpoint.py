@@ -14,15 +14,16 @@ Por qué interrupt() y no un edge condicional:
     correcciones, o flags de seguimiento.
 
 Cuándo se ejecuta checkpoint1:
-    Después de que los 4 especialistas (management, filings, market, competitive)
-    completan su análisis en paralelo. El usuario puede revisar los resultados
-    y decidir si continúa.
+    Después de que los 4 especialistas completan su análisis en paralelo.
+    Phase 2 añade preguntas Socratic ancladas en datos (ADR-018) y el prompt
+    de peers para ROIC comparison (ADR-015). Tras el checkpoint, peers_node
+    fetcha XBRL de los peer tickers antes de pasar a checkpoint2.
 
 Cuándo se ejecuta checkpoint2:
-    Entre checkpoint1 y valuation_agent. Pide al usuario los assumptions del
-    DCF: WACC, growth rate, años de proyección. El valuation_agent los lee de
-    state["checkpoint2_user_input"]. Si el usuario reanuda sin input ({} o None),
-    el valuation_agent usa defaults razonables (WACC=9%, growth=2.5%, 10 años).
+    Entre peers_node y valuation_agent. Muestra el CAGR histórico de revenue
+    (ADR-019) como anchor para las asunciones de growth. Pide WACC, growth,
+    años de proyección y justificación del divergencia vs historia.
+    Si el usuario reanuda sin input, el valuation_agent usa defaults.
 """
 
 from __future__ import annotations

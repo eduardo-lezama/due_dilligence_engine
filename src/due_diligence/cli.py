@@ -10,13 +10,12 @@ Comandos disponibles:
     get-financials  — obtiene datos EDGAR directamente (Phase 0, debug)
     analyze         — corre el grafo completo con checkpoints interactivos
 
-Flujo del comando analyze (Phase 1b+):
-    1. Corre hasta checkpoint1 → muestra resultados de especialistas
-    2. Pide confirmación al usuario para continuar
-    3. Corre hasta checkpoint2 → muestra hints de valoración
-    4. Pide assumptions DCF (WACC, growth, años) con defaults
-    5. Corre hasta END → muestra VERDICT + report completo
-    6. Informa ruta del markdown guardado
+Flujo del comando analyze (Phase 1 + Phase 2):
+    1. Corre hasta checkpoint1 → muestra especialistas + preguntas Socratic
+    2. Pide peers para ROIC comparison (skip con Enter) → peers_node fetcha XBRL
+    3. Corre hasta checkpoint2 → muestra CAGR histórico + pide assumptions DCF
+    4. Corre hasta END → muestra VERDICT + report completo con citations + 8-K events
+    5. Informa ruta del markdown guardado
 
 Por qué un loop en lugar de un invoke() único:
     El grafo tiene interrupt() en checkpoint1 y checkpoint2. Cada vez que
@@ -436,7 +435,7 @@ def analyze_cmd(
     _show_checkpoint1_summary(state)
 
     # Preguntar si continuar
-    if not typer.confirm("\nProceed to valuation (Phase 1c)?", default=True):
+    if not typer.confirm("\nProceed to valuation?", default=True):
         console.print("[yellow]Analysis stopped at checkpoint 1.[/yellow]")
         return
 
@@ -490,7 +489,7 @@ def analyze_cmd(
         assumptions["growth_justification"] = growth_justification
 
     # ── Reanudar: checkpoint2 → valuation → expert → critic → archiver ────
-    with console.status("[bold green]Running Phase 1c (valuation + expert + critic)…"):
+    with console.status("[bold green]Running valuation + expert + critic + archiver…"):
         graph.invoke(Command(resume=assumptions), config=config)
 
     state = graph.get_state(config).values

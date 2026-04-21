@@ -1806,3 +1806,56 @@ Tres reglas duras nuevas:
 - `src/due_diligence/agents/value_expert.py`: `_SYSTEM_PROMPT` reescrito (prompt v2) + CAGR y 8-K events en `_format_context`.
 - `tests/test_financials_agent.py`: 5 tests nuevos (CAGR helper + state output).
 - `tests/test_value_expert.py`: 7 tests nuevos (prompt v2 + context injection).
+
+---
+
+## Phase 2 — Resumen completo
+
+**Fecha de completion:** 2026-04-21 | **Tests:** 187 (152 Phase 1 + 35 Phase 2)
+
+### Qué se entregó
+
+Phase 2 mejoró el sistema en tres dimensiones: **transparencia**, **nuevas fuentes de datos**, y **calidad de síntesis**.
+
+| Task | Feature | ADR | Agente(s) afectado(s) |
+|---|---|---|---|
+| T1 | Citations + Market & News visibles en markdown | ADR-014 | archiver |
+| T3 | Peer ROIC comparison (tickers user-supplied) | ADR-015 | peers_node (nuevo), competitive, checkpoint, archiver |
+| T4 | Earnings call transcripts como SOURCE 5 | ADR-016 | management |
+| T5 | 8-K material events (earnings, restatements, mgmt changes) | ADR-017 | market, archiver |
+| T6 | Value Expert prompt v2: INTEGRAR vs resumir + CAGR anchor | ADR-019 | financials, value_expert |
+| T7 | Socratic checkpoints anclados en datos | ADR-018 | checkpoint, cli |
+
+**Diferido a Phase 5 (ADR-020):** SqliteSaver checkpointer — bug conocido de serialización msgpack con Pydantic v2. El archiver ya persiste markdown + SQLite de resultados; MemorySaver es suficiente para CLI single-user.
+
+### El cambio más importante conceptualmente: Expert prompt v2
+
+Phase 1 producía un Expert que **parafraseaba** los reportes de especialistas sección por sección. Phase 2 reescribe el prompt con una sola instrucción diferente: *"Your task is NOT to summarize — it is to INTEGRATE and ADJUDICATE conflicting signals."*
+
+Tres reglas duras hacen esta instrucción verificable:
+1. Debe nombrar ≥2 señales conflictivas y adjudicarlas.
+2. §6 debe contrastar implied growth del reverse DCF vs CAGR histórico.
+3. §9 debe nombrar un thesis-breaker concreto y observable.
+
+### El nuevo grafo (Phase 1 + Phase 2)
+
+```
+supervisor → financials → [fan-out × 4 especialistas]
+  → management (+ transcripts)
+  → filings
+  → market (+ 8-K events)
+  → competitive
+→ checkpoint1 (Socratic questions + peer prompt)
+→ peers_node (EDGAR XBRL de peers)
+→ checkpoint2 (CAGR anchor + DCF assumptions)
+→ valuation → value_expert (prompt v2) → critic → archiver
+```
+
+### ADRs que aterrizaron en Phase 2
+
+ADR-013 (RAG trigger corregido), ADR-014 (citations visibility), ADR-015 (peer comparison), ADR-016 (transcripts), ADR-017 (8-K events), ADR-018 (Socratic checkpoints), ADR-019 (Expert prompt v2), ADR-020 (SqliteSaver deferred).
+
+---
+
+*Última actualización: 2026-04-21 — Phase 2 COMPLETA. 187 tests, verde.*
+

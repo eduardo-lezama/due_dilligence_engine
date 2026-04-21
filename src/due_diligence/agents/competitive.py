@@ -20,11 +20,11 @@ Por qué consume financials del estado (no fetchea EDGAR):
     y está en el estado. Re-fetchear EDGAR sería redundante y costoso.
     El competitive_agent es un consumidor, no un productor de datos XBRL.
 
-Peer ROIC comparison (Phase 1b):
-    Deferred a Phase 1c por ADR-005 (zero hallucination numérica).
-    El LLM puede mencionar peers cualitativamente en las citations, pero
-    el campo peer_roic_comparison queda vacío hasta que se implemente el
-    peer fetch de XBRL en Phase 1c. Ver nota en _parse_llm_response.
+Peer ROIC comparison (Phase 2, ADR-015):
+    peers_node (graph.py) fetcha XBRL de los peer tickers aportados por el usuario
+    en Checkpoint 1 y los guarda en state["peer_financials"]. Este agente los
+    consume en competitive_agent() para poblar peer_roic_comparison.
+    El LLM no genera peers — los números vienen de EDGAR (ADR-005).
 
 Por qué imports al nivel de módulo:
     Requerido para mocker.patch en tests.
@@ -209,7 +209,7 @@ def _parse_llm_response(response_text: str, ticker: str) -> CompetitiveReport:
         moat_raw = data.get("moat_classification", "none")
         moat = moat_raw if moat_raw in ("wide", "narrow", "none") else "none"
 
-        # peer_roic_comparison se inyecta después del parse — ver competitive_agent()
+        # peer_roic_comparison se inyecta después del parse desde state["peer_financials"] (ADR-015)
         return CompetitiveReport(
             ticker=ticker,
             stub=False,

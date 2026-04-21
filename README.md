@@ -2,7 +2,7 @@
 
 An agentic system for fundamental equity analysis, built on value investing principles. Given a US ticker, it runs a full multi-specialist analysis — from SEC filings to DCF valuation — and delivers a structured verdict with citations, a pre-mortem critique, and an archived report.
 
-> **Status:** Phase 1 complete and verified in production (AAPL, FSLR). Phase 2 (RAG memory + peer comparison) is next.
+> **Status:** Phase 1 + Phase 2 complete and verified. Phase 2 delivered peer ROIC comparison, earnings transcripts, 8-K event tracking, Socratic checkpoints, and Value Expert prompt v2. Phase 2.5 (same-ticker RAG) or Phase 3 (CAD/EU markets) is next.
 
 ---
 
@@ -198,7 +198,8 @@ due_dilligence_engine/
 | **1a** | LangGraph skeleton + Supervisor + Financials specialist | ✅ Complete |
 | **1b** | 4 parallel specialists + Checkpoint 1 HITL | ✅ Complete |
 | **1c** | Valuation + Value Expert + Critic + Archiver + full CLI | ✅ Complete |
-| **2** | RAG memory (ChromaDB) + peer ROIC comparison + news ingestion | Planned |
+| **2** | Peer ROIC (user-supplied), earnings transcripts, 8-K events, Expert prompt v2, Socratic checkpoints | ✅ Complete |
+| **2.5** | RAG memory — re-analysis delta for same ticker (ADR-013, ChromaDB) | Planned |
 | **3** | Multi-market: CAD (SEDAR+) + EU (ESMA/CNMV) | Planned |
 | **4** | Screener module (quantitative filter → analyst pipeline) | Planned |
 | **5** | Web app (FastAPI + React/Streamlit, Docker, NAS deploy) | Planned |

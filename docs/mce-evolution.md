@@ -108,6 +108,17 @@ Lista viva de trabajo estructural (subdirectorios `CLAUDE.md`, skills, slash-com
 - **Acción**: `.claude/commands/mce-check.md` que lee este archivo, para cada ítem verifica si su trigger se cumple (bash checks — `test -d`, `test -f`, conteo en SQLite, etc.) y reporta tabla de ítems triggered-y-pendientes.
 - **Prioridad**: baja (útil pero hoy cabe en la cabeza)
 
+### MCE-17 — Pre-fetch 10-K antes del fan-out (primary source para competitive)
+- **Trigger**: arranque Phase 2.5 o Phase 3
+- **Problema detectado**: `competitive_agent` cita Yahoo Finance para hechos que están en el 10-K (backlog, capacidad contratada, volúmenes) porque corre en paralelo con `filings_agent` y no ve su output. El fan-out distribuye el state ANTES de que cualquier especialista escriba en él.
+- **Solución**: nuevo nodo `edgar_prefetch_node` entre `financials_node` y el fan-out. Fetcha Item 1, 1A y 7 del 10-K y los escribe en `state["filings_raw_text"]`. Así todos los especialistas del fan-out tienen acceso a los textos primarios sin duplicar llamadas a EDGAR.
+- **Acción concreta**:
+  1. `supervisor_node` o nuevo `edgar_prefetch_node` fetcha `EdgarManagementAdapter.fetch_10k_business_text(ticker)` + `fetch_10k_risk_factors(ticker)` + `fetch_10k_mda(ticker)` y los escribe en state.
+  2. `competitive_agent` lee `state["filings_raw_text"]` como SOURCE adicional y cita desde ahí para hechos de backlog/contratos/capacidad.
+  3. `filings_agent` puede reusar el texto ya cacheado en state en lugar de re-fetchear.
+- **Alternativa más simple** (si la refactorización es excesiva): añadir al prompt de competitive: "Para cifras de backlog, contratos o capacidad instalada: si la fuente es web, indica '(fuente: web — pendiente verificar en 10-K Item 7)'."
+- **Prioridad**: media — mitiga una violación parcial de ADR-005 (datos cualitativos de backlog desde fuente secundaria)
+
 ### MCE-16 — Skill `modo-profesor` (Socratic teaching patterns)
 - **Trigger**: ≥3 sesiones reales de desarrollo con la regla "Modo Profesor" de CLAUDE.md activa y patrones claros de qué funciona (analogías, secuenciación de conceptos, preguntas tipo)
 - **Acción**: `.claude/skills/modo-profesor/SKILL.md` con patrones Socráticos cristalizados — biblioteca de analogías para conceptos del stack (LangGraph, Pydantic, XBRL), secuencias de introducción de conceptos por capa, preguntas tipo para verificar comprensión, reglas de cuándo pausar vs avanzar.

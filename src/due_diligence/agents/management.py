@@ -60,7 +60,10 @@ Analyze the provided context and answer the checklist questions below.
 
 RULES:
 - Base every claim ONLY on the provided context. Never invent facts.
-- For each qualitative claim, include a citation with the source document/URL and an exact excerpt.
+- CITATION SOURCES — follow this strictly:
+  * For numerical facts (insider_ownership_pct, ceo_tenure_years, compensation $, form4 transaction counts): cite ONLY SOURCE 1 (DEF 14A) or SOURCE 2 (Form 4). Never use SOURCE 4 (web) for numbers — web articles go stale and may reflect data years out of date.
+  * For qualitative context (track record narrative, governance history, board reputation): SOURCE 4 (web) and SOURCE 5 (transcripts) are appropriate.
+  * SOURCE 3 (10-K Item 10) is appropriate for director bios and committee memberships.
 - When citing earnings call transcripts (SOURCE 5), set source_url to "Finnhub transcript <id>" and copy the speaker's verbatim sentence into `excerpt`.
 - If information is not available in the context, say "Not available in provided sources."
 - Return ONLY valid JSON matching the schema below. No markdown, no explanation outside JSON.

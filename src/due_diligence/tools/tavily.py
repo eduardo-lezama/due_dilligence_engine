@@ -41,17 +41,21 @@ class TavilyAdapter:
     def search(
         queries: list[str],
         max_results_per_query: int = 3,
+        time_range: str | None = "year",
     ) -> list[dict[str, Any]]:
         """
         Ejecuta múltiples búsquedas en Tavily y agrega los resultados.
 
         Cada resultado tiene: url, title, content (texto limpio), score (relevancia).
-        Si TAVILY_API_KEY no está configurada, devuelve lista vacía con un aviso
-        en el log — el agente puede funcionar sin búsqueda web (degraded mode).
+        Si TAVILY_API_KEY no está configurada, devuelve lista vacía (degraded mode).
 
         Args:
             queries: Lista de strings de búsqueda. Ej: ["AAPL CEO compensation 2025"]
             max_results_per_query: Resultados máximos por query (default 3).
+            time_range: Filtra resultados por antigüedad. Valores: "day", "week",
+                        "month", "year", o None (sin filtro).
+                        Default "year" — evita artículos obsoletos de hace 3-5 años
+                        que pueden citar datos de ownership o pricing ya desactualizados.
 
         Returns:
             Lista de dicts con keys: url, title, content, score, query (query origen).
@@ -69,12 +73,15 @@ class TavilyAdapter:
         for query in queries:
             try:
                 log.debug("tavily_search", query=query[:60])
-                # topic='finance' mejora la relevancia para búsquedas de empresas/management
-                response = client.search(
-                    query,
-                    max_results=max_results_per_query,
-                    topic="finance",
-                )
+                # topic='finance' mejora la relevancia para búsquedas de empresas/management.
+                # time_range filtra artículos antiguos — ownership/pricing de 2019 no es útil.
+                search_kwargs: dict[str, Any] = {
+                    "max_results": max_results_per_query,
+                    "topic": "finance",
+                }
+                if time_range is not None:
+                    search_kwargs["time_range"] = time_range
+                response = client.search(query, **search_kwargs)
                 # Tavily devuelve {"results": [{"url":..., "title":..., "content":...}]}
                 for result in response.get("results", []):
                     aggregated.append({

@@ -309,6 +309,29 @@ La mayoría de sistemas "agentes" que ves en demos solo tienen memoria in-contex
 
 ---
 
+## 11. El ciclo producción → gap analysis → mejora
+
+Un sistema de análisis no se termina cuando pasan todos los tests. Se termina cuando los outputs son correctos comparados con la realidad. Hay una diferencia importante entre los dos.
+
+Los tests verifican que el código hace lo que el código dice que hace. No verifican que lo que el código hace sea suficiente para el problema real.
+
+El ciclo correcto para sistemas de análisis con LLM:
+
+```
+1. Correr el sistema en producción con datos reales
+2. Contrastar el output con fuentes externas (analistas, filings, noticias)
+3. Identificar gaps: ¿qué falta? ¿qué es incorrecto? ¿qué es impreciso?
+4. Diagnosticar causa raíz: ¿prompt? ¿schema? ¿query? ¿arquitectura?
+5. Implementar el fix mínimo que resuelve el gap
+6. Volver a 1
+```
+
+El primer run real de ACMR reveló en un análisis de 20 minutos más gaps que semanas de diseño teórico: el CEO fundador de 28 años invisible, la Entity List del BIS generalizada en "regulatory risk", el backlog de $1.27B inexistente en el report. Ninguno era un bug de código — eran decisiones de diseño (schema estrecho, prompt genérico, query con filtro temporal incorrecto) que solo se ven cuando el output se compara contra realidad.
+
+Los gaps arquitectónicos (pre-fetch del 10-K antes del fan-out, RAG same-ticker) se documentan con triggers en `docs/mce-evolution.md` y se resuelven cuando el ROI lo justifica. Los gaps de prompt y schema se resuelven inmediatamente porque son baratos y de alto impacto.
+
+---
+
 ## En resumen
 
 | Concepto | Implementación | Por qué |
@@ -319,3 +342,4 @@ La mayoría de sistemas "agentes" que ves en demos solo tienen memoria in-contex
 | HITL Socratic | interrupt() + heurísticas de datos | Fuerza articulación consciente, no solo aprobación |
 | Síntesis de calidad | Value Expert prompt v2: adjudicar, no resumir | El Expert integra conflictos; §6 ancla en historia; §9 nombra thesis-breaker |
 | Complejidad diferida | ADRs de deferral (RAG, SqliteSaver, peer discovery) | Solo construir lo que tiene ROI demostrable hoy |
+| Mejora iterativa | Run → contrastar → gap analysis → fix | Los gaps reales solo se ven en producción, no en tests |

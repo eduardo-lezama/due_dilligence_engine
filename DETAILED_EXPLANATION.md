@@ -1859,3 +1859,62 @@ ADR-013 (RAG trigger corregido), ADR-014 (citations visibility), ADR-015 (peer c
 
 *Última actualización: 2026-04-21 — Phase 2 COMPLETA. 187 tests, verde.*
 
+---
+
+## Mejoras post-producción — Gap analysis ACMR (2026-04-25)
+
+### El patrón: de la producción al código
+
+Tras correr el sistema en producción con ACMR (ACM Research), se contrastó el report generado contra fuentes externas. El análisis reveló gaps concretos: la Entity List de BIS se generalizó como "regulatory risk", el backlog de $1.27B no apareció, el CEO fundador de 28 años quedó como "N/A", y la estructura ACMR/ACMS con descuento del 60% fue completamente invisible.
+
+Todos los gaps tenían causas raíz identificables: prompts demasiado genéricos, schema demasiado estrecho, filtro temporal incorrecto. Ninguno era arquitectónico. Esta es la diferencia entre un sistema en producción y uno en desarrollo — los gaps reales solo se ven cuando el output se contrasta con la realidad.
+
+### Qué se mejoró y por qué
+
+**1. FilingsRAGReport — 4 nuevos campos**
+
+El schema anterior tenía solo 3 campos de texto libre (`business_description`, `risk_factors_summary`, `mda_highlights`). Todo el 10-K se comprimía en prose sin estructura. Los nuevos campos extraen datos con valor operativo específico:
+
+- `backlog_usd: float` — el backlog contratado es la mejor métrica de visibilidad de revenue futura. Para ACMR: $1.27B (+34% YoY), dato crítico que el sistema ignoraba.
+- `revenue_guidance: str` — el guidance de management es el ancla para el DCF. Sin él, el Value Expert asume sin referencia explícita.
+- `geographic_revenue_breakdown: str` — "China: 85%, US: 8%" es radicalmente diferente a "China: 20%". El mismo riesgo regulatorio tiene impacto completamente distinto.
+- `key_regulatory_events: str` — regla dura en el prompt: si Item 1A menciona un evento de gobierno con fecha y entidad (Entity List, BIS, OFAC, going-concern), reportarlo VERBATIM. No generalizar. La adición de ACM Shanghai a la Entity List el 2 de diciembre de 2024 es un hecho específico que no puede disolverse en "regulatory uncertainties".
+
+**2. ManagementReport — 2 nuevos campos**
+
+- `founder_ceo: bool` — un fundador-CEO con 28 años al frente es cualitativamente diferente a un CEO contratado hace 18 meses. La Form 4 y el 10-K no dicen "fundador" directamente — requiere Tavily, por eso la query es sin filtro temporal.
+- `insider_transaction_pattern: str` — en lugar de contar transacciones (28), el LLM describe el patrón: quién vende, quién compra, cuál es la dirección neta y qué señal emite. "CEO net seller: 55K shares vendidas sin compras compensatorias" es accionable. "28 transacciones" no lo es.
+
+**3. Tavily con time_range por query**
+
+El problema: `time_range="year"` era correcto para ownership y compensación (datos que cambian), pero incorrecto para "cuándo fundó la empresa el CEO" o "estructura de filiales" (datos históricos estables). 
+
+La solución: `TavilyAdapter.search()` ahora acepta `list[str | tuple[str, str | None]]`. Cada query puede especificar su propio filtro temporal. Las queries de background del CEO y estructura corporativa usan `time_range=None`. Las de ownership y governance usan `"year"`.
+
+**4. Nueva query: corporate structure**
+
+`"{company_name} corporate structure subsidiary holding VIE listing"` — para empresas con filiales listadas (ACMR/ACMS en STAR Market), VIEs chinas, o holdcos complejas. Sin esta query, el descuento del 60% de ACMR sobre su filial ACMS era invisible al sistema.
+
+**5. Value Expert y archiver — surfacear los datos nuevos**
+
+Los nuevos campos solo tienen valor si llegan al Value Expert antes de razonar y aparecen en el report. `_format_context` ahora incluye `key_regulatory_events` con etiqueta "SPECIFIC REGULATORY EVENTS" (en mayúsculas — señal visual para el LLM de que es importante), más backlog, guidance, y geografía. El archiver renderiza una nueva sección `## Key Operational Data` antes del análisis del Expert.
+
+### Qué no se resolvió completamente
+
+El descuento ACMR/ACMS (estructura corporativa compleja) puede no capturarse si Tavily no devuelve artículos relevantes sobre la estructura — depende de la cobertura de Tavily para ese tema. La solución arquitectónica completa (MCE-17) requiere pre-fetch del 10-K antes del fan-out para que el competitive agent tenga acceso a datos de backlog y contratos de fuente primaria.
+
+### Resumen de archivos cambiados
+
+| Archivo | Cambio |
+|---|---|
+| `schemas/reports.py` | `ManagementReport`: +`founder_ceo`, +`insider_transaction_pattern`; `FilingsRAGReport`: +`backlog_usd`, +`revenue_guidance`, +`geographic_revenue_breakdown`, +`key_regulatory_events` |
+| `tools/tavily.py` | Soporte per-query time_range via tuplas `(query, time_range)` |
+| `agents/management.py` | 5 queries con time_range diferenciado; +query corporate structure; prompt Form 4 pide patrón, no count |
+| `agents/filings.py` | Prompt ampliado con preguntas sobre geografía/backlog/guidance/eventos regulatorios verbatim; parse de nuevos campos |
+| `agents/value_expert.py` | `_format_context` surfacea todos los campos nuevos |
+| `agents/archiver.py` | Nueva sección `## Key Operational Data` en el markdown |
+
+---
+
+*Última actualización: 2026-04-25 — Mejoras post-producción. 188 tests, verde.*
+

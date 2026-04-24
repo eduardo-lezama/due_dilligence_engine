@@ -110,6 +110,9 @@ def _render_markdown(state: AnalysisState) -> str:
                     pct = (valuation.dcf_intrinsic_per_share.value - valuation.price_current.value) / valuation.price_current.value * 100
                     upside_str = f" ({pct:+.1f}%)"
                 lines.append(f"| DCF intrinsic (per share) | **${valuation.dcf_intrinsic_per_share.value:.2f}**{upside_str} |")
+            else:
+                # DCF no computable — explicar por qué, no dejar la tabla vacía
+                lines.append("| DCF intrinsic (per share) | N/A — FCF negativo o insuficiente para DCF |")
             lines.append("")
 
         # Métricas agregadas

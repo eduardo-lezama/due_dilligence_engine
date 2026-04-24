@@ -44,13 +44,16 @@ from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
 
 log = structlog.get_logger()
 
-# Queries de Tavily optimizadas para §3 del checklist canónico (ADR-012).
-# Intencionalmente genéricas — se formatean con el nombre de la empresa en runtime.
-_TAVILY_QUERY_TEMPLATES = [
-    "{company_name} CEO tenure track record capital allocation",
-    "{company_name} insider ownership shareholder alignment",
-    "{company_name} executive compensation structure",
-    "{company_name} management quality governance board",
+# Queries de Tavily para §3 del checklist canónico (ADR-012).
+# Formato: (template, time_range) — None = sin filtro temporal (para contexto histórico).
+# Las queries de ownership/compensation usan "year" para evitar datos obsoletos.
+# Las queries de CEO background y estructura corporativa usan None — esa info no envejece.
+_TAVILY_QUERY_TEMPLATES: list[tuple[str, str | None]] = [
+    ("{company_name} CEO founder background track record tenure history", None),  # historia no envejece
+    ("{company_name} insider ownership shareholder alignment", "year"),
+    ("{company_name} executive compensation structure incentives", "year"),
+    ("{company_name} management quality governance board directors", "year"),
+    ("{company_name} corporate structure subsidiary holding VIE listing", None),  # estructura no envejece
 ]
 
 # Prompt del sistema: instruye al LLM a actuar como analista value
@@ -61,20 +64,23 @@ Analyze the provided context and answer the checklist questions below.
 RULES:
 - Base every claim ONLY on the provided context. Never invent facts.
 - CITATION SOURCES — follow this strictly:
-  * For numerical facts (insider_ownership_pct, ceo_tenure_years, compensation $, form4 transaction counts): cite ONLY SOURCE 1 (DEF 14A) or SOURCE 2 (Form 4). Never use SOURCE 4 (web) for numbers — web articles go stale and may reflect data years out of date.
-  * For qualitative context (track record narrative, governance history, board reputation): SOURCE 4 (web) and SOURCE 5 (transcripts) are appropriate.
-  * SOURCE 3 (10-K Item 10) is appropriate for director bios and committee memberships.
+  * Numerical facts (ownership %, compensation $, Form 4 counts): cite ONLY SOURCE 1 (DEF 14A) or SOURCE 2 (Form 4). Never use web articles for numbers — they go stale.
+  * CEO founder status, company history, patents: SOURCE 4 (web) is appropriate.
+  * Qualitative governance, board reputation, track record: SOURCE 4 (web) and SOURCE 5 (transcripts) are appropriate.
+  * SOURCE 3 (10-K Item 10) for director bios and committee memberships.
 - When citing earnings call transcripts (SOURCE 5), set source_url to "Finnhub transcript <id>" and copy the speaker's verbatim sentence into `excerpt`.
 - If information is not available in the context, say "Not available in provided sources."
 - Return ONLY valid JSON matching the schema below. No markdown, no explanation outside JSON.
 
 OUTPUT SCHEMA:
 {
-  "insider_ownership_pct": <float or null>,
-  "ceo_tenure_years": <float or null>,
-  "form4_transactions_12m": <int — total count of transactions>,
-  "compensation_structure_notes": "<string — 2-3 sentences on compensation alignment>",
-  "capital_allocation_summary": "<string — 2-3 sentences on capital allocation quality>",
+  "insider_ownership_pct": <float or null — total % of shares owned by all insiders combined>,
+  "founder_ceo": <true/false/null — is the current CEO the company founder?>,
+  "ceo_tenure_years": <float or null — years current CEO has been in role>,
+  "form4_transactions_12m": <int — total transaction count>,
+  "insider_transaction_pattern": "<string — WHO is buying vs selling (name the CEO and largest holders), NET direction (net buyer or net seller overall), and what signal this gives. E.g.: 'CEO David Wang net seller: sold 55K shares in March 2026, no open-market purchases in 12m. Board member X net buyer. Overall insider sentiment: neutral to slightly negative.' If no clear pattern, say so.>",
+  "compensation_structure_notes": "<string — 2-3 sentences on compensation alignment with shareholders>",
+  "capital_allocation_summary": "<string — 2-3 sentences on M&A discipline, buybacks, dividends, reinvestment quality>",
   "citations": [
     {
       "claim": "<exact claim being cited>",
@@ -197,10 +203,12 @@ def _parse_llm_response(response_text: str, ticker: str) -> ManagementReport:
 
         return ManagementReport(
             ticker=ticker,
-            stub=False,  # el agente ha corrido — ya no es placeholder
+            stub=False,
             insider_ownership_pct=data.get("insider_ownership_pct"),
+            founder_ceo=data.get("founder_ceo"),
             ceo_tenure_years=data.get("ceo_tenure_years"),
             form4_transactions_12m=data.get("form4_transactions_12m"),
+            insider_transaction_pattern=data.get("insider_transaction_pattern"),
             compensation_structure_notes=data.get("compensation_structure_notes"),
             capital_allocation_summary=data.get("capital_allocation_summary"),
             citations=citations,
@@ -241,8 +249,11 @@ def management_agent(state: AnalysisState) -> dict:
     form4_text = format_form4_for_prompt(form4_transactions)
 
     # --- 2. Búsqueda web Tavily (contexto cualitativo, ADR-012) ---
+    # Cada query tiene su propio time_range: None para contexto histórico (CEO background,
+    # estructura corporativa), "year" para datos que deben ser recientes (ownership, compensación).
     tavily_queries = [
-        t.format(company_name=company_name) for t in _TAVILY_QUERY_TEMPLATES
+        (t.format(company_name=company_name), tr)
+        for t, tr in _TAVILY_QUERY_TEMPLATES
     ]
     tavily_results = TavilyAdapter.search(tavily_queries)
     tavily_text = format_tavily_for_prompt(tavily_results)

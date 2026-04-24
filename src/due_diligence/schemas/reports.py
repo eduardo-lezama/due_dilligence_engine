@@ -34,9 +34,11 @@ class ManagementReport(BaseModel):
     """Reporte de gestión e insider ownership."""
     ticker: str
     stub: bool = True  # True = placeholder, False = contenido real generado
-    insider_ownership_pct: Optional[float] = None  # % de acciones owned por insiders
-    ceo_tenure_years: Optional[float] = None  # Años del CEO en el cargo
-    form4_transactions_12m: Optional[int] = None  # Número de transacciones Form 4 en 12m
+    insider_ownership_pct: Optional[float] = None  # % total de acciones owned por insiders (directivos + board)
+    founder_ceo: Optional[bool] = None             # True si el CEO fundó la empresa
+    ceo_tenure_years: Optional[float] = None       # Años del CEO en el cargo
+    form4_transactions_12m: Optional[int] = None   # Número de transacciones Form 4 en 12m
+    insider_transaction_pattern: Optional[str] = None  # Patrón: quién compra/vende, volumen neto, señal
     compensation_structure_notes: Optional[str] = None  # Notas sobre estructura de compensación
     capital_allocation_summary: Optional[str] = None  # Resumen de allocation de capital
     citations: list[Citation] = Field(default_factory=list)
@@ -46,9 +48,14 @@ class FilingsRAGReport(BaseModel):
     """Reporte de análisis de filings SEC (10-K, 10-Q) usando RAG."""
     ticker: str
     stub: bool = True
-    business_description: Optional[str] = None  # Descripción del negocio
-    risk_factors_summary: Optional[str] = None  # Resumen de factores de riesgo
-    mda_highlights: Optional[str] = None  # Highlights de Management Discussion & Analysis
+    business_description: Optional[str] = None      # Descripción del negocio
+    risk_factors_summary: Optional[str] = None      # Resumen de factores de riesgo
+    mda_highlights: Optional[str] = None            # Highlights de Management Discussion & Analysis
+    # --- Campos operativos clave (Phase 2 enhancement) ---
+    backlog_usd: Optional[float] = None             # Backlog contratado en USD (e.g. 1.27e9)
+    revenue_guidance: Optional[str] = None          # Guidance de management para próximo periodo
+    geographic_revenue_breakdown: Optional[str] = None  # "China: 85%, US: 10%, Other: 5%"
+    key_regulatory_events: Optional[str] = None     # Eventos regulatorios específicos con fecha y entidad
     citations: list[Citation] = Field(default_factory=list)
 
 

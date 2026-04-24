@@ -128,9 +128,13 @@ def _format_context(state: AnalysisState) -> str:
     if mgmt is not None and not mgmt.stub:
         lines.append("## MANAGEMENT REPORT")
         if mgmt.insider_ownership_pct is not None:
-            lines.append(f"Insider ownership: {mgmt.insider_ownership_pct:.1f}%")
+            lines.append(f"Insider ownership (total insiders): {mgmt.insider_ownership_pct:.1f}%")
+        if mgmt.founder_ceo is not None:
+            lines.append(f"Founder-CEO: {'Yes' if mgmt.founder_ceo else 'No'}")
         if mgmt.ceo_tenure_years is not None:
             lines.append(f"CEO tenure: {mgmt.ceo_tenure_years:.0f} years")
+        if mgmt.insider_transaction_pattern:
+            lines.append(f"Insider transaction pattern (Form 4): {mgmt.insider_transaction_pattern}")
         if mgmt.compensation_structure_notes:
             lines.append(f"Compensation: {mgmt.compensation_structure_notes}")
         if mgmt.capital_allocation_summary:
@@ -143,10 +147,19 @@ def _format_context(state: AnalysisState) -> str:
         lines.append("## FILINGS REPORT (10-K)")
         if filings.business_description:
             lines.append(f"Business: {filings.business_description}")
+        if filings.geographic_revenue_breakdown:
+            lines.append(f"Revenue by geography: {filings.geographic_revenue_breakdown}")
         if filings.risk_factors_summary:
             lines.append(f"Key risks: {filings.risk_factors_summary}")
+        if filings.key_regulatory_events:
+            # Eventos regulatorios concretos — críticos para §7 y VERDICT
+            lines.append(f"SPECIFIC REGULATORY EVENTS: {filings.key_regulatory_events}")
         if filings.mda_highlights:
             lines.append(f"MDA highlights: {filings.mda_highlights}")
+        if filings.backlog_usd is not None:
+            lines.append(f"Contracted backlog: ${filings.backlog_usd/1e9:.2f}B")
+        if filings.revenue_guidance:
+            lines.append(f"Management guidance: {filings.revenue_guidance}")
         lines.append("")
 
     # --- Market ---

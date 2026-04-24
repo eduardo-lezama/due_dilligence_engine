@@ -158,6 +158,22 @@ def _render_markdown(state: AnalysisState) -> str:
             lines.append(f"| {row['near_term_growth_pct']}% | {vals} |")
         lines.append("")
 
+    # --- Key operational data from filings (backlog, guidance, regulatory events) ---
+    filings = state.get("filings")            # type: ignore[typeddict-item]
+    if filings and not filings.stub:
+        has_ops = any([filings.backlog_usd, filings.revenue_guidance,
+                       filings.geographic_revenue_breakdown, filings.key_regulatory_events])
+        if has_ops:
+            lines += ["## Key Operational Data (10-K)", ""]
+            if filings.geographic_revenue_breakdown:
+                lines += [f"**Revenue by geography:** {filings.geographic_revenue_breakdown}", ""]
+            if filings.backlog_usd:
+                lines += [f"**Contracted backlog:** ${filings.backlog_usd/1e9:.2f}B", ""]
+            if filings.revenue_guidance:
+                lines += [f"**Management guidance:** {filings.revenue_guidance}", ""]
+            if filings.key_regulatory_events:
+                lines += [f"**Regulatory events:** {filings.key_regulatory_events}", ""]
+
     # --- Expert analysis: 9 sections ---
     if synthesis and not synthesis.stub:
         lines += ["## Value Expert Analysis", ""]

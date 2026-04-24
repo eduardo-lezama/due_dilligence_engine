@@ -39,23 +39,23 @@ class TavilySearchError(Exception):
 class TavilyAdapter:
     @staticmethod
     def search(
-        queries: list[str],
+        queries: list[str] | list[tuple[str, str | None]],
         max_results_per_query: int = 3,
         time_range: str | None = "year",
     ) -> list[dict[str, Any]]:
         """
         Ejecuta múltiples búsquedas en Tavily y agrega los resultados.
 
-        Cada resultado tiene: url, title, content (texto limpio), score (relevancia).
-        Si TAVILY_API_KEY no está configurada, devuelve lista vacía (degraded mode).
-
         Args:
-            queries: Lista de strings de búsqueda. Ej: ["AAPL CEO compensation 2025"]
+            queries: Lista de strings O lista de tuplas (query, time_range).
+                     Si es string, usa el time_range global del parámetro.
+                     Si es tupla, el segundo elemento sobreescribe el time_range global.
+                     Ej: [("AAPL CEO founded year", None), ("AAPL ownership 2025", "year")]
             max_results_per_query: Resultados máximos por query (default 3).
-            time_range: Filtra resultados por antigüedad. Valores: "day", "week",
-                        "month", "year", o None (sin filtro).
-                        Default "year" — evita artículos obsoletos de hace 3-5 años
-                        que pueden citar datos de ownership o pricing ya desactualizados.
+            time_range: Filtro de antigüedad global: "day", "week", "month", "year", None.
+                        Default "year". Sobreescribible por query individual.
+                        Usar None para queries de contexto histórico (cuándo fundó la empresa,
+                        patentes históricas) donde los artículos antiguos son relevantes.
 
         Returns:
             Lista de dicts con keys: url, title, content, score, query (query origen).
@@ -70,17 +70,21 @@ class TavilyAdapter:
         client = TavilyClient(api_key=settings.tavily_api_key)
         aggregated: list[dict[str, Any]] = []
 
-        for query in queries:
+        for query_item in queries:
+            # Normalizar: string → (query, global time_range); tupla → (query, override)
+            if isinstance(query_item, tuple):
+                query, query_time_range = query_item
+            else:
+                query, query_time_range = query_item, time_range
+
             try:
                 log.debug("tavily_search", query=query[:60])
-                # topic='finance' mejora la relevancia para búsquedas de empresas/management.
-                # time_range filtra artículos antiguos — ownership/pricing de 2019 no es útil.
                 search_kwargs: dict[str, Any] = {
                     "max_results": max_results_per_query,
                     "topic": "finance",
                 }
-                if time_range is not None:
-                    search_kwargs["time_range"] = time_range
+                if query_time_range is not None:
+                    search_kwargs["time_range"] = query_time_range
                 response = client.search(query, **search_kwargs)
                 # Tavily devuelve {"results": [{"url":..., "title":..., "content":...}]}
                 for result in response.get("results", []):

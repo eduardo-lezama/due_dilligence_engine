@@ -49,6 +49,7 @@ Analyze the provided 10-K sections and answer the checklist questions below.
 RULES:
 - Base every claim ONLY on the provided 10-K text. Never invent facts.
 - For each qualitative claim, include a citation with the section name and an exact excerpt.
+- REGULATORY EVENTS: If Item 1A or Item 7 mentions ANY specific government action — entity list addition, export restriction, BIS/OFAC/SEC enforcement, sanctions, going-concern language — report it verbatim in key_regulatory_events with the entity name and date. Do NOT generalize these into "regulatory risk" — name the specific event.
 - If information is not available in the provided text, say "Not available in provided sources."
 - Return ONLY valid JSON matching the schema below. No markdown, no explanation outside JSON.
 
@@ -56,12 +57,16 @@ OUTPUT SCHEMA:
 {
   "business_description": "<string — 3-5 sentences: what the company sells, to whom, how it makes money, key segments>",
   "risk_factors_summary": "<string — 3-5 sentences: most material risks: regulatory, competitive, technology, macro>",
-  "mda_highlights": "<string — 3-5 sentences: key drivers of revenue/margin changes, management's own concerns, notable trends>",
+  "mda_highlights": "<string — 3-5 sentences: key revenue/margin drivers, management concerns, notable trends>",
+  "backlog_usd": <float or null — contracted backlog in USD if mentioned in Item 7, e.g. 1270000000.0>,
+  "revenue_guidance": "<string or null — management's stated guidance for next period, e.g. '$1.1B–$1.2B revenue in 2026, 21-30% growth'>",
+  "geographic_revenue_breakdown": "<string or null — revenue split by geography if disclosed, e.g. 'China: 85%, US: 8%, Other: 7%'>",
+  "key_regulatory_events": "<string or null — SPECIFIC government actions: entity list additions, export restrictions, enforcement with dates/entities. Null if none found. Example: 'December 2, 2024: BIS added ACM Research (Shanghai) to Entity List, restricting access to US-origin technology.'>",
   "citations": [
     {
       "claim": "<exact claim being cited>",
-      "source_url": "<section name, e.g. '10-K Item 1', '10-K Item 1A', '10-K Item 7'>",
-      "excerpt": "<verbatim excerpt from source supporting the claim>",
+      "source_url": "<section name: '10-K Item 1', '10-K Item 1A', '10-K Item 7'>",
+      "excerpt": "<verbatim excerpt from source>",
       "confidence": <0.0 to 1.0>,
       "gaap_vs_nongaap_flag": null
     }
@@ -103,14 +108,19 @@ def _build_user_prompt(
 Answer each question using ONLY the sources above:
 
 §1 — Business Understanding:
-1. What does the company sell and to whom? Can you articulate the business model in 2 minutes without jargon?
-2. What are the key revenue segments (product, geography, customer type)? Is revenue recurring or transactional?
-3. What is the company's declared competitive strategy? What gives it an edge?
+1. What does the company sell and to whom? Articulate the business model clearly.
+2. What are the key revenue segments by PRODUCT and by GEOGRAPHY? What % of revenue comes from China/US/Other if disclosed?
+3. What is the company's competitive strategy? What gives it an edge?
 
 §7 — Risks & Red Flags:
-4. What are the most material risks the company itself acknowledges? (regulatory, competitive, technology disruption)
-5. What does management highlight as key challenges or uncertainties in MD&A?
-6. Are there any accounting or disclosure changes that merit attention (new policies, restatements, going-concern language)?
+4. What are the most material risks? (regulatory, competitive, technology)
+5. Has the company been subject to any SPECIFIC government action — entity list, export restriction, BIS/OFAC/SEC action, sanctions — in the last 12-24 months? If so, name the entity, date, and scope VERBATIM from the filing.
+6. What does management highlight as key challenges in MD&A?
+
+§ Operational Metrics (from Item 7):
+7. Is there a contracted backlog figure? If so, what is it in USD?
+8. Does management provide revenue or growth guidance for the next period? Quote it exactly.
+9. Are there any accounting changes, going-concern language, or capital raise announcements?
 
 Return valid JSON only."""
 
@@ -143,12 +153,20 @@ def _parse_llm_response(response_text: str, ticker: str) -> FilingsRAGReport:
             except Exception as e:
                 log.debug("filings_citation_parse_failed", ticker=ticker, error=str(e))
 
+        # backlog_usd puede venir como int o float — normalizar
+        backlog_raw = data.get("backlog_usd")
+        backlog = float(backlog_raw) if backlog_raw is not None else None
+
         return FilingsRAGReport(
             ticker=ticker,
             stub=False,
             business_description=data.get("business_description"),
             risk_factors_summary=data.get("risk_factors_summary"),
             mda_highlights=data.get("mda_highlights"),
+            backlog_usd=backlog,
+            revenue_guidance=data.get("revenue_guidance"),
+            geographic_revenue_breakdown=data.get("geographic_revenue_breakdown"),
+            key_regulatory_events=data.get("key_regulatory_events"),
             citations=citations,
         )
 

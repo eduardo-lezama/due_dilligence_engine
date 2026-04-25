@@ -22,10 +22,40 @@ Uso:
     response = client.complete(messages=[...], model="claude-sonnet-4-6")
 """
 
+from dataclasses import dataclass, field
 from typing import Optional
 import structlog
 
 from due_diligence.config import settings
+
+# Precios por modelo (USD / 1M tokens). Actualizar cuando cambien tarifas.
+# Fuente: pricepertoken.com, verificado abril 2026.
+_MODEL_PRICING: dict[str, tuple[float, float]] = {
+    "gpt-4o-mini":   (0.150, 0.600),
+    "gpt-5.4-mini":  (0.750, 4.500),
+    "gpt-4.1":       (2.000, 8.000),
+    "gpt-4.1-mini":  (0.200, 0.800),
+    "gpt-4o":        (2.500, 10.000),
+}
+_DEFAULT_PRICING = (0.002, 0.008)  # fallback conservador para modelos no listados
+
+
+@dataclass
+class RunStats:
+    """Acumula métricas de uso LLM para un run completo. ADR-021."""
+    tokens_in: int = 0
+    tokens_out: int = 0
+    cost_usd: float = 0.0
+    calls: int = 0
+
+    def add(self, model: str, prompt_tokens: int, completion_tokens: int) -> None:
+        """Acumula tokens y coste de una llamada individual."""
+        pricing = _MODEL_PRICING.get(model, _DEFAULT_PRICING)
+        call_cost = (prompt_tokens * pricing[0] + completion_tokens * pricing[1]) / 1_000_000
+        self.tokens_in += prompt_tokens
+        self.tokens_out += completion_tokens
+        self.cost_usd += call_cost
+        self.calls += 1
 
 log = structlog.get_logger()
 
@@ -39,9 +69,17 @@ class LLMClient:
     """Wrapper unificado para Anthropic Claude y OpenAI GPT."""
 
     def __init__(self) -> None:
-        # Lazy initialization: los clientes se crean en la primera llamada
         self._anthropic = None
         self._openai = None
+        self._run_stats: RunStats = RunStats()
+
+    def reset_run_stats(self) -> None:
+        """Reinicia el acumulador antes de un nuevo análisis. Llamar desde CLI."""
+        self._run_stats = RunStats()
+
+    def get_run_stats(self) -> RunStats:
+        """Devuelve las métricas acumuladas del run en curso."""
+        return self._run_stats
 
     def _get_anthropic(self):
         """Lazy initialization del cliente Anthropic."""
@@ -140,6 +178,19 @@ class LLMClient:
                 max_tokens=max_tokens,
                 finish_reason="length",
                 hint="Increase max_tokens for this agent if parse errors follow.",
+            )
+        # Acumular tokens y coste (ADR-021)
+        if response.usage:
+            self._run_stats.add(
+                model=resolved_model,
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=response.usage.completion_tokens,
+            )
+            log.debug(
+                "llm_tokens",
+                model=resolved_model,
+                in_tokens=response.usage.prompt_tokens,
+                out_tokens=response.usage.completion_tokens,
             )
         return choice.message.content
 

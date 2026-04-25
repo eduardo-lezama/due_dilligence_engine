@@ -415,15 +415,18 @@ def analyze_cmd(
       checkpoint2 (DCF assumptions) →
       Phase 1c (valuation + expert + critic + archive)
     """
+    import time
     from langgraph.checkpoint.memory import MemorySaver
     from langgraph.types import Command
     from due_diligence.graph.graph import build_graph
+    from due_diligence.llm.client import get_client
 
     ticker = ticker.upper()
-    # MemorySaver mantiene el estado en RAM durante el run interactivo.
-    # Evita completamente el problema de serialización msgpack de Pydantic con
-    # SqliteSaver. La persistencia real (markdown + SQLite) la hace el archiver_node.
-    # SqliteSaver se usará en Phase 5 (webapp) donde se necesita reanudar entre sesiones.
+    # Iniciar timer y resetear acumulador de tokens/coste (ADR-021)
+    t0 = time.time()
+    llm_client = get_client()
+    llm_client.reset_run_stats()
+
     checkpointer = MemorySaver()
     graph = build_graph(checkpointer=checkpointer)
     config = {"configurable": {"thread_id": f"{ticker}-latest"}}
@@ -510,11 +513,46 @@ def analyze_cmd(
     _show_verdict(state)
     _show_critic(state)
 
-    # Mostrar ruta del report guardado
-    valuation = state.get("valuation")
-    if valuation and valuation.assumptions:
-        # La ruta la conoce el archiver — la buscamos en data/reports/
-        from datetime import date
-        report_file = Path(settings.reports_dir).resolve() / f"{ticker}-{date.today().isoformat()}.md"
-        if report_file.exists():
-            console.print(f"\n[bold green]Report saved:[/bold green] {report_file}")
+    # ── Performance metadata (ADR-021) ────────────────────────────────────
+    latency_ms = (time.time() - t0) * 1000
+    run_stats = llm_client.get_run_stats()
+    cost_eur = run_stats.cost_usd * settings.usd_eur_rate
+    run_id = state.get("run_id", "")
+
+    # Mostrar resumen de performance en CLI
+    console.print(
+        f"\n[dim]⏱  {latency_ms/1000:.1f}s  |  "
+        f"🪙  {cost_eur:.4f}€  "
+        f"({run_stats.tokens_in:,} in + {run_stats.tokens_out:,} out tokens, "
+        f"{run_stats.calls} LLM calls)[/dim]"
+    )
+
+    # Persistir en SQLite y appender al markdown
+    from datetime import date
+    report_file = Path(settings.reports_dir).resolve() / f"{ticker}-{date.today().isoformat()}.md"
+    if run_id:
+        try:
+            from due_diligence.agents.archiver import update_performance_metrics
+            update_performance_metrics(
+                settings.db_path, run_id, latency_ms, cost_eur,
+                run_stats.tokens_in, run_stats.tokens_out,
+            )
+        except Exception as e:
+            log.warning("performance_update_failed", error=str(e))
+
+    if report_file.exists():
+        try:
+            perf_block = (
+                f"\n## Performance\n\n"
+                f"| Metric | Value |\n|---|---|\n"
+                f"| Latency | {latency_ms/1000:.1f}s |\n"
+                f"| Cost | {cost_eur:.4f}€ (${run_stats.cost_usd:.4f} USD) |\n"
+                f"| Tokens | {run_stats.tokens_in:,} in / {run_stats.tokens_out:,} out |\n"
+                f"| LLM calls | {run_stats.calls} |\n"
+            )
+            with open(report_file, "a", encoding="utf-8") as f:
+                f.write(perf_block)
+            console.print(f"[bold green]Report saved:[/bold green] {report_file}")
+        except Exception as e:
+            log.warning("performance_append_failed", error=str(e))
+            console.print(f"[bold green]Report saved:[/bold green] {report_file}")

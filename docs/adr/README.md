@@ -35,6 +35,7 @@ Cada ADR sigue: Status · Context · Decision · Consequences · Alternatives.
 | [018](ADR-018-socratic-checkpoints-v2.md) | Socratic Checkpoints v2 — preguntas ancladas en datos | Accepted | 2 |
 | [019](ADR-019-value-expert-prompt-v2.md) | Value Expert prompt v2 — síntesis sobre rúbrica | Accepted | 2 |
 | [020](ADR-020-checkpointer-deferred-to-phase-5.md) | SqliteSaver checkpointer diferido a Phase 5 | Accepted | 2, 5 |
+| [021](ADR-021-performance-metadata-tracking.md) | Performance metadata tracking — latencia y coste | Accepted | 2.5 |
 
 ## Cómo añadir un ADR
 1. Crear `ADR-NNN-slug.md` incrementando N.

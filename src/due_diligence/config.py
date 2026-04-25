@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     # management (5.02) siguen siendo relevantes aunque ocurrieran hace 9-10 meses.
     events_lookback_months: int = Field(12, validation_alias="EVENTS_LOOKBACK_MONTHS")
 
+    # --- Performance tracking (ADR-021) ---
+    # Tasa de cambio USD→EUR para reportar costes de LLM en EUR.
+    # Usar USD_EUR_RATE en .env para actualizar sin tocar código.
+    usd_eur_rate: float = Field(0.93, validation_alias="USD_EUR_RATE")
+
     # --- Paths ---
     db_path: str = Field("data/analyses.db", validation_alias="DB_PATH")  # SQLite database
     reports_dir: str = Field("data/reports", validation_alias="REPORTS_DIR")  # Directorio de reportes

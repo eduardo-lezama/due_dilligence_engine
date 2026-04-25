@@ -44,9 +44,21 @@ CREATE TABLE IF NOT EXISTS analyses (
     suggested_sizing_pct REAL,
     dcf_upside_pct  REAL,
     moat_classification TEXT,
-    report_path     TEXT
+    report_path     TEXT,
+    latency_ms      REAL,
+    cost_eur        REAL,
+    tokens_in       INTEGER,
+    tokens_out      INTEGER
 )
 """
+
+# Columnas añadidas en Phase 2.5 — migration para bases de datos existentes
+_MIGRATION_SQLS = [
+    "ALTER TABLE analyses ADD COLUMN latency_ms REAL",
+    "ALTER TABLE analyses ADD COLUMN cost_eur REAL",
+    "ALTER TABLE analyses ADD COLUMN tokens_in INTEGER",
+    "ALTER TABLE analyses ADD COLUMN tokens_out INTEGER",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -317,10 +329,45 @@ def _render_citations_section(state: AnalysisState) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def _ensure_db(db_path: str) -> None:
-    """Crea la tabla analyses si no existe. Idempotente."""
+    """Crea la tabla analyses si no existe y aplica migrations. Idempotente."""
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(db_path) as conn:
         conn.execute(_CREATE_TABLE_SQL)
+        # Migration: añadir columnas de performance si la DB ya existía sin ellas
+        for sql in _MIGRATION_SQLS:
+            try:
+                conn.execute(sql)
+            except sqlite3.OperationalError:
+                pass  # columna ya existe — ignorar
+        conn.commit()
+
+
+def update_performance_metrics(
+    db_path: str,
+    run_id: str,
+    latency_ms: float,
+    cost_eur: float,
+    tokens_in: int,
+    tokens_out: int,
+) -> None:
+    """
+    Actualiza las métricas de performance en la fila ya insertada por archiver_node.
+    Llamada desde CLI después de que el análisis completa (ADR-021).
+    """
+    sql = """
+    UPDATE analyses
+    SET latency_ms=:latency_ms, cost_eur=:cost_eur,
+        tokens_in=:tokens_in, tokens_out=:tokens_out
+    WHERE run_id=:run_id
+    """
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(sql, {
+            "run_id": run_id,
+            "latency_ms": round(latency_ms, 1),
+            "cost_eur": round(cost_eur, 6),
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+        })
         conn.commit()
 
 

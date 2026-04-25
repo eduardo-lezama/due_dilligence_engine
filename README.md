@@ -27,7 +27,7 @@ The pipeline:
 7. **Valuation agent** — DCF, reverse DCF, EV/EBIT, EV/FCF, P/E, sensitivity table. Zero LLM numeric generation.
 8. **Value Expert** — synthesizes into 9-section analysis + BUY/HOLD/SELL. Prompt v2: must adjudicate conflicts, contrast implied growth vs CAGR, name concrete thesis-breaker
 9. **Critic agent** — independent pre-mortem: weaknesses, contra-thesis, failure scenarios
-10. **Archiver** — Markdown report (citations, peer ROIC table, 8-K events, operational data) + SQLite row
+10. **Archiver** — Markdown report: citations, **peer ROIC table with subject company as first row**, 8-K events, operational data (backlog, guidance, regulatory events), DCF reliability warning if cyclical peak detected + SQLite row
 
 ---
 
@@ -41,6 +41,8 @@ The pipeline:
 | **Primary sources only** | No `yfinance`, no Yahoo/Morningstar scraping. SEC EDGAR XBRL via `edgartools` is the authoritative source for all financial metrics. |
 | **Tools fail loud** | Never a silent fallback from "tool broken" to "LLM invents number". Explicit error + log + branch abort if a critical metric is unavailable. |
 | **Socratic HITL** | Checkpoints aren't just approval gates — they carry didactic reasoning to help the user understand what matters and why. |
+| **Cyclical peak detection** | DCF warns when the FCF growth rate is capped (raw CAGR > 30%), signaling that the base FCF may be at a cyclical peak and the reverse DCF is more informative. |
+| **US-only scope (Phase 1–2)** | Supports US domestic filers (10-K, XBRL US GAAP). Foreign private issuers (20-F, IFRS ADRs) require Phase 3 adapters. |
 
 ---
 
@@ -160,6 +162,9 @@ cp .env.example .env   # fill in your API keys
 ```bash
 # Full analysis with interactive checkpoints
 uv run due-diligence analyze AAPL
+
+# US domestic tickers only — foreign ADRs (20-F filers) not supported yet
+# ✅ AAPL, FSLR, ACMR, CALM  ❌ GRVY, BABA, TSM (foreign private issuers)
 
 # Run smoke tests (no real API calls — uses cached fixtures)
 uv run pytest tests/test_smoke.py -q

@@ -339,11 +339,14 @@ def value_expert_agent(state: AnalysisState) -> dict:
     )
 
     log.info("value_expert_llm_call", ticker=ticker, model=settings.openai_expert_model)
+    # 8192 tokens: el prompt v2 genera respuestas más largas que el original
+    # (9 secciones con adjudicación de conflictos + thesis-breaker concreto).
+    # 4096 era insuficiente para empresas con contexto rico (ej. DRS con 20+ páginas de 10-K).
     response_text = get_client().complete(
         messages=[{"role": "user", "content": user_prompt}],
         system=_SYSTEM_PROMPT,
         model=settings.openai_expert_model,
-        max_tokens=4096,
+        max_tokens=8192,
     )
 
     report = _parse_response(response_text, ticker)

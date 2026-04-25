@@ -131,7 +131,17 @@ class LLMClient:
             messages=oai_messages,
             max_completion_tokens=max_tokens,
         )
-        return response.choices[0].message.content
+        choice = response.choices[0]
+        # Detectar truncación por límite de tokens — el JSON quedará incompleto.
+        if choice.finish_reason == "length":
+            log.warning(
+                "llm_response_truncated",
+                model=resolved_model,
+                max_tokens=max_tokens,
+                finish_reason="length",
+                hint="Increase max_tokens for this agent if parse errors follow.",
+            )
+        return choice.message.content
 
 
 _client: Optional[LLMClient] = None

@@ -178,10 +178,25 @@ class EdgarAdapter:
                 "gross_profit": _get_annual(inc_df, "GrossProfit"),
                 "operating_income": _get_annual(inc_df, "OperatingIncomeLoss"),
                 "net_income": _get_annual(inc_df, "NetIncomeLoss"),
-                "operating_cash_flow": _get_annual(
-                    cf_df, "NetCashProvidedByUsedInOperatingActivities"
+                # Operating cash flow — intentar múltiples conceptos XBRL en orden de prevalencia.
+                # Algunas empresas (educación, servicios, continuingOperations reporters)
+                # usan variantes distintas del concepto estándar.
+                "operating_cash_flow": (
+                    _get_annual(cf_df, "NetCashProvidedByUsedInOperatingActivities")
+                    or _get_annual(cf_df, "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations")
+                    or _get_annual(cf_df, "NetCashProvidedByOperatingActivities")
+                    or _get_annual(cf_df, "CashGeneratedFromOperatingActivities")
                 ),
-                "capex": _get_annual(cf_df, "PaymentsToAcquirePropertyPlantAndEquipment"),
+                # Capex — distintas empresas usan distintos conceptos.
+                # Empresas asset-light pueden no reportar capex como línea separada;
+                # en ese caso la lista queda vacía y FCF = OCF (aproximación válida).
+                "capex": (
+                    _get_annual(cf_df, "PaymentsToAcquirePropertyPlantAndEquipment")
+                    or _get_annual(cf_df, "PaymentsForCapitalExpenditures")
+                    or _get_annual(cf_df, "CapitalExpendituresIncurringNoCapitalLeases")
+                    or _get_annual(cf_df, "PurchaseOfPropertyPlantAndEquipment")
+                    or []  # asset-light con zero capex reportado: FCF ≈ OCF
+                ),
                 # Para ROIC: impuesto + pretax income permiten calcular effective_tax_rate
                 "income_tax": _get_annual(inc_df, "IncomeTaxExpenseBenefit"),
                 "pretax_income": _get_annual(
@@ -235,15 +250,35 @@ class EdgarAdapter:
 
         ocf_list = _mv_list(annual["operating_cash_flow"])
         capex_list = _mv_list(annual["capex"])
-        fcf_list = [
-            MetricValue(
-                value=ocf.value - cap.value,
-                unit="USD",
-                period=ocf.period,
-                source="calculated",
-            )
-            for ocf, cap in zip(ocf_list, capex_list)
-        ]
+
+        if ocf_list and capex_list:
+            # Caso normal: ambos disponibles — FCF = OCF - Capex
+            # zip trunca al más corto si difieren en longitud (periodos distintos)
+            fcf_list = [
+                MetricValue(
+                    value=ocf.value - cap.value,
+                    unit="USD",
+                    period=ocf.period,
+                    source="calculated",
+                )
+                for ocf, cap in zip(ocf_list, capex_list)
+            ]
+        elif ocf_list:
+            # Capex no disponible en XBRL (empresas asset-light / servicios puros).
+            # FCF ≈ OCF es una aproximación válida cuando capex es negligible.
+            # Se marca source="calculated-no-capex" para que sea auditable.
+            log.debug("fcf_no_capex_data", ticker=raw.get("ticker"), note="FCF ≈ OCF (capex not in XBRL)")
+            fcf_list = [
+                MetricValue(
+                    value=ocf.value,
+                    unit="USD",
+                    period=ocf.period,
+                    source="calculated-no-capex",
+                )
+                for ocf in ocf_list
+            ]
+        else:
+            fcf_list = []
 
         total_debt_value = bs["long_term_debt"]["value"] + bs["short_term_debt"]["value"]
         cash_value = (

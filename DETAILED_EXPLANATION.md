@@ -1966,3 +1966,59 @@ Este tipo de bug es silencioso — el sistema no crashea, simplemente devuelve v
 
 *Última actualización: 2026-04-25 — Bug fix peer ROIC. 189 tests, verde.*
 
+---
+
+## Mejora: peer ROIC con contexto propio + síntesis del Expert (2026-04-25)
+
+### El problema observado
+
+La tabla de peer ROIC en el report mostraba esto:
+
+```
+| Ticker (peer) | ROIC  | Period |
+| VITL          | 21.2% | FY2025 |
+| PPC           | 18.6% | FY2025 |
+```
+
+Dos problemas:
+1. No hay fila para la empresa analizada — el lector no puede comparar sin scrollear hasta la tabla de financials para buscar el ROIC propio.
+2. El Value Expert no recibía estos datos. `_format_context` pasaba el moat classification ("narrow") pero no los números de ROIC de los peers. El Expert escribía §2 Moat Analysis sin saber que CALM tenía 52% de ROIC frente a 21% de VITL y 18% de PPC.
+
+### Los dos fixes
+
+**Fix 1 — Archiver: añadir fila del subject a la tabla**
+
+La tabla de peers ahora incluye siempre la empresa analizada como primera fila, marcada con `← subject`:
+
+```markdown
+| Ticker  | ROIC   | Period | Note      |
+| CALM    | 52.0%  | FY2025 | ← subject |
+| VITL    | 21.2%  | FY2025 |           |
+| PPC     | 18.6%  | FY2025 |           |
+```
+
+El ROIC propio sale de `state["financials"].roic_series[0]` — la misma fuente XBRL que el resto de la tabla. Cero LLM, cero invención.
+
+**Fix 2 — Value Expert: inyectar peer ROICs en el contexto**
+
+`_format_context` ahora incluye en la sección `## COMPETITIVE / MOAT REPORT`:
+
+```
+Peer ROIC comparison (use in §2 to contextualize moat quality):
+  CALM (subject): 52.0% (FY2025)
+  VITL (peer): 21.2% (FY2025)
+  PPC (peer): 18.6% (FY2025)
+```
+
+Y el prompt de §2 en `_SYSTEM_PROMPT` ahora dice explícitamente: *"If peer ROIC data is available in context, explicitly compare the subject's ROIC against peers — name the numbers."*
+
+Esto habilita §2 del tipo: *"CALM's ROIC of 52% is more than double its closest peer (VITL 21.2%), which is strong evidence of pricing power in the current egg cycle — though the Critic is right that this level is unlikely to persist at this magnitude."*
+
+### Por qué importa
+
+Un análisis de moat sin referencia cuantitativa a peers es incompleto. "Narrow moat con brand y cost_advantage" no dice nada sobre si el ROIC de la empresa está por encima o por debajo del sector. El peer ROIC es exactamente ese benchmark — y ahora viaja desde EDGAR XBRL hasta §2 del Value Expert de forma directa y verificable.
+
+---
+
+*Última actualización: 2026-04-25 — Peer ROIC con contexto. 189 tests, verde.*
+

@@ -219,9 +219,7 @@ def _format_context(state: AnalysisState) -> str:
             )
         lines.append("")
 
-    # --- Historical CAGR anchor (ADR-019) ---
-    # Inyectado DESPUÉS de la sección de Valuation. Usa el span real de años
-    # (no siempre 5y — FSLR con 4 periodos XBRL tiene un CAGR de 3 años).
+    # --- Historical CAGR anchor + user's growth justification (ADR-019) ---
     cagr = state.get("historical_cagr_5y")        # type: ignore[typeddict-item]
     cagr_years = state.get("historical_cagr_years", 5)  # type: ignore[typeddict-item]
     if cagr is not None:
@@ -232,6 +230,13 @@ def _format_context(state: AnalysisState) -> str:
             "If implied growth > CAGR, the market is pricing acceleration. "
             "If implied growth < CAGR, the market is pricing deceleration."
         )
+        # Justificación del usuario sobre por qué sus asunciones de growth divergen o
+        # se alinean con el CAGR histórico — aportada en Checkpoint 2 (ADR-018).
+        # Si está disponible, es contexto clave para §6 Valuation y §9 Decision Frame.
+        cp2 = state.get("checkpoint2_user_input") or {}  # type: ignore[typeddict-item]
+        growth_justification = cp2.get("growth_justification", "")
+        if growth_justification:
+            lines.append(f"Investor's rationale for DCF growth assumptions: {growth_justification}")
         lines.append("")
 
     return "\n".join(lines)

@@ -73,7 +73,7 @@ VERDICT RUBRIC:
 OUTPUT SCHEMA:
 {
   "business_understanding": "<§1: 3-4 sentences. What does it do, how does it make money, circle of competence>",
-  "moat_analysis": "<§2: integrate ROIC evidence with qualitative moat classification. If they conflict, adjudicate explicitly with reasoning.>",
+  "moat_analysis": "<§2: integrate ROIC evidence with qualitative moat classification. If peer ROIC data is available in context, explicitly compare the subject's ROIC against peers — name the numbers. If they conflict with the moat label, adjudicate with reasoning.>",
   "management_assessment": "<§3: skin in the game (insider %) + capital allocation track record + earnings call Q&A tone if available. Quote one verbatim phrase from transcripts if available.>",
   "financial_quality": "<§4: FCF conversion, balance sheet, margin trends, earnings quality>",
   "growth_reinvestment": "<§5: reinvestment rate, incremental ROIC, runway>",
@@ -191,6 +191,17 @@ def _format_context(state: AnalysisState) -> str:
         if competitive.moat_classification:
             sources = ", ".join(competitive.moat_sources) if competitive.moat_sources else "N/A"
             lines.append(f"Moat: {competitive.moat_classification} ({sources})")
+        # Peer ROIC comparison — datos cuantitativos para anclar §2 Moat Analysis
+        if competitive.peer_roic_comparison:
+            ticker = state.get("ticker", "subject")  # type: ignore[typeddict-item]
+            lines.append("Peer ROIC comparison (use in §2 to contextualize moat quality):")
+            # Incluir también el ROIC propio para que el Expert pueda hacer la comparación
+            financials = state.get("financials")  # type: ignore[typeddict-item]
+            if financials and financials.roic_series:
+                own = financials.roic_series[0]
+                lines.append(f"  {ticker} (subject): {own.value:.1%} ({own.period})")
+            for pr in competitive.peer_roic_comparison:
+                lines.append(f"  {pr.ticker} (peer): {pr.roic:.1%} ({pr.period})")
         lines.append("")
 
     # --- Valuation ---

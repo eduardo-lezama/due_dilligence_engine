@@ -765,8 +765,10 @@ def test_competitive_parse_invalid_json_returns_stub_false():
     assert report.stub is False
 
 
-def test_competitive_peer_roic_always_empty_phase1b():
-    """peer_roic_comparison siempre vacío en Phase 1b (deferred)."""
+def test_competitive_peer_roic_empty_from_llm_parse():
+    """_parse_llm_response siempre devuelve peer_roic_comparison vacío.
+    Los peers los inyecta peers_node después — competitive_agent no tiene acceso
+    a state['peer_financials'] porque corre en el fan-out antes de peers_node."""
     raw = _json.dumps({
         "moat_classification": "wide",
         "moat_sources": ["brand"],
@@ -774,4 +776,4 @@ def test_competitive_peer_roic_always_empty_phase1b():
         "citations": [],
     })
     report = _parse_competitive_response(raw, "AAPL")
-    assert report.peer_roic_comparison == []  # siempre vacío
+    assert report.peer_roic_comparison == []  # vacío aquí — se rellena en peers_node

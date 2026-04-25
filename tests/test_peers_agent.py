@@ -22,8 +22,10 @@ def test_peers_node_fetches_financials_for_each_peer(mocker):
 
     fake_rep_msft = MagicMock()
     fake_rep_msft.ticker = "MSFT"
+    fake_rep_msft.roic_series = []  # sin ROIC — evita construcción de PeerROIC con MagicMock
     fake_rep_googl = MagicMock()
     fake_rep_googl.ticker = "GOOGL"
+    fake_rep_googl.roic_series = []
 
     mocker.patch(
         "due_diligence.agents.peers.EdgarAdapter.fetch_raw",
@@ -67,6 +69,7 @@ def test_peers_node_logs_and_skips_failing_peer(mocker):
 
     fake_rep = MagicMock()
     fake_rep.ticker = "MSFT"
+    fake_rep.roic_series = []
 
     mocker.patch(
         "due_diligence.agents.peers.EdgarAdapter.fetch_raw",
@@ -83,12 +86,38 @@ def test_peers_node_logs_and_skips_failing_peer(mocker):
     assert result["peer_financials"][0].ticker == "MSFT"
 
 
+def test_peers_node_injects_peer_roic_into_competitive(mocker):
+    """peers_node actualiza state['competitive'].peer_roic_comparison con los peers fetched."""
+    from due_diligence.agents.peers import peers_node
+    from due_diligence.schemas.reports import CompetitiveReport
+    from datetime import date
+    from due_diligence.schemas.base import MetricValue
+
+    fake_rep = MagicMock()
+    fake_rep.ticker = "LRCX"
+    fake_rep.roic_series = [MetricValue(value=0.28, unit="ratio", period="FY2025", source="calculated")]
+
+    mocker.patch("due_diligence.agents.peers.EdgarAdapter.fetch_raw", return_value={"ticker": "LRCX"})
+    mocker.patch("due_diligence.agents.peers.EdgarAdapter.parse_financials", return_value=fake_rep)
+
+    competitive = CompetitiveReport(ticker="ACMR", stub=False, moat_classification="narrow")
+    state = {"ticker": "ACMR", "peers": ["LRCX"], "competitive": competitive}
+
+    result = peers_node(state)
+
+    assert "competitive" in result
+    assert len(result["competitive"].peer_roic_comparison) == 1
+    assert result["competitive"].peer_roic_comparison[0].ticker == "LRCX"
+    assert abs(result["competitive"].peer_roic_comparison[0].roic - 0.28) < 0.001
+
+
 def test_peers_node_skips_unexpected_exception(mocker):
     """Excepción inesperada en un peer se omite sin abortar el batch."""
     from due_diligence.agents.peers import peers_node
 
     fake_rep = MagicMock()
     fake_rep.ticker = "GOOGL"
+    fake_rep.roic_series = []
 
     mocker.patch(
         "due_diligence.agents.peers.EdgarAdapter.fetch_raw",

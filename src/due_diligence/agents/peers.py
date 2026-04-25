@@ -3,20 +3,18 @@ Peers Node — fetcha FinancialsReport para cada peer ticker aportado por el usu
 
 Qué hace este módulo:
     Implementa peers_node, un nodo tool-lane (sin LLM) que recibe
-    state["peers"] (lista de tickers que el usuario proporcionó en Checkpoint 1)
-    y devuelve peer_financials: list[FinancialsReport].
+    state["peers"] (lista de tickers que el usuario proporcionó en Checkpoint 1),
+    fetcha sus datos XBRL, y actualiza CompetitiveReport.peer_roic_comparison.
 
-    El competitive_agent consume esta lista para poblar
-    CompetitiveReport.peer_roic_comparison (tabla ROIC de peers en el reporte).
-
-Por qué es un nodo separado y no inline en competitive_agent:
-    Separar el I/O (fetch EDGAR) del razonamiento (LLM moat analysis) es el
-    patrón establecido en esta arquitectura. competitive_agent es LLM-lane —
-    no debe hacer I/O de red. peers_node es tool-lane puro, igual que financials_node.
+Por qué peer_roic_comparison se construye AQUÍ y no en competitive_agent:
+    competitive_agent corre en el fan-out ANTES de checkpoint1 y peers_node.
+    Cuando competitive_agent ejecuta, state["peer_financials"] aún no existe.
+    peers_node corre DESPUÉS de checkpoint1, cuando state["competitive"] ya está
+    disponible — es el único punto del grafo con acceso a ambos datos a la vez.
 
 Degraded mode:
-    - Lista vacía o ausente → devuelve [] sin llamar a EDGAR.
-    - Un peer con fallo (ticker inválido, XBRL corrupto) → se loguea y se omite.
+    - Lista vacía o ausente → devuelve {} sin llamar a EDGAR.
+    - Un peer que falla → se loguea y se omite; el resto continúa.
     - Nunca bloquea el pipeline completo. Los peers son contexto opcional.
 
 Referencia ADR: ADR-015.
@@ -27,6 +25,7 @@ from __future__ import annotations
 import structlog
 
 from due_diligence.graph.state import AnalysisState
+from due_diligence.schemas.reports import PeerROIC
 from due_diligence.tools.edgar import DataUnavailableError, EdgarAdapter
 
 log = structlog.get_logger()
@@ -34,14 +33,12 @@ log = structlog.get_logger()
 
 def peers_node(state: AnalysisState) -> dict:
     """
-    Itera sobre state["peers"] y obtiene FinancialsReport para cada uno.
-
-    Args:
-        state: Estado del grafo — usa state.get("peers", []).
+    Fetcha FinancialsReport para cada peer y actualiza competitive.peer_roic_comparison.
 
     Returns:
-        {"peer_financials": list[FinancialsReport]} — solo la clave que produce.
-        Lista vacía si no hay peers o todos fallaron.
+        Dict con "peer_financials" y, si hay datos de ROIC, "competitive" actualizado
+        con peer_roic_comparison poblado. competitive_agent ya corrió — usamos
+        model_copy para añadir los peers sin reescribir el resto del report.
     """
     peers: list[str] = state.get("peers", []) or []  # type: ignore[typeddict-item]
 
@@ -62,4 +59,20 @@ def peers_node(state: AnalysisState) -> dict:
             log.warning("peers_node_peer_failed", peer=peer_ticker, error=str(e))
 
     log.info("peers_node_complete", total_peers=len(peers), fetched=len(reports))
-    return {"peer_financials": reports}
+
+    out: dict = {"peer_financials": reports}
+
+    # Construir peer_roic_comparison y actualizar el CompetitiveReport que ya existe en state.
+    # competitive_agent corrió en el fan-out ANTES que peers_node — aquí tenemos ambos datos.
+    peer_roic: list[PeerROIC] = []
+    for rep in reports:
+        if rep.roic_series:
+            mv = rep.roic_series[0]  # valor más reciente
+            peer_roic.append(PeerROIC(ticker=rep.ticker, roic=mv.value, period=mv.period))
+
+    competitive = state.get("competitive")  # type: ignore[typeddict-item]
+    if peer_roic and competitive is not None and not competitive.stub:
+        out["competitive"] = competitive.model_copy(update={"peer_roic_comparison": peer_roic})
+        log.info("peers_node_roic_injected", peers=len(peer_roic))
+
+    return out

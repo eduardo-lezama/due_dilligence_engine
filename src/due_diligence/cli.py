@@ -288,6 +288,12 @@ def _show_verdict(state: dict) -> None:
                     color = "green" if pct > 0 else "red"
                     delta = f"[{color}]{pct:+.1f}% vs market[/{color}]"
                 ps_table.add_row("DCF intrinsic (per share)", f"${dcf_ps.value:.2f}", delta)
+            else:
+                ps_table.add_row(
+                    "DCF intrinsic (per share)",
+                    "[dim]N/A[/dim]",
+                    "[dim]FCF negativo — DCF no computable[/dim]",
+                )
 
             # Equity value total para contexto
             if valuation.dcf_intrinsic_value:

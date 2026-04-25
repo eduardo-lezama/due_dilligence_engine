@@ -37,6 +37,18 @@ Estos son principios arquitectónicos. Violarlos requiere discusión explícita 
 
 ---
 
+## Cuando un run de producción revela un edge case
+
+**OBLIGATORIO** antes o junto al commit del fix:
+
+1. Añadir entrada en [`EDGE_CASES.md`](EDGE_CASES.md) con formato: síntoma → causa raíz → fix → commit.
+2. Si el edge case no tiene fix todavía, añadirlo igualmente en la sección "Conocidos — pendientes".
+3. Si la causa es arquitectónica y requiere trabajo diferido, también añadirla a `docs/mce-evolution.md`.
+
+**No** documentar en DETAILED_EXPLANATION.md los edge cases individuales — ese archivo es didáctico, no un registro de bugs.
+
+---
+
 ## Antes de arrancar una fase nueva o crear un directorio significativo
 
 **OBLIGATORIO leer [`docs/mce-evolution.md`](docs/mce-evolution.md)** y ejecutar todos los ítems cuyo trigger se haya cumplido. Este archivo es la única fuente de verdad de estructura diferida (subdirectorios CLAUDE.md, skills, slash-commands, hooks).

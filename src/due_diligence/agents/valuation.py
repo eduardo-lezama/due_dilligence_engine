@@ -227,16 +227,33 @@ def valuation_agent(state: AnalysisState) -> dict:
         shares = market_cap / price_current_mv.value
 
     # --- 4. Near-term growth: user override > historical CAGR > default 7% ---
+    raw_cagr: Optional[float] = None
     if assumptions.revenue_growth_yr1_pct is not None:
         near_term_growth = assumptions.revenue_growth_yr1_pct / 100
     elif financials is not None and financials.free_cash_flow:
-        cagr = _fcf_cagr(financials.free_cash_flow)
-        near_term_growth = cagr if cagr is not None else 0.07
+        raw_cagr = _fcf_cagr(financials.free_cash_flow)
+        near_term_growth = raw_cagr if raw_cagr is not None else 0.07
     else:
         near_term_growth = 0.07
 
-    # Limitar a rango razonable para evitar proyecciones absurdas
+    # Limitar a rango razonable para evitar proyecciones absurdas.
+    # Guardar si se aplicó el cap — es señal de que el FCF histórico es anormal.
+    growth_was_capped = near_term_growth > _MAX_NEAR_TERM_GROWTH or near_term_growth < _MIN_NEAR_TERM_GROWTH
     near_term_growth = max(_MIN_NEAR_TERM_GROWTH, min(_MAX_NEAR_TERM_GROWTH, near_term_growth))
+
+    # Construir nota de fiabilidad del DCF si el growth fue capeado.
+    # Ocurre en negocios cíclicos en el pico (FCF muy elevado vs historial) —
+    # el DCF forward proyecta un FCF inflado y produce upside irreal.
+    # En estos casos el reverse DCF (implied growth) es más informativo.
+    dcf_reliability_note: Optional[str] = None
+    if growth_was_capped and raw_cagr is not None and assumptions.revenue_growth_yr1_pct is None:
+        dcf_reliability_note = (
+            f"⚠️ DCF growth capped at {_MAX_NEAR_TERM_GROWTH:.0%} "
+            f"(raw FCF CAGR was {raw_cagr:.0%}). "
+            f"The base FCF may be at a cyclical peak — forward DCF likely overstates intrinsic value. "
+            f"The reverse DCF implied growth is more informative for cyclical businesses."
+        )
+        log.warning("valuation_dcf_growth_capped", ticker=ticker, raw_cagr=f"{raw_cagr:.0%}")
 
     log.info(
         "valuation_agent_assumptions",
@@ -334,9 +351,10 @@ def valuation_agent(state: AnalysisState) -> dict:
         ev_fcf_multiple=ev_fcf_mv,
         pe_multiple=pe_mv,
         earnings_yield_pct=earnings_yield,
-        magic_formula_rank=None,   # requiere ranking vs peers — deferred Phase 1c+
+        magic_formula_rank=None,
         sensitivity_table=sensitivity,
         assumptions=assumptions,
+        dcf_reliability_note=dcf_reliability_note,
     )
 
     log.info(

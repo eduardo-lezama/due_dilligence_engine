@@ -120,6 +120,7 @@ class ValuationReport(BaseModel):
     magic_formula_rank: Optional[int] = None            # Rank según Magic Formula (requiere peer list — None en Phase 1)
     sensitivity_table: list[dict] = Field(default_factory=list)  # Tabla de sensibilidad WACC × growth
     assumptions: Optional[ValuationInput] = None        # Assumptions usadas en el DCF
+    dcf_reliability_note: Optional[str] = None          # Warning cuando el DCF puede ser poco fiable
 
 
 class ValueExpertReport(BaseModel):

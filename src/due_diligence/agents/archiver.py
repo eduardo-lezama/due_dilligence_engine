@@ -145,6 +145,8 @@ def _render_markdown(state: AnalysisState) -> str:
                 f"{a.projection_years} years*"
             )
             lines.append("")
+        if valuation.dcf_reliability_note:
+            lines += [f"> {valuation.dcf_reliability_note}", ""]
 
     # --- Sensitivity table ---
     if valuation and valuation.sensitivity_table:

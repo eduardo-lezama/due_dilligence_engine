@@ -236,6 +236,9 @@ def _show_valuation(state: dict) -> None:
         table.add_row("Earnings yield (EBIT/EV)", f"{valuation.earnings_yield_pct:.1f}%")
     console.print(table)
 
+    if valuation.dcf_reliability_note:
+        console.print(f"\n[bold yellow]{valuation.dcf_reliability_note}[/bold yellow]")
+
     if valuation.assumptions:
         a = valuation.assumptions
         console.print(

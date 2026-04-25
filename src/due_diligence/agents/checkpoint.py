@@ -94,11 +94,9 @@ def _build_socratic_questions(state: AnalysisState) -> list[str]:
                 "Do you see this as a continuity asset or a succession risk?"
             )
 
-    # --- Peer prompt — siempre presente (ADR-015) ---
-    qs.append(
-        "Which 3-5 peer tickers would you benchmark this company against? "
-        "(press Enter to skip — moat analysis will use 10-K data only)"
-    )
+    # Nota: la pregunta de peer tickers NO se incluye aquí — el CLI tiene un prompt
+    # dedicado inmediatamente después de las Socratic questions que hace exactamente eso.
+    # Incluirla aquí causaba que el usuario tuviera que responder dos veces lo mismo.
 
     return qs
 

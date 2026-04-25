@@ -63,12 +63,13 @@ def _make_state(
     }
 
 
-def test_socratic_always_includes_peer_prompt():
-    """La pregunta de peers siempre está presente independientemente del state."""
+def test_socratic_no_peer_question_in_socratic():
+    """La pregunta de peers NO debe aparecer en las Socratic — tiene su propio prompt dedicado."""
     from due_diligence.agents.checkpoint import _build_socratic_questions
 
     qs = _build_socratic_questions({"ticker": "AAPL"})
-    assert any("peer" in q.lower() for q in qs)
+    # Sin datos de especialistas, la lista debe estar vacía (no hay conflictos que generar)
+    assert len(qs) == 0
 
 
 def test_socratic_detects_narrow_moat_high_roic():
@@ -117,9 +118,8 @@ def test_socratic_no_moat_question_for_wide_moat_high_roic():
 
 
 def test_socratic_skips_patterns_without_data():
-    """Sin competitive ni mgmt en el state, solo genera la pregunta de peers."""
+    """Sin competitive ni mgmt en el state, no genera preguntas (no hay conflictos)."""
     from due_diligence.agents.checkpoint import _build_socratic_questions
 
     qs = _build_socratic_questions({"ticker": "XYZ"})
-    assert len(qs) == 1
-    assert "peer" in qs[0].lower()
+    assert len(qs) == 0

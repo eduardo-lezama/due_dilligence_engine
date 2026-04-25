@@ -225,7 +225,28 @@ def _render_markdown(state: AnalysisState) -> str:
             lines.append(f"| {pr.ticker} | {pr.roic:.1%} | {pr.period} | |")
         lines.append("")
     elif competitive and not competitive.stub:
-        lines += ["## Peer Comparison — ROIC", "", "Peer comparison skipped by user.", ""]
+        # Distinguir entre skip explícito y intento fallido
+        attempted_no_roic = state.get("peers_attempted_no_roic", [])  # type: ignore[typeddict-item]
+        peers_provided = state.get("peers", []) or []                  # type: ignore[typeddict-item]
+        if attempted_no_roic:
+            tickers_str = ", ".join(attempted_no_roic)
+            lines += [
+                "## Peer Comparison — ROIC", "",
+                f"Peers fetched ({tickers_str}) but ROIC could not be computed from XBRL "
+                f"(possible causes: foreign filer / 20-F, incomplete XBRL, or no invested_capital data).",
+                "",
+            ]
+        elif peers_provided:
+            # Peers se intentaron pero todos fallaron en el fetch
+            lines += [
+                "## Peer Comparison — ROIC", "",
+                f"Peer fetch attempted ({', '.join(peers_provided)}) but all failed "
+                f"(possible causes: foreign filer / 20-F, EDGAR data unavailable). "
+                f"Check logs for details.",
+                "",
+            ]
+        else:
+            lines += ["## Peer Comparison — ROIC", "", "Peer comparison skipped by user.", ""]
 
     # --- Market & News (ADR-014: news URLs preserved inline) ---
     market = state.get("market")              # type: ignore[typeddict-item]

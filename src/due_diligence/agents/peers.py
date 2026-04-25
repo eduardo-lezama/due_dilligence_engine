@@ -62,17 +62,27 @@ def peers_node(state: AnalysisState) -> dict:
 
     out: dict = {"peer_financials": reports}
 
-    # Construir peer_roic_comparison y actualizar el CompetitiveReport que ya existe en state.
-    # competitive_agent corrió en el fan-out ANTES que peers_node — aquí tenemos ambos datos.
+    # Construir peer_roic_comparison desde los peers fetched con éxito.
     peer_roic: list[PeerROIC] = []
     for rep in reports:
         if rep.roic_series:
-            mv = rep.roic_series[0]  # valor más reciente
+            mv = rep.roic_series[0]
             peer_roic.append(PeerROIC(ticker=rep.ticker, roic=mv.value, period=mv.period))
+        else:
+            # Peer fetched pero sin ROIC calculable — loguear para diagnóstico
+            log.warning("peers_node_peer_no_roic", peer=rep.ticker,
+                        hint="XBRL may lack invested_capital or operating_income for this ticker")
 
     competitive = state.get("competitive")  # type: ignore[typeddict-item]
     if peer_roic and competitive is not None and not competitive.stub:
         out["competitive"] = competitive.model_copy(update={"peer_roic_comparison": peer_roic})
         log.info("peers_node_roic_injected", peers=len(peer_roic))
+    elif reports and not peer_roic:
+        # Peers fetched pero ninguno tiene ROIC — guardar en state para que el archiver
+        # pueda mostrar un mensaje honesto ("attempted but no ROIC data")
+        fetched_tickers = [r.ticker for r in reports]
+        log.warning("peers_node_no_roic_data", fetched=fetched_tickers,
+                    hint="Peers fetched but none had computable ROIC from XBRL")
+        out["peers_attempted_no_roic"] = fetched_tickers
 
     return out

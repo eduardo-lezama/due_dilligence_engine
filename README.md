@@ -15,18 +15,19 @@ uv run due-diligence analyze AAPL
 The pipeline:
 
 1. **Supervisor** resolves the ticker to a CIK and routes the analysis
-2. **5 specialists run in parallel** (LangGraph `Send()` fan-out):
-   - `financials_agent` — XBRL extraction via EDGAR: revenue, FCF, ROIC, margins, balance sheet
-   - `management_agent` — DEF 14A, Form 4, 10-K §10: insider ownership, compensation, capital allocation
-   - `filings_agent` — 10-K §1/§1A/§7: business description, risk factors, MD&A highlights
-   - `market_agent` — Polygon (price, market cap, 52w range) + Finnhub (news)
+2. **`financials_node`** — XBRL from EDGAR: revenue, FCF, ROIC, margins, balance sheet, 5y CAGR
+3. **4 specialists run in parallel** (LangGraph `Send()` fan-out):
+   - `management_agent` — DEF 14A + Form 4 (insider pattern, founder detection) + Tavily (background, corporate structure) + Finnhub transcripts
+   - `filings_agent` — 10-K §1/§1A/§7: business, risk factors, MD&A, **backlog, guidance, geographic revenue, specific regulatory events verbatim**
+   - `market_agent` — Polygon (price, market cap, 52w) + Finnhub (news) + **EDGAR 8-K events** (Items 2.02/4.02/5.02)
    - `competitive_agent` — ROIC series + Tavily: moat classification, competitive position
-3. **Checkpoint 1 (HITL)** — user reviews moat + management findings, adds context
-4. **Valuation agent** — DCF, reverse DCF, EV/EBIT, EV/FCF, P/E, sensitivity table (3×3). Zero LLM numeric generation.
-5. **Checkpoint 2 (HITL)** — user sets WACC, terminal growth, projection years
-6. **Value Expert** — synthesizes all inputs into a 9-section analysis + BUY/HOLD/SELL verdict with confidence and suggested sizing
-7. **Critic agent** — independent pre-mortem: weaknesses, contra-thesis, failure scenarios
-8. **Archiver** — saves Markdown report + SQLite row for historical comparison
+4. **Checkpoint 1 (HITL, Socratic)** — data-grounded questions (moat/ROIC conflicts, insider ownership, CEO tenure); user reviews findings
+5. **`peers_node`** — EDGAR XBRL for 3-5 user-supplied peer tickers; injects peer ROIC into competitive report
+6. **Checkpoint 2 (HITL)** — shows historical CAGR anchor; user sets WACC, growth, projection years + justification
+7. **Valuation agent** — DCF, reverse DCF, EV/EBIT, EV/FCF, P/E, sensitivity table. Zero LLM numeric generation.
+8. **Value Expert** — synthesizes into 9-section analysis + BUY/HOLD/SELL. Prompt v2: must adjudicate conflicts, contrast implied growth vs CAGR, name concrete thesis-breaker
+9. **Critic agent** — independent pre-mortem: weaknesses, contra-thesis, failure scenarios
+10. **Archiver** — Markdown report (citations, peer ROIC table, 8-K events, operational data) + SQLite row
 
 ---
 
@@ -51,52 +52,62 @@ flowchart TD
     due-diligence analyze TICKER`"]) --> SUP
 
     SUP["`**Supervisor**
-    ticker → CIK · routing`"]
-
-    SUP -->|Send fan-out| FIN
-    SUP -->|Send fan-out| MGT
-    SUP -->|Send fan-out| FIL
-    SUP -->|Send fan-out| MKT
-    SUP -->|Send fan-out| CMP
+    ticker → CIK · routing`"] --> FIN
 
     FIN["`**Financials**
-    EDGAR XBRL · ROIC · FCF
+    EDGAR XBRL · ROIC · FCF · CAGR
     _tool-lane_`"]
+
+    FIN -->|Send fan-out| MGT
+    FIN -->|Send fan-out| FIL
+    FIN -->|Send fan-out| MKT
+    FIN -->|Send fan-out| CMP
+
     MGT["`**Management**
     DEF14A · Form4 · Tavily
-    _tool + LLM_`"]
+    founder · insider pattern
+    _LLM + citations_`"]
     FIL["`**Filings RAG**
     10-K §1/§1A/§7
+    backlog · guidance · regulatory events
     _LLM + citations_`"]
-    MKT["`**Market & News**
-    Polygon · Finnhub
+    MKT["`**Market**
+    Polygon · Finnhub · 8-K events
     _tool-lane_`"]
     CMP["`**Competitive & Moat**
     ROIC series · Tavily
     _LLM + citations_`"]
 
-    FIN & MGT & FIL & MKT & CMP --> CP1
+    MGT & FIL & MKT & CMP --> CP1
 
     CP1{"`**Checkpoint 1**
-    moat + management review
+    Socratic questions · peer prompt
     ← HITL interrupt`"}
 
-    CP1 --> VAL
+    CP1 --> PRS
+
+    PRS["`**peers_node**
+    EDGAR XBRL per peer ticker
+    injects peer ROIC → competitive
+    _tool-lane_`"]
+
+    PRS --> CP2
+
+    CP2{"`**Checkpoint 2**
+    CAGR anchor · WACC · growth
+    ← HITL interrupt`"}
+
+    CP2 --> VAL
 
     VAL["`**Valuation**
     DCF · reverse DCF · multiples
     sensitivity table · _tool-lane_`"]
 
-    VAL --> CP2
-
-    CP2{"`**Checkpoint 2**
-    WACC · growth · years
-    ← HITL interrupt`"}
-
-    CP2 --> EXP
+    VAL --> EXP
 
     EXP["`**Value Expert**
-    9-section synthesis
+    9-section synthesis · prompt v2
+    adjudicate conflicts · thesis-breaker
     BUY / HOLD / SELL + sizing`"]
 
     EXP --> CRT
@@ -108,13 +119,15 @@ flowchart TD
     CRT --> ARC
 
     ARC["`**Archiver**
-    report.md · SQLite row`"]
+    report.md · SQLite row
+    citations · peer ROIC · 8-K events`"]
 
     style CP1 fill:#f5a623,color:#000
     style CP2 fill:#f5a623,color:#000
     style EXP fill:#4a90d9,color:#fff
     style CRT fill:#e74c3c,color:#fff
     style ARC fill:#27ae60,color:#fff
+    style PRS fill:#8e44ad,color:#fff
 ```
 
 ---
@@ -169,23 +182,26 @@ Each analysis produces:
 ```
 due_dilligence_engine/
 ├── src/due_diligence/
-│   ├── agents/          # specialist agents + checkpoint + archiver + value_expert + critic
-│   ├── graph/           # LangGraph state, graph builder, edges
-│   ├── llm/             # provider-agnostic LLM client (Claude + OpenAI fallback)
+│   ├── agents/          # specialist agents, peers_node, checkpoint, value_expert, critic, archiver
+│   ├── graph/           # LangGraph state (AnalysisState), graph builder, edges
+│   ├── llm/             # provider-agnostic LLM client (Claude primary, OpenAI fallback)
 │   ├── schemas/         # Pydantic v2 models: reports, base types, citations
 │   ├── tools/           # deterministic data adapters (edgar, polygon, finnhub, tavily)
 │   ├── config.py        # pydantic-settings: all env vars in one place
-│   └── cli.py           # typer CLI entry points
+│   └── cli.py           # typer CLI: interactive checkpoints, Socratic questions
 ├── tests/
-│   └── fixtures/        # cached API responses for offline testing
+│   └── fixtures/        # cached API responses for offline testing (189 tests, zero real API calls)
 ├── docs/
-│   ├── adr/             # Architecture Decision Records (ADR-001 … ADR-012)
+│   ├── adr/             # Architecture Decision Records (ADR-001 … ADR-020)
 │   ├── checklist-value-investing.md
-│   └── mce-evolution.md
+│   ├── mce-evolution.md # deferred work with verifiable triggers
+│   └── phase-2-strategic-review.md
 ├── data/
 │   ├── reports/         # generated Markdown reports
 │   └── analyses.db      # SQLite analysis history
-└── DESIGN_DOCUMENT.md   # full project spec, research findings, roadmap detail
+├── CONCISE_EXPLANATION.md  # architecture study guide (recommended read)
+├── DETAILED_EXPLANATION.md # full didactic log of all implementation decisions
+└── DESIGN_DOCUMENT.md      # original project spec and research findings
 ```
 
 ---

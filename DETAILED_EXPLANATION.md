@@ -1918,3 +1918,51 @@ El descuento ACMR/ACMS (estructura corporativa compleja) puede no capturarse si 
 
 *Última actualización: 2026-04-25 — Mejoras post-producción. 188 tests, verde.*
 
+---
+
+## Bug fix: peer ROIC comparison siempre vacía (2026-04-25)
+
+### El síntoma
+
+El usuario aportaba peers (LRCX, ONTO, AMAT), los logs confirmaban que se fetchaban correctamente (`peers_node_fetched`), pero el report siempre decía "Peer comparison skipped by user".
+
+### La causa raíz
+
+Un error de timing en el grafo:
+
+```
+financials_node
+    ↓
+[fan-out]: management | filings | market | competitive_agent   ← competitive corre AQUÍ
+    ↓
+checkpoint1
+    ↓
+peers_node   ← peers se fetchan AQUÍ
+```
+
+`competitive_agent` corre en el fan-out, ANTES de `peers_node`. Cuando `competitive_agent` buscaba `state["peer_financials"]` para construir `peer_roic_comparison`, esa clave no existía todavía en el state. La lista siempre era vacía. El código nunca ejecutaba.
+
+El error pasó desapercibido porque no lanzaba excepción — simplemente retornaba `peer_roic_comparison=[]` sin ruido.
+
+### La solución
+
+Mover la construcción de `peer_roic_comparison` a `peers_node`, que corre DESPUÉS de checkpoint1 y tiene acceso a ambos datos:
+- `state["peer_financials"]` (que acaba de fetchar)
+- `state["competitive"]` (que competitive_agent escribió en el fan-out)
+
+`peers_node` ahora devuelve dos claves:
+1. `"peer_financials"` — los FinancialsReport de peers (behavior existente)
+2. `"competitive"` — el CompetitiveReport actualizado via `model_copy(update={"peer_roic_comparison": peer_roic})` si hay datos de ROIC
+
+El código en `competitive_agent` que nunca ejecutaba fue eliminado.
+
+### Lección aprendida
+
+En LangGraph, cuando A corre en paralelo con B via fan-out, A no puede leer lo que B escribe. El orden de los nodos determina qué datos están disponibles. Cuando diseñes un nodo que necesita datos de dos fuentes distintas, asegúrate de que se ejecuta DESPUÉS de que ambas estén disponibles en state.
+
+Este tipo de bug es silencioso — el sistema no crashea, simplemente devuelve vacío. La única forma de detectarlo es comparando el output con la realidad (peer comparison esperada vs "skipped by user").
+
+---
+
+*Última actualización: 2026-04-25 — Bug fix peer ROIC. 189 tests, verde.*
+

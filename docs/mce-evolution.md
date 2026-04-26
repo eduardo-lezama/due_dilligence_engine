@@ -119,6 +119,19 @@ Lista viva de trabajo estructural (subdirectorios `CLAUDE.md`, skills, slash-com
 - **Alternativa más simple** (si la refactorización es excesiva): añadir al prompt de competitive: "Para cifras de backlog, contratos o capacidad instalada: si la fuente es web, indica '(fuente: web — pendiente verificar en 10-K Item 7)'."
 - **Prioridad**: media — mitiga una violación parcial de ADR-005 (datos cualitativos de backlog desde fuente secundaria)
 
+### MCE-18 — Peer comparison enriquecida: múltiplos de valoración + Magic Formula
+- **Trigger**: Phase 2.5 o cuando el usuario quiera relative valuation sectorial
+- **Problema actual**: los peers aportan solo ROIC (1 dato). Para relative valuation se necesita también EV/EBIT de peers, P/E de peers, revenue growth, FCF yield — para ver si la empresa analizada está cara/barata vs su sector.
+- **Datos ya disponibles sin nueva API**: `FinancialsReport` de peers ya tiene revenue, EBIT, FCF. Solo falta el precio de mercado de cada peer (Polygon API) para calcular EV.
+- **Acción concreta**:
+  1. `peers_node`: para cada peer, llamar a `PolygonAdapter.fetch_market_data(peer_ticker)` además de EDGAR (precio + market cap).
+  2. `peers.py` o nuevo `PeerValuation` Pydantic model: `ticker, roic, ev_ebit, pe, fcf_yield, revenue_cagr_3y`.
+  3. Archiver: tabla de relative valuation con sujeto como primera fila.
+  4. Value Expert: los múltiplos de peers viajan a §6 Valuation para contextualizar si el precio actual está caro/barato vs sector.
+  5. Magic Formula rank: rankear la empresa analizada en earnings yield + ROIC vs peers — el `ValuationReport.magic_formula_rank` lleva pendiente desde Phase 1.
+- **Estimación**: ~3-4h (peers_node + schemas + archiver + context)
+- **Prioridad**: media-alta para análisis sectoriales, baja si el portfolio es de empresas sin peers obvios
+
 ### MCE-16 — Skill `modo-profesor` (Socratic teaching patterns)
 - **Trigger**: ≥3 sesiones reales de desarrollo con la regla "Modo Profesor" de CLAUDE.md activa y patrones claros de qué funciona (analogías, secuenciación de conceptos, preguntas tipo)
 - **Acción**: `.claude/skills/modo-profesor/SKILL.md` con patrones Socráticos cristalizados — biblioteca de analogías para conceptos del stack (LangGraph, Pydantic, XBRL), secuencias de introducción de conceptos por capa, preguntas tipo para verificar comprensión, reglas de cuándo pausar vs avanzar.

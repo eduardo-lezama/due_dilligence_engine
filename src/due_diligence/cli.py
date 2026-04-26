@@ -31,7 +31,10 @@ import json
 from pathlib import Path
 from typing import Optional
 
+import structlog
 import typer
+
+log = structlog.get_logger()
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table

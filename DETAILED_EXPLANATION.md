@@ -1920,6 +1920,47 @@ El descuento ACMR/ACMS (estructura corporativa compleja) puede no capturarse si 
 
 ---
 
+## Mejora: peer ROIC trail histórico (2026-04-26)
+
+### El problema
+
+Con un solo dato de ROIC (el más reciente), no se puede distinguir entre:
+- Un **compounder** con ROIC mejorando consistentemente: `13% → 15% → 17%`
+- Un **cíclico en pico** que revertirá: `18% → 35% → 52%`
+- Un negocio **en deterioro**: `28% → 22% → 17%`
+
+Para CALM como peer, mostrar solo `52% FY2025` sería completamente engañoso.
+
+### El cambio
+
+`PeerROIC` tiene ahora un campo `roic_trail: list[dict]` (backward-compatible, default `[]`). Cada entry es `{"period": "FY2025", "roic": 0.171}`, ordenados de más reciente a más antiguo, hasta 3 periodos.
+
+`peers_node` extrae hasta 3 periodos de `FinancialsReport.roic_series` (datos ya disponibles desde Phase 2 — simplemente se descartaban). No hay nueva llamada a EDGAR.
+
+### Cómo se muestra
+
+**CLI Rich** — nueva tabla `Peer Comparison — ROIC` después del VERDICT:
+```
+┃ Ticker ┃ Latest ROIC       ┃ Trend (oldest→latest)   ┃
+│ PRDO   │ 17.1% (FY2025)    │ 13.1% → 15.2% → 17.1%  │  ← compounder
+│ LOPE   │ 32.3% (FY2025)    │ 19.6% → 22.4% → 32.3%  │  ← compounder fuerte
+│ STRA   │  8.3% (FY2025)    │ 11.2% →  9.5% →  8.3%  │  ← deterioro
+```
+
+**Markdown**: tabla con columna `Trend (oldest→latest)`, subject como primera fila con su propio trail.
+
+**Value Expert**: recibe el trail completo con instrucción explícita *"flag cyclicals vs compounders based on trend"*.
+
+### Archivos modificados
+- `schemas/reports.py`: `PeerROIC.roic_trail: list[dict]`
+- `agents/peers.py`: extrae hasta 3 periodos del `roic_series`
+- `agents/archiver.py`: columna Trend en la tabla markdown
+- `agents/value_expert.py`: trail en contexto del Expert
+- `cli.py`: `_show_peer_comparison()` Rich table + llamada tras el verdict
+- `tests/test_peers_agent.py`: test actualizado para verificar trail
+
+---
+
 ## Bug fix: peer ROIC comparison siempre vacía (2026-04-25)
 
 ### El síntoma

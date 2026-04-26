@@ -2022,3 +2022,50 @@ Un análisis de moat sin referencia cuantitativa a peers es incompleto. "Narrow 
 
 *Última actualización: 2026-04-25 — Peer ROIC con contexto. 189 tests, verde.*
 
+---
+
+## Fixes y mejoras post-producción — sesión 2026-04-25/26
+
+### DCF warning para cíclicos en pico (EC-02)
+
+Cuando el FCF CAGR histórico supera el cap del 30%, el sistema emite un warning visible en CLI (amarillo) y en el markdown (blockquote). El caso de CALM (huevos/avian flu con FCF de $1.1B en pico) producía un DCF upside de +3482%, matemáticamente correcto pero económicamente absurdo.
+
+El warning redirige la atención al **reverse DCF** (implied growth) que es el número relevante para cíclicos: el mercado decía -19.8% de crecimiento anual para CALM, consistente con la expectativa de normalización de precios del huevo.
+
+### FCF robusto ante variantes XBRL (EC-01)
+
+Empresas de servicios/educación (PRDO) no reportan capex como línea separada en XBRL. El sistema ahora intenta 4 conceptos alternativos para OCF y 4 para capex. Cuando capex es cero/inexistente, `FCF ≈ OCF` marcado como `"calculated-no-capex"` — válido para empresas asset-light.
+
+### Mensajes honestos en peer comparison (EC-05)
+
+Antes: cualquier fallo en peers → "Peer comparison skipped by user" (incorrecto).  
+Ahora: tres mensajes distintos según lo que pasó realmente: (a) tabla si hay ROIC, (b) "fetched but no ROIC computable" si el XBRL no tiene datos, (c) "all fetch failed" si todos fallaron, (d) "skipped" solo si el usuario realmente no aportó tickers.
+
+### ADR-021 — Performance metadata tracking
+
+Cada análisis ahora mide y persiste:
+- **Latencia** (`time.time()` en CLI, wall-clock total)
+- **Tokens** (input/output por modelo, desde `response.usage` de OpenAI)
+- **Coste en EUR** (precio por modelo × tokens × tasa USD/EUR configurable)
+
+El acumulador vive en `LLMClient` como singleton del proceso. `reset_run_stats()` se llama antes del primer `graph.invoke()`. Después del archiver, el CLI hace un `UPDATE` en SQLite y appenda `## Performance` al markdown.
+
+**Por qué los tokens parecen bajos**: el LLM recibe texto truncado, no el 10-K completo. DEF 14A → 12,000 chars. 10-K sections → 8,000-10,000 chars cada una. Tavily → 800 chars por resultado. El Value Expert recibe resúmenes del state (2-3 frases por agente), no el texto crudo. Total esperado: ~20,000-25,000 tokens para un análisis completo — coherente con los ~17,000 observados en VFC.
+
+**Precios configurados** (USD/1M tokens, abril 2026):
+- `gpt-4o-mini`: $0.15 input / $0.60 output (specialists)
+- `gpt-5.4-mini`: $0.75 input / $4.50 output (Expert + Critic)
+- Tasa EUR: configurable via `USD_EUR_RATE` en `.env` (default 0.93)
+
+### Value Expert max_tokens 4096→8192 (EC-03)
+
+El prompt v2 genera respuestas más largas (adjudicación de conflictos, thesis-breakers concretos, análisis peer ROIC). DRS (empresa de defensa) truncaba el JSON antes del primer `}`, produciendo confidence=0. El límite se subió a 8192. El cliente OpenAI ahora también loguea `finish_reason='length'` para detectar truncaciones antes del parse error.
+
+### EDGE_CASES.md creado
+
+Nuevo documento raíz que registra edge cases de producción de forma concisa: síntoma → causa → fix → commit. 13 entradas iniciales (10 resueltas, 3 pendientes). Regla añadida en `CLAUDE.md`: documentar en `EDGE_CASES.md` antes o con el commit del fix.
+
+---
+
+*Última actualización: 2026-04-26 — ADR-021 performance tracking, fixes EC-01/02/03/05, EDGE_CASES.md. 196 tests, verde.*
+

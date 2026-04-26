@@ -361,6 +361,42 @@ def _show_verdict(state: dict) -> None:
             console.print()
 
 
+def _show_peer_comparison(state: dict) -> None:
+    """Muestra la tabla de peer ROIC comparison con tendencia histórica."""
+    competitive = state.get("competitive")
+    if not competitive or competitive.stub or not competitive.peer_roic_comparison:
+        return
+
+    financials = state.get("financials")
+    ticker = state.get("ticker", "?")
+
+    table = Table(title="Peer Comparison — ROIC", box=box.SIMPLE_HEAVY)
+    table.add_column("Ticker", style="bold")
+    table.add_column("Latest ROIC", justify="right")
+    table.add_column("Trend (oldest→latest)", justify="left", style="dim")
+
+    # Primera fila: empresa analizada
+    if financials and financials.roic_series:
+        own_series = financials.roic_series[:3]
+        own_trend = " → ".join(f"{r.value:.1%}" for r in reversed(own_series))
+        own_latest = own_series[0]
+        table.add_row(
+            f"[cyan]{ticker}[/cyan]",
+            f"[bold cyan]{own_latest.value:.1%}[/bold cyan] ({own_latest.period})",
+            own_trend,
+        )
+
+    for pr in competitive.peer_roic_comparison:
+        if pr.roic_trail and len(pr.roic_trail) > 1:
+            trend = " → ".join(f"{r['roic']:.1%}" for r in reversed(pr.roic_trail))
+        else:
+            trend = "—"
+        table.add_row(pr.ticker, f"{pr.roic:.1%} ({pr.period})", trend)
+
+    console.print(table)
+    console.print()
+
+
 def _show_critic(state: dict) -> None:
     critique = state.get("critique")
     if not critique or critique.stub:
@@ -514,6 +550,7 @@ def analyze_cmd(
     _show_valuation(state)
     console.print()
     _show_verdict(state)
+    _show_peer_comparison(state)
     _show_critic(state)
 
     # ── Performance metadata (ADR-021) ────────────────────────────────────

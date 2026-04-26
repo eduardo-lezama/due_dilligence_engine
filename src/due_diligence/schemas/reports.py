@@ -74,8 +74,13 @@ class MarketReport(BaseModel):
 class PeerROIC(BaseModel):
     """ROIC de un peer ticker para comparación tabular en el reporte. ADR-015."""
     ticker: str          # Ej: "MSFT"
-    roic: float          # Ratio, ej: 0.22 (22%)
-    period: str          # Ej: "FY2025"
+    roic: float          # ROIC más reciente, ratio, ej: 0.22 (22%)
+    period: str          # Periodo más reciente, ej: "FY2025"
+    roic_trail: list[dict] = Field(default_factory=list)
+    # Trail histórico (hasta 3 periodos, más reciente primero).
+    # Cada entry: {"period": "FY2025", "roic": 0.221}
+    # Permite detectar si el ROIC es estable, mejorando o cíclico.
+    # Campo backward-compatible: código que solo lee roic/period sigue funcionando.
 
 
 class CompetitiveReport(BaseModel):

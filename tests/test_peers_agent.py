@@ -87,15 +87,18 @@ def test_peers_node_logs_and_skips_failing_peer(mocker):
 
 
 def test_peers_node_injects_peer_roic_into_competitive(mocker):
-    """peers_node actualiza state['competitive'].peer_roic_comparison con los peers fetched."""
+    """peers_node actualiza competitive con ROIC y trail histórico."""
     from due_diligence.agents.peers import peers_node
     from due_diligence.schemas.reports import CompetitiveReport
-    from datetime import date
     from due_diligence.schemas.base import MetricValue
 
     fake_rep = MagicMock()
     fake_rep.ticker = "LRCX"
-    fake_rep.roic_series = [MetricValue(value=0.28, unit="ratio", period="FY2025", source="calculated")]
+    fake_rep.roic_series = [
+        MetricValue(value=0.28, unit="ratio", period="FY2025", source="calculated"),
+        MetricValue(value=0.25, unit="ratio", period="FY2024", source="calculated"),
+        MetricValue(value=0.22, unit="ratio", period="FY2023", source="calculated"),
+    ]
 
     mocker.patch("due_diligence.agents.peers.EdgarAdapter.fetch_raw", return_value={"ticker": "LRCX"})
     mocker.patch("due_diligence.agents.peers.EdgarAdapter.parse_financials", return_value=fake_rep)
@@ -106,9 +109,13 @@ def test_peers_node_injects_peer_roic_into_competitive(mocker):
     result = peers_node(state)
 
     assert "competitive" in result
-    assert len(result["competitive"].peer_roic_comparison) == 1
-    assert result["competitive"].peer_roic_comparison[0].ticker == "LRCX"
-    assert abs(result["competitive"].peer_roic_comparison[0].roic - 0.28) < 0.001
+    pr = result["competitive"].peer_roic_comparison[0]
+    assert pr.ticker == "LRCX"
+    assert abs(pr.roic - 0.28) < 0.001          # most recent
+    assert pr.period == "FY2025"
+    assert len(pr.roic_trail) == 3               # trail captured
+    assert pr.roic_trail[0]["period"] == "FY2025"
+    assert pr.roic_trail[2]["period"] == "FY2023"
 
 
 def test_peers_node_skips_unexpected_exception(mocker):

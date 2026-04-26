@@ -66,10 +66,19 @@ def peers_node(state: AnalysisState) -> dict:
     peer_roic: list[PeerROIC] = []
     for rep in reports:
         if rep.roic_series:
-            mv = rep.roic_series[0]
-            peer_roic.append(PeerROIC(ticker=rep.ticker, roic=mv.value, period=mv.period))
+            # Hasta 3 periodos (más reciente primero) para mostrar tendencia.
+            # Permite distinguir un ROIC estable, en mejora o cíclico (CALM: 52%→35%→18%).
+            trail = [
+                {"period": mv.period, "roic": mv.value}
+                for mv in rep.roic_series[:3]
+            ]
+            peer_roic.append(PeerROIC(
+                ticker=rep.ticker,
+                roic=trail[0]["roic"],
+                period=trail[0]["period"],
+                roic_trail=trail,
+            ))
         else:
-            # Peer fetched pero sin ROIC calculable — loguear para diagnóstico
             log.warning("peers_node_peer_no_roic", peer=rep.ticker,
                         hint="XBRL may lack invested_capital or operating_income for this ticker")
 

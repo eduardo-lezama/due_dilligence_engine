@@ -226,15 +226,21 @@ def _render_markdown(state: AnalysisState) -> str:
     financials_for_roic = state.get("financials")  # type: ignore[typeddict-item]
     if competitive and not competitive.stub and competitive.peer_roic_comparison:
         lines += ["## Peer Comparison — ROIC", ""]
-        lines += ["| Ticker | ROIC | Period | Note |", "|---|---|---|---|"]
-        # Primera fila: la empresa analizada (referencia para la comparación)
+        lines += ["| Ticker | Latest ROIC | Trend (oldest→latest) | Note |", "|---|---|---|---|"]
+        # Primera fila: la empresa analizada (referencia)
         ticker_label = state.get("ticker", "Subject")  # type: ignore[typeddict-item]
         if financials_for_roic and financials_for_roic.roic_series:
-            own_roic = financials_for_roic.roic_series[0]
-            lines.append(f"| **{ticker_label}** | **{own_roic.value:.1%}** | {own_roic.period} | ← subject |")
-        # Filas de peers
+            own_series = financials_for_roic.roic_series[:3]
+            own_trend = " → ".join(f"{r.value:.1%}" for r in reversed(own_series))
+            own_latest = own_series[0]
+            lines.append(f"| **{ticker_label}** | **{own_latest.value:.1%}** ({own_latest.period}) | {own_trend} | ← subject |")
+        # Filas de peers con tendencia
         for pr in competitive.peer_roic_comparison:
-            lines.append(f"| {pr.ticker} | {pr.roic:.1%} | {pr.period} | |")
+            if pr.roic_trail and len(pr.roic_trail) > 1:
+                trend = " → ".join(f"{r['roic']:.1%}" for r in reversed(pr.roic_trail))
+            else:
+                trend = f"{pr.roic:.1%}"
+            lines.append(f"| {pr.ticker} | {pr.roic:.1%} ({pr.period}) | {trend} | |")
         lines.append("")
     elif competitive and not competitive.stub:
         # Distinguir entre skip explícito y intento fallido

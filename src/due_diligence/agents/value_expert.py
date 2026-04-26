@@ -194,14 +194,18 @@ def _format_context(state: AnalysisState) -> str:
         # Peer ROIC comparison — datos cuantitativos para anclar §2 Moat Analysis
         if competitive.peer_roic_comparison:
             ticker = state.get("ticker", "subject")  # type: ignore[typeddict-item]
-            lines.append("Peer ROIC comparison (use in §2 to contextualize moat quality):")
-            # Incluir también el ROIC propio para que el Expert pueda hacer la comparación
+            lines.append("Peer ROIC comparison (use in §2 — trail shows trend; flag cyclicals vs compounders):")
             financials = state.get("financials")  # type: ignore[typeddict-item]
             if financials and financials.roic_series:
-                own = financials.roic_series[0]
-                lines.append(f"  {ticker} (subject): {own.value:.1%} ({own.period})")
+                own_series = financials.roic_series[:3]
+                own_trail = " → ".join(f"{r.value:.1%}" for r in reversed(own_series))
+                lines.append(f"  {ticker} (subject): {own_series[0].value:.1%} ({own_series[0].period}) | trend: {own_trail}")
             for pr in competitive.peer_roic_comparison:
-                lines.append(f"  {pr.ticker} (peer): {pr.roic:.1%} ({pr.period})")
+                if pr.roic_trail and len(pr.roic_trail) > 1:
+                    trail_str = " → ".join(f"{r['roic']:.1%}" for r in reversed(pr.roic_trail))
+                    lines.append(f"  {pr.ticker} (peer): {pr.roic:.1%} ({pr.period}) | trend: {trail_str}")
+                else:
+                    lines.append(f"  {pr.ticker} (peer): {pr.roic:.1%} ({pr.period})")
         lines.append("")
 
     # --- Valuation ---

@@ -15,6 +15,43 @@ A diferencia de esos, este documento es **abstracción transferible**: aprendes 
 
 ---
 
+## Índice
+
+**Parte I — Fundamentos arquitectónicos**
+1. Separar capa determinista de probabilística
+2. Schema-first — Pydantic como contrato inter-nodos
+
+**Parte II — Reliability (cómo no fallar)**
+3. State management — TypedDict + reducers
+4. Multi-concept fallback chains para datos externos
+5. Stub mode / graceful degradation
+6. Defense in depth — "trust but verify"
+7. Auto-flag pattern — enriquecimiento proactivo del contexto
+
+**Parte III — Abstracción y coordinación**
+8. Provider abstraction — Dependency Inversion en AI
+9. Send() fan-out — paralelismo dinámico real
+10. `interrupt()` + resume — HITL real con persistencia
+
+**Parte IV — Quality of reasoning**
+11. Citations validadas — grounding cualitativo
+12. Pre-computation in context — no le hagas hacer matemáticas al LLM
+13. Context management — qué incluir es decisión arquitectónica
+14. Section-structured prompts — chain-of-thought por schema
+15. Critic como red team independiente
+
+**Parte V — Operations**
+16. String matching discipline — format normalization + last-match-bias
+17. Structured logging + run_id correlation
+
+**Parte VI — Meta**
+18. El meta-principio
+19. Anti-patrones generales
+
+---
+
+# Parte I — Fundamentos arquitectónicos
+
 ## 1. El principio rector — separar capa determinista de capa probabilística
 
 **El principio**: en un sistema con LLMs, identifica qué información debe ser **deterministica** (reproducible, auditable, sin variación) vs **probabilistica** (output del LLM, puede variar entre runs). Construye dos capas separadas. Los datos nunca pasan por la capa probabilística.
@@ -71,7 +108,66 @@ def get_roic(ticker: str) -> MetricValue:
 
 ---
 
-## 2. State management — por qué los agentes paralelos no se pisan
+## 2. Schema-first — Pydantic como contrato inter-nodos
+
+**El patrón**: el output de cada nodo es un Pydantic model con schema fijo. Los downstream consumers conocen los campos sin leer el código del productor. **El schema ES el contrato.**
+
+### Por qué importa
+
+En sistemas multi-agente, los nodos están desacoplados. `value_expert` consume `competitive` sin importar cómo se generó. El schema es la frontera entre productores y consumidores: cambios internos en `competitive_agent` son libres mientras respeten el schema.
+
+Sin schema, pasa esto: cambias el shape del output de un agente, no actualizas el consumer, runtime error días después en producción. Con schema (Pydantic + Literal types), el cambio rompe inmediatamente — el problema no se propaga.
+
+### En este proyecto
+
+```python
+# schemas/reports.py
+class CompetitiveReport(BaseModel):
+    ticker: str
+    stub: bool = True
+    moat_classification: Optional[Literal["wide", "narrow", "none"]] = None
+    moat_sources: list[str] = Field(default_factory=list)
+    peer_roic_comparison: list[PeerROIC] = Field(default_factory=list)
+    citations: list[Citation] = Field(default_factory=list)
+```
+
+**Tres beneficios concretos**:
+
+1. **Contratos claros**: `value_expert` sabe que `competitive.moat_classification ∈ {"wide", "narrow", "none"}` sin leer `competitive.py`.
+2. **Validación runtime**: si el LLM produce `"narrow-ish"` (no en enum), Pydantic rechaza ANTES de propagarlo al downstream.
+3. **Serialización gratis**: `archiver` itera campos del modelo sin hardcodear nombres ni shapes.
+
+### Diferencia con state management (§3)
+
+State management trata de **cómo se mergea** entre nodos paralelos (reducers). Schema-first trata del **contrato del valor** que se almacena en cada slot. Son ortogonales:
+
+| Garantía | Mecanismo |
+|----------|-----------|
+| **No colisión** | Reducers (cada agente escribe a una clave única) |
+| **Type safety** | Pydantic model como valor en la clave |
+
+Necesitas las dos.
+
+### Anti-patrón: nodos devolviendo dicts libres
+
+```python
+# ❌ ANTI-PATRÓN
+def competitive_agent(state) -> dict:
+    return {
+        "competitive": {
+            "moat": "narrow",       # ¿el campo se llama "moat" o "moat_classification"?
+            "sources": "brand,scale", # ¿es lista o string CSV?
+        }
+    }
+```
+
+Si `value_expert` espera `competitive.moat_classification` y recibe `competitive.moat`, el bug es silencioso hasta runtime. Pydantic + Literal previene esto.
+
+---
+
+# Parte II — Reliability
+
+## 3. State management — TypedDict + reducers
 
 **El concepto**: en LangGraph, cada nodo del grafo recibe el estado completo, hace su trabajo, y devuelve **solo las claves que modificó** (dict parcial). LangGraph aplica un **reducer** por clave para mergear los outputs en el estado global.
 
@@ -103,7 +199,7 @@ return {"filings": FilingsRAGReport(...)} # solo escribe la clave "filings"
 return {"market": MarketReport(...)}      # solo escribe la clave "market"
 
 # competitive_agent
-return {"competitive": CompetitiveReport(...)}  # solo escribe la clave "competitive"
+return {"competitive": CompetitiveReport(...)}
 ```
 
 LangGraph mergea aplicando el reducer por defecto (replace = "last write wins"):
@@ -111,8 +207,7 @@ LangGraph mergea aplicando el reducer por defecto (replace = "last write wins"):
 ```python
 state["mgmt"]        = nuevo_mgmt       # agente que escribió mgmt
 state["filings"]     = nuevo_filings    # agente que escribió filings
-state["market"]      = nuevo_market     # agente que escribió market
-state["competitive"] = nuevo_competitive
+# ...
 ```
 
 **No hay colisión porque cada agente escribe en una clave distinta.**
@@ -155,18 +250,119 @@ class State(TypedDict):
 # Sin pérdidas.
 ```
 
-### Aclaración importante: Pydantic NO previene la colisión
+---
 
-| Garantía | Mecanismo | Si lo violas... |
-|----------|-----------|-----------------|
-| **No colisión** | Cada agente escribe a una clave única | Dos agentes en la misma key sin reducer → uno perdido |
-| **Type safety** | Pydantic model como valor | Agente devuelve shape malformada → ValidationError |
+## 4. Multi-concept fallback chains para datos externos
 
-Son ortogonales. Pydantic protege la **forma del valor**; el reducer protege el **slot**. Los dos importan, pero no se sustituyen.
+**El patrón**: cuando los datos externos vienen con vocabulario variable (XBRL concepts, API response shapes, document section names), define una **cadena priorizada de alternativas**, no un único nombre canónico.
+
+### Por qué importa
+
+El sistema asume "perfect XBRL" y falla silencioso cuando un filer usa concepto distinto. **No es happy-path engineering** — la realidad de los datos externos es siempre vocabulario heterogéneo. Cada API, cada formato, cada documento tiene variantes que solo descubres en producción.
+
+### Ejemplo real — extraer Operating Income desde XBRL (EC-21)
+
+```python
+def _compute_operating_income(inc_df) -> list[dict]:
+    # 1. Concepto estándar (works for AAPL, large caps)
+    op_inc = _get_annual(inc_df, "OperatingIncomeLoss")
+    if op_inc:
+        return op_inc
+    # 2. Derivado: GrossProfit - SG&A (BBW, retailers)
+    gp = _get_annual(inc_df, "GrossProfit")
+    sga = _get_annual(inc_df, "SellingGeneralAndAdministrativeExpense")
+    if gp and sga:
+        return _subtract_aligned(gp, sga)
+    # 3. Pretax - Interest (variante alternativa)
+    pretax = _get_annual(inc_df, "IncomeLossFromContinuing...")
+    interest = _get_annual(inc_df, "InterestIncomeExpenseNonoperatingNet")
+    if pretax and interest:
+        return _subtract_aligned(pretax, interest)
+    # 4. Pretax solo (proxy — sobreestima EBIT)
+    if pretax:
+        return pretax
+    return []
+```
+
+### Aplicado 5+ veces en el proyecto
+
+| Concepto | Fallbacks |
+|----------|-----------|
+| Operating Cash Flow | 4 conceptos XBRL |
+| Capex | 4 conceptos XBRL |
+| EBIT | 4 fallbacks (arriba) |
+| DEF 14A markers (ownership) | 5 variantes ("Security Ownership of...", "Beneficial Ownership", "Stock Ownership"...) |
+| 8-K items | normalización con `.replace("Item ", "")` |
+
+### Diseño de la cadena: ordena por preferencia, no alfabéticamente
+
+La clave es **el orden**: el primer match gana. Pones primero la fuente más fiable/precisa, después las menos fiables como fallbacks. La fórmula `Pretax` como último resort sobreestima EBIT (no resta interest expense), pero es mejor que devolver `[]`.
+
+### Anti-patrón: un solo concepto, sin fallback
+
+```python
+# ❌ ANTI-PATRÓN
+op_inc = _get_annual(inc_df, "OperatingIncomeLoss")
+# Para BBW devuelve [] silenciosamente
+# → ROIC=N/A
+# → §2 Moat Analysis no puede comparar con peers
+# → análisis roto sin error visible
+```
+
+Cuando trabajes con datos externos, siempre pregúntate: "¿qué pasa si esta fuente no tiene este campo exacto?" Si tu respuesta es "se rompe el sistema", necesitas fallbacks.
 
 ---
 
-## 3. Defense in depth — "trust but verify"
+## 5. Stub mode / graceful degradation
+
+**El patrón**: cada agente tiene un campo `stub: bool` en su output Pydantic. Si falla (API caída, datos incompletos, parsing error), devuelve un report con `stub=True` en lugar de crashear. Downstream sabe que el agente no produjo datos reales.
+
+### Por qué importa
+
+En pipelines multi-agente, fail-fast NO siempre es lo correcto. Si Polygon está caído, no quieres abortar el análisis — quieres que el resto continúe sin precio actual. El usuario puede aún revisar el moat, los riesgos del 10-K, las transacciones de insiders.
+
+La diferencia con `None`/`null`: el flag `stub=True` distingue tres estados:
+- **Real data**: `stub=False`, campos poblados → el agente trabajó
+- **Stub**: `stub=True`, campos vacíos → el agente falló graciosamente
+- **Ausente**: la clave no está en el state → el agente no se ejecutó
+
+### En el proyecto
+
+```python
+# schemas/reports.py
+class FilingsRAGReport(BaseModel):
+    ticker: str
+    stub: bool = True  # default = stub
+    business_description: Optional[str] = None
+    risk_factors_summary: Optional[str] = None
+    citations: list[Citation] = Field(default_factory=list)
+```
+
+Cómo lo consumen los downstream:
+
+```python
+# value_expert.py
+filings = state.get("filings")
+if filings is not None and not filings.stub:
+    lines.append(f"Business: {filings.business_description}")
+    # Trabaja con datos reales
+else:
+    # Stub o ausente — manejar graciosamente, no crash
+    # El §1 Business Understanding del Expert se generará con los datos disponibles
+    pass
+```
+
+### Anti-patrones
+
+- ❌ `raise Exception("Polygon failed")` que paraliza todo el pipeline
+- ❌ Devolver `None` sin distinguir "no datos por error" de "campo no aplicable"
+- ❌ **Stub silencioso**: devolver Pydantic model con campos vacíos pero `stub=False` — downstream piensa que son datos reales
+
+El último es el más peligroso: el agente "tuvo éxito" pero no produjo nada útil. El downstream confía en datos vacíos. La diferencia entre "fallé y lo digo" y "fallé silenciosamente" determina si el bug se detecta o se acumula.
+
+---
+
+## 6. Defense in depth — "trust but verify"
 
 **El patrón**: cuando una invariante depende del LLM (ej. "sizing debe escalar con confidence"), aplica DOS capas:
 1. **Soft rail** (prompt): instrucción clara para que el LLM intente cumplir
@@ -179,7 +375,7 @@ Las dos capas **juntas** = output correcto la mayoría de veces (prompt) + invar
 
 ### Ejemplo: sizing clamp (EC-24)
 
-**Bug original**: el LLM emitía `verdict_confidence=0.64, suggested_sizing_pct=3.0`. Lógicamente incoherente — bajar confidence debería implicar bajar sizing. Pero el LLM emite los dos campos independientemente sin consciencia de la relación.
+**Bug original**: el LLM emitía `verdict_confidence=0.64, suggested_sizing_pct=3.0`. Lógicamente incoherente — bajar confidence debería implicar bajar sizing. Pero el LLM emite los dos campos independientemente.
 
 **Soft rail** — regla en el system prompt:
 
@@ -201,13 +397,9 @@ sizing = max(0.0, min(20.0, float(sizing_raw)))  # primer clamp absoluto
 # Sizing discipline post-hoc clamp (EC-24)
 sizing_ceiling = confidence * 10.0
 if sizing > sizing_ceiling:
-    log.info(
-        "value_expert_sizing_clamped",
-        ticker=ticker,
-        original_sizing=sizing,
-        clamped_to=sizing_ceiling,
-        confidence=confidence,
-    )
+    log.info("value_expert_sizing_clamped",
+             ticker=ticker, original_sizing=sizing,
+             clamped_to=sizing_ceiling, confidence=confidence)
     sizing = sizing_ceiling   # ← invariante FORZADA
 ```
 
@@ -243,8 +435,7 @@ Cuando diseñes:
 ```python
 # ❌ ANTI-PATRÓN
 response = llm.generate(prompt)
-# "Por favor verifica si la respuesta cumple la regla X"
-verification = llm.generate(f"Does this comply? {response}")
+verification = llm.generate(f"Does this comply with rule X? {response}")
 if "yes" in verification.lower():
     accept(response)
 ```
@@ -253,7 +444,68 @@ Pedirle al LLM que valide su propio output (o el de otro LLM) NO es una invarian
 
 ---
 
-## 4. Provider abstraction — Dependency Inversion en AI
+## 7. Auto-flag pattern — enriquecimiento proactivo del contexto
+
+**El patrón**: cuando una métrica cruza un threshold relevante, **el código emite automáticamente un flag** en el contexto del LLM. No esperes que el LLM lo detecte por sí solo.
+
+### Diferencia con defense in depth (§6)
+
+- **Defense in depth = REACTIVO**: verifica el output del LLM y corrige
+- **Auto-flag = PROACTIVO**: inyecta contexto ANTES de que el LLM razone
+
+Ambos protegen invariantes, pero en momentos distintos del flujo.
+
+### Por qué importa
+
+Los LLMs no detectan automáticamente patrones cross-section. Si las margins están comprimiéndose 3 años seguidos, el LLM podría notarlo o no — depende del orden en que procese los datos en su context, del tamaño del contexto, del modelo. **No es fiable.**
+
+El código identifica el patrón con precisión, formatea como advertencia legible, y lo inyecta donde el LLM lo encontrará al razonar. Pasa de "tal vez lo nota" a "definitivamente lo ve".
+
+### Aplicado en el proyecto
+
+```python
+# valuation.py — DCF contradiction flag
+if (near_term_growth - reverse_growth) > 0.05:
+    note_parts.append(
+        f"⚠️ DCF contradiction: forward DCF assumes {near_term_growth:.1%} "
+        f"but market prices only {reverse_growth:.1%}. The DCF upside is "
+        f"conditional on growth the market doesn't currently price."
+    )
+
+# value_expert.py _format_context — margin compression flag
+if all(margins[i][1] < margins[i + 1][1] for i in range(2)):
+    lines.append(
+        f"⚠️ STRUCTURAL MARGIN RISK: gross margin compressed 3 consecutive years "
+        f"({trend_str}). Elevate to §7 Risks as 'structural margin pressure'."
+    )
+
+# critic.py _detect_red_flags — high capital return flag
+if pct >= 80:
+    flags.append(
+        f"HIGH CAPITAL RETURN ({pct:.0f}% of FCF): the company returns nearly "
+        f"all cash to shareholders. Bull narrative may frame this as 'shareholder-"
+        f"friendly' but contrarian view: limited reinvestment opportunities — "
+        f"a mature/declining business with no growth runway."
+    )
+```
+
+Lo importante: el flag no es solo "señalar el dato" — es **interpretarlo en el lenguaje que el agente downstream necesita usar**. "STRUCTURAL MARGIN RISK" es un término que el §7 Risks del Value Expert puede citar verbatim.
+
+### Anti-patrón: prompt-only con esperanza
+
+```python
+# ❌ ANTI-PATRÓN
+prompt = """Analyze the company. By the way, also identify if margins are
+compressing or if there's any structural risk pattern across the data."""
+```
+
+El LLM podría notarlo o no. Si los datos están en distintas secciones del prompt, podría no conectar. **Lo que el código puede detectar con precisión, el código debe detectarlo y comunicarlo explícitamente.**
+
+---
+
+# Parte III — Abstracción y coordinación
+
+## 8. Provider abstraction — Dependency Inversion en AI
 
 **El principio**: los proveedores de LLMs (OpenAI, Anthropic, Google, Meta) cambian APIs, precios, capacidades cada 3-6 meses. Si el código de negocio importa SDKs directamente, cada cambio = refactor masivo.
 
@@ -278,10 +530,6 @@ class LLMClient:
         # 3. Normaliza la respuesta (cada SDK devuelve shapes distintos)
         # 4. Acumula tokens en RunStats para coste tracking (ADR-021)
         ...
-
-def get_client() -> LLMClient:
-    """Singleton — mismo objeto en todo el proceso."""
-    ...
 ```
 
 Cada agente LLM consume así:
@@ -302,11 +550,11 @@ El agente NO sabe si por debajo está Claude u OpenAI. Solo ve `complete()`.
 
 ### El valor real
 
-**Escenario hipotético**: mañana sale Gemini 3 con calidad superior a 1/3 del precio. Quieres migrar.
+**Escenario**: mañana sale Gemini 3 con calidad superior a 1/3 del precio. Quieres migrar.
 
 | Sin wrapper | Con wrapper |
 |-------------|-------------|
-| Tocas 5 agentes (cada uno con su SDK) | Tocas 1 archivo (`llm/client.py`) |
+| Tocas 5 agentes | Tocas 1 archivo (`llm/client.py`) |
 | Refactor de imports, mensaje formats, response shapes | Añadir Gemini a la chain de fallback |
 | Bugs sutiles probables | Cambio aislado |
 | ~2 días | ~2 horas |
@@ -339,33 +587,23 @@ import openai
 
 def value_expert_agent(state):
     client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    response = client.chat.completions.create(
-        model="gpt-4",
-        messages=[...]
-    )
+    response = client.chat.completions.create(model="gpt-4", messages=[...])
     text = response.choices[0].message.content
-    ...
 ```
 
 Cuando OpenAI cambie `chat.completions.create` → `responses.create` (ya pasó), o `max_tokens` → `max_completion_tokens` (ya pasó), TODOS los agentes rompen simultáneamente. Con wrapper, solo se rompe `llm/client.py` y se arregla en un solo punto.
 
 ---
 
-## 5. Fan-out con Send() — paralelismo dinámico real
+## 9. Send() fan-out — paralelismo dinámico real
 
 **El concepto**: cuando un nodo del grafo necesita despachar trabajo a múltiples nodos paralelos (con potencialmente parámetros distintos por destino), usa `Send()` en lugar de edges estáticos.
 
 ### Edges estáticos vs Send()
 
-**Edges estáticos** (`add_edge`):
-- A → B fijo, hardcoded
-- LangGraph ejecuta concurrentemente cuando hay múltiples salidas
-- Limitación: no puedes pasar parámetros distintos a cada destino
+**Edges estáticos** (`add_edge`): A → B fijo, hardcoded.
 
-**Send()** (dinámico):
-- Una función decide a qué destinos despachar y con qué payload
-- Permite paralelismo dinámico (ej. "lanzar un nodo por cada elemento de una lista")
-- LangGraph ejecuta concurrentemente y mergea automáticamente
+**Send()**: una función decide a qué destinos despachar y con qué payload. Permite paralelismo dinámico (ej. "lanzar un nodo por cada elemento de una lista").
 
 ### En este proyecto
 
@@ -414,16 +652,9 @@ builder.add_edge("competitive", "next")
 
 Esto encadena los 4 specialists secuencialmente. Cada uno espera al anterior aunque sus inputs son independientes. **Cuello de botella innecesario.**
 
-```python
-# ✓ PATRÓN
-builder.add_conditional_edges("financials", _route_to_specialists)
-for s in specialists:
-    builder.add_edge(s, "next")  # fan-in automático
-```
-
 ---
 
-## 6. HITL real con `interrupt()` y resume
+## 10. `interrupt()` + resume — HITL real con persistencia
 
 **El concepto**: pausa real del grafo para input humano, con persistencia de estado. NO es un `input()` de Python.
 
@@ -461,7 +692,7 @@ En sistemas profesionales (LangSmith, LangServe), esto permite humans-in-the-loo
 
 Usamos `MemorySaver` (RAM) en lugar de `SqliteSaver` por un bug de serialización con Pydantic v2 (ADR-020). En Phase 5 (webapp) se reactivará SqliteSaver cuando el bug esté arreglado.
 
-### Anti-patrón: input() bloqueante o while-loop polling
+### Anti-patrón: `input()` bloqueante o while-loop polling
 
 ```python
 # ❌ ANTI-PATRÓN
@@ -475,7 +706,9 @@ Esto NO es HITL escalable. No persiste, no permite async, no funciona en webapp.
 
 ---
 
-## 7. Citations validadas — grounding cualitativo
+# Parte IV — Quality of reasoning
+
+## 11. Citations validadas — grounding cualitativo
 
 **El concepto**: cada claim cualitativo del LLM viene con metadata que lo hace verificable. Validación post-hoc por substring-match contra la fuente. Si no pasa, el claim se excluye.
 
@@ -497,8 +730,6 @@ class Citation(BaseModel):
 3. Si match → confidence preserved, cita aceptada
 4. Si NO match → confidence = 0, cita excluida del report final
 
-### En este proyecto
-
 ```python
 # Cuando el LLM emite:
 {
@@ -516,8 +747,6 @@ def validate_citation(c: Citation, source_text: str) -> Citation:
         c.confidence = 0.0
         log.warning("citation_unverified", claim=c.claim)
         return c  # excluded by downstream filters
-
-# Solo citations con confidence > threshold llegan al report final
 ```
 
 ### Por qué funciona
@@ -540,7 +769,78 @@ URLs sin excerpt son trazabilidad falsa. La validación necesita el fragmento ve
 
 ---
 
-## 8. Context management — qué incluir es decisión arquitectónica
+## 12. Pre-computation in context — no le hagas hacer matemáticas al LLM
+
+**El patrón**: cuando una métrica derivada se puede calcular con código simple, hazlo TÚ y pásala al contexto del LLM. **No esperes que el LLM haga aritmética básica desde inputs separados.**
+
+### Por qué importa
+
+Dos efectos críticos:
+
+1. **Precisión garantizada**: la división Python es exacta y reproducible; el LLM puede equivocarse, especialmente con números pequeños o porcentajes.
+2. **Léxico controlado**: precomputar también significa **etiquetar**. "39% — balanced mode" introduce un término que el prompt downstream usa verbatim, en lugar de que el LLM invente sinónimos ("medium reinvestment", "moderate", "intermediate"...).
+
+### Ejemplo real — Reinvestment rate
+
+§5 Growth & Reinvestment necesita "reinvestment rate". Tenemos OCF y Capex en `FinancialsReport`.
+
+**Antes** (LLM hace la cuenta):
+```
+Operating Cash Flow: $65M (FY2026)
+Capex: $26M (FY2026)
+```
+El LLM se supone que calcule "26/65 = 40%, balanced mode". Pero a veces se confunde con la división, o usa terminología distinta cada run.
+
+**Después** (precomputado):
+```python
+# value_expert.py _format_context
+if financials.operating_cash_flow and financials.capex:
+    ocf_v = financials.operating_cash_flow[0].value
+    capex_v = financials.capex[0].value
+    if ocf_v > 0:
+        reinvest_pct = capex_v / ocf_v * 100
+        mode = ("invest mode" if reinvest_pct >= 50
+                else "balanced" if reinvest_pct >= 20
+                else "harvest mode")
+        lines.append(
+            f"Reinvestment rate (capex/OCF, {period}): "
+            f"{reinvest_pct:.0f}% — {mode}"
+        )
+```
+
+Output que recibe el LLM:
+```
+Reinvestment rate (capex/OCF, FY2026): 40% — balanced
+```
+
+El §5 prompt rule downstream dice "MUST report reinvestment rate and state whether company is in invest/balanced/harvest mode" — se conecta directamente con la etiqueta precomputada.
+
+### Aplicado en el proyecto
+
+| Métrica | Pre-cómputo |
+|---------|-------------|
+| Reinvestment rate | `capex/OCF` con etiqueta invest/balanced/harvest |
+| Gross margin trend | Trend siempre visible, no solo en compresión |
+| ROIC trend interpretation | "RISING/STABLE/FALLING" + ΔROIC en pp/year |
+| Capital returns | `(buybacks + dividends) / FCF` con `% of FCF` |
+
+### Anti-patrón: dejar al LLM hacer aritmética
+
+```python
+# ❌ Pasar al LLM:
+"Operating Cash Flow: $65M"
+"Capex: $26M"
+"Calculate the reinvestment rate."
+
+# ✓ Pasar al LLM:
+"Reinvestment rate (capex/OCF): 40% — balanced mode"
+```
+
+**Si lo puedes calcular con código simple, calcúlalo y dáselo masticado.** El LLM debe razonar SOBRE las métricas, no calcularlas.
+
+---
+
+## 13. Context management — qué incluir es decisión arquitectónica
 
 **El concepto**: cuánto contexto darle al LLM es una decisión tan importante como el prompt. Más contexto NO siempre es mejor.
 
@@ -563,32 +863,23 @@ URLs sin excerpt son trazabilidad falsa. La validación necesita el fragmento ve
 
 ### Estrategias de truncate
 
-**1. Naive truncate**: `text[:max_chars]`
-- Simple, pero corta indiscriminadamente
-- Para 10-K: pierdes Items posteriores (1A está después de 1)
+**1. Naive truncate**: `text[:max_chars]`. Simple, pero corta indiscriminadamente. Para 10-K: pierdes Items posteriores.
 
-**2. Targeted extraction**: buscar markers conocidos y extraer ventana alrededor
-- Más complejo pero infinitamente más útil
-- Ejemplo en este proyecto: DEF 14A targeted extraction de la sección de ownership
+**2. Targeted extraction**: buscar markers conocidos y extraer ventana alrededor. Más complejo pero infinitamente más útil.
+
+**3. Adaptive activation**: incluir contenido extra solo cuando lo justifica el contexto. Ej.: Tavily extended news solo se activa si el stock está en drawdown >30%. Para stocks normales, evitas tokens innecesarios.
 
 ```python
-# fetch_def14a_text — busca markers, extrae ventana
-ownership_markers = [
-    "Security Ownership of Certain Beneficial Owners",
-    "Beneficial Ownership",
-    "Stock Ownership",
-]
-for marker in ownership_markers:
-    positions = find_all(text, marker)
-    if positions:
-        # Última ocurrencia = sección real (no TOC)
-        last_idx = positions[-1]
-        sections.append(text[last_idx-500 : last_idx+8000])
-        break
+# market.py — adaptive Tavily activation
+ratio = price_current / price_52w_high
+if ratio < settings.market_news_drawdown_threshold:  # 0.70 default
+    queries = [
+        f"{company_name} stock decline guidance miss profit warning",
+        f"{company_name} tariff supply chain margin compression",
+        f"{company_name} regulatory risk SEC investigation",
+    ]
+    extra_news = TavilyAdapter.search(queries, time_range=None)
 ```
-
-**3. Pre-summarization**: una primera pasada del LLM resume el documento, después el agente principal trabaja sobre el resumen
-- Caro (dos pasadas) pero útil cuando el dato relevante está distribuido
 
 ### Anti-patrón: enviar el documento completo
 
@@ -606,28 +897,294 @@ Problemas:
 - Lentitud
 - Saturación del context window de modelos más pequeños
 
-La selección consciente de qué incluir es trabajo arquitectónico, no overhead. Cuando el sistema "no detecta X", a menudo el problema NO es el prompt, es que X está en el contexto pero **demasiado lejos** del razonamiento.
+La selección consciente de qué incluir es trabajo arquitectónico, no overhead.
 
 ---
 
-## 9. El meta-principio — separar lo que cambia rápido de lo que es estable
+## 14. Section-structured prompts — chain-of-thought por schema
 
-Si miras los 8 patrones anteriores, todos comparten una idea unificadora:
+**El patrón**: en lugar de pedir al LLM "analiza esta empresa", el system prompt fuerza un **schema con secciones obligatorias**, cada una con instrucciones específicas. El JSON output tiene una clave por sección.
+
+### Por qué importa
+
+Sin estructura forzada, los LLMs producen ensayos genéricos que tocan todos los temas sin profundizar. La estructura por secciones **fuerza chain-of-thought estructurado** — el LLM tiene que razonar específicamente sobre cada eje (moat, management, etc.) antes de poder generar la siguiente clave.
+
+**Diferencia con CoT clásico** ("think step by step"): no es pensamiento libre. Es razonamiento **estructurado por contrato de datos** que mapea 1-a-1 con el schema downstream.
+
+### Ejemplo real — Value Expert prompt
+
+```python
+OUTPUT SCHEMA:
+{
+  "business_understanding": "<§1: 3-4 sentences. What does it do, how it makes money, circle of competence>",
+  "moat_analysis": "<§2: integrate ROIC evidence with qualitative moat. If peer ROIC available, MUST compare numbers>",
+  "management_assessment": "<§3: skin in game + capital allocation + Q&A tone. MUST reconcile insider sale prices vs current price>",
+  "financial_quality": "<§4: FCF + balance + margins. If 'Capital returned to shareholders' in context, MUST report % of FCF>",
+  "growth_reinvestment": "<§5: reinvestment rate (MUST report precomputed) + ROIC trend>",
+  "valuation_section": "<§6: MUST contrast reverse-DCF implied growth vs historical CAGR>",
+  "risks": "<§7: include 8-K events PLUS top risks from Item 1A>",
+  "psychological_lens": "<§8: why might be mispriced?>",
+  "decision_frame": "<§9: MUST state thesis-breaker as concrete observable condition>",
+  "verdict": "BUY | HOLD | SELL",
+  ...
+}
+```
+
+### Tres beneficios concretos
+
+1. **Forzado de razonamiento por sección**: el LLM no puede saltarse §3 Management aunque le parezca menos relevante. Tiene que escribir algo en cada clave.
+2. **Validación granular**: si una sección viene vacía, el código sabe exactamente cuál falta. `data.get("moat_analysis")` devuelve `None` si el LLM olvidó esa sección.
+3. **Control downstream**: el archiver puede iterar las 9 secciones para generar el markdown sin lógica condicional compleja.
+
+### Anti-patrón: open-ended
+
+```python
+# ❌ ANTI-PATRÓN
+prompt = "Analyze this company comprehensively."
+# Output: ensayo de 3000 palabras tocando todo superficialmente
+# Difícil de extraer secciones específicas
+# Imposible validar que el análisis cubrió moat o management
+```
+
+vs
+
+```python
+# ✓ Schema-driven
+prompt = "Output JSON with these 9 specific sections..."
+# Output: 9 análisis específicos cada uno respondiendo su pregunta concreta
+# Validable, estructurado, downstream-friendly
+```
+
+---
+
+## 15. Critic como red team independiente
+
+**El patrón**: tener un agente separado cuyo único trabajo es **buscar fallos** en el output del agente principal. Estructuralmente independiente — modelo distinto si conviene, prompt antagónico, no recibe el razonamiento completo del agente principal.
+
+### Por qué funciona
+
+Si pides al Value Expert que critique su propio análisis, sesgo de confirmación garantizado. Un agente nuevo, sin haber visto el razonamiento completo (solo el VERDICT + datos), es genuinamente adversarial.
+
+**Por qué NO es self-critique**: self-critique = el mismo LLM evaluando su propio output. Tiende a converger ("sí, mi análisis está bien"). Two-agent setup = el segundo modelo no tiene compromiso emocional/lógico con el primer output.
+
+### En este proyecto
+
+```python
+# critic.py
+_SYSTEM_PROMPT = """You are a skeptical value investing critic. Your job is NOT
+to confirm the analyst's view — it is to steelman the opposite case.
+
+Your task:
+1. Identify the 3-5 most important weaknesses or blind spots in the bull case.
+2. Write the strongest possible contra-thesis — a smart short-seller's argument.
+3. Write a pre-mortem scenario: assume it's 3 years later and the thesis failed.
+
+RULES:
+- Be specific. Generic risks ("competition", "macro") are useless.
+- Every weakness must be grounded in the data — no invented facts.
+- Do not soften weaknesses with "however". State them bluntly.
+- Do not repeat the bull case. The analyst already made it.
+"""
+```
+
+Lo crítico: el Critic recibe **solo el VERDICT del Value Expert + datos crudos + flags estructurados**, NO el razonamiento completo:
+
+```python
+# critic.py — _build_critic_prompt
+lines.append(f"## EXPERT VERDICT: {synthesis.verdict} (confidence: {confidence:.0%})")
+# Solo el VERDICT — sin las 9 secciones de razonamiento
+lines.append(f"Bull case summary: {synthesis.business_understanding}")  # 1 sección
+lines.append(f"Moat: {synthesis.moat_analysis}")                         # 1 sección
+# Datos crudos para grounding:
+lines.append(f"ROIC: {roic_str}")
+lines.append(f"FCF trend: {fcf_trend}")
+# Flags estructurados (auto-flag pattern, §7):
+flags = _detect_red_flags(state)
+if flags:
+    lines.append("## DETECTED FLAGS (use as pivots for contra-thesis)")
+    for f in flags:
+        lines.append(f"- {f}")
+```
+
+### Anti-patrón: self-critique loop
+
+```python
+# ❌ ANTI-PATRÓN
+response = llm.generate(analysis_prompt)
+critique = llm.generate(f"Now critique your own response: {response}")
+# Sesgo de confirmación — el LLM rara vez se contradice fuertemente a sí mismo
+```
+
+El red team pattern es **"dos cabezas razonando independientemente"**, no "una cabeza talking to itself". La separación estructural es lo que evita la convergencia hacia el bull case.
+
+---
+
+# Parte V — Operations
+
+## 16. String matching discipline — format normalization + last-match-bias
+
+Dos sub-patrones aprendidos en EC-30 y EC-31, ambos sobre matching de strings con fuentes externas.
+
+### 16.1 — Format normalization en identificadores externos
+
+Cuando matcheas identifiers de fuentes externas (XBRL concepts, SEC item numbers, API response codes), **normaliza ambos lados antes de comparar**.
+
+EC-30 caso real:
+```python
+# ❌ ANTES — silent format mismatch
+items_filter = ["1.01", "2.02", "4.02", "5.02", "7.01", "8.01"]
+# edgartools devuelve: ["Item 8.01", "Item 9.01"]
+matching = [i for i in filed_items if i in items_filter]
+# resultado: [] siempre (porque "Item 8.01" != "8.01")
+# 16 filings, ningún match. Bug silencioso 5 iteraciones.
+```
+
+```python
+# ✓ DESPUÉS — normalize both sides
+items_normalized = {i.replace("Item ", "").strip().lower() for i in items_filter}
+matching = [
+    i for i in filed_items_raw
+    if i.replace("Item ", "").strip().lower() in items_normalized
+]
+# resultado: 7 matches reales
+```
+
+**Por qué importa**: `Python's "in" con strings es exact match, no substring**. `"Item 8.01" in ["8.01"]` evalúa `False`. Si trabajas con identifiers externos, asumir formato uniforme es siempre incorrecto eventualmente.
+
+### 16.2 — Last-match-bias en documentos con TOC
+
+Cuando buscas una sección por marker en un documento largo, el primer match suele estar en el Table of Contents (referencia de página); la sección real está en el último match.
+
+EC-31 caso real:
+```python
+# ❌ ANTES — captura el TOC
+idx = text.find("Security Ownership of Certain Beneficial Owners")
+# idx = 8278 → en el índice del proxy
+# extracción: text[8278-500 : 8278+8000] → captura zona del TOC, no la tabla real
+# Resultado: tabla de % invisible al LLM aunque está en el documento
+
+# ✓ DESPUÉS — última ocurrencia = body
+positions = []
+start = 0
+while True:
+    idx = text.find(marker, start)
+    if idx < 0:
+        break
+    positions.append(idx)
+    start = idx + 1
+
+last_idx = positions[-1]  # la sección real, no el TOC
+# extracción: text[25422-500 : 25422+8000] → la tabla real con las %
+```
+
+**Por qué importa**: en documentos largos (proxies, 10-Ks) los markers conocidos aparecen primero en TOC y luego en el cuerpo. `text.find()` por defecto te da el primero — engañoso.
+
+### Anti-patrón
+
+```python
+# ❌ Format-naive matching
+items = obj.items  # ["Item 8.01", ...]
+if "8.01" in items:  # exact match en lista — siempre False
+    process(...)
+
+# ❌ TOC-blind extraction
+idx = text.find("Risk Factors")  # primer match = índice
+extract_around(idx)  # captura referencia del TOC, no Item 1A
+```
+
+Cuando trabajas con strings de fuentes externas, **siempre pregúntate**: ¿el formato real es el que asumo? ¿hay TOC que envenene la primera ocurrencia? Estas dos preguntas previenen la clase entera de bugs sistémicos.
+
+---
+
+## 17. Structured logging + run_id correlation
+
+**El patrón**: cada log es un evento estructurado con kwargs (no string interpolado). Cada análisis tiene un `run_id` que aparece en TODOS los logs y como thread_id del checkpointer.
+
+### En el proyecto
+
+```python
+# Cada log línea es un evento con kwargs
+log = structlog.get_logger()
+
+log.info("market_drawdown_detected",
+         ticker=ticker,
+         drawdown_pct=f"{drawdown_pct:.0f}%",
+         triggering_extended_news=True)
+
+log.warning("competitive_moat_downgraded_wide_to_narrow",
+            ticker=ticker,
+            reasons=downgrade_reasons)
+
+log.info("value_expert_sizing_clamped",
+         ticker=ticker,
+         original_sizing=sizing,
+         clamped_to=sizing_ceiling,
+         confidence=confidence)
+```
+
+### Por qué crítico para sistemas agentic
+
+Cuatro razones específicas que NO existen en código tradicional sync:
+
+1. **Logs intercalados**: cuando 4 agentes corren en paralelo, los logs se mezclan en el output. Sin `run_id` consistente es imposible reconstruir un análisis específico.
+
+2. **Filtrabilidad**: `jq 'select(.run_id == "51ae8e59-466")' < logs.json` filtra todos los eventos de ese análisis. Imposible si los logs son strings.
+
+3. **Auditoría de decisiones automáticas**: cada clamp, downgrade, flag deja rastro estructurado, no string libre. Saber por qué BBW se downgrade de wide a narrow es trivial: `grep moat_downgraded run_id=51ae8e59`.
+
+4. **Métricas agregadas**: `event=competitive_moat_downgraded_wide_to_narrow` te dice cuántas veces el clamp se activó esta semana. Análisis de patrones, no solo debugging individual.
+
+### Anti-patrón: print() o logging con strings
+
+```python
+# ❌ ANTI-PATRÓN
+print(f"BBW market drawdown {drawdown_pct}%")
+# o:
+logger.info(f"BBW market drawdown {drawdown_pct}%")
+# Imposible filtrar por ticker, parsear el porcentaje, agregar
+# Cuando 4 agentes paralelos generan logs: contexto perdido
+```
+
+```python
+# ✓ Structured
+log.info("market_drawdown_detected",
+         ticker=ticker, drawdown_pct=drawdown_pct, run_id=run_id)
+# Filtrable por cualquier kwarg, parseable como JSON, agregable
+```
+
+**Implementación en el proyecto**: structlog con processors que añaden `run_id` automáticamente desde context vars. Output JSON en producción, console-friendly en dev.
+
+---
+
+# Parte VI — Meta
+
+## 18. El meta-principio — separar lo que cambia rápido de lo que es estable
+
+Si miras los 17 patrones anteriores, todos comparten una idea unificadora:
 
 > **Identifica dónde está la fricción del cambio en tu sistema y confínala a una capa específica.**
 
 | Patrón | Lo que cambia rápido | Lo estable |
 |--------|----------------------|------------|
-| 1. Capas determinista/probabilística | Output del LLM (varía run a run) | Schema de los datos (Pydantic models) |
-| 2. State + reducers | Lógica interna de cada agente | Contrato del state (TypedDict + reducers) |
-| 3. Defense in depth | Decisiones del LLM (ignora reglas) | Invariantes del código (clamps) |
-| 4. Provider abstraction | SDK del proveedor (cambia trimestralmente) | Interfaz `complete()` |
-| 5. Send() fan-out | Qué nodos despachar (depende del estado) | Estructura del grafo |
-| 6. interrupt() + resume | Tiempo de respuesta del usuario (días) | Estado del grafo (persistido) |
-| 7. Citations validadas | Lo que el LLM afirma (cambia entre runs) | Las fuentes primarias (filings, APIs) |
-| 8. Context management | El documento completo (cambia con cada filing) | El extracto relevante (markers fijos) |
+| 1. Capas determinista/probabilística | Output del LLM (varía run a run) | Schema de los datos (Pydantic) |
+| 2. Schema-first | Implementación de cada agente | Contrato Pydantic entre nodos |
+| 3. State + reducers | Lógica interna de cada agente | Contrato del state (TypedDict) |
+| 4. Multi-concept fallbacks | Vocabulario del proveedor (XBRL concepts) | Interfaz del extractor (`get_operating_income`) |
+| 5. Stub mode | Disponibilidad de cada API externa | Contrato del agente (`stub: bool`) |
+| 6. Defense in depth | Decisiones del LLM (ignora reglas) | Invariantes del código (clamps) |
+| 7. Auto-flag | Tipos de patrones a detectar | Mecanismo de inyección al contexto |
+| 8. Provider abstraction | SDK del proveedor (cada 3 meses) | Interfaz `complete()` |
+| 9. Send() fan-out | Qué nodos despachar (depende del estado) | Estructura del grafo |
+| 10. interrupt() + resume | Tiempo de respuesta del usuario (días) | Estado del grafo (persistido) |
+| 11. Citations validadas | Lo que el LLM afirma (varía run a run) | Las fuentes primarias (filings, APIs) |
+| 12. Pre-computation | Aritmética del LLM (puede equivocarse) | Cálculo Python (exacto) |
+| 13. Context management | El documento completo | El extracto relevante (markers fijos) |
+| 14. Section-structured prompts | Output libre del LLM | Schema con secciones obligatorias |
+| 15. Critic red team | Sesgo del agente principal | Independencia estructural del Critic |
+| 16. String matching discipline | Formato real de fuentes externas | Logic de matching tolerante |
+| 17. Structured logging | Eventos individuales (miles por día) | Esquema de logs (filtrable, agregable) |
 
-**Los buenos sistemas agentic son los que identifican la fricción y la aíslan.** Los malos mezclan capas — dejan que el LLM "decida" lo que debería ser determinista, o "valide" lo que debería ser un check programático.
+**Los buenos sistemas agentic son los que identifican la fricción y la aíslan.** Los malos mezclan capas.
 
 ### Cómo aplicarlo a un sistema nuevo
 
@@ -637,18 +1194,22 @@ Cuando empieces un proyecto agentic, antes de escribir código pregúntate:
 2. **¿Qué razonamiento es probabilístico?** → LLM-lane
 3. **¿Qué interfaces externas pueden cambiar?** → wrapper / abstraction
 4. **¿Qué invariantes nunca pueden romperse?** → clamps post-hoc
-5. **¿Dónde necesito paralelismo?** → fan-out con Send()
-6. **¿Dónde necesito intervención humana?** → interrupt() + checkpointer
-7. **¿Cómo audito los claims cualitativos?** → citations validadas
-8. **¿Qué contexto es realmente relevante?** → targeted extraction, no naive truncate
+5. **¿Qué métricas derivadas se pueden precomputar?** → pre-computation
+6. **¿Qué patrones cross-section son detectables por código?** → auto-flags
+7. **¿Dónde necesito paralelismo?** → fan-out con Send()
+8. **¿Dónde necesito intervención humana?** → interrupt() + checkpointer
+9. **¿Cómo audito los claims cualitativos?** → citations validadas
+10. **¿Qué contexto es realmente relevante?** → targeted extraction
+11. **¿Cómo evito sesgo de confirmación en validación?** → red team agent
+12. **¿Cómo trazo runs en producción?** → structured logging con run_id
 
-Si respondes estas 8 preguntas antes de codificar, evitas el 80% de los problemas que aparecen después.
+Si respondes estas 12 preguntas antes de codificar, evitas el 80% de los problemas que aparecen después.
 
 ---
 
-## 10. Anti-patrones generales (qué evitar)
+## 19. Anti-patrones generales
 
-Recopilación de anti-patrones que NO debes cometer en sistemas agentic, extraídos de los anteriores:
+Recopilación de anti-patrones, organizados por categoría. Algunos ya aparecieron en sus secciones; aquí se consolidan junto con anti-patrones meta extraídos del proceso de iteración del proyecto.
 
 ### En arquitectura
 
@@ -656,15 +1217,17 @@ Recopilación de anti-patrones que NO debes cometer en sistemas agentic, extraí
 - ❌ Mezclar capa determinista con probabilística en el mismo agente
 - ❌ Validar output del LLM con otro LLM (sesgo de confirmación, no es invariante)
 - ❌ Confiar solo en validación post-hoc para alucinación numérica (necesita prevención por arquitectura)
+- ❌ Self-critique loops para validación adversarial (converge al bull case, no es genuinamente crítico)
 
-### En state management
+### En state management y contratos
 
 - ❌ Dos agentes paralelos escribiendo a la misma clave sin reducer (silent overwrite)
 - ❌ Pasar el state completo entre nodos en lugar de devolver dict parcial
 - ❌ Usar Pydantic model directamente como AnalysisState (LangGraph espera TypedDict)
-- ❌ Asumir que Pydantic previene colisiones (solo previene shapes inválidas)
+- ❌ Asumir que Pydantic previene colisiones de paralelismo (solo previene shapes inválidas)
+- ❌ Nodos que devuelven `dict` libre sin schema — el downstream tiene que adivinar
 
-### En provider integration
+### En provider integration y abstracción
 
 - ❌ Importar SDK del proveedor desde código de negocio (acoplamiento alto)
 - ❌ Asumir que el SDK no cambiará (SÍ cambia, cada 3 meses)
@@ -677,20 +1240,41 @@ Recopilación de anti-patrones que NO debes cometer en sistemas agentic, extraí
 - ❌ Decir al LLM "no alucines" como mecanismo anti-alucinación
 - ❌ Citations sin excerpt verbatim (URL sola = trazabilidad falsa)
 - ❌ Confiar en LLM-as-judge para invariantes (es probabilístico)
+- ❌ Prompts open-ended para tareas analíticas complejas (sin sección obligatoria, no hay chain-of-thought)
+- ❌ Dejar al LLM hacer aritmética básica desde inputs separados (precomputa y dale el resultado)
 
-### En context management
+### En context management y datos externos
 
 - ❌ Enviar documento completo al LLM (lost in the middle + coste)
 - ❌ Truncate naive `text[:N]` cuando hay markers identificables
-- ❌ No precomputar transformaciones simples (margin trends, ratios) y dejar que el LLM las calcule
-- ❌ Surfacear datos a LLM solo cuando hay anomalía (también cuando todo está bien — el LLM necesita ambos lados para razonar)
+- ❌ Buscar markers con `.find()` sin considerar TOC bias (primer match suele ser índice)
+- ❌ Asumir formato uniforme en identifiers externos (XBRL concepts, item numbers, etc. — siempre normaliza)
+- ❌ Un solo concepto de extracción sin fallback chain (silent failure cuando el formato varía)
+- ❌ Activar todas las herramientas siempre (innecesario y caro — usar adaptive activation)
 
-### En observabilidad y testing
+### En reliability y errores
 
-- ❌ Tests con llamadas reales a LLMs (caros, no deterministas, lentos)
-- ❌ Logs sin contexto estructurado (structlog con kwargs es estándar)
-- ❌ No trackear coste por llamada (se desboca rápidamente)
-- ❌ No diferenciar tool-lane vs LLM-lane en métricas
+- ❌ `raise Exception()` que paraliza todo el pipeline cuando un agente falla
+- ❌ Devolver `None` sin distinguir "no datos por error" de "campo no aplicable"
+- ❌ Stub silencioso (datos vacíos sin marker `stub=True`) — peor que crash explícito
+- ❌ Detección reactiva ("a ver si el LLM lo nota") en lugar de auto-flag proactivo
+
+### En observabilidad
+
+- ❌ `print()` o logging con strings interpolados (no filtrable, no agregable)
+- ❌ Logs sin `run_id` consistente (imposible correlar análisis específicos)
+- ❌ No diferenciar tool-lane vs LLM-lane en métricas (mezclan latencias y costes)
+- ❌ No trackear coste por llamada (se desboca rápidamente con modelos premium)
+
+### Meta — sobre el proceso de desarrollo
+
+- ❌ **Diseñar/testear contra "AAPL ideal"**: large cap con XBRL completo, equity grande, news flow constante. La realidad del universo es small caps con income statements simplificados, equity reducido por buybacks, news fuera de ventana. Cada Oleada de mejoras del proyecto descubrió otra dimensión de este sesgo (EC-14 a EC-33). Mitigación: test fixtures multi-arquetipo (MCE-25 — pendiente).
+
+- ❌ **No verificar contra DATOS REALES antes de declarar fix completo**: cuando expandes extracción de datos externos, corre una vez contra una fixture viva y verifica el formato real de los outputs. El bug EC-30 (8-K filter `"Item 8.01" vs "8.01"`) sobrevivió 5 iteraciones porque la lógica era sintácticamente correcta pero el formato real del output de edgartools era distinto al asumido. 30 segundos de verificación habrían atrapado el bug en su origen.
+
+- ❌ **Búsqueda manual de patrones duplicados al arreglar bugs**: cuando arreglas un bug en un archivo, ejecuta `grep` del patrón problemático en TODO `src/`. EC-14 (formatter `/1e9`) se arregló en `value_expert.py` y `archiver.py` pero olvidamos `critic.py` y `competitive.py`. El bug regresó como EC-17 una iteración después.
+
+- ❌ **`replace_all` sin verificación post-hoc**: en docs y código, `replace_all` puede sobreaplicarse. Siempre revisar el diff después.
 
 ---
 
@@ -699,13 +1283,22 @@ Recopilación de anti-patrones que NO debes cometer en sistemas agentic, extraí
 | Patrón aquí | ADR principal | Edge cases relacionados |
 |-------------|---------------|--------------------------|
 | 1. Capa determinista/probabilística | ADR-005 | EC-26 (incremental ROIC), EC-32 |
-| 2. State management | — | (sin EC, propio del framework) |
-| 3. Defense in depth | ADR-022, ADR-024 | EC-15, EC-24, EC-28 |
-| 4. Provider abstraction | ADR-004 | (refactoring continuo) |
-| 5. Send() fan-out | ADR-003 | EC-04 (peer comparison timing) |
-| 6. interrupt() + resume | ADR-006, ADR-018, ADR-020 | EC-09 (resume con dict vacío) |
-| 7. Citations validadas | ADR-005, ADR-014 | EC-23 (citations en context) |
-| 8. Context management | ADR-019 | EC-22, EC-25, EC-31 |
+| 2. Schema-first | ADR-005 | (sin EC, propio del framework) |
+| 3. State management | — | (sin EC, propio del framework) |
+| 4. Multi-concept fallbacks | ADR-022, ADR-023 | EC-01, EC-21, EC-25, EC-30 |
+| 5. Stub mode | — | (transversal, sin EC específico) |
+| 6. Defense in depth | ADR-022, ADR-024 | EC-15, EC-24, EC-28 |
+| 7. Auto-flag pattern | ADR-022 (DCF flag), ADR-024 | EC-16, EC-22, EC-26 |
+| 8. Provider abstraction | ADR-004 | (refactoring continuo) |
+| 9. Send() fan-out | ADR-003 | EC-04 (peer comparison timing) |
+| 10. interrupt() + resume | ADR-006, ADR-018, ADR-020 | EC-09 (resume con dict vacío) |
+| 11. Citations validadas | ADR-005, ADR-014 | EC-23 (citations en context) |
+| 12. Pre-computation | ADR-022 (EBIT), ADR-023 (capital returns) | EC-22, EC-26, EC-32 |
+| 13. Context management | ADR-019 | EC-22, EC-25, EC-31 |
+| 14. Section-structured prompts | ADR-019 (prompt v2) | (transversal en agentes LLM) |
+| 15. Critic como red team | ADR-009 | (transversal) |
+| 16. String matching discipline | — | EC-30 (format mismatch), EC-31 (TOC bias) |
+| 17. Structured logging | ADR-021 | (transversal en debugging) |
 
 ---
 
@@ -714,14 +1307,16 @@ Recopilación de anti-patrones que NO debes cometer en sistemas agentic, extraí
 Este documento es vivo. Patrones a añadir cuando se aprendan en producción:
 
 - **Testing con fixtures cacheados** — zero API calls, deterministic
-- **Cost observability** — RunStats, alertas, presupuestos por análisis
+- **Cost observability avanzada** — alertas, presupuestos por análisis, dashboards
 - **Prompt caching** (Anthropic-specific) — reducir tokens de inputs estables
 - **Streaming** — cuando importe la latencia percibida
 - **Multi-arquetipo testing** — MCE-25, validar fixes contra clases de empresas
 - **Memory en agentes** — in-context vs short-term DB vs vector store
+- **Adaptive routing entre modelos** — decidir entre Haiku/Sonnet/Opus según complejidad estimada de la query
+- **Retry con backoff inteligente** — distinguir errores transitorios (rate limit) de permanentes (bad request)
 
 Cuando un nuevo patrón se cristalice tras varias iteraciones reales, se añade aquí.
 
 ---
 
-*Última actualización: 2026-05-10. Documento vivo — añadir patrones cuando se aprendan en producción.*
+*Última actualización: 2026-05-10. 17 patrones + meta-principio + anti-patrones consolidados. Documento vivo — añadir patrones cuando se aprendan en producción.*

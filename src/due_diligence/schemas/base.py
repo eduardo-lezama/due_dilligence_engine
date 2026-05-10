@@ -41,8 +41,15 @@ class Claim(BaseModel):
 
 
 class MetricValue(BaseModel):
-    """Valor numérico con metadata (periodo, fuente, unidad)."""
-    value: float  # Valor numérico
+    """Valor numérico con metadata (periodo, fuente, unidad).
+
+    Invariante: si existe un MetricValue, su `value` es siempre un float válido.
+    Para representar "dato no disponible", el campo padre debe ser Optional[MetricValue]
+    y se setea a None — NO se construye un MetricValue con value=None.
+    Esto preserva el contrato del schema: cualquier consumer puede operar sobre
+    `metric.value` sin null-checks.
+    """
+    value: float  # Valor numérico — siempre presente cuando existe el MetricValue
     unit: str = "USD"  # Unidad (USD, shares, etc.)
     period: str  # Periodo (FY2025, Q1 2025, etc.)
     source: str  # Fuente del dato (XBRL, calculated, 10-K, etc.)
@@ -80,7 +87,7 @@ class FinancialsReport(BaseModel):
     cash_and_equivalents: MetricValue
 
     # Share data
-    shares_outstanding: MetricValue
+    shares_outstanding: Optional[MetricValue] = None
 
     # ROIC (Return on Invested Capital) — calculado de XBRL, no generado por LLM.
     # NOPAT = OperatingIncome × (1 − effective_tax_rate); IC = Equity + Debt − Cash.

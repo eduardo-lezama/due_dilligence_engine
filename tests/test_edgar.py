@@ -148,3 +148,27 @@ def test_parse_financials_invested_capital_fallback_for_buyback_heavy(aapl_raw):
     # ROIC debe seguir calculándose con el fallback
     assert len(report.roic_series) >= 1
     assert report.roic_series[0].value > 0  # ROIC válido, no excluido
+
+
+def test_parse_financials_handles_missing_shares_outstanding(aapl_raw):
+    """
+    EC-34: cuando XBRL no reporta shares_outstanding (small caps dual-class como CRD.A,
+    ADRs sin tagging completo), el parser debe devolver shares_outstanding=None
+    en lugar de lanzar TypeError o crear un MetricValue inválido.
+
+    Invariante preservado: MetricValue siempre tiene un value válido. La ausencia
+    de dato se representa por el campo padre = None, no por MetricValue(value=None).
+    """
+    from due_diligence.tools.edgar import EdgarAdapter
+
+    # Simular XBRL sin shares_outstanding (caso CRD.A en producción)
+    raw_modified = json.loads(json.dumps(aapl_raw))
+    raw_modified["shares"]["shares_outstanding"]["value"] = None
+
+    report = EdgarAdapter.parse_financials(raw_modified)
+
+    # Schema invariant preservado: shares_outstanding es None, no MetricValue inválido
+    assert report.shares_outstanding is None
+    # El resto del report debe construirse sin errores
+    assert report.ticker == "AAPL"
+    assert len(report.revenue) > 0

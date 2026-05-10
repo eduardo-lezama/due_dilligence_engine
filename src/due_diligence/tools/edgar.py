@@ -293,7 +293,7 @@ class EdgarAdapter:
             "shares": {
                 # facts.shares_outstanding: propiedad directa en edgartools 5.x
                 "shares_outstanding": {
-                    "value": float(facts.shares_outstanding),
+                    "value": float(facts.shares_outstanding) if facts.shares_outstanding is not None else None,
                     "period": fy_label,
                 },
             },
@@ -454,11 +454,19 @@ class EdgarAdapter:
             cash_and_equivalents=MetricValue(
                 value=cash_value, unit="USD", period=period, source="XBRL"
             ),
-            shares_outstanding=MetricValue(
-                value=shares["shares_outstanding"]["value"],
-                unit="shares",
-                period=shares["shares_outstanding"]["period"],
-                source="XBRL",
+            shares_outstanding=(
+                # Construcción condicional (EC-34): NO crear MetricValue con value=None.
+                # Si XBRL no reporta shares (small caps con dual-class como CRD.A, ADRs),
+                # devolver None y dejar que valuation_agent derive shares de market_cap/price.
+                MetricValue(
+                    value=shares["shares_outstanding"]["value"],
+                    unit="shares",
+                    period=shares["shares_outstanding"]["period"],
+                    source="XBRL",
+                )
+                if shares.get("shares_outstanding")
+                and shares["shares_outstanding"].get("value") is not None
+                else None
             ),
             roic_series=roic_series,
             invested_capital=invested_capital_mv,

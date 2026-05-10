@@ -187,6 +187,19 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Fix**: computar avg annual ΔROIC en pp/year y surfacearlo. Para BBW: "RISING — marginal ROIC > average (avg ΔROIC: +0.9pp/year over 3 years)".
 - **Commit**: `16555c4`
 
+### EC-34 — XBRL sin shares_outstanding crashea el parser (CRD.A, dual-class small caps)
+- **Síntoma**: `due-diligence analyze CRD.A` lanza `TypeError: float() argument must be a string or real number, not 'NoneType'`. CRD.A (Crawford & Company class A) y otros dual-class small caps no reportan `facts.shares_outstanding` en XBRL — edgartools devuelve None.
+- **Causa**: el parser hacía `float(facts.shares_outstanding)` sin null-check, y luego construía un `MetricValue(value=None)` que violaba el invariante del schema (value: float requerido).
+- **Patrón sistémico**: misma clase que EC-21 (OperatingIncomeLoss), EC-25 (DEF 14A truncate), EC-27 (10-K/A) — el sistema asume "perfect XBRL coverage" y falla en variantes reales del universo (small caps, dual-class, ADRs con tagging incompleto).
+- **Análisis del fix sugerido por LLM externa**: la propuesta inicial fue `MetricValue.value: Optional[float]`. **Rechazada** porque rompe el invariante del schema — `MetricValue` es el modelo central y miles de call sites pasarían a necesitar null-checks. Era resolver el síntoma (Pydantic validation error) en lugar de la causa raíz (estamos creando MetricValue cuando no deberíamos).
+- **Fix correcto aplicado**:
+  1. Mantener `MetricValue.value: float` requerido (invariante preservado).
+  2. `FinancialsReport.shares_outstanding: Optional[MetricValue] = None` (parent opcional, hijo no).
+  3. `edgar.py`: construcción condicional — solo crear MetricValue si `value is not None`, en otro caso `shares_outstanding=None`.
+  4. `valuation_agent` ya tenía fallback inteligente: `shares = market_cap / price` cuando shares_outstanding es None. Verificado en línea 226 de valuation.py.
+- **Lección meta**: cuando un schema invariant choca con un edge case, la pregunta correcta es "¿debería existir el objeto?", no "¿debería el campo aceptar null?". Optional en el padre es semántico ("data missing"); Optional en el value es un objeto degenerado.
+- **Commit**: pendiente
+
 ### EC-33 — Headlines de news tratados como hechos validados
 - **Síntoma**: §7 cita "rising receivables risk margins" del título de SeekingAlpha como si fuera un concepto financiero real. El título original probablemente era "macro headwinds and rising receivables [are a] risk [to] margins" — truncado/parsed mal.
 - **Causa**: el Value Expert prompt no distingue entre "headline news" (título) y "validated claim" (corroborated by body, filings, or financial data).

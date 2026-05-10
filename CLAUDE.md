@@ -94,6 +94,7 @@ Aplicar siempre para: edgartools, LangGraph, Pydantic, Tavily, polygon-api-clien
 | Archivo | Qué contiene | Cuándo leerlo |
 |---|---|---|
 | `README.md` | Roadmap, research, arquitectura, principios | Al entrar al proyecto |
+| `AGENTIC_PATTERNS.md` | Patrones y anti-patrones de ingeniería agentic | **Antes de diseñar un componente nuevo** |
 | `docs/adr/` | Decisiones arquitectónicas numeradas | Al cuestionar una decisión o antes de cambiarla |
 | `docs/adr/README.md` | Índice de ADRs | Navegación |
 | `docs/mce-evolution.md` | Trabajo estructural diferido con triggers | Al arrancar cada fase |

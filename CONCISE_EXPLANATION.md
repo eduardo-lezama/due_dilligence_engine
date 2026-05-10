@@ -309,6 +309,10 @@ La mayoría de sistemas "agentes" que ves en demos solo tienen memoria in-contex
 
 ---
 
+> **Para profundizar en patrones de ingeniería agentic transferibles a otros proyectos**, ver [`AGENTIC_PATTERNS.md`](AGENTIC_PATTERNS.md). Esta guía cubre la arquitectura específica de este sistema; el otro documento abstrae los patrones (state merging, defense in depth, provider abstraction, etc.) en forma reutilizable.
+
+---
+
 ## 11. El ciclo producción → gap analysis → mejora
 
 Un sistema de análisis no se termina cuando pasan todos los tests. Se termina cuando los outputs son correctos comparados con la realidad. Hay una diferencia importante entre los dos.

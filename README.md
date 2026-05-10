@@ -209,6 +209,7 @@ due_dilligence_engine/
 │   ├── reports/         # generated Markdown reports
 │   └── analyses.db      # SQLite analysis history
 ├── CONCISE_EXPLANATION.md  # architecture study guide (recommended read)
+├── AGENTIC_PATTERNS.md     # transferable agentic engineering patterns + anti-patterns
 ├── DETAILED_EXPLANATION.md # full didactic log of all implementation decisions
 └── DESIGN_DOCUMENT.md      # original project spec and research findings
 ```

@@ -198,7 +198,7 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
   3. `edgar.py`: construcción condicional — solo crear MetricValue si `value is not None`, en otro caso `shares_outstanding=None`.
   4. `valuation_agent` ya tenía fallback inteligente: `shares = market_cap / price` cuando shares_outstanding es None. Verificado en línea 226 de valuation.py.
 - **Lección meta**: cuando un schema invariant choca con un edge case, la pregunta correcta es "¿debería existir el objeto?", no "¿debería el campo aceptar null?". Optional en el padre es semántico ("data missing"); Optional en el value es un objeto degenerado.
-- **Commit**: pendiente
+- **Commit**: `c8fbaaf`
 
 ### EC-33 — Headlines de news tratados como hechos validados
 - **Síntoma**: §7 cita "rising receivables risk margins" del título de SeekingAlpha como si fuera un concepto financiero real. El título original probablemente era "macro headwinds and rising receivables [are a] risk [to] margins" — truncado/parsed mal.

@@ -62,6 +62,8 @@ Estos son principios arquitectónicos. Violarlos requiere discusión explícita 
 
 **Por qué esta regla existe**: EC-14 (formatter `/1e9`) se arregló en `value_expert.py` y `archiver.py` pero no en `critic.py` ni `competitive.py`. El bug regresó como EC-17 una iteración después. La búsqueda manual basada en "donde recuerdo que está el patrón" es estructuralmente frágil para codebases que crecen — es solo cuestión de tiempo hasta que un módulo se queda atrás.
 
+**Verificar contra DATOS REALES, no solo código**: cuando se añade o expande extracción de datos externos (XBRL, APIs, parsers), correr una vez contra una fixture viva y verificar el formato real de los outputs. EC-30 (8-K filter `"Item 8.01" vs "8.01"`) demostró que la lógica era correcta sintácticamente pero el formato real difería del asumido — silent format mismatch. Una verificación de 30 segundos con datos reales habría detectado el bug en su origen en lugar de 5 iteraciones después.
+
 **Adicionalmente**: cuando el bug tiene causa raíz "el sistema asume X-like" (e.g. "AAPL-like: large cap, equity grande"), validar el fix contra los 4 arquetipos de fixtures (cuando MCE-25 esté implementado): large cap normal, small cap rentable, buyback-heavy, asset-light services.
 
 ---

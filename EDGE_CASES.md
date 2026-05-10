@@ -71,13 +71,13 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Síntoma**: el Value Expert dice "free cash flow was $0.0B" para BBW que tiene FCF real de $39.5M. Invalida §4 y el VERDICT rationale.
 - **Causa**: todas las cifras en `_format_context` se dividían por `1e9` con `.1f`, produciendo `$0.0B` para valores < $100M.
 - **Fix**: helper `_fmt_usd(value)` que adapta la unidad (M/B/k) según magnitud. Aplicado en `value_expert.py` y `archiver.py`. Ver ADR-022.
-- **Commit**: pendiente
+- **Commit**: `35e600c`
 
 ### EC-15 — DCF near-term growth absurdo por FCF CAGR ruidoso (BBW: 25.6% para retailer ~7%)
 - **Síntoma**: DCF upside +255% para BBW. Sensitivity table: 20.6%–30.6% near-term growth para una empresa de retail madura que crece ~7% en revenue.
 - **Causa**: el near-term growth se derivaba solo del FCF CAGR. El FCF oscila ±40% año a año por working capital y timing de capex → CAGR inestable y no representativo del growth sostenible.
 - **Fix**: `near_term_growth = min(FCF_CAGR, historical_cagr_5y)`. El revenue CAGR actúa como techo natural. Ver ADR-022.
-- **Commit**: pendiente
+- **Commit**: `35e600c`
 
 ### EC-16 — Sin flag cuando forward DCF y reverse DCF contradicen (BBW: spread 24pp)
 - **Síntoma**: forward DCF asume 25.6% growth (→ +255% upside) pero reverse DCF implica 1.6% growth en el precio actual. El sistema no lo señalaba.
@@ -90,19 +90,19 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Causa**: cuando arreglamos EC-14, buscamos `/1e9` en `value_expert.py` y `archiver.py` pero NO en `critic.py` ni `competitive.py`. Los dos seguían enviando `$0.0B` al LLM. El Critic no alucinaba — reproducía fielmente lo que recibía.
 - **Fix**: centralizar el formatter en `utils/formatting.py:fmt_usd()` como single source of truth. Eliminar duplicados en value_expert/archiver/cli y aplicar al critic + competitive. Ver ADR-023.
 - **Lección meta**: cualquier patrón de formateo debe vivir en un único módulo — la búsqueda manual para encontrar duplicados es frágil.
-- **Commit**: pendiente
+- **Commit**: `3fbb483`
 
 ### EC-18 — ROIC no calculable para empresas con buybacks acumulados (BBW, AutoZone, Domino's)
 - **Síntoma**: el §2 Moat Analysis decía "BBW's FY2026 ROIC is not provided". `roic_series=[]` aunque la empresa tiene EBIT positivo y datos completos.
 - **Causa**: la fórmula `IC = Equity + Debt - Cash` se vuelve degenerada para empresas con treasury stock acumulado por buybacks. Cuando `IC ≤ 0`, el sistema vaciaba el `roic_series` silenciosamente — excluyendo una clase entera del universo value (compounders que devuelven capital).
 - **Fix**: fórmula con fallback. Si la primaria es < 10% del operating capital, usar `IC = Total Assets - Cash`. El método elegido se documenta en `MetricValue.source`. Test añadido con equity negativo simulado. Ver ADR-023.
-- **Commit**: pendiente
+- **Commit**: `3fbb483`
 
 ### EC-19 — Capital returns (buybacks + dividends) ausentes del schema y del análisis (BBW)
 - **Síntoma**: la tesis core de BBW ("100% del FCF devuelto al accionista vía buybacks+dividends") no aparecía en ninguna sección del report. El Value Expert dijo "compensation and capital allocation track record are not available".
 - **Causa**: `FinancialsReport` no tenía campos para `buybacks` ni `dividends`. El parser de EDGAR no los extraía aunque están en el cash flow XBRL (`PaymentsForRepurchaseOfCommonStock`, `PaymentsOfDividendsCommonStock`).
 - **Fix**: añadir campos al schema, parser con fallbacks de conceptos XBRL, surfacear en contexto del Value Expert con regla dura en el system prompt ("MUST report explicitly with % of FCF"). Tabla CLI también muestra las filas. Ver ADR-023.
-- **Commit**: pendiente
+- **Commit**: `3fbb483`
 
 ### EC-20 — Subject row ausente del peer comparison cuando ROIC subject vacío
 - **Síntoma**: tabla de peers mostraba `FNKO -17.1%, BKE 43.2%, VRA -28.2%` sin la fila de BBW. Comparison estéril sin el ancla del subject.
@@ -115,26 +115,26 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Causa raíz**: BBW (y muchas small/mid caps) no reportan `OperatingIncomeLoss` como concepto XBRL. Su income statement es Revenue → COGS → GrossProfit → SG&A → IncomeBeforeTaxes → Tax → NetIncome. El parser solo intentaba `OperatingIncomeLoss` como concepto único — sin fallback.
 - **Fix**: helper `_compute_operating_income(inc_df)` con cadena de fallbacks: (1) `OperatingIncomeLoss`, (2) `GrossProfit - SG&A`, (3) `Pretax - InterestExpenseNonoperatingNet`, (4) `Pretax` proxy. Verificado en vivo con BBW: ahora ROIC=40.2% sostenido (compounder).
 - **Patrón**: mismo que EC-01 (OCF/capex con fallbacks múltiples) — sistema asume "perfect XBRL" y falla silenciosamente cuando varía.
-- **Commit**: pendiente
+- **Commit**: `ad52e7e`
 
 ### EC-22 — Margin trend solo surfaceado en compresión (no aparece para empresas con margen mejorando)
 - **Síntoma**: §4 Financial Quality dice "margin trend not provided" para BBW, aunque los datos están en `financials.gross_profit + financials.revenue`. Auditoría externa preguntaba por el trend.
 - **Causa**: `_format_context` solo emitía el trend cuando había compresión 3 años. Bug de "solo flageamos lo malo".
 - **Fix**: emitir trend SIEMPRE que haya ≥2 años de datos. Warning de compresión solo se añade adicionalmente. Now: para BBW (52.5% → 55.8% mejorando) el trend aparece en context y §4 puede razonar sobre él.
-- **Commit**: pendiente
+- **Commit**: `ad52e7e`
 
 ### EC-23 — Citations con datos críticos no llegan al Value Expert
 - **Síntoma**: §3 Management dice "insider sale price is not provided, so I cannot compute the required gap" — pero las citations en el appendix sí tienen los precios ($72.55, $73.21). La regla MUST de §3 (MCE-22) no se ejecuta porque la data no está en el contexto del LLM.
 - **Causa**: `_format_context` añade `mgmt.insider_transaction_pattern` (string resumen sin precios) pero no incluye los excerpts de citations donde están los datos verbatim.
 - **Fix**: añadir bloque "Insider transaction evidence" en context con los top 3 citation excerpts de mgmt. La regla §3 MUST ahora puede ejecutarse.
 - **Lección meta**: las citations son evidencia validada — no solo para el appendix, también para alimentar al Expert. Cualquier dato verbatim crítico debe ir AL prompt, no solo al render final.
-- **Commit**: pendiente
+- **Commit**: `ad52e7e`
 
 ### EC-24 — Sizing inconsistente con confidence (BBW: 64% confidence, 3% sizing)
 - **Síntoma**: confidence bajó (72% → 64%) pero sizing subió (2% → 3%). Lógicamente debería ser al revés — menor convicción debe implicar posición más pequeña.
 - **Causa**: el LLM emite ambos campos independientemente sin enforcement. No había regla en el prompt ni clamp post-hoc.
 - **Fix**: regla en `_SYSTEM_PROMPT` (`max sizing ≤ confidence × 10`) + clamp programático en `_parse_response`. Defensa en profundidad: el LLM puede ignorar la regla pero el clamp impone la disciplina.
-- **Commit**: pendiente
+- **Commit**: `ad52e7e`
 
 ### EC-25 — DEF 14A truncado a 12K chars omitía la sección de ownership
 - **Síntoma**: `mgmt.insider_ownership_pct=null` aunque la empresa reporta ownership en su DEF 14A.
@@ -146,14 +146,14 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Síntoma**: §5 Growth & Reinvestment decía "incremental ROIC not precomputed" — pero la información para inferirlo (ROIC trend) ya estaba en el contexto.
 - **Causa**: el LLM no conectaba "ROIC trend" con "marginal ROIC proxy" automáticamente. Sin instrucción explícita, no infería la relación.
 - **Fix**: en `_format_context`, surfacear interpretación explícita del trend: "RISING — marginal ROIC > average ROIC", "FALLING — marginal ROIC < average", "STABLE — ≈". Update §5 prompt rule para usar la interpretación.
-- **Commit**: pendiente
+- **Commit**: `b84c401`
 
 ### EC-27 — 10-K/A (amendments) leídos como 10-K originales — Item 1A/Business/MD&A invisibles
 - **Síntoma**: `mgmt`/`filings` Items 1A, 1, 7 todos vacíos para BBW. §7 dice "10-K risk section not available", §1 dice "business description not provided" aunque el sistema tiene el 10-K.
 - **Causa raíz** (verificada en vivo): el último filing 10-K de BBW es un **10-K/A (amendment)** que solo contiene Part IV (exhibits). El parser de edgartools devuelve secciones vacías para amendments. `filings.latest()` devolvía el amendment incompleto en lugar del 10-K original.
 - **Patrón sistémico**: afecta a CUALQUIER empresa que haya enmendado su 10-K (correcciones, suplementos, restatements). Misma raíz que EC-21 (XBRL variability) y EC-25 (truncate myopia) — system asume "happy path" y falla en variantes reales.
 - **Fix**: helper `_get_latest_full_10k(company)` que filtra `form == "10-K"` exactamente, excluyendo "10-K/A". Aplicado a las 4 funciones afectadas: `fetch_10k_business`, `fetch_10k_risk_factors`, `fetch_10k_mda`, `fetch_10k_item10`. Adicionalmente fallback regex sobre full text si edgartools parser falla en encontrar Item 1A.
-- **Commit**: pendiente
+- **Commit**: `b84c401`
 
 ### EC-28 — Moat clasificado "wide" basándose en ROIC alto sin más criterios
 - **Síntoma**: BBW promovido de "narrow" a "wide" en cuarta iteración solo porque ROIC pasó de N/A a 40.2%. Análisis externo identificó la clasificación como agresiva — BBW es cash cow nicho con returns altos, no wide moat compounder.
@@ -166,32 +166,32 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Síntoma**: en sección "Extended news coverage" de BBW aparecen items sobre BBWI (Bath & Body Works) — cobertura contaminada. Items [1], [8], [9] del último report eran BBWI, no BBW.
 - **Causa**: queries Tavily de MCE-19 incluían `{ticker} {company_name}` — pero tickers cortos colisionan con tickers similares en search engines (BBW/BBWI). Yahoo Finance pages para BBWI ranking alto traen ruido.
 - **Fix**: drop ticker de las queries, usar SOLO `company_name`. "Build-A-Bear Workshop" es unívoco; "BBW" no. Patrón sistémico — afecta a cualquier ticker corto con prefix collision.
-- **Commit**: pendiente
+- **Commit**: `16555c4`
 
 ### EC-30 — 8-K filter format mismatch — 5 iteraciones con detección vacía
 - **Síntoma**: BBW reportaba "No material 8-K events" en TODAS las iteraciones tras Oleada 1, aunque la empresa tiene 16 8-K filings en los últimos 12 meses (incluyendo Items 8.01 y 5.02 — directamente en el filter).
 - **Causa raíz** (verificada en vivo): edgartools devuelve los items como `"Item 8.01"` (string con prefix "Item "). Nuestro filter comparaba contra `"8.01"` (sin prefix). Format mismatch silencioso → cero matches.
 - **Fix**: normalizar ambos lados — strip "Item " prefix en el filter Y en los items del filing antes de comparar (case-insensitive). Verificado live: BBW pasa de 0 a 7 eventos detectados.
 - **Lección**: el bug demuestra el meta-pattern de MCE-26 (auditoría sistemática post-fix): cuando expandimos el filter en MCE-20, deberíamos haber verificado contra una fixture real para ver el formato real de los items.
-- **Commit**: pendiente
+- **Commit**: `16555c4`
 
 ### EC-31 — DEF 14A targeted extraction capturaba TOC en lugar de la sección real
 - **Síntoma**: `mgmt.insider_ownership_pct=null` aunque la tabla está en el DEF 14A (verificado: BBW tiene "Sharon John 1.8%, Directors+Execs 4.0%" en la tabla de ownership).
 - **Causa**: `fetch_def14a_text` usaba `.find()` (primera ocurrencia) para localizar markers como "Security Ownership". El primer match siempre está en el Table of Contents — la sección real está más adelante. La extracción capturaba el TOC en lugar de la tabla.
 - **Fix**: encontrar TODAS las ocurrencias y usar la ÚLTIMA (la del cuerpo, no del TOC). Patrón idéntico a EC-27 fallback regex para Item 1A. Adicionalmente: ventana ampliada a 8K chars y max_chars total a 24K para acomodar tablas largas (BBW ownership table tiene ~5K chars con ~17 rows).
-- **Commit**: pendiente
+- **Commit**: `16555c4`
 
 ### EC-32 — Incremental ROIC sin número concreto en §5
 - **Síntoma**: §5 Growth decía "marginal ROIC appears positive" sin número — auditoría externa pidió valor concreto para que el reasoning sea accionable.
 - **Causa**: el `_format_context` solo emitía interpretación cualitativa (RISING/FALLING), no el número del cambio.
 - **Fix**: computar avg annual ΔROIC en pp/year y surfacearlo. Para BBW: "RISING — marginal ROIC > average (avg ΔROIC: +0.9pp/year over 3 years)".
-- **Commit**: pendiente
+- **Commit**: `16555c4`
 
 ### EC-33 — Headlines de news tratados como hechos validados
 - **Síntoma**: §7 cita "rising receivables risk margins" del título de SeekingAlpha como si fuera un concepto financiero real. El título original probablemente era "macro headwinds and rising receivables [are a] risk [to] margins" — truncado/parsed mal.
 - **Causa**: el Value Expert prompt no distingue entre "headline news" (título) y "validated claim" (corroborated by body, filings, or financial data).
 - **Fix**: regla #10 nueva en `_SYSTEM_PROMPT`: news headlines son sugerentes only. Quote a headline phrase as fact ONLY if corroborated by body summary, 10-K section, or financial data. Phrases con awkward wording que parecen parsing artifacts → ignorar.
-- **Commit**: pendiente
+- **Commit**: `16555c4`
 
 ## Conocidos — pendientes de fix
 

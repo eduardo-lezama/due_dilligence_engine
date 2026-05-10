@@ -2,7 +2,7 @@
 
 An agentic system for fundamental equity analysis, built on value investing principles. Given a US ticker, it runs a full multi-specialist analysis — from SEC filings to DCF valuation — and delivers a structured verdict with citations, a pre-mortem critique, and an archived report.
 
-> **Status:** Phase 1 + Phase 2 complete + 4 post-production hardening rounds (Oleadas 1, 1.5, 2, plus MCE-22/23/26). System validated against small caps, buyback-heavy compounders, drawdown stocks (with adaptive news coverage), asset-light services, and companies with amended 10-K filings. Strict moat calibration rubric (ADR-024) prevents wide-moat over-classification. 221 tests, all green. Phase 2.5 (same-ticker RAG) or Phase 3 (CAD/EU markets) is next.
+> **Status:** Phase 1 + Phase 2 complete + 5 post-production hardening rounds (Oleadas 1, 1.5, 2, 2.5, plus MCE-22/23/26). System validated against small caps, buyback-heavy compounders, drawdown stocks (with adaptive news coverage and ticker-collision-aware queries), asset-light services, and companies with amended 10-K filings. Strict moat calibration rubric (ADR-024) prevents wide-moat over-classification. Robust XBRL extraction (multi-concept fallbacks for EBIT, OCF, capex, capital returns; format-mismatch-tolerant 8-K filter; TOC-aware DEF 14A targeted extraction). 221 tests, all green. Phase 2.5 (same-ticker RAG) or Phase 3 (CAD/EU markets) is next.
 
 ---
 

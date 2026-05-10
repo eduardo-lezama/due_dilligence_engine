@@ -108,6 +108,38 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Síntoma**: tabla de peers mostraba `FNKO -17.1%, BKE 43.2%, VRA -28.2%` sin la fila de BBW. Comparison estéril sin el ancla del subject.
 - **Causa**: el archiver y CLI omitían la fila del subject si `roic_series` estaba vacío (consecuencia downstream de EC-18).
 - **Fix**: subject row siempre presente. Si ROIC no calculable, mostrar "N/A — IC indeterminate" explícito. Defensa en profundidad — incluso con EC-18 arreglado, el subject row es invariante de la tabla.
+- **Commit**: `3fbb483`
+
+### EC-21 — Operating Income (EBIT) no extraído para empresas con income statement simplificado (BBW)
+- **Síntoma**: BBW seguía con ROIC=N/A tras EC-18 fix. Investigación en vivo reveló `operating_income=[]` aunque la empresa tiene EBIT real ~$66M.
+- **Causa raíz**: BBW (y muchas small/mid caps) no reportan `OperatingIncomeLoss` como concepto XBRL. Su income statement es Revenue → COGS → GrossProfit → SG&A → IncomeBeforeTaxes → Tax → NetIncome. El parser solo intentaba `OperatingIncomeLoss` como concepto único — sin fallback.
+- **Fix**: helper `_compute_operating_income(inc_df)` con cadena de fallbacks: (1) `OperatingIncomeLoss`, (2) `GrossProfit - SG&A`, (3) `Pretax - InterestExpenseNonoperatingNet`, (4) `Pretax` proxy. Verificado en vivo con BBW: ahora ROIC=40.2% sostenido (compounder).
+- **Patrón**: mismo que EC-01 (OCF/capex con fallbacks múltiples) — sistema asume "perfect XBRL" y falla silenciosamente cuando varía.
+- **Commit**: pendiente
+
+### EC-22 — Margin trend solo surfaceado en compresión (no aparece para empresas con margen mejorando)
+- **Síntoma**: §4 Financial Quality dice "margin trend not provided" para BBW, aunque los datos están en `financials.gross_profit + financials.revenue`. Auditoría externa preguntaba por el trend.
+- **Causa**: `_format_context` solo emitía el trend cuando había compresión 3 años. Bug de "solo flageamos lo malo".
+- **Fix**: emitir trend SIEMPRE que haya ≥2 años de datos. Warning de compresión solo se añade adicionalmente. Now: para BBW (52.5% → 55.8% mejorando) el trend aparece en context y §4 puede razonar sobre él.
+- **Commit**: pendiente
+
+### EC-23 — Citations con datos críticos no llegan al Value Expert
+- **Síntoma**: §3 Management dice "insider sale price is not provided, so I cannot compute the required gap" — pero las citations en el appendix sí tienen los precios ($72.55, $73.21). La regla MUST de §3 (MCE-22) no se ejecuta porque la data no está en el contexto del LLM.
+- **Causa**: `_format_context` añade `mgmt.insider_transaction_pattern` (string resumen sin precios) pero no incluye los excerpts de citations donde están los datos verbatim.
+- **Fix**: añadir bloque "Insider transaction evidence" en context con los top 3 citation excerpts de mgmt. La regla §3 MUST ahora puede ejecutarse.
+- **Lección meta**: las citations son evidencia validada — no solo para el appendix, también para alimentar al Expert. Cualquier dato verbatim crítico debe ir AL prompt, no solo al render final.
+- **Commit**: pendiente
+
+### EC-24 — Sizing inconsistente con confidence (BBW: 64% confidence, 3% sizing)
+- **Síntoma**: confidence bajó (72% → 64%) pero sizing subió (2% → 3%). Lógicamente debería ser al revés — menor convicción debe implicar posición más pequeña.
+- **Causa**: el LLM emite ambos campos independientemente sin enforcement. No había regla en el prompt ni clamp post-hoc.
+- **Fix**: regla en `_SYSTEM_PROMPT` (`max sizing ≤ confidence × 10`) + clamp programático en `_parse_response`. Defensa en profundidad: el LLM puede ignorar la regla pero el clamp impone la disciplina.
+- **Commit**: pendiente
+
+### EC-25 — DEF 14A truncado a 12K chars omitía la sección de ownership
+- **Síntoma**: `mgmt.insider_ownership_pct=null` aunque la empresa reporta ownership en su DEF 14A.
+- **Causa**: `fetch_def14a_text` truncaba el proxy a 12K chars. Para Russell 2000 típico, esa zona cubre intro + governance + board pero NO la "Security Ownership of Certain Beneficial Owners and Management" table (página 30-40 de un proxy típico).
+- **Fix**: extracción targeting — busca markers conocidos ("Security Ownership", "Beneficial Ownership", "Compensation Discussion") y extrae 4-5K chars alrededor de cada uno. Combina inicio + ownership + compensation en max 18K chars total. Más barato en tokens que solo subir el límite, y más robusto.
 - **Commit**: pendiente
 
 ## Conocidos — pendientes de fix

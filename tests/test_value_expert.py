@@ -151,10 +151,17 @@ def test_parse_confidence_clamped_to_range():
 
 
 def test_parse_sizing_clamped_to_max():
-    """sizing_pct > 20 se clampea a 20."""
+    """
+    sizing_pct se clampea por dos vías:
+    1. Techo absoluto 20%
+    2. Techo por confidence (Fix D): max sizing ≤ confidence × 10
+
+    Con confidence=0.8, max sizing = 8% (más restrictivo que el techo absoluto).
+    """
     raw = json.dumps({"verdict": "BUY", "verdict_confidence": 0.8, "suggested_sizing_pct": 50.0})
     report = _parse_response(raw, "TEST")
-    assert report.suggested_sizing_pct == pytest.approx(20.0)
+    # 50 → clamp a 20 → re-clamp por confidence (0.8 × 10 = 8.0)
+    assert report.suggested_sizing_pct == pytest.approx(8.0)
 
 
 def test_parse_invalid_json_returns_fallback():
@@ -242,6 +249,88 @@ def test_format_context_omits_cagr_block_when_absent():
     from due_diligence.agents.value_expert import _format_context
     context = _format_context({"ticker": "AAPL"})
     assert "CAGR" not in context or "Revenue" not in context  # no bloque historical context
+
+
+def test_format_context_always_surfaces_margin_trend():
+    """
+    EC-22 / Fix B: gross margin trend debe aparecer SIEMPRE que haya ≥2 años de datos,
+    no solo en compresión. Antes del fix, BBW (margen mejorando 52.5%→55.8%) no veía
+    el trend en context — el §4 decía 'margin trend not provided'.
+    """
+    import json
+    from pathlib import Path
+    from due_diligence.tools.edgar import EdgarAdapter
+    from due_diligence.agents.value_expert import _format_context
+
+    fixture = json.loads((Path(__file__).parent / "fixtures" / "aapl_xbrl_raw.json").read_text())
+    financials = EdgarAdapter.parse_financials(fixture)
+    context = _format_context({"ticker": "AAPL", "financials": financials})
+    # AAPL margins improving slightly — trend debe aparecer aunque NO haya compresión
+    assert "Gross margin trend" in context
+
+
+def test_format_context_surfaces_mgmt_citations_for_section_3():
+    """
+    EC-23 / Fix C: las citations de mgmt deben surfacearse al contexto del Expert
+    para que la regla §3 MUST (reconcile insider sale price vs current price) tenga
+    los datos. Antes del fix, las citations solo iban al appendix del markdown.
+    """
+    from due_diligence.agents.value_expert import _format_context
+    from due_diligence.schemas.reports import ManagementReport
+    from due_diligence.schemas.base import Citation
+
+    state = {
+        "ticker": "BBW",
+        "mgmt": ManagementReport(
+            ticker="BBW", stub=False,
+            insider_transaction_pattern="CEO net seller",
+            citations=[
+                Citation(
+                    claim="CEO sold shares in September 2025",
+                    excerpt="Sharon Price John (CEO) | SELL | 15,288 shares @ $73.21 | 2025-09-16",
+                    source_url="form4.html",
+                    confidence=1.0,
+                )
+            ],
+        ),
+    }
+    context = _format_context(state)
+    # El precio $73.21 debe aparecer en el contexto, no solo en el appendix de citations
+    assert "$73.21" in context
+    assert "Insider transaction evidence" in context
+
+
+def test_parse_response_clamps_sizing_to_confidence_ceiling():
+    """
+    EC-24 / Fix D: el sizing se clampea a max(confidence × 10) para evitar el
+    bug de "confidence baja, sizing alto" detectado en BBW (64% confidence, 3% sizing).
+    """
+    import json
+    from due_diligence.agents.value_expert import _parse_response
+
+    # LLM emite sizing=8% con confidence=0.5 → ceiling debería ser 5%
+    raw = json.dumps({
+        "verdict": "HOLD",
+        "verdict_confidence": 0.5,
+        "suggested_sizing_pct": 8.0,
+    })
+    report = _parse_response(raw, "FAKE")
+    # 0.5 × 10 = 5.0 → sizing clamped to 5.0
+    assert report.suggested_sizing_pct == pytest.approx(5.0)
+
+
+def test_parse_response_does_not_clamp_when_consistent():
+    """Sizing dentro del techo (confidence × 10) no se clampea."""
+    import json
+    from due_diligence.agents.value_expert import _parse_response
+
+    raw = json.dumps({
+        "verdict": "BUY",
+        "verdict_confidence": 0.85,
+        "suggested_sizing_pct": 7.0,  # 7 < 0.85 × 10 = 8.5 → no clamp
+    })
+    report = _parse_response(raw, "FAKE")
+    assert report.suggested_sizing_pct == pytest.approx(7.0)
 
 
 def test_format_context_includes_reinvestment_rate(aapl_raw_path=None):

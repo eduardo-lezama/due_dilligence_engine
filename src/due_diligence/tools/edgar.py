@@ -102,6 +102,67 @@ class EdgarAdapter:
                     pass
             return result
 
+        def _subtract_aligned(a_list: list[dict], b_list: list[dict]) -> list[dict]:
+            """Resta b de a alineando por periodo. Solo emite periodos presentes en ambos.
+
+            Usado para derivar EBIT cuando no hay concepto directo `OperatingIncomeLoss`:
+            EBIT ≈ GrossProfit - SG&A, o EBIT ≈ Pretax - Interest.
+            """
+            b_by_period = {item["period"]: item["value"] for item in b_list}
+            return [
+                {"value": a["value"] - b_by_period[a["period"]], "period": a["period"]}
+                for a in a_list
+                if a["period"] in b_by_period
+            ]
+
+        def _compute_operating_income(inc_df: Any) -> list[dict]:
+            """Extrae operating income (EBIT) con fallbacks múltiples (EC-21).
+
+            Muchas small/mid caps no reportan `OperatingIncomeLoss` directamente —
+            su income statement es Revenue → COGS → GrossProfit → SG&A → PretaxIncome
+            → Tax → NetIncome. Sin EBIT, ROIC y EV/EBIT no se calculan, excluyendo
+            silenciosamente esa clase de empresas del análisis.
+
+            Cadena de fallbacks (por prevalencia):
+                1. `OperatingIncomeLoss`              — concepto estándar (AAPL, large caps)
+                2. `GrossProfit - SG&A`               — derivado para retailers/services (BBW)
+                3. `OperatingIncomeLoss` con suma de    — variante alternativa que algunas empresas
+                   `OperatingExpenses` y otros           usan; cubierto por la cadena
+                4. `Pretax - InterestExpenseNet`      — fallback para empresas con interest separado
+                5. `Pretax` (proxy)                   — última opción; sobreestima EBIT por interest
+            """
+            # Primary
+            op_inc = _get_annual(inc_df, "OperatingIncomeLoss")
+            if op_inc:
+                return op_inc
+
+            # Fallback 1: GrossProfit - SG&A (retailers/services con income statement simplificado)
+            gp = _get_annual(inc_df, "GrossProfit")
+            sga = _get_annual(inc_df, "SellingGeneralAndAdministrativeExpense")
+            if gp and sga:
+                derived = _subtract_aligned(gp, sga)
+                if derived:
+                    return derived
+
+            # Fallback 2: PretaxIncome - InterestExpenseNonoperatingNet
+            pretax = _get_annual(
+                inc_df,
+                "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+            )
+            interest = _get_annual(inc_df, "InterestIncomeExpenseNonoperatingNet")
+            if pretax and interest:
+                # InterestIncomeExpenseNonoperatingNet: positivo = neto income; negativo = neto expense
+                # EBIT = Pretax - InterestIncomeNet (suma interest expense, resta interest income)
+                derived = _subtract_aligned(pretax, interest)
+                if derived:
+                    return derived
+
+            # Fallback 3: PretaxIncome solo (proxy — sobreestima EBIT por interest expense neto)
+            if pretax:
+                return pretax
+
+            return []
+
         def _get_point(df: Any, concept: str, period: str) -> dict:
             """Extrae el valor más reciente de un concepto puntual (balance sheet)."""
             if concept not in df.index:
@@ -176,7 +237,7 @@ class EdgarAdapter:
             "annual": {
                 "revenue": revenue,
                 "gross_profit": _get_annual(inc_df, "GrossProfit"),
-                "operating_income": _get_annual(inc_df, "OperatingIncomeLoss"),
+                "operating_income": _compute_operating_income(inc_df),
                 "net_income": _get_annual(inc_df, "NetIncomeLoss"),
                 # Operating cash flow — intentar múltiples conceptos XBRL en orden de prevalencia.
                 # Algunas empresas (educación, servicios, continuingOperations reporters)
@@ -426,17 +487,29 @@ class EdgarManagementAdapter:
     """
 
     @staticmethod
-    def fetch_def14a_text(ticker: str, max_chars: int = 12000) -> str:
+    def fetch_def14a_text(ticker: str, max_chars: int = 18000) -> str:
         """
-        Obtiene el texto del proxy statement (DEF 14A) más reciente.
+        Obtiene el texto del proxy statement (DEF 14A) más reciente con extracción
+        targeting de secciones críticas (EC-25).
 
-        DEF 14A contiene: compensación ejecutiva, % de ownership de insiders,
-        composición del board, say-on-pay votes, y transacciones con partes
-        relacionadas. Es la fuente primaria para §3 del checklist.
+        Por qué la extracción targeting:
+            DEF 14A típico de Russell 2000 = 50-80 páginas. Solo truncar a
+            max_chars fallaba porque la tabla "Security Ownership of Certain
+            Beneficial Owners and Management" aparece típicamente en páginas 30-40
+            (después de compensación, antes de auditoría). El inicio del proxy
+            cubre intro + elección directores + governance — útil pero no contiene
+            insider ownership %.
 
-        Devuelve texto truncado a max_chars para no saturar el context window.
-        Devuelve "" si no hay filings disponibles (falla silent para DEF 14A
-        porque algunas empresas pequeñas pueden no tenerlo).
+            Esta versión extrae:
+              1. Primeros 6K chars (intro, board composition, governance highlights)
+              2. Sección "Security Ownership..." o "Beneficial Ownership" + 4K chars
+                 alrededor (la tabla con %)
+              3. Sección "Compensation Discussion and Analysis" o "Executive
+                 Compensation" + 4K chars (estructura comp + pay alignment)
+            Si no se encuentran las secciones, fallback al primer max_chars.
+
+        Returns: texto extraído, máximo max_chars (default 18K para acomodar
+            las 3 secciones sin saturar context window).
         """
         from edgar import Company, set_identity  # type: ignore[import]
 
@@ -452,18 +525,55 @@ class EdgarManagementAdapter:
         log.info("def14a_fetch", ticker=ticker, period=str(filing.period_of_report))
 
         try:
-            # edgartools 5.x: filing.document es el documento primario del filing.
-            # .text() extrae el contenido como texto plano (sin HTML).
             text = filing.document.text()
         except Exception as e:
             log.warning("def14a_text_extraction_failed", ticker=ticker, error=str(e))
-            # Fallback: convertir el documento a string directamente
             try:
                 text = str(filing.document)
             except Exception:
                 return ""
 
-        return text[:max_chars]
+        # Extracción targeting de secciones críticas
+        sections: list[str] = []
+
+        # Sección 1: inicio (intro + governance + board)
+        sections.append(text[:6000])
+
+        # Sección 2: tabla de ownership (multiples encabezados posibles)
+        ownership_markers = [
+            "Security Ownership of Certain Beneficial Owners",
+            "Security Ownership of Management",
+            "Beneficial Ownership",
+            "Stock Ownership",
+            "Shares Beneficially Owned",
+        ]
+        for marker in ownership_markers:
+            idx = text.lower().find(marker.lower())
+            if idx >= 0:
+                # Extraer 4K chars alrededor del marker (1K antes, 3K después)
+                start = max(0, idx - 500)
+                end = min(len(text), idx + 4000)
+                sections.append(f"\n\n[OWNERSHIP SECTION]\n{text[start:end]}")
+                break
+
+        # Sección 3: compensación
+        comp_markers = [
+            "Compensation Discussion and Analysis",
+            "Executive Compensation",
+            "Summary Compensation Table",
+        ]
+        for marker in comp_markers:
+            idx = text.lower().find(marker.lower())
+            if idx >= 0:
+                start = max(0, idx - 500)
+                end = min(len(text), idx + 4500)
+                sections.append(f"\n\n[COMPENSATION SECTION]\n{text[start:end]}")
+                break
+
+        combined = "".join(sections)
+        # Si la combinación es < max_chars, devolver tal cual.
+        # Si excede, truncar respetando el orden (intro → ownership → comp).
+        return combined[:max_chars] if combined else text[:max_chars]
 
     @staticmethod
     def fetch_form4_transactions(ticker: str, months: int = 12) -> list[dict]:

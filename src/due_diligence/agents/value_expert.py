@@ -76,6 +76,13 @@ VERDICT RUBRIC:
 - HOLD: conflicting signals unresolved, fair value, or data insufficient for conviction.
 - SELL: deteriorating moat OR value trap OR DCF downside >20% with red flags OR recent Item 4.02 restatement.
 
+SIZING DISCIPLINE — NON-NEGOTIABLE:
+- `suggested_sizing_pct` MUST scale with `verdict_confidence`. Rule: max sizing ≤ verdict_confidence × 10.
+  Examples: confidence 0.50 → max 5% sizing; confidence 0.70 → max 7%; confidence 0.85 → max 8.5%.
+- HOLD with confidence < 0.65 → sizing should be 0-2%, not 3%+.
+- Never recommend sizing > 10% unless confidence > 0.85 AND verdict is BUY.
+- If signals conflict and you adjudicate as HOLD, sizing reflects the unresolved uncertainty — keep small.
+
 OUTPUT SCHEMA:
 {
   "business_understanding": "<§1: 3-4 sentences. What does it do, how does it make money, circle of competence>",
@@ -170,21 +177,26 @@ def _format_context(state: AnalysisState) -> str:
                 f"{_fmt_usd(total_returned)} ({', '.join(parts)}){pct_str}"
             )
 
-        # Margin compression auto-flag (Fix E): si hay 3+ años con gross margin decreciente,
-        # elevarlo como riesgo estructural para §7. Los datos vienen de XBRL (determinista).
+        # Gross margin trend — SIEMPRE surfaceado (Fix B / EC-22).
+        # Antes solo se emitía con compresión 3 años; ahora se emite siempre que haya
+        # ≥2 puntos. Esto da al §4 Financial Quality del Expert el dato necesario para
+        # razonar sobre la calidad del negocio, independiente de si el trend es positivo
+        # o negativo. El warning de compresión se añade adicionalmente cuando aplica.
         if (financials.gross_profit and financials.revenue
-                and len(financials.gross_profit) >= 3 and len(financials.revenue) >= 3):
+                and len(financials.gross_profit) >= 2 and len(financials.revenue) >= 2):
             margins = []
             for gp, rev in zip(financials.gross_profit, financials.revenue):
                 if rev.value and rev.value > 0:
                     margins.append((gp.period, gp.value / rev.value))
-            # margins[0] = most recent; check if descending for 3+ years
-            if len(margins) >= 3 and all(margins[i][1] < margins[i + 1][1] for i in range(2)):
+            if len(margins) >= 2:
                 trend_str = " → ".join(f"{m:.1%}" for _, m in reversed(margins[:3]))
-                lines.append(
-                    f"⚠️ STRUCTURAL MARGIN RISK: gross margin has compressed 3 consecutive years "
-                    f"({trend_str}, oldest→latest). Elevate to §7 Risks as 'structural margin pressure'."
-                )
+                lines.append(f"Gross margin trend (oldest→latest): {trend_str}")
+                # Auto-flag de compresión si 3+ años consecutivos descendentes
+                if len(margins) >= 3 and all(margins[i][1] < margins[i + 1][1] for i in range(2)):
+                    lines.append(
+                        f"⚠️ STRUCTURAL MARGIN RISK: gross margin has compressed 3 consecutive years. "
+                        f"Elevate to §7 Risks as 'structural margin pressure'."
+                    )
         lines.append("")
 
     # --- Management ---
@@ -203,6 +215,16 @@ def _format_context(state: AnalysisState) -> str:
             lines.append(f"Compensation: {mgmt.compensation_structure_notes}")
         if mgmt.capital_allocation_summary:
             lines.append(f"Capital allocation: {mgmt.capital_allocation_summary}")
+
+        # Insider transaction citations — surface evidence verbatim for §3 reconciliation
+        # (Fix C / EC-23). El Value Expert §3 MUST tiene regla de comparar precio insider
+        # vs precio actual, pero no podía ejecutarse sin los precios. Aquí los exponemos
+        # desde las citations validadas (Form 4 sin alteración).
+        if mgmt.citations:
+            lines.append("Insider transaction evidence (use for §3 price reconciliation):")
+            for c in mgmt.citations[:3]:  # top 3 más relevantes
+                excerpt = c.excerpt[:400].replace("\n", " ")
+                lines.append(f"  - {excerpt}")
         lines.append("")
 
     # --- Filings ---
@@ -350,6 +372,21 @@ def _parse_response(response_text: str, ticker: str) -> ValueExpertReport:
             sizing = max(0.0, min(20.0, float(sizing_raw)))
         except (TypeError, ValueError):
             sizing = 0.0
+
+        # Sizing discipline post-hoc clamp (Fix D / EC-24): defensa en profundidad.
+        # Aunque el system prompt instruye "max sizing ≤ confidence × 10", el LLM puede
+        # ignorar la regla. Aquí clampamos programáticamente para que el output siempre
+        # respete la consistencia entre sizing y confidence.
+        sizing_ceiling = confidence * 10.0
+        if sizing > sizing_ceiling:
+            log.info(
+                "value_expert_sizing_clamped",
+                ticker=ticker,
+                original_sizing=sizing,
+                clamped_to=sizing_ceiling,
+                confidence=confidence,
+            )
+            sizing = sizing_ceiling
 
         return ValueExpertReport(
             ticker=ticker,

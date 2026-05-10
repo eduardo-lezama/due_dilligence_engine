@@ -2485,3 +2485,176 @@ El detonante de esta regla fue exactamente EC-14 → EC-17: arreglamos `/1e9` en
 
 *Última actualización: 2026-05-10 — Oleada 1 + MCE-22 + MCE-23 + MCE-26. 213 tests, verde.*
 
+---
+
+## Oleada 1.5 — Tercera auditoría BBW: bugs sistémicos de extracción y data flow (2026-05-10)
+
+### El detonante: tercera auditoría externa revela 5 bugs nuevos
+
+Tras Oleada 1 + MCE-22/23/26, una tercera auditoría reveló que algunos issues persistían. Lo importante: **el patrón se repetía** — cada bug afectaba sistemáticamente a una clase entera de empresas, no a BBW específicamente.
+
+### EC-21 — El bug del ROIC: BBW no reportaba `OperatingIncomeLoss`
+
+Tras nuestro fix EC-18 (ROIC fallback con Greenblatt-light), BBW seguía con ROIC=N/A. El error real era distinto al que pensábamos.
+
+**Verificación en vivo** (fetcheamos los datos XBRL de BBW directamente):
+- Invested Capital: **$128M** ✓ (la fórmula primaria funcionaba — equity $155M no estaba reducido por buybacks como pensábamos)
+- Operating Income: **`[]` vacío** ❌
+
+¿Por qué? Inspeccionando el income statement de BBW, descubrimos que **no reporta `OperatingIncomeLoss` como concepto XBRL**. Su declaración de resultados es:
+
+```
+Revenue → COGS → GrossProfit → SG&A → IncomeBeforeTaxes → Tax → NetIncome
+```
+
+Sin línea explícita de "Operating Income". El parser intentaba solo el concepto `OperatingIncomeLoss` y devolvía `[]` cuando no estaba.
+
+**El patrón se reconoce instantáneamente**: es exactamente lo mismo que EC-01 (OCF/capex con fallbacks múltiples). El sistema asume "perfect XBRL reporting" y falla silenciosamente cuando un concepto varía.
+
+**El fix**: helper `_compute_operating_income(inc_df)` con cadena de fallbacks:
+
+```python
+def _compute_operating_income(inc_df):
+    # Primary: concepto estándar (AAPL, large caps)
+    op_inc = _get_annual(inc_df, "OperatingIncomeLoss")
+    if op_inc: return op_inc
+
+    # Fallback 1: GrossProfit - SG&A (BBW, retailers, services)
+    gp = _get_annual(inc_df, "GrossProfit")
+    sga = _get_annual(inc_df, "SellingGeneralAndAdministrativeExpense")
+    if gp and sga:
+        return _subtract_aligned(gp, sga)
+
+    # Fallback 2: Pretax - InterestExpenseNet
+    # Fallback 3: Pretax (proxy)
+    ...
+```
+
+**Resultado verificado en vivo**: BBW pasa de ROIC=N/A a:
+```
+ROIC: FY2026: 40.2%, FY2024: 39.6%, FY2023: 37.5%, FY2022: 30.7%
+```
+
+Esto cambia completamente el análisis — BBW es un compounder con ROIC creciente, no una "narrow moat unproven".
+
+### EC-22 — El bug de "solo flageamos lo malo"
+
+§4 Financial Quality decía "margin trend not provided" para BBW aunque la data estaba en `financials.gross_profit + financials.revenue`.
+
+**Causa**: el código de `_format_context` solo emitía el trend cuando detectaba **compresión 3 años**:
+
+```python
+# Antes (buggy):
+if all(margins[i][1] < margins[i + 1][1] for i in range(2)):
+    lines.append(f"⚠️ STRUCTURAL MARGIN RISK: ...")
+```
+
+Para BBW (margen mejorando 52.5% → 55.8%), no había compresión → no se emitía el trend → el LLM no tenía la data → §4 dice "no provided".
+
+**Fix**: separar las dos cosas. **Siempre emitir el trend**, **adicionalmente** añadir warning solo en compresión.
+
+```python
+# Después:
+trend_str = " → ".join(f"{m:.1%}" for _, m in reversed(margins[:3]))
+lines.append(f"Gross margin trend (oldest→latest): {trend_str}")
+if all(margins[i][1] < margins[i + 1][1] for i in range(2)):
+    lines.append(f"⚠️ STRUCTURAL MARGIN RISK: ...")
+```
+
+**Lección meta**: surfacear data al LLM y añadir flags son dos cosas distintas. El primero debe ser incondicional cuando hay datos disponibles; el segundo es un overlay condicional.
+
+### EC-23 — Citations validadas no llegan al Expert
+
+§3 Management decía "insider sale price is not provided, so I cannot compute the required gap" — pero las citations en el appendix tenían los precios verbatim ($72.55, $73.21).
+
+**Causa**: el flujo de datos era:
+
+```
+Form 4 fetch → mgmt.citations[] (con precios excerpt) → archiver appendix ✓
+                                                       ↘ NO va a Value Expert context ✗
+```
+
+El Value Expert recibía solo `mgmt.insider_transaction_pattern` (un string resumen sin precios). La regla MUST de §3 (añadida en MCE-22) no podía ejecutarse porque la data no estaba en el contexto.
+
+**Fix**: surfacear los top citations excerpts en el contexto del Value Expert:
+
+```python
+if mgmt.citations:
+    lines.append("Insider transaction evidence (use for §3 price reconciliation):")
+    for c in mgmt.citations[:3]:
+        excerpt = c.excerpt[:400].replace("\n", " ")
+        lines.append(f"  - {excerpt}")
+```
+
+**Lección meta**: las citations no son solo para el appendix — son evidencia que el sistema validó. Cualquier dato verbatim crítico debe llegar AL prompt, no solo al render final. El "trail de auditoría" y el "trail de razonamiento" son ambos necesarios.
+
+### EC-24 — Sizing y confidence pueden divergir sin enforcement
+
+BBW report: confidence bajó 72% → 64%, sizing subió 2% → 3%. Lógicamente debería ser al revés.
+
+**Causa**: el LLM emite `verdict_confidence` y `suggested_sizing_pct` como campos independientes. Sin regla en el prompt ni clamp post-hoc.
+
+**Fix dual** (defensa en profundidad):
+
+1. **Regla en system prompt**: "Max sizing ≤ confidence × 10. So 70% confidence → max 7% sizing."
+2. **Clamp programático en `_parse_response`**: aunque el LLM ignore la regla, el clamp impone la disciplina:
+
+```python
+sizing_ceiling = confidence * 10.0
+if sizing > sizing_ceiling:
+    sizing = sizing_ceiling
+```
+
+**Por qué dual**: el LLM puede razonar mal sobre sizing. La regla en el prompt mejora el primer intento; el clamp es la red de seguridad final.
+
+### EC-25 — DEF 14A truncado antes de la tabla de ownership
+
+`mgmt.insider_ownership_pct=null` para BBW. La causa: `fetch_def14a_text` truncaba el proxy a 12,000 chars. En un proxy típico de Russell 2000 (50-80 páginas), esa zona cubre:
+
+- Páginas 1-2: Notice of Annual Meeting
+- Páginas 3-8: Election of Directors + Corporate Governance
+- Páginas 9-14: Executive Compensation discussion (parcial)
+
+**La tabla "Security Ownership of Certain Beneficial Owners and Management"** está típicamente en páginas 30-40. Fuera del truncate.
+
+**Fix más inteligente que solo subir el límite**: extracción targeting. El parser ahora busca markers conocidos y extrae 4-5K chars alrededor de cada uno:
+
+- Inicio (6K): intro + governance + board
+- Sección ownership (4K): tabla de % por insider
+- Sección compensation (4-5K): estructura de pago
+
+```python
+ownership_markers = [
+    "Security Ownership of Certain Beneficial Owners",
+    "Beneficial Ownership",
+    "Stock Ownership",
+    ...
+]
+for marker in ownership_markers:
+    idx = text.lower().find(marker.lower())
+    if idx >= 0:
+        sections.append(text[max(0,idx-500):idx+4000])
+        break
+```
+
+**Por qué es mejor que solo bumpear el límite**: si solo subimos a 30K, gastamos tokens en zonas irrelevantes (introducciones legales, listas de directores, etc.). La extracción targeting consume 18K total mostrando solo lo crítico.
+
+### Meta-patrón confirmado por tercera vez
+
+Los 5 fixes (EC-21 a EC-25) tienen la misma causa raíz: **sistema diseñado contra "AAPL ideal"** — large cap con XBRL completo, equity grande, news flow constante, balance sheet clásico. Cuando se aplica al universo real (small caps, income statements simplificados, XBRL variable), las asunciones se rompen.
+
+**MCE-25** (test fixtures multi-arquetipo) sigue siendo la mitigación estructural correcta — testar contra 4 arquetipos antes de declarar fixes completos. Sin esa disciplina, el patrón se repite cada N iteraciones.
+
+### Validación en vivo (BBW)
+
+Tras los 5 fixes:
+- ROIC: N/A → **40.2% sostenido** (compounder revealed)
+- Margin trend: invisible → **52.5% → 54.4% → 55.8% mejorando** (visible al Expert)
+- Insider sale prices: invisible → **$72.55, $73.21 en context** (§3 puede reconciliar vs $38.37 actual)
+- Sizing: 3% con conf 64% → clamped a max **6.4%** (post-hoc)
+- DEF 14A: 12K → **18K targeting extraction** con secciones clave
+
+---
+
+*Última actualización: 2026-05-10 — Oleada 1.5 (EC-21/22/23/24/25). 218 tests, verde.*
+

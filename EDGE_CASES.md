@@ -160,6 +160,37 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Causa**: prompt del competitive_agent tenía rúbrica mínima ("wide = durable advantage 10+ years") sin criterios objetivos. LLM aplicaba heurístico mental "ROIC alto = moat fuerte = wide".
 - **Patrón**: misma clase que EC-15 (FCF CAGR como growth), EC-18 (equity como IC). Signal único usado para conclusión multifactorial.
 - **Fix**: rúbrica estricta multi-criterio (ADR-024) + clamp post-hoc. Wide moat requiere ROIC>15% × 4 años, capital base estable, revenue CAGR ≥4%, evidencia estructural específica. Si LLM dice "wide" pero criterios cuantitativos fallan → downgrade automático.
+- **Commit**: `b84c401`
+
+### EC-29 — Tavily ticker collision (BBW vs BBWI, MS vs MSFT)
+- **Síntoma**: en sección "Extended news coverage" de BBW aparecen items sobre BBWI (Bath & Body Works) — cobertura contaminada. Items [1], [8], [9] del último report eran BBWI, no BBW.
+- **Causa**: queries Tavily de MCE-19 incluían `{ticker} {company_name}` — pero tickers cortos colisionan con tickers similares en search engines (BBW/BBWI). Yahoo Finance pages para BBWI ranking alto traen ruido.
+- **Fix**: drop ticker de las queries, usar SOLO `company_name`. "Build-A-Bear Workshop" es unívoco; "BBW" no. Patrón sistémico — afecta a cualquier ticker corto con prefix collision.
+- **Commit**: pendiente
+
+### EC-30 — 8-K filter format mismatch — 5 iteraciones con detección vacía
+- **Síntoma**: BBW reportaba "No material 8-K events" en TODAS las iteraciones tras Oleada 1, aunque la empresa tiene 16 8-K filings en los últimos 12 meses (incluyendo Items 8.01 y 5.02 — directamente en el filter).
+- **Causa raíz** (verificada en vivo): edgartools devuelve los items como `"Item 8.01"` (string con prefix "Item "). Nuestro filter comparaba contra `"8.01"` (sin prefix). Format mismatch silencioso → cero matches.
+- **Fix**: normalizar ambos lados — strip "Item " prefix en el filter Y en los items del filing antes de comparar (case-insensitive). Verificado live: BBW pasa de 0 a 7 eventos detectados.
+- **Lección**: el bug demuestra el meta-pattern de MCE-26 (auditoría sistemática post-fix): cuando expandimos el filter en MCE-20, deberíamos haber verificado contra una fixture real para ver el formato real de los items.
+- **Commit**: pendiente
+
+### EC-31 — DEF 14A targeted extraction capturaba TOC en lugar de la sección real
+- **Síntoma**: `mgmt.insider_ownership_pct=null` aunque la tabla está en el DEF 14A (verificado: BBW tiene "Sharon John 1.8%, Directors+Execs 4.0%" en la tabla de ownership).
+- **Causa**: `fetch_def14a_text` usaba `.find()` (primera ocurrencia) para localizar markers como "Security Ownership". El primer match siempre está en el Table of Contents — la sección real está más adelante. La extracción capturaba el TOC en lugar de la tabla.
+- **Fix**: encontrar TODAS las ocurrencias y usar la ÚLTIMA (la del cuerpo, no del TOC). Patrón idéntico a EC-27 fallback regex para Item 1A. Adicionalmente: ventana ampliada a 8K chars y max_chars total a 24K para acomodar tablas largas (BBW ownership table tiene ~5K chars con ~17 rows).
+- **Commit**: pendiente
+
+### EC-32 — Incremental ROIC sin número concreto en §5
+- **Síntoma**: §5 Growth decía "marginal ROIC appears positive" sin número — auditoría externa pidió valor concreto para que el reasoning sea accionable.
+- **Causa**: el `_format_context` solo emitía interpretación cualitativa (RISING/FALLING), no el número del cambio.
+- **Fix**: computar avg annual ΔROIC en pp/year y surfacearlo. Para BBW: "RISING — marginal ROIC > average (avg ΔROIC: +0.9pp/year over 3 years)".
+- **Commit**: pendiente
+
+### EC-33 — Headlines de news tratados como hechos validados
+- **Síntoma**: §7 cita "rising receivables risk margins" del título de SeekingAlpha como si fuera un concepto financiero real. El título original probablemente era "macro headwinds and rising receivables [are a] risk [to] margins" — truncado/parsed mal.
+- **Causa**: el Value Expert prompt no distingue entre "headline news" (título) y "validated claim" (corroborated by body, filings, or financial data).
+- **Fix**: regla #10 nueva en `_SYSTEM_PROMPT`: news headlines son sugerentes only. Quote a headline phrase as fact ONLY if corroborated by body summary, 10-K section, or financial data. Phrases con awkward wording que parecen parsing artifacts → ignorar.
 - **Commit**: pendiente
 
 ## Conocidos — pendientes de fix

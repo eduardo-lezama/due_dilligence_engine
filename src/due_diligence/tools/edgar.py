@@ -487,7 +487,7 @@ class EdgarManagementAdapter:
     """
 
     @staticmethod
-    def fetch_def14a_text(ticker: str, max_chars: int = 18000) -> str:
+    def fetch_def14a_text(ticker: str, max_chars: int = 24000) -> str:
         """
         Obtiene el texto del proxy statement (DEF 14A) más reciente con extracción
         targeting de secciones críticas (EC-25).
@@ -539,7 +539,10 @@ class EdgarManagementAdapter:
         # Sección 1: inicio (intro + governance + board)
         sections.append(text[:6000])
 
-        # Sección 2: tabla de ownership (multiples encabezados posibles)
+        # Sección 2: tabla de ownership (multiples encabezados posibles).
+        # Buscar TODAS las ocurrencias y usar la ÚLTIMA (la primera suele ser el TOC).
+        # EC-31: el bug detectado en BBW fue que el extractor capturaba el TOC en lugar
+        # de la tabla real porque usaba .find() (primer match).
         ownership_markers = [
             "Security Ownership of Certain Beneficial Owners",
             "Security Ownership of Management",
@@ -547,27 +550,49 @@ class EdgarManagementAdapter:
             "Stock Ownership",
             "Shares Beneficially Owned",
         ]
+        text_lower = text.lower()
         for marker in ownership_markers:
-            idx = text.lower().find(marker.lower())
-            if idx >= 0:
-                # Extraer 4K chars alrededor del marker (1K antes, 3K después)
-                start = max(0, idx - 500)
-                end = min(len(text), idx + 4000)
-                sections.append(f"\n\n[OWNERSHIP SECTION]\n{text[start:end]}")
+            marker_lower = marker.lower()
+            # find_all manual: localizar todas las posiciones
+            positions = []
+            start = 0
+            while True:
+                idx = text_lower.find(marker_lower, start)
+                if idx < 0:
+                    break
+                positions.append(idx)
+                start = idx + 1
+            if positions:
+                # Última ocurrencia = sección real (no TOC)
+                last_idx = positions[-1]
+                section_start = max(0, last_idx - 500)
+                # 8000 chars window captura el header + intro + tabla completa
+                # (las tablas de ownership pueden ocupar 3-5 páginas con rows por director/exec)
+                section_end = min(len(text), last_idx + 8000)
+                sections.append(f"\n\n[OWNERSHIP SECTION]\n{text[section_start:section_end]}")
                 break
 
-        # Sección 3: compensación
+        # Sección 3: compensación — mismo patrón (última ocurrencia)
         comp_markers = [
             "Compensation Discussion and Analysis",
             "Executive Compensation",
             "Summary Compensation Table",
         ]
         for marker in comp_markers:
-            idx = text.lower().find(marker.lower())
-            if idx >= 0:
-                start = max(0, idx - 500)
-                end = min(len(text), idx + 4500)
-                sections.append(f"\n\n[COMPENSATION SECTION]\n{text[start:end]}")
+            marker_lower = marker.lower()
+            positions = []
+            start = 0
+            while True:
+                idx = text_lower.find(marker_lower, start)
+                if idx < 0:
+                    break
+                positions.append(idx)
+                start = idx + 1
+            if positions:
+                last_idx = positions[-1]
+                section_start = max(0, last_idx - 500)
+                section_end = min(len(text), last_idx + 4500)
+                sections.append(f"\n\n[COMPENSATION SECTION]\n{text[section_start:section_end]}")
                 break
 
         combined = "".join(sections)
@@ -944,12 +969,21 @@ class EdgarEventsAdapter:
             log.warning("edgar_events_filings_fetch_failed", ticker=ticker, error=str(e))
             return []
 
+        # Normalizar el filter: edgartools devuelve "Item X.YY" pero el filter recibe
+        # "X.YY". Format mismatch silencioso = todos los filings filtrados out (EC-30).
+        # Aceptamos ambos formatos en el filter.
+        items_normalized = {i.replace("Item ", "").strip().lower() for i in items}
+
         events: list[dict] = []
         for f in filings:
             try:
                 obj = f.obj()
-                filed_items = list(getattr(obj, "items", []) or [])
-                matching = [i for i in filed_items if i in items]
+                filed_items_raw = list(getattr(obj, "items", []) or [])
+                # Normalizar items del filing: strip "Item " prefix para comparar
+                matching = [
+                    i for i in filed_items_raw
+                    if i.replace("Item ", "").strip().lower() in items_normalized
+                ]
                 if not matching:
                     continue
                 summary = str(getattr(obj, "summary", "") or "")[:600]

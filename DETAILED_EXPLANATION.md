@@ -2816,3 +2816,118 @@ Este patrón debería aplicarse a futuros bugs sistémicos.
 
 *Última actualización: 2026-05-10 — Oleada 2 (EC-26/27/28 + MCE-19/20/21) + ADR-024. 221 tests, verde.*
 
+---
+
+## Oleada 2.5 — Quinta auditoría BBW: bugs de detalle + diagnóstico (2026-05-10)
+
+### Estado tras Oleada 2
+
+La auditoría confirmó que **3 bugs estructurales mayores se resolvieron**: tariff narrative aparece, Item 1A se extrae, reverse DCF como anchor primario, moat calibration corregida. Quedaban refinements concretos:
+
+### EC-29 — Tavily ticker collision
+
+La nueva sección "Extended news coverage" (MCE-19) incluía items sobre **BBWI (Bath & Body Works)**, no BBW (Build-A-Bear). El ruido invalidaba parte del valor del fix.
+
+**Causa**: mis queries de MCE-19 usaban `{ticker} {company_name}` — pero el ticker corto "BBW" colisiona con "BBWI" en search engines. Yahoo Finance, etc, traían páginas de BBWI rankeando alto.
+
+**Fix**: drop ticker, usar solo `company_name`. "Build-A-Bear Workshop" es unívoco; "BBW" no. Sistémico: afecta a cualquier ticker corto con prefix collision (MS/MSFT, V/VZ, etc.).
+
+### EC-30 — El bug del 8-K que aguantó 5 iteraciones
+
+Tras Oleada 2 expandió el 8-K filter a 6 items (1.01, 2.02, 4.02, 5.02, 7.01, 8.01), BBW seguía con "No material 8-K events". Investigación en vivo:
+
+```
+Found 16 8-K filings:
+  2026-03-12 | items=['Item 9.01']
+  2026-03-11 | items=['Item 8.01', 'Item 9.01']
+  2026-02-10 | items=['Director/Officer Changes', 'Item 8.01']
+  2025-08-04 | items=['Item 5.02']
+  ...
+```
+
+BBW tenía **16 filings**, varios con Items 8.01 y 5.02 — exactamente los que filtrábamos. Pero el matching devolvía 0.
+
+**Causa raíz**: edgartools devuelve `"Item 8.01"` (string con prefix), nuestro filter compara contra `"8.01"` (sin prefix). **Format mismatch silencioso**. Los 16 filings entraban al loop, ningún item matcheaba con el filter, todo se descartaba.
+
+**Fix**: normalizar — strip "Item " prefix en ambos lados de la comparación:
+
+```python
+items_normalized = {i.replace("Item ", "").strip().lower() for i in items}
+matching = [i for i in filed_items_raw
+            if i.replace("Item ", "").strip().lower() in items_normalized]
+```
+
+**Resultado**: BBW pasa de 0 a 7 eventos detectados.
+
+**Lección meta**: este bug demuestra exactamente el patrón que MCE-26 está pensado para prevenir. Cuando expandimos el filter en MCE-20, NO verificamos el formato real de los items contra una fixture viva. Confiamos en que `"Item 8.01" in ["8.01", ...]` haría match — pero Python's `in` con strings es exact match, no substring. Una verificación de 30 segundos contra los datos reales habría detectado el bug entonces.
+
+### EC-31 — DEF 14A: el bug del Table of Contents
+
+Tras EC-25 (DEF 14A targeted extraction), el insider ownership % seguía vacío. Diagnóstico en vivo reveló:
+
+```
+Full DEF 14A length: 257,424 chars
+'Security Ownership of Certain Beneficial Owners': 2 matches at offsets [8278, 25413]
+                                                                          ^^^^   ^^^^^
+                                                                          TOC    BODY
+```
+
+El extractor usaba `.find()` (primera ocurrencia) y capturaba el offset 8278 — que está en el **Table of Contents** del proxy ("Security Ownership of Certain Beneficial Owners ... page 4"). La sección REAL con la tabla estaba en offset 25,413.
+
+**Fix**: encontrar TODAS las ocurrencias, usar la **ÚLTIMA** (la del cuerpo, no del índice):
+
+```python
+positions = []
+start = 0
+while True:
+    idx = text_lower.find(marker_lower, start)
+    if idx < 0: break
+    positions.append(idx)
+    start = idx + 1
+last_idx = positions[-1]  # body, not TOC
+```
+
+Mismo patrón que el regex fallback de Item 1A en EC-27 (también usaba `matches[-1]`). **Aplicar este patrón a cualquier extracción que busque sections en documentos con TOC**.
+
+Verificado live: BBW ahora muestra la tabla completa de ownership con "Sharon John 1.8%, All Directors + Execs as group: 4.0%". El LLM puede extraer el insider ownership total.
+
+### EC-32 — Incremental ROIC: del cualitativo al cuantitativo
+
+§5 decía "marginal ROIC appears positive" sin número. La interpretación cualitativa (RISING/FALLING) no era accionable.
+
+**Fix**: computar y surfacear el delta promedio anual en pp:
+
+```python
+avg_annual_delta_pp = (roic_latest - roic_oldest) / n_periods * 100
+# Para BBW: (40.2% - 30.7%) / 3 años = +3.2 pp/año
+```
+
+Output: `"RISING — marginal ROIC > average (avg ΔROIC: +3.2pp/year over 3 years)"`.
+
+Patrón idéntico al reinvestment rate (EC-22) y margin trend (EC-26): **precomputar y surfacear el dato concreto**, no esperar que el LLM infiera.
+
+### EC-33 — Headlines tratados como hechos
+
+§7 citaba "rising receivables risk margins" del título de SeekingAlpha como concepto financiero. El título original era *"macro headwinds and rising receivables risk margins"* — truncado/mal-parseado, sin sentido coherente.
+
+El Value Expert no distinguía entre headline (título) y validated claim (cuerpo + filings + financial data).
+
+**Fix**: nueva regla en `_SYSTEM_PROMPT`:
+
+> "News headlines are TITLES, not validated claims. Treat as suggestive only. Quote a headline as fact ONLY if corroborated by article body, 10-K section, or financial data. If a headline contains awkward phrasing or parsing artifact, ignore entirely."
+
+### El meta-patrón confirmado por quinta vez
+
+5 iteraciones después, los bugs siguen un patrón consistente:
+
+1. **Format mismatch silencioso** (EC-30: "Item 8.01" vs "8.01") — el sistema asume formato uniforme
+2. **First-match bias** (EC-31: TOC vs body) — `.find()` primera ocurrencia es engañosa para documentos con TOC
+3. **Heurísticos contaminados** (EC-29: ticker en queries) — atajo válido para humanos, ruido para search engines
+4. **Trust de fuentes secundarias** (EC-33: headlines como facts) — falta gating de calidad
+
+**Solución arquitectónica recurrente**: el patrón "rúbrica + clamp + logging" sigue funcionando. Cada vez que añadimos extracción nueva, seguir la regla MCE-26: **verificar contra datos reales antes de declarar fix completo**.
+
+---
+
+*Última actualización: 2026-05-10 — Oleada 2.5 (EC-29/30/31/32/33). 221 tests, verde.*
+

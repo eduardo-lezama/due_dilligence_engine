@@ -180,12 +180,15 @@ def _fetch_drawdown_context_news(
         triggering_extended_news=True,
     )
 
-    # Queries targeting catalizadores típicos de drawdowns. time_range=None para máxima
-    # cobertura histórica; el LLM downstream filtra por relevancia.
+    # Queries targeting catalizadores típicos de drawdowns (EC-29).
+    # IMPORTANTE: usar SOLO company_name, NO ticker. Tickers cortos colisionan en search:
+    # "BBW" trae resultados de "BBWI" (Bath & Body Works), "MS" trae Microsoft, etc.
+    # El nombre completo de la empresa es ya unívoco — el ticker añade ruido sin valor.
+    # time_range=None para máxima cobertura histórica; el LLM downstream filtra por relevancia.
     queries = [
         (f"{company_name} stock decline drop guidance miss profit warning", None),
-        (f"{ticker} {company_name} tariff supply chain margin compression", None),
-        (f"{ticker} {company_name} regulatory risk SEC investigation", None),
+        (f"{company_name} tariff supply chain margin compression", None),
+        (f"{company_name} regulatory risk SEC investigation", None),
     ]
     try:
         results = TavilyAdapter.search(queries)

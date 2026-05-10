@@ -69,7 +69,8 @@ RULES — NON-NEGOTIABLE:
 7. §5 Growth & Reinvestment MUST report the reinvestment rate (capex as % of OCF) when 'Reinvestment rate' is in context. State whether the company is in invest mode (>50%), balanced (20-50%), or harvest mode (<20%).
 8. §7 Risks MUST cross-check signals: if (a) news flow shows price decline AND (b) insider activity shows selling at higher prices recently AND (c) margin trends are deteriorating, name this combination explicitly as a "value trap signal pattern" — multiple signs pointing the same direction.
 9. If a section lacks sufficient data, say so explicitly rather than speculating.
-10. Return ONLY valid JSON. No markdown fences, no preamble, no commentary outside the JSON.
+10. NEWS HEADLINE QUALITY: news headlines from Finnhub/Tavily are TITLES, not validated claims. Treat them as suggestive only. Quote a headline phrase as a fact ONLY if it is corroborated by either: (a) the article body summary, (b) a 10-K/10-Q section, or (c) financial data in the context. Phrases like "rising receivables risk margins" appearing only in a title are not financial claims — do not echo them as if validated. If a news headline contains awkward phrasing or what looks like a parsing artifact, ignore it entirely.
+11. Return ONLY valid JSON. No markdown fences, no preamble, no commentary outside the JSON.
 
 VERDICT RUBRIC:
 - BUY: moat confirmed + quality management + DCF upside >20% + no material 8-K red flags + conflicting signals resolved in favor of the bull case.
@@ -150,17 +151,21 @@ def _format_context(state: AnalysisState) -> str:
         if financials.roic_series:
             roic_str = ", ".join(f"{r.period}: {r.value:.1%}" for r in financials.roic_series[:3])
             lines.append(f"ROIC series: {roic_str}")
-            # Incremental ROIC proxy (Fix #3 / EC-26): la tendencia del ROIC dice si el capital
-            # marginal está ganando ≥ retorno que la base. Crítico para §5 Growth & Reinvestment.
+            # Incremental ROIC proxy (Fix #3 + EC-32): tendencia + delta concreto en pp.
+            # Antes solo emitíamos interpretación cualitativa (RISING/FALLING). Auditoría
+            # externa pidió el número concreto: "marginal ROIC appears positive" sin valor
+            # no es accionable. Ahora computamos avg annual delta en percentage points.
             if len(financials.roic_series) >= 2:
                 roic_latest = financials.roic_series[0].value
                 roic_oldest = financials.roic_series[-1].value
-                if roic_latest > roic_oldest * 1.05:  # +5% relative
-                    interp = "RISING — marginal ROIC > average ROIC (new capital earning above base)"
-                elif roic_latest < roic_oldest * 0.95:  # -5% relative
-                    interp = "FALLING — marginal ROIC < average ROIC (capital deployment value-destructive)"
+                n_periods = len(financials.roic_series) - 1  # 4 años → 3 deltas
+                avg_annual_delta_pp = (roic_latest - roic_oldest) / n_periods * 100  # en pp
+                if roic_latest > roic_oldest * 1.05:
+                    interp = f"RISING — marginal ROIC > average (avg ΔROIC: +{avg_annual_delta_pp:.1f}pp/year over {n_periods} years)"
+                elif roic_latest < roic_oldest * 0.95:
+                    interp = f"FALLING — marginal ROIC < average (avg ΔROIC: {avg_annual_delta_pp:.1f}pp/year over {n_periods} years)"
                 else:
-                    interp = "STABLE — marginal ROIC ≈ average ROIC"
+                    interp = f"STABLE — marginal ROIC ≈ average (avg ΔROIC: {avg_annual_delta_pp:+.1f}pp/year)"
                 lines.append(f"ROIC trend interpretation (use in §5): {interp}")
         if financials.total_debt is not None:
             lines.append(f"Total Debt: {_fmt_usd(financials.total_debt.value)}")

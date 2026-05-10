@@ -2255,3 +2255,233 @@ El patrón de fallo siempre fue el mismo: **el sistema tomó un diseño razonabl
 
 *Última actualización: 2026-05-10 — Fixes EC-14/15/16 + ADR-022. 203 tests, verde.*
 
+---
+
+## Oleada 1 — Fixes sistémicos post-auditoría BBW (2026-05-10)
+
+### El detonante: segundo análisis revela 4 bugs estructurales
+
+Tras una segunda auditoría del informe de BBW por modelo externo, se detectaron 4 problemas adicionales con un patrón común: **el sistema fue diseñado y testeado contra empresas tipo AAPL (large cap, equity grande, news flow constante) y falla sistemáticamente en otros arquetipos del universo value investing**.
+
+Lo crítico: estos no eran bugs específicos de BBW. Afectan a:
+- **Cualquier empresa con buybacks acumulados** (AutoZone, Domino's, BBW) — ROIC no calculable.
+- **Cualquier análisis con stock en drawdown** — news coverage pierde la noticia clave.
+- **Cualquier empresa que devuelve capital al accionista** — la tesis core invisible al sistema.
+
+### EC-17 — El bug que regresó: `$0.0B` en el Critic
+
+Cuando arreglamos EC-14, buscamos `/1e9` en `value_expert.py` y `archiver.py`. Pero olvidamos `critic.py`. El Critic seguía haciendo el mismo cálculo roto:
+
+```python
+# critic.py — antes
+fcf_trend = [f"{f.period}: ${f.value/1e9:.1f}B" for f in financials.free_cash_flow[:3]]
+```
+
+Para BBW, esto enviaba al LLM "FCF trend: FY2026: $0.0B, FY2025: $0.0B, FY2024: $0.0B". El Critic lo reproducía fielmente en su crítica — generando una contradicción interna en el report (§4 decía "$40M FCF", el Critic decía "$0.0B FCF").
+
+**El fix arquitectónico**: centralizar el formatter en `utils/formatting.py` como single source of truth.
+
+```python
+# utils/formatting.py — único punto de definición
+def fmt_usd(value: float) -> str:
+    abs_v = abs(value)
+    if abs_v >= 1e9:   return f"${value / 1e9:.1f}B"
+    elif abs_v >= 1e6: return f"${value / 1e6:.0f}M"
+    elif abs_v >= 1e3: return f"${value / 1e3:.0f}k"
+    else:              return f"${value:.0f}"
+```
+
+Todos los módulos importan desde aquí. **Cualquier mejora futura del formateo se aplica automáticamente a todos los consumidores** — no hay forma de que un módulo se quede atrás.
+
+**Lección meta** (registrada como MCE-26): cuando se arregla un bug, ejecutar `Grep` del patrón en TODO el código. La búsqueda manual es frágil. EC-14 → EC-17 demostró que falla.
+
+### EC-18 — ROIC fragile para empresas que devuelven capital
+
+Esto es el bug más sutil y conceptualmente importante. La fórmula original:
+
+```
+Invested Capital = Equity + Total_Debt - Cash
+```
+
+Representa "capital aportado por financiadores que sigue en la empresa". Pero **cuando una empresa hace buybacks agresivos**, los financiadores recuperaron parte de su capital. El equity contable se reduce porque el treasury stock (acciones recompradas) se resta del patrimonio.
+
+**El problema**: empresas como AutoZone o Domino's tienen equity persistentemente NEGATIVO porque sus buybacks acumulados superan los retained earnings. Para BBW, después de años de buybacks, el equity es muy bajo.
+
+Cuando `IC ≤ 0`, el sistema no calculaba ROIC y devolvía `roic_series=[]`. **Esto excluía silenciosamente una clase entera del universo value** — exactamente los compounders que un value investor quiere identificar.
+
+**La solución conceptual**: cambiar la pregunta. En lugar de "¿qué capital aportaron los financiadores?" usar "¿qué activos operativos están desplegados?". Si los activos operativos siguen ahí (PP&E, inventario, working capital) y siguen generando NOPAT, el ROIC es calculable.
+
+```python
+ic_primary  = equity + total_debt - cash             # balance sheet view
+ic_fallback = total_assets - cash                    # operating asset view
+
+threshold = 0.10 * ic_fallback
+
+if ic_primary > threshold and ic_primary > 0:
+    ic_value = ic_primary       # método estándar — funciona para AAPL etc
+else:
+    ic_value = ic_fallback      # fallback — funciona para AutoZone, BBW
+```
+
+El threshold 10% detecta automáticamente cuándo el primary es degenerado. Para AAPL la primaria gana (caso normal). Para BBW, equity bajo → fallback se activa → ROIC se calcula con base de activos operativos.
+
+**Por qué esto es Greenblatt-light**: Joel Greenblatt (autor de "The Little Book That Beats the Market") usa una fórmula similar — `Net Working Capital + Net PP&E` como denominador del ROIC. Es el "operating capital deployed". Nuestro fallback `Total Assets - Cash` es una aproximación más simple pero del mismo espíritu: enfocarse en activos operativos, no en capital structure.
+
+### EC-19 — Capital returns: la tesis invisible
+
+Para BBW, la tesis central de inversión es: **devuelve ~100% del FCF al accionista vía buybacks + dividendos**. Esto era completamente invisible al sistema porque `FinancialsReport` no tenía campos para buybacks ni dividends.
+
+```python
+# Schema extendido (ADR-023)
+class FinancialsReport(BaseModel):
+    ...
+    buybacks: list[MetricValue] = Field(default_factory=list)
+    dividends: list[MetricValue] = Field(default_factory=list)
+```
+
+El parser de EDGAR ahora extrae `PaymentsForRepurchaseOfCommonStock` y `PaymentsOfDividendsCommonStock` del XBRL. El Value Expert recibe en su contexto:
+
+```
+Capital returned to shareholders (FY2026): $39M (buybacks $28M, dividends $11M) = 97% of FCF
+```
+
+Y una **regla dura en el system prompt**: *"§4 Financial Quality: if 'Capital returned to shareholders' is in context, you MUST report it explicitly with % of FCF."*
+
+**Por qué la regla dura es crítica**: el LLM no infiere automáticamente que un dato debe surfacearse. Si no se le instruye explícitamente, omite señales obvias. La regla "MUST" convierte un dato en obligatorio.
+
+### EC-20 — Subject row defensa en profundidad
+
+Este es un fix simple pero importante: la tabla de peer comparison nunca debe quedar sin la fila del subject. Antes, si el ROIC del subject no era calculable, la fila se omitía silenciosamente — el lector veía solo los peers sin el ancla.
+
+```python
+# archiver.py — comportamiento nuevo
+if financials.roic_series:
+    # ROIC calculable — fila normal
+    lines.append(f"| **{ticker}** | **{roic:.1%}** | {trend} | ← subject |")
+else:
+    # ROIC no calculable — fila explícita en lugar de subject ausente
+    lines.append(f"| **{ticker}** | N/A — IC indeterminate | — | ← subject |")
+```
+
+**Por qué es defensa en profundidad**: aunque el fix de EC-18 ya resuelve la causa upstream (ROIC ahora se calcula incluso para buyback-heavy), si en el futuro hay otro bug que produce `roic_series=[]`, el subject row sigue apareciendo con explicación honesta. El sistema falla gracefully.
+
+### El meta-patrón aprendido
+
+Los 4 fixes (más los 3 anteriores) tienen una raíz común: **el sistema asume implícitamente "AAPL-like" — large cap, equity grande, news constante, sin buybacks agresivos**. Cuando se aplica al universo real de value investing (small caps, compounders que devuelven capital, stocks en drawdown), las asunciones se rompen.
+
+**Mitigación estructural** (registrada como MCE-25): añadir test fixtures de 4 arquetipos al test suite:
+- Large cap normal (AAPL — existente)
+- Small cap rentable (BBW)
+- Buyback-heavy con equity bajo/negativo (AutoZone)
+- Asset-light services (PRDO)
+
+Cada bug debe validarse contra al menos 2 arquetipos antes de declararse fixed. Esto convierte la búsqueda manual de bugs duplicados en regression tests estructurados.
+
+### Oleadas 2 y 3 — diferidas pero documentadas
+
+Las **Oleadas 2 (cobertura)** y **3 (prompt engineering)** quedan documentadas en `docs/mce-evolution.md` como MCE-19 a MCE-26 con triggers explícitos:
+
+- **Oleada 2.1** (MCE-19): news coverage extendida con Tavily + ventana adaptativa para drawdown stocks.
+- **Oleada 2.2** (MCE-20): 8-K filter ampliado (Items 1.01, 7.01, 8.01).
+- **Oleada 2.3** (MCE-21): reverse DCF como número primario cuando hay contradicción.
+- **Oleada 3.1** (MCE-22): reglas duras al Value Expert para reconciliación de señales.
+- **Oleada 3.2** (MCE-23): Critic recibe flags estructurados.
+- **Meta** (MCE-25, MCE-26): test fixtures multi-arquetipo y auditoría sistemática post-fix.
+
+Estos están documentados con triggers concretos para que cualquier siguiente conversación pueda decidir cuándo activarlos sin re-investigar.
+
+---
+
+*Última actualización: 2026-05-10 — Oleada 1 (fixes EC-17/18/19/20) + ADR-023 + roadmap MCE-19 a 26. 204 tests, verde.*
+
+---
+
+## MCE-22 + MCE-23 + MCE-26 — Activación de señales que ya existían (2026-05-10)
+
+### El insight: los datos estaban, los prompts no los exigían
+
+Tras Oleada 1, el sistema tenía la información para responder muchas preguntas críticas que el Value Expert seguía dejando vacías:
+- "¿El CEO vendió @ $73 y ahora cotiza a $38?" — datos en contexto, no se conectaban.
+- "¿Qué % del FCF se reinvierte vs se devuelve?" — capex/OCF disponibles, no calculado.
+- "¿Hay value trap pattern (caída + insider selling + margin compression)?" — todos los datos en state, no se cross-checkean.
+
+**Aprendizaje clave**: un LLM no sintetiza señales transversales sin instrucción explícita. Confiar en que "lo notará" produce reports que omiten lo obvio. Cada conexión cross-section que importa debe ser una **regla MUST en el system prompt**.
+
+### MCE-22 — Tres reglas MUST que conectan secciones
+
+Tres reglas duras añadidas al `_SYSTEM_PROMPT` del Value Expert:
+
+**§3 Management — reconciliación de precio insider vs precio actual**:
+> "MUST reconcile insider sale prices vs current market price when both are in context. If gap >15%, state explicitly what it implies (selling at peak before crash = potential value trap signal)."
+
+Antes: el LLM tenía "CEO sold @ $73" y "current price $38" en contextos separados. No los conectaba. Ahora la regla obliga a ejecutar la división mental.
+
+**§5 Growth — reinvestment rate precomputado**:
+
+El reinvestment rate (capex / OCF) se calcula ahora en `_format_context` con etiqueta legible:
+
+```
+Reinvestment rate (capex/OCF, FY2026): 12% — harvest mode
+```
+
+Las tres categorías son significativas para value investing:
+- **Invest mode (>50%)**: empresa crece reinvirtiendo agresivamente — runway largo, ROIC futuro depende de incremental ROIC
+- **Balanced (20-50%)**: típico de empresas maduras saludables
+- **Harvest mode (<20%)**: empresa madura sin oportunidades de reinversión — puede ser bueno (returns capital) o malo (declive estructural)
+
+La regla MUST obliga al Expert a categorizar y razonar sobre el modo.
+
+**§7 Risks — value trap pattern check**:
+> "Cross-check signals: if (a) news flow shows price decline AND (b) insider activity shows selling at higher prices recently AND (c) margin trends are deteriorating, name this combination explicitly as a 'value trap signal pattern'."
+
+Esto convierte tres señales sueltas en un patrón nombrado. La psicología importa: el Expert es más probable que llame algo "value trap" cuando el prompt ya tiene esa expresión disponible.
+
+### MCE-23 — El Critic deja de depender del Expert para ver flags
+
+El Critic recibía solo el output del Expert + datos crudos. Si el Expert decidía no mencionar una contradicción DCF o margin compression, el Critic no la veía y no podía construir contra-argumento sobre ella.
+
+Nueva función `_detect_red_flags(state)` en `critic.py`:
+
+```python
+def _detect_red_flags(state: AnalysisState) -> list[str]:
+    flags = []
+    # Flag 1: DCF forward/reverse contradiction
+    # Flag 2: capital returns >80% del FCF (mature business)
+    # Flag 3: margin compression 3+ años consecutivos
+    # Flag 4: price collapse + insider activity (value trap signal)
+    return flags
+```
+
+Los flags se inyectan como sección `## DETECTED FLAGS` en el prompt del Critic, con texto orientado a la acción ("Use this to challenge the upside as artifact, not opportunity"). El Critic los recibe como **pivotes concretos** en lugar de tener que deducirlos.
+
+**Ejemplo de impacto en BBW**: el Critic ahora recibe:
+```
+- HIGH CAPITAL RETURN (97% of FCF): the company returns nearly all its cash to
+  shareholders. Bull narrative may frame this as 'shareholder-friendly' but a
+  contrarian view: it signals limited reinvestment opportunities — a mature/
+  declining business with no growth runway. Challenge the growth thesis.
+- PRICE COLLAPSE + INSIDER ACTIVITY (49% from 52w high): the stock has fallen
+  materially while insider activity is reported. Cross-check: did insiders sell
+  at higher prices before the drop? If yes, this is a value trap signal...
+```
+
+El Critic puede ahora construir un contra-argumento estructural en lugar de solo objetar a falta de datos.
+
+### MCE-26 — La regla que evita que regresiones como EC-17 se repitan
+
+Sección nueva en `CLAUDE.md` raíz: **"Cuando se arregla un bug — auditoría sistemática post-fix"**.
+
+La regla en 4 pasos:
+1. Identificar el patrón problemático (e.g. `/1e9`, "asume equity > 0").
+2. Ejecutar `Grep` del patrón en TODO `src/` — no solo el archivo donde se vio.
+3. Para cada ocurrencia adicional: arreglar o documentar como excepción justificada.
+4. Solo entonces declarar el fix completo.
+
+El detonante de esta regla fue exactamente EC-14 → EC-17: arreglamos `/1e9` en `value_expert.py` y `archiver.py`, olvidamos `critic.py` y `competitive.py`. El bug regresó parcialmente y hubo que arreglar retroactivamente.
+
+**Por qué funciona**: la búsqueda manual basada en "donde recuerdo que está el patrón" es estructuralmente frágil. Es solo cuestión de tiempo hasta que un módulo se quede atrás. La regla `Grep` exhaustivo elimina esa categoría entera de regresiones — costo: 30 segundos por fix.
+
+---
+
+*Última actualización: 2026-05-10 — Oleada 1 + MCE-22 + MCE-23 + MCE-26. 213 tests, verde.*
+

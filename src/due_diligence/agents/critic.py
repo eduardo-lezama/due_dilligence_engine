@@ -35,6 +35,7 @@ from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
 from due_diligence.llm.client import get_client
 from due_diligence.schemas.reports import CriticReport
+from due_diligence.utils.formatting import fmt_usd
 
 log = structlog.get_logger()
 
@@ -68,7 +69,11 @@ def _build_critic_prompt(state: AnalysisState) -> str:
     """
     Construye el prompt para el critic con el contexto relevante.
 
-    El critic recibe: el VERDICT del Expert + los datos crudos clave.
+    El critic recibe: el VERDICT del Expert + los datos crudos clave + flags
+    estructurados detectados por el sistema (MCE-23). Los flags son señales
+    cuantitativas que el critic puede usar como munición concreta para el
+    contra-argumento sin tener que deducirlas del texto del Expert.
+
     No recibe el razonamiento completo del Expert para evitar anclaje.
     """
     ticker = state["ticker"]
@@ -94,11 +99,11 @@ def _build_critic_prompt(state: AnalysisState) -> str:
             roic_str = ", ".join(f"{r.period}: {r.value:.1%}" for r in financials.roic_series[:3])
             lines.append(f"ROIC: {roic_str}")
         if financials.free_cash_flow:
-            fcf_trend = [f"{f.period}: ${f.value/1e9:.1f}B" for f in financials.free_cash_flow[:3]]
+            fcf_trend = [f"{f.period}: {fmt_usd(f.value)}" for f in financials.free_cash_flow[:3]]
             lines.append(f"FCF trend: {', '.join(fcf_trend)}")
         if financials.total_debt is not None and financials.cash_and_equivalents is not None:
             net_debt = financials.total_debt.value - financials.cash_and_equivalents.value
-            lines.append(f"Net debt: ${net_debt/1e9:.1f}B")
+            lines.append(f"Net debt: {fmt_usd(net_debt)}")
         lines.append("")
 
     filings = state.get("filings")  # type: ignore[typeddict-item]
@@ -118,8 +123,103 @@ def _build_critic_prompt(state: AnalysisState) -> str:
             lines.append(f"EV/FCF: {valuation.ev_fcf_multiple.value:.1f}x")
         lines.append("")
 
+    # MCE-23: Detected flags — señales cuantitativas que el sistema ha precalculado
+    # para que el Critic no tenga que deducirlas del texto narrativo del Expert.
+    # Cada flag es accionable: el Critic puede usar el flag como pivote del contra-argumento.
+    flags = _detect_red_flags(state)
+    if flags:
+        lines.append("## DETECTED FLAGS (use these as pivots for the contra-thesis)")
+        for f in flags:
+            lines.append(f"- {f}")
+        lines.append("")
+
     lines.append("Now identify the weaknesses. Be blunt. Return valid JSON only.")
     return "\n".join(lines)
+
+
+def _detect_red_flags(state: AnalysisState) -> list[str]:
+    """
+    Detecta señales rojas estructuradas que el Critic debe considerar (MCE-23).
+
+    Cada flag es una observación cuantitativa derivada del state — no opinión.
+    El Critic los recibe como pivotes concretos para construir su contra-argumento.
+
+    Flags actuales:
+        1. DCF contradiction (forward vs reverse divergen >5pp)
+        2. Capital returns >80% del FCF (empresa madura sin reinversión)
+        3. Margin compression 3+ años consecutivos
+        4. Net debt creciente vs FCF estable (palanca financiera sin growth)
+    """
+    flags: list[str] = []
+
+    # Flag 1: DCF contradiction (ya existe el cálculo en valuation.py)
+    valuation = state.get("valuation")  # type: ignore[typeddict-item]
+    if valuation is not None and not valuation.stub and valuation.dcf_reliability_note:
+        if "contradiction" in valuation.dcf_reliability_note.lower():
+            flags.append(
+                "DCF FORWARD/REVERSE CONTRADICTION: the bull case DCF upside is "
+                "conditional on growth assumptions the market does not currently price. "
+                "Use this to challenge the upside as artifact, not opportunity."
+            )
+
+    financials = state.get("financials")  # type: ignore[typeddict-item]
+
+    # Flag 2: capital returns >80% del FCF → empresa madura, sin reinversión
+    if financials is not None:
+        if financials.free_cash_flow and (financials.buybacks or financials.dividends):
+            fcf_v = financials.free_cash_flow[0].value
+            buyback_v = financials.buybacks[0].value if financials.buybacks else 0.0
+            dividend_v = financials.dividends[0].value if financials.dividends else 0.0
+            total_returned = buyback_v + dividend_v
+            if fcf_v > 0:
+                pct = total_returned / fcf_v * 100
+                if pct >= 80:
+                    flags.append(
+                        f"HIGH CAPITAL RETURN ({pct:.0f}% of FCF): the company returns nearly all "
+                        f"its cash to shareholders. Bull narrative may frame this as 'shareholder-friendly' "
+                        f"but a contrarian view: it signals limited reinvestment opportunities — "
+                        f"a mature/declining business with no growth runway. Challenge the growth thesis."
+                    )
+
+    # Flag 3: margin compression 3+ años consecutivos
+    if financials is not None and financials.gross_profit and financials.revenue:
+        if len(financials.gross_profit) >= 3 and len(financials.revenue) >= 3:
+            margins = []
+            for gp, rev in zip(financials.gross_profit, financials.revenue):
+                if rev.value > 0:
+                    margins.append(gp.value / rev.value)
+            # margins[0] = most recent; descendente = compresión
+            if len(margins) >= 3 and all(margins[i] < margins[i + 1] for i in range(2)):
+                trend = " → ".join(f"{m:.1%}" for m in reversed(margins[:3]))
+                flags.append(
+                    f"STRUCTURAL MARGIN COMPRESSION: gross margin has fallen 3 consecutive years "
+                    f"({trend}). This is not cyclical noise — it suggests pricing power erosion or "
+                    f"input cost pressure that management cannot pass through. Use to challenge "
+                    f"any moat claim the bull case makes."
+                )
+
+    # Flag 4: insider sale price gap — si hay management report con citations
+    # que reporten precios de venta y el precio actual ha caído sustancialmente
+    mgmt = state.get("mgmt")  # type: ignore[typeddict-item]
+    market = state.get("market")  # type: ignore[typeddict-item]
+    if (mgmt is not None and not mgmt.stub
+            and market is not None and not market.stub
+            and market.price_current is not None
+            and market.price_52w_high is not None):
+        # Heurístico: si el precio actual está a <60% del 52w high
+        # Y hay insider transaction pattern reportado — value trap signal candidate
+        ratio = market.price_current.value / market.price_52w_high.value if market.price_52w_high.value > 0 else 1.0
+        if ratio < 0.60 and mgmt.insider_transaction_pattern:
+            drop_pct = (1 - ratio) * 100
+            flags.append(
+                f"PRICE COLLAPSE + INSIDER ACTIVITY ({drop_pct:.0f}% from 52w high): "
+                f"the stock has fallen materially while insider activity is reported. "
+                f"Cross-check: did insiders sell at higher prices before the drop? "
+                f"If yes, this is a value trap signal, not a contrarian opportunity. "
+                f"Challenge the bull case on this directly."
+            )
+
+    return flags
 
 
 def _parse_response(response_text: str, ticker: str) -> CriticReport:

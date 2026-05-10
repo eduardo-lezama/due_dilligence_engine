@@ -149,6 +149,118 @@ def test_parse_empty_weaknesses_allowed():
 
 
 # ---------------------------------------------------------------------------
+# Tests: _detect_red_flags (MCE-23)
+# ---------------------------------------------------------------------------
+
+def test_detect_red_flags_dcf_contradiction():
+    """Si valuation tiene flag de contradicción DCF, _detect_red_flags lo emite."""
+    from due_diligence.agents.critic import _detect_red_flags
+    from due_diligence.schemas.reports import ValuationReport
+
+    state = {
+        "ticker": "FAKE",
+        "valuation": ValuationReport(
+            ticker="FAKE", stub=False,
+            dcf_reliability_note="⚠️ DCF contradiction: forward DCF assumes 25% but market prices -2%.",
+        ),
+    }
+    flags = _detect_red_flags(state)
+    assert any("contradiction" in f.lower() for f in flags)
+
+
+def test_detect_red_flags_high_capital_returns():
+    """Capital returns >80% del FCF dispara flag de empresa madura sin reinversión."""
+    from due_diligence.agents.critic import _detect_red_flags
+    from due_diligence.schemas.base import FinancialsReport, MetricValue
+    from datetime import date
+
+    state = {
+        "ticker": "MATURE",
+        "financials": FinancialsReport(
+            ticker="MATURE", cik="0000001", as_of_date=date(2026, 1, 31),
+            revenue=[MetricValue(value=500_000_000, unit="USD", period="FY2026", source="XBRL")],
+            gross_profit=[],
+            operating_income=[],
+            net_income=[],
+            operating_cash_flow=[],
+            capex=[],
+            free_cash_flow=[MetricValue(value=40_000_000, unit="USD", period="FY2026", source="calculated")],
+            buybacks=[MetricValue(value=28_000_000, unit="USD", period="FY2026", source="XBRL")],
+            dividends=[MetricValue(value=11_000_000, unit="USD", period="FY2026", source="XBRL")],
+            total_assets=MetricValue(value=200_000_000, unit="USD", period="FY2026", source="XBRL"),
+            total_debt=MetricValue(value=0, unit="USD", period="FY2026", source="XBRL"),
+            cash_and_equivalents=MetricValue(value=27_000_000, unit="USD", period="FY2026", source="XBRL"),
+            shares_outstanding=MetricValue(value=12_000_000, unit="shares", period="FY2026", source="XBRL"),
+            source_filing="10-K FY2026",
+        ),
+    }
+    flags = _detect_red_flags(state)
+    # 39M / 40M = 97.5% del FCF → flag se activa
+    assert any("HIGH CAPITAL RETURN" in f for f in flags)
+
+
+def test_detect_red_flags_margin_compression_3y():
+    """3+ años de compresión de gross margin → flag estructural."""
+    from due_diligence.agents.critic import _detect_red_flags
+    from due_diligence.schemas.base import FinancialsReport, MetricValue
+    from datetime import date
+
+    # Margins: FY2026 18.4%, FY2025 19.8%, FY2024 21.2% (descendente desde más antiguo)
+    state = {
+        "ticker": "DECLINE",
+        "financials": FinancialsReport(
+            ticker="DECLINE", cik="0000001", as_of_date=date(2026, 1, 31),
+            revenue=[
+                MetricValue(value=1_100_000_000, unit="USD", period="FY2026", source="XBRL"),
+                MetricValue(value=1_050_000_000, unit="USD", period="FY2025", source="XBRL"),
+                MetricValue(value=1_000_000_000, unit="USD", period="FY2024", source="XBRL"),
+            ],
+            gross_profit=[
+                MetricValue(value=202_000_000, unit="USD", period="FY2026", source="XBRL"),  # 18.4%
+                MetricValue(value=208_000_000, unit="USD", period="FY2025", source="XBRL"),  # 19.8%
+                MetricValue(value=212_000_000, unit="USD", period="FY2024", source="XBRL"),  # 21.2%
+            ],
+            operating_income=[],
+            net_income=[],
+            operating_cash_flow=[],
+            capex=[],
+            free_cash_flow=[],
+            total_assets=MetricValue(value=500_000_000, unit="USD", period="FY2026", source="XBRL"),
+            total_debt=MetricValue(value=0, unit="USD", period="FY2026", source="XBRL"),
+            cash_and_equivalents=MetricValue(value=50_000_000, unit="USD", period="FY2026", source="XBRL"),
+            shares_outstanding=MetricValue(value=12_000_000, unit="shares", period="FY2026", source="XBRL"),
+            source_filing="10-K FY2026",
+        ),
+    }
+    flags = _detect_red_flags(state)
+    assert any("MARGIN COMPRESSION" in f for f in flags)
+
+
+def test_detect_red_flags_no_flags_when_clean():
+    """Empresa sana sin flags → lista vacía."""
+    from due_diligence.agents.critic import _detect_red_flags
+    flags = _detect_red_flags({"ticker": "CLEAN"})
+    assert flags == []
+
+
+def test_critic_prompt_includes_detected_flags(mocker):
+    """El prompt del critic incluye la sección DETECTED FLAGS cuando hay flags."""
+    from due_diligence.schemas.reports import ValuationReport
+    mock_client = _mock_critic(mocker)
+    state = {
+        "ticker": "FAKE",
+        "valuation": ValuationReport(
+            ticker="FAKE", stub=False,
+            dcf_reliability_note="⚠️ DCF contradiction detected.",
+        ),
+    }
+    critic_agent(state)
+    user_prompt = mock_client.complete.call_args.kwargs["messages"][0]["content"]
+    assert "DETECTED FLAGS" in user_prompt
+    assert "contradiction" in user_prompt.lower()
+
+
+# ---------------------------------------------------------------------------
 # Tests: _build_critic_prompt
 # ---------------------------------------------------------------------------
 

@@ -83,6 +83,31 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Síntoma**: forward DCF asume 25.6% growth (→ +255% upside) pero reverse DCF implica 1.6% growth en el precio actual. El sistema no lo señalaba.
 - **Causa**: no había check de coherencia entre los dos modelos.
 - **Fix**: si `near_term_growth - reverse_implied_growth > 5pp` (sin user override), añadir advertencia a `dcf_reliability_note`. Ver ADR-022.
+- **Commit**: `35e600c`
+
+### EC-17 — Critic alucinaba "$0.0B FCF" cuando §4 decía "$40M" (BBW)
+- **Síntoma**: contradicción interna en el report. §4 (Value Expert) decía "FCF was $40M" y el Critic decía "FCF trend shown as $0.0B for FY2023, FY2024, FY2026".
+- **Causa**: cuando arreglamos EC-14, buscamos `/1e9` en `value_expert.py` y `archiver.py` pero NO en `critic.py` ni `competitive.py`. Los dos seguían enviando `$0.0B` al LLM. El Critic no alucinaba — reproducía fielmente lo que recibía.
+- **Fix**: centralizar el formatter en `utils/formatting.py:fmt_usd()` como single source of truth. Eliminar duplicados en value_expert/archiver/cli y aplicar al critic + competitive. Ver ADR-023.
+- **Lección meta**: cualquier patrón de formateo debe vivir en un único módulo — la búsqueda manual para encontrar duplicados es frágil.
+- **Commit**: pendiente
+
+### EC-18 — ROIC no calculable para empresas con buybacks acumulados (BBW, AutoZone, Domino's)
+- **Síntoma**: el §2 Moat Analysis decía "BBW's FY2026 ROIC is not provided". `roic_series=[]` aunque la empresa tiene EBIT positivo y datos completos.
+- **Causa**: la fórmula `IC = Equity + Debt - Cash` se vuelve degenerada para empresas con treasury stock acumulado por buybacks. Cuando `IC ≤ 0`, el sistema vaciaba el `roic_series` silenciosamente — excluyendo una clase entera del universo value (compounders que devuelven capital).
+- **Fix**: fórmula con fallback. Si la primaria es < 10% del operating capital, usar `IC = Total Assets - Cash`. El método elegido se documenta en `MetricValue.source`. Test añadido con equity negativo simulado. Ver ADR-023.
+- **Commit**: pendiente
+
+### EC-19 — Capital returns (buybacks + dividends) ausentes del schema y del análisis (BBW)
+- **Síntoma**: la tesis core de BBW ("100% del FCF devuelto al accionista vía buybacks+dividends") no aparecía en ninguna sección del report. El Value Expert dijo "compensation and capital allocation track record are not available".
+- **Causa**: `FinancialsReport` no tenía campos para `buybacks` ni `dividends`. El parser de EDGAR no los extraía aunque están en el cash flow XBRL (`PaymentsForRepurchaseOfCommonStock`, `PaymentsOfDividendsCommonStock`).
+- **Fix**: añadir campos al schema, parser con fallbacks de conceptos XBRL, surfacear en contexto del Value Expert con regla dura en el system prompt ("MUST report explicitly with % of FCF"). Tabla CLI también muestra las filas. Ver ADR-023.
+- **Commit**: pendiente
+
+### EC-20 — Subject row ausente del peer comparison cuando ROIC subject vacío
+- **Síntoma**: tabla de peers mostraba `FNKO -17.1%, BKE 43.2%, VRA -28.2%` sin la fila de BBW. Comparison estéril sin el ancla del subject.
+- **Causa**: el archiver y CLI omitían la fila del subject si `roic_series` estaba vacío (consecuencia downstream de EC-18).
+- **Fix**: subject row siempre presente. Si ROIC no calculable, mostrar "N/A — IC indeterminate" explícito. Defensa en profundidad — incluso con EC-18 arreglado, el subject row es invariante de la tabla.
 - **Commit**: pendiente
 
 ## Conocidos — pendientes de fix

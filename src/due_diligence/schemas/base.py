@@ -67,6 +67,13 @@ class FinancialsReport(BaseModel):
     capex: list[MetricValue]
     free_cash_flow: list[MetricValue]
 
+    # Capital returns (ADR-023) — central para value investing.
+    # Las empresas que devuelven capital al accionista (BBW: ~100% del FCF, AAPL: ~80%)
+    # son cualitativamente distintas a las que retienen para reinversión. El sistema
+    # debe surfacearlo explícitamente en el contexto del Value Expert.
+    buybacks: list[MetricValue] = Field(default_factory=list)  # PaymentsForRepurchaseOfCommonStock
+    dividends: list[MetricValue] = Field(default_factory=list)  # PaymentsOfDividendsCommonStock
+
     # Balance sheet (point-in-time, most recent)
     total_assets: MetricValue
     total_debt: MetricValue

@@ -50,26 +50,9 @@ from due_diligence.graph.state import AnalysisState
 from due_diligence.llm.client import get_client
 from due_diligence.schemas.reports import ValueExpertReport
 
+from due_diligence.utils.formatting import fmt_usd as _fmt_usd
+
 log = structlog.get_logger()
-
-
-def _fmt_usd(value: float) -> str:
-    """
-    Formatea un valor USD con unidad adaptativa según magnitud.
-
-    Evita el problema de small caps donde /1e9 produce '$0.0B' para
-    valores como $39.5M de FCF. El LLM recibe la cifra legible y la reproduce
-    correctamente en su análisis.
-    """
-    abs_v = abs(value)
-    if abs_v >= 1e9:
-        return f"${value / 1e9:.1f}B"
-    elif abs_v >= 1e6:
-        return f"${value / 1e6:.0f}M"
-    elif abs_v >= 1e3:
-        return f"${value / 1e3:.0f}k"
-    else:
-        return f"${value:.0f}"
 
 
 _SYSTEM_PROMPT = """You are an elite value investing analyst in the tradition of Buffett, Munger, Fisher, and Greenblatt.
@@ -82,8 +65,11 @@ RULES — NON-NEGOTIABLE:
 3. §6 Valuation MUST explicitly contrast the reverse-DCF implied growth against the historical 5y revenue CAGR (provided in context as HISTORICAL CONTEXT). State whether the market is pricing in expansion, contraction, or continuation vs the historical rate.
 4. §9 Decision Frame MUST name the thesis-breaker as a concrete, observable condition. Example: "thesis breaks if gross margin prints below 35% for two consecutive quarters." Vague phrases like "monitor execution" are not acceptable.
 5. §7 Risks MUST incorporate any 8-K material events from context (especially Item 4.02 restatements), not only 10-K Item 1A.
-6. If a section lacks sufficient data, say so explicitly rather than speculating.
-7. Return ONLY valid JSON. No markdown fences, no preamble, no commentary outside the JSON.
+6. §3 Management MUST reconcile insider sale prices against current market price when both are available. If insider transaction pattern reports specific sale prices and the current price is materially different (>15% gap), state the gap explicitly and what it implies (selling at peak before crash = potential value trap signal; or routine diversification at fair value = neutral).
+7. §5 Growth & Reinvestment MUST report the reinvestment rate (capex as % of OCF) when 'Reinvestment rate' is in context. State whether the company is in invest mode (>50%), balanced (20-50%), or harvest mode (<20%).
+8. §7 Risks MUST cross-check signals: if (a) news flow shows price decline AND (b) insider activity shows selling at higher prices recently AND (c) margin trends are deteriorating, name this combination explicitly as a "value trap signal pattern" — multiple signs pointing the same direction.
+9. If a section lacks sufficient data, say so explicitly rather than speculating.
+10. Return ONLY valid JSON. No markdown fences, no preamble, no commentary outside the JSON.
 
 VERDICT RUBRIC:
 - BUY: moat confirmed + quality management + DCF upside >20% + no material 8-K red flags + conflicting signals resolved in favor of the bull case.
@@ -94,11 +80,11 @@ OUTPUT SCHEMA:
 {
   "business_understanding": "<§1: 3-4 sentences. What does it do, how does it make money, circle of competence>",
   "moat_analysis": "<§2: integrate ROIC evidence with qualitative moat classification. If peer ROIC data is available in context, explicitly compare the subject's ROIC against peers — name the numbers. If they conflict with the moat label, adjudicate with reasoning.>",
-  "management_assessment": "<§3: skin in the game (insider %) + capital allocation track record + earnings call Q&A tone if available. Quote one verbatim phrase from transcripts if available.>",
-  "financial_quality": "<§4: FCF conversion, balance sheet, margin trends, earnings quality>",
-  "growth_reinvestment": "<§5: reinvestment rate, incremental ROIC, runway>",
+  "management_assessment": "<§3: skin in the game (insider %) + capital allocation track record + earnings call Q&A tone if available. Quote one verbatim phrase from transcripts if available. MUST reconcile insider sale prices vs current market price when both are in context — name the gap explicitly.>",
+  "financial_quality": "<§4: FCF conversion, balance sheet, margin trends, earnings quality. If 'Capital returned to shareholders' is in context, you MUST report it explicitly: how much was returned, what % of FCF, split between buybacks/dividends. Capital allocation is core to value investing thesis.>",
+  "growth_reinvestment": "<§5: reinvestment rate (capex/OCF — MUST report the precomputed value if available), incremental ROIC, runway. State whether the company is in invest/balanced/harvest mode.>",
   "valuation_section": "<§6: MUST contrast reverse-DCF implied growth vs historical 5y revenue CAGR. State the spread and what it implies about market expectations.>",
-  "risks": "<§7: include any 8-K material events (especially Item 4.02) PLUS top risks from 10-K Item 1A>",
+  "risks": "<§7: include any 8-K material events (especially Item 4.02) PLUS top risks from 10-K Item 1A. MUST cross-check news flow + insider activity + margin trends — if multiple signals point negative, name the value trap pattern explicitly.>",
   "psychological_lens": "<§8: why might this be mispriced? Contrarian thesis or consensus trap?>",
   "decision_frame": "<§9: MUST state the thesis-breaker as a concrete observable condition. No vague placeholders.>",
   "verdict": "BUY" | "HOLD" | "SELL",
@@ -134,6 +120,26 @@ def _format_context(state: AnalysisState) -> str:
         if financials.free_cash_flow:
             fcf = financials.free_cash_flow[0]
             lines.append(f"Free Cash Flow: {_fmt_usd(fcf.value)} ({fcf.period})")
+
+        # Reinvestment rate (MCE-22) — precomputado para §5 Growth & Reinvestment.
+        # Capex / OCF dice qué proporción del cash generado se reinvierte vs se devuelve.
+        # >50% = invest mode, 20-50% = balanced, <20% = harvest mode (empresa madura).
+        if financials.operating_cash_flow and financials.capex:
+            ocf_v = financials.operating_cash_flow[0].value
+            capex_v = financials.capex[0].value
+            if ocf_v > 0:
+                reinvest_pct = capex_v / ocf_v * 100
+                if reinvest_pct >= 50:
+                    mode = "invest mode"
+                elif reinvest_pct >= 20:
+                    mode = "balanced"
+                else:
+                    mode = "harvest mode"
+                lines.append(
+                    f"Reinvestment rate (capex/OCF, {financials.operating_cash_flow[0].period}): "
+                    f"{reinvest_pct:.0f}% — {mode}"
+                )
+
         if financials.roic_series:
             roic_str = ", ".join(f"{r.period}: {r.value:.1%}" for r in financials.roic_series[:3])
             lines.append(f"ROIC series: {roic_str}")
@@ -141,6 +147,28 @@ def _format_context(state: AnalysisState) -> str:
             lines.append(f"Total Debt: {_fmt_usd(financials.total_debt.value)}")
         if financials.cash_and_equivalents is not None:
             lines.append(f"Cash + STI: {_fmt_usd(financials.cash_and_equivalents.value)}")
+
+        # Capital returns (ADR-023, EC-19) — central para tesis value investing.
+        # MUST aparecer en §4 Financial Quality del Expert.
+        if financials.buybacks or financials.dividends:
+            buyback_latest = financials.buybacks[0] if financials.buybacks else None
+            dividend_latest = financials.dividends[0] if financials.dividends else None
+            buyback_v = buyback_latest.value if buyback_latest else 0.0
+            dividend_v = dividend_latest.value if dividend_latest else 0.0
+            total_returned = buyback_v + dividend_v
+            fcf_latest = financials.free_cash_flow[0].value if financials.free_cash_flow else 0.0
+            pct_of_fcf = (total_returned / fcf_latest * 100) if fcf_latest > 0 else None
+            period = (buyback_latest or dividend_latest).period
+            parts = []
+            if buyback_v > 0:
+                parts.append(f"buybacks {_fmt_usd(buyback_v)}")
+            if dividend_v > 0:
+                parts.append(f"dividends {_fmt_usd(dividend_v)}")
+            pct_str = f" = {pct_of_fcf:.0f}% of FCF" if pct_of_fcf is not None else ""
+            lines.append(
+                f"Capital returned to shareholders ({period}): "
+                f"{_fmt_usd(total_returned)} ({', '.join(parts)}){pct_str}"
+            )
 
         # Margin compression auto-flag (Fix E): si hay 3+ años con gross margin decreciente,
         # elevarlo como riesgo estructural para §7. Los datos vienen de XBRL (determinista).

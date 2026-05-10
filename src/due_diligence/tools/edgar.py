@@ -203,6 +203,19 @@ class EdgarAdapter:
                     inc_df,
                     "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
                 ),
+                # Capital returns (ADR-023, EC-19) — central para tesis de value investing.
+                # Ambos vienen del cash flow statement (Financing Activities). XBRL los reporta
+                # como negativos (salidas de caja); aquí los pasamos a positivos en _mv_list_abs.
+                "buybacks": (
+                    _get_annual(cf_df, "PaymentsForRepurchaseOfCommonStock")
+                    or _get_annual(cf_df, "PaymentsForRepurchaseOfEquity")
+                    or []
+                ),
+                "dividends": (
+                    _get_annual(cf_df, "PaymentsOfDividendsCommonStock")
+                    or _get_annual(cf_df, "PaymentsOfDividends")
+                    or []
+                ),
             },
             "balance_sheet": {
                 "total_assets": _get_point(bs_df, "Assets", fy_label),
@@ -248,8 +261,20 @@ class EdgarAdapter:
         bs = raw["balance_sheet"]
         shares = raw["shares"]
 
+        def _mv_list_abs(items: list[dict], source: str = "XBRL") -> list[MetricValue]:
+            """Variante de _mv_list que normaliza valores a positivo.
+            Usado para buybacks/dividends: XBRL los reporta como negativos
+            (salidas de caja en el cash flow) — los almacenamos como flujos
+            de capital devuelto en magnitud absoluta para legibilidad."""
+            return [
+                MetricValue(value=abs(i["value"]), unit="USD", period=i["period"], source=source)
+                for i in items
+            ]
+
         ocf_list = _mv_list(annual["operating_cash_flow"])
         capex_list = _mv_list(annual["capex"])
+        buybacks_list = _mv_list_abs(annual.get("buybacks", []))
+        dividends_list = _mv_list_abs(annual.get("dividends", []))
 
         if ocf_list and capex_list:
             # Caso normal: ambos disponibles — FCF = OCF - Capex
@@ -296,19 +321,42 @@ class EdgarAdapter:
             t = income_tax_list[0].value / pretax_list[0].value
             effective_tax_rate = max(0.0, min(t, 0.5))
 
-        # Invested Capital = Equity + Debt − Cash (más reciente)
-        # Nota: usamos el IC del año más reciente para toda la serie ROIC — aproximación
-        # válida para análisis de tendencia, no para cálculos de precision point-in-time.
+        # Invested Capital — fórmula con fallback (ADR-023, EC-18).
+        # Primaria: Equity + Debt − Cash (balance sheet view, capital aportado por financiadores).
+        # Fallback: Total Assets − Cash (operating asset view, robusto a buybacks agresivos).
+        #
+        # Por qué el fallback: empresas que devuelven mucho capital al accionista
+        # (Domino's, AutoZone, BBW post-buybacks) acaban con equity reducido o negativo
+        # por treasury stock acumulado. La fórmula primaria entonces da un IC
+        # cercano a cero → ROIC explota o no se calcula. Total Assets − Cash representa
+        # la base de activos operativos real, que persiste independiente del capital structure.
         se_raw = bs.get("stockholders_equity")
         equity_value = se_raw["value"] if se_raw else 0.0
-        ic_value = equity_value + total_debt_value - cash_value
+        total_assets_value = bs["total_assets"]["value"] if bs.get("total_assets") else 0.0
+
+        ic_primary = equity_value + total_debt_value - cash_value
+        ic_fallback = total_assets_value - cash_value if total_assets_value > 0 else 0.0
+
+        # Threshold: la primaria es "degenerada" si < 10% del operating capital.
+        # Esto detecta el patrón buyback-heavy donde equity queda artificialmente bajo.
+        threshold = 0.10 * ic_fallback if ic_fallback > 0 else 0.0
+
+        if ic_primary > threshold and ic_primary > 0:
+            ic_value = ic_primary
+            ic_method = "equity+debt-cash"
+        elif ic_fallback > 0:
+            ic_value = ic_fallback
+            ic_method = "total_assets-cash (fallback for low/negative book equity)"
+        else:
+            ic_value = 0.0
+            ic_method = None
 
         stockholders_equity_mv = (
             MetricValue(value=equity_value, unit="USD", period=period, source="XBRL")
             if se_raw else None
         )
         invested_capital_mv = (
-            MetricValue(value=ic_value, unit="USD", period=period, source="calculated")
+            MetricValue(value=ic_value, unit="USD", period=period, source=ic_method or "calculated")
             if ic_value > 0 else None
         )
 
@@ -336,6 +384,8 @@ class EdgarAdapter:
             operating_cash_flow=ocf_list,
             capex=capex_list,
             free_cash_flow=fcf_list,
+            buybacks=buybacks_list,
+            dividends=dividends_list,
             total_assets=_mv(bs["total_assets"]),
             total_debt=MetricValue(
                 value=total_debt_value, unit="USD", period=period, source="XBRL"

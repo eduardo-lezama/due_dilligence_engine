@@ -244,6 +244,41 @@ def test_format_context_omits_cagr_block_when_absent():
     assert "CAGR" not in context or "Revenue" not in context  # no bloque historical context
 
 
+def test_format_context_includes_reinvestment_rate(aapl_raw_path=None):
+    """MCE-22: reinvestment rate (capex/OCF) precomputado en contexto del Expert."""
+    import json
+    from pathlib import Path
+    from due_diligence.tools.edgar import EdgarAdapter
+    from due_diligence.agents.value_expert import _format_context
+
+    fixture = json.loads((Path(__file__).parent / "fixtures" / "aapl_xbrl_raw.json").read_text())
+    financials = EdgarAdapter.parse_financials(fixture)
+    context = _format_context({"ticker": "AAPL", "financials": financials})
+    # AAPL tiene OCF y capex disponibles; debe aparecer "Reinvestment rate"
+    assert "Reinvestment rate" in context
+    # AAPL es una empresa madura — capex/OCF típicamente <20% → "harvest mode"
+    assert any(mode in context for mode in ["harvest mode", "balanced", "invest mode"])
+
+
+def test_system_prompt_mce22_requires_insider_price_reconciliation():
+    """MCE-22: §3 debe forzar reconciliación de precios insider vs precio actual."""
+    from due_diligence.agents.value_expert import _SYSTEM_PROMPT
+    assert "insider sale price" in _SYSTEM_PROMPT.lower()
+    assert "current" in _SYSTEM_PROMPT.lower()
+
+
+def test_system_prompt_mce22_requires_reinvestment_rate():
+    """MCE-22: §5 debe forzar reportar reinvestment rate."""
+    from due_diligence.agents.value_expert import _SYSTEM_PROMPT
+    assert "reinvestment rate" in _SYSTEM_PROMPT.lower()
+
+
+def test_system_prompt_mce22_requires_value_trap_pattern_check():
+    """MCE-22: §7 debe forzar cross-check de news + insider + margins."""
+    from due_diligence.agents.value_expert import _SYSTEM_PROMPT
+    assert "value trap" in _SYSTEM_PROMPT.lower()
+
+
 def test_format_context_includes_material_events():
     """Con eventos 8-K en market report, aparecen en el contexto del Expert."""
     from due_diligence.agents.value_expert import _format_context

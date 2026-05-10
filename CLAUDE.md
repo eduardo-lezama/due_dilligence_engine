@@ -49,6 +49,23 @@ Estos son principios arquitectónicos. Violarlos requiere discusión explícita 
 
 ---
 
+## Cuando se arregla un bug — auditoría sistemática post-fix (MCE-26)
+
+**OBLIGATORIO antes de declarar un fix completo**:
+
+1. **Identificar el patrón problemático** del bug original (e.g. `/1e9`, una asunción arquitectónica como "equity siempre positivo", una llamada a un campo inexistente).
+2. **Ejecutar `Grep` del patrón en TODO `src/`** — no solo en el archivo donde se encontró el bug.
+3. Para cada ocurrencia adicional:
+   - Si tiene la misma causa raíz → arreglar en el mismo commit/PR.
+   - Si es legítima excepción → documentar inline con un comentario explícito (`# patrón X aceptado aquí porque Y`).
+4. Solo entonces declarar el fix completo y hacer commit.
+
+**Por qué esta regla existe**: EC-14 (formatter `/1e9`) se arregló en `value_expert.py` y `archiver.py` pero no en `critic.py` ni `competitive.py`. El bug regresó como EC-17 una iteración después. La búsqueda manual basada en "donde recuerdo que está el patrón" es estructuralmente frágil para codebases que crecen — es solo cuestión de tiempo hasta que un módulo se queda atrás.
+
+**Adicionalmente**: cuando el bug tiene causa raíz "el sistema asume X-like" (e.g. "AAPL-like: large cap, equity grande"), validar el fix contra los 4 arquetipos de fixtures (cuando MCE-25 esté implementado): large cap normal, small cap rentable, buyback-heavy, asset-light services.
+
+---
+
 ## Antes de arrancar una fase nueva o crear un directorio significativo
 
 **OBLIGATORIO leer [`docs/mce-evolution.md`](docs/mce-evolution.md)** y ejecutar todos los ítems cuyo trigger se haya cumplido. Este archivo es la única fuente de verdad de estructura diferida (subdirectorios CLAUDE.md, skills, slash-commands, hooks).

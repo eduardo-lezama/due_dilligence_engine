@@ -132,6 +132,76 @@ Lista viva de trabajo estructural (subdirectorios `CLAUDE.md`, skills, slash-com
 - **Estimación**: ~3-4h (peers_node + schemas + archiver + context)
 - **Prioridad**: media-alta para análisis sectoriales, baja si el portfolio es de empresas sin peers obvios
 
+### MCE-19 — News coverage extendida (Tavily complement + ventana adaptativa) [Oleada 2.1]
+- **Trigger**: cuando un análisis de empresa en drawdown (>30% desde 52w high) omita la noticia clave en el report (caso BBW: tariff overhang de Dec 2025 invisible al sistema)
+- **Problema detectado**: `market_agent` solo usa Finnhub con ventana fija de 30 días y máximo 10 artículos. Para una small cap con drawdown del -48%, el catalizador suele ser una noticia de hace 3-6 meses (guidance miss, profit warning, regulatory event). Finnhub puede no devolverla en top 10.
+- **Solución propuesta**:
+  1. Añadir Tavily search en `market_agent` con queries: `"{company_name} stock decline guidance risk concern {year}"`, `"{ticker} earnings tariff regulatory risk"`. Usar `time_range=None` para histórico amplio + `time_range="month"` para reciente.
+  2. Ventana adaptativa configurable: si `price_current / price_52w_high < 0.7`, expandir lookback a 180 días. Si stock está near-high, mantener 30 días.
+  3. Variables `.env`: `MARKET_NEWS_DAYS_DEFAULT` (30), `MARKET_NEWS_DAYS_DRAWDOWN` (180), `MARKET_NEWS_INCLUDE_TAVILY` (true).
+  4. Schema: `MarketReport.news_articles: list[NewsArticle]` (estructurado, no solo summary string) para que el Value Expert pueda filtrar.
+- **Estimación**: ~3-4h
+- **Prioridad**: alta para análisis de stocks en drawdown, donde mayor valor ofrece el sistema
+
+### MCE-20 — 8-K filter ampliado y configurable [Oleada 2.2]
+- **Trigger**: análisis de stock con drawdown que muestre "No material 8-K events" cuando claramente debería haberlos (BBW caso real)
+- **Problema detectado**: `EdgarEventsAdapter.fetch_8k_events` filtra solo `[2.02, 4.02, 5.02]`. Faltan items relevantes para tracking de eventos:
+  - **Item 1.01** Material Definitive Agreement (M&A, contratos relevantes)
+  - **Item 7.01** Reg FD Disclosure (guidance updates fuera de earnings)
+  - **Item 8.01** Other Events (anuncios materiales — incluye disclosures de tariffs, supply chain, lawsuits)
+- **Solución propuesta**:
+  1. Default expandido a `[1.01, 2.02, 4.02, 5.02, 7.01, 8.01]`.
+  2. Configurable via `EDGAR_8K_ITEMS` en `.env` (lista separada por comas).
+  3. Cada item con etiqueta legible en archiver ("Item 7.01 — Reg FD Disclosure").
+- **Estimación**: ~1h
+- **Prioridad**: media-alta — fix simple y bajo riesgo
+
+### MCE-21 — Reverse DCF como número primario cuando hay contradicción [Oleada 2.3]
+- **Trigger**: cuando el `dcf_reliability_note` contiene flag de contradicción
+- **Problema detectado**: hoy el flag es texto en blockquote después de la tabla. El forward DCF sigue siendo el "número headline" en la tabla de Aggregate Metrics aunque hayamos declarado que es engañoso.
+- **Solución propuesta**: archiver detecta flag de contradicción → reordena la tabla. Fila destacada "Market-implied value (reverse DCF anchor)" como primaria, forward DCF baja a fila secundaria con disclaimer "(conditional on growth assumption)".
+- **Estimación**: ~1h
+- **Prioridad**: media — impacto cosmético-pero-importante para quien lee el report rápido
+
+### MCE-22 — Reglas de reconciliación de señales en Value Expert prompt — RESUELTO 2026-05-10
+Implementado en commit pendiente. Tres reglas duras añadidas al `_SYSTEM_PROMPT`:
+- §3 Management: reconcile insider sale prices vs current market price (gap >15%).
+- §5 Growth: report reinvestment rate (precomputado en `_format_context` como capex/OCF con etiqueta invest/balanced/harvest mode).
+- §7 Risks: cross-check news + insider + margin trends → "value trap signal pattern".
+4 tests añadidos en `test_value_expert.py`.
+
+### MCE-23 — Critic recibe contexto explícito de contradicciones detectadas — RESUELTO 2026-05-10
+Implementado en commit pendiente. Nueva función `_detect_red_flags(state)` en `critic.py` que devuelve flags estructurados:
+- DCF forward/reverse contradiction (desde `valuation.dcf_reliability_note`).
+- Capital returns >80% del FCF (mature business, no reinvestment).
+- Margin compression 3+ años consecutivos.
+- Price collapse + insider activity (ratio current/52w_high < 0.6).
+
+Sección `## DETECTED FLAGS` añadida al `_build_critic_prompt`. 5 tests en `test_critic.py`.
+
+### MCE-24 — Quarterly margin trends desde 10-Q (margin compression QoQ)
+- **Trigger**: Phase 2.5 o cuando el feedback consistente sea que los reports detectan margin compression solo a nivel anual
+- **Problema detectado**: 10-K es anual. Para una empresa cuyo Q3-Q4 muestra deterioro pero el FY total todavía no lo refleja, el sistema dice "margin improving" cuando la realidad reciente es "margin deteriorating".
+- **Solución propuesta**: parsear los últimos 4 trimestres de 10-Q para gross/operating margin. Comparar último Q vs Q anterior. Si compresión QoQ ≥ 100bps en 2+ trimestres consecutivos, flag.
+- **Estimación**: ~6-8h (nuevo adapter, schema extension, integration en value_expert)
+- **Prioridad**: media — feature mayor, no fix
+
+### MCE-25 — Test fixtures multi-arquetipo (large cap + small cap + buyback-heavy + drawdown)
+- **Trigger**: cuando se introduzca un fix más cuyo origen sea "diseño centrado en AAPL ideal"
+- **Problema detectado**: pattern recurrente — el sistema se diseñó/testeó contra AAPL-like (large cap, equity grande, news flow constante). Falla en small caps, buyback-heavy, drawdown stocks. Ya hemos visto esto en EC-14, EC-15, EC-16, EC-18, EC-19, EC-20.
+- **Solución propuesta**: añadir fixtures cacheadas a `tests/fixtures/` para 4 arquetipos:
+  - **Large cap normal**: AAPL (ya existe)
+  - **Small cap rentable**: BBW
+  - **Buyback-heavy con equity bajo/negativo**: AZO o DPZ (test de ROIC fallback)
+  - **Stock en drawdown**: cualquier ticker con price_52w_low / price_52w_high < 0.5
+  - **Asset-light services**: PRDO o similar (test de zero capex)
+- **Acción**: cada nuevo bug debe validarse contra los 4 arquetipos antes de declarar el fix completo. Esto convierte la búsqueda manual de bugs duplicados (que falló en EC-17) en regression test estructurado.
+- **Estimación**: ~4-6h (fetchear fixtures + reescribir tests críticos para parametrizarse sobre arquetipos)
+- **Prioridad**: alta — meta-pattern fix, previene categorías enteras de regresiones
+
+### MCE-26 — Auditoría sistemática post-fix — RESUELTO 2026-05-10
+Sección "Cuando se arregla un bug — auditoría sistemática post-fix" añadida al `CLAUDE.md` raíz. Regla obligatoria de 4 pasos: identificar patrón → grep `src/` completo → arreglar/documentar cada ocurrencia → declarar fix completo. Previene regresiones tipo EC-14→EC-17.
+
 ### MCE-16 — Skill `modo-profesor` (Socratic teaching patterns)
 - **Trigger**: ≥3 sesiones reales de desarrollo con la regla "Modo Profesor" de CLAUDE.md activa y patrones claros de qué funciona (analogías, secuenciación de conceptos, preguntas tipo)
 - **Acción**: `.claude/skills/modo-profesor/SKILL.md` con patrones Socráticos cristalizados — biblioteca de analogías para conceptos del stack (LangGraph, Pydantic, XBRL), secuencias de introducción de conceptos por capa, preguntas tipo para verificar comprensión, reglas de cuándo pausar vs avanzar.

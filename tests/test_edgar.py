@@ -84,12 +84,43 @@ def test_parse_financials_roic_series(aapl_raw):
 
 
 def test_parse_financials_invested_capital(aapl_raw):
-    """Invested Capital = Equity + Debt - Cash."""
+    """Invested Capital primaria: Equity + Debt - Cash (cuando no es degenerada)."""
     from due_diligence.tools.edgar import EdgarAdapter
 
     report = EdgarAdapter.parse_financials(aapl_raw)
 
     assert report.invested_capital is not None
+    # Para AAPL: ic_primary ($128B) > 10% × ic_fallback ($33B) → primary se usa
     expected_ic = 73_733_000_000 + 90_678_000_000 - 35_934_000_000
     assert report.invested_capital.value == pytest.approx(expected_ic)
+    assert report.invested_capital.source == "equity+debt-cash"
     assert report.stockholders_equity.value == pytest.approx(73_733_000_000)
+
+
+def test_parse_financials_invested_capital_fallback_for_buyback_heavy(aapl_raw):
+    """
+    EC-18 / ADR-023: cuando la fórmula primaria (Equity+Debt-Cash) es degenerada
+    por buybacks agresivos, el sistema usa total_assets-cash como fallback.
+
+    Escenario simulado: mutamos el equity a un valor pequeño para reproducir
+    una empresa con buybacks acumulados (BBW, Domino's, AutoZone). Debe usar
+    el fallback en lugar de excluir el ROIC.
+    """
+    from due_diligence.tools.edgar import EdgarAdapter
+
+    # Mutate the raw fixture: equity negativo (típico de empresas con buybacks acumulados
+    # superiores al equity contribuido + retained earnings — caso AutoZone, Domino's).
+    raw_modified = json.loads(json.dumps(aapl_raw))  # deep copy
+    raw_modified["balance_sheet"]["stockholders_equity"]["value"] = -50_000_000_000  # $-50B
+    # ic_primary = -50B + 90B - 36B = $4B
+    # ic_fallback = total_assets - cash ≈ $328B
+    # threshold = 0.10 × 328B = $33B
+    # primary ($4B) < threshold → fallback se usa
+
+    report = EdgarAdapter.parse_financials(raw_modified)
+
+    assert report.invested_capital is not None
+    assert "fallback" in report.invested_capital.source
+    # ROIC debe seguir calculándose con el fallback
+    assert len(report.roic_series) >= 1
+    assert report.roic_series[0].value > 0  # ROIC válido, no excluido

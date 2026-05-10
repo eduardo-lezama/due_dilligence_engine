@@ -41,6 +41,7 @@ from rich.table import Table
 from rich import box
 
 from due_diligence.config import settings
+from due_diligence.utils.formatting import fmt_usd as _fmt_usd
 
 app = typer.Typer(help="Due Diligence — value investing analysis system")
 console = Console()
@@ -49,14 +50,6 @@ console = Console()
 # ---------------------------------------------------------------------------
 # Helpers de display
 # ---------------------------------------------------------------------------
-
-def _fmt_usd(value: float) -> str:
-    """Formatter adaptativo USD — elige M/B según magnitud (EC-14)."""
-    abs_v = abs(value)
-    if abs_v >= 1e9:   return f"${value / 1e9:.1f}B"
-    elif abs_v >= 1e6: return f"${value / 1e6:.0f}M"
-    elif abs_v >= 1e3: return f"${value / 1e3:.0f}k"
-    else:              return f"${value:.0f}"
 
 
 def _show_financials_table(financials) -> None:
@@ -82,6 +75,13 @@ def _show_financials_table(financials) -> None:
     if financials.cash_and_equivalents:
         table.add_row("Cash + STI", _fmt_usd(financials.cash_and_equivalents.value),
                       financials.cash_and_equivalents.period, "XBRL")
+    # Capital returns (ADR-023): buybacks + dividends del cash flow statement
+    if financials.buybacks:
+        b = financials.buybacks[0]
+        table.add_row("Buybacks", _fmt_usd(b.value), b.period, "XBRL")
+    if financials.dividends:
+        d = financials.dividends[0]
+        table.add_row("Dividends paid", _fmt_usd(d.value), d.period, "XBRL")
     if financials.roic_series:
         r = financials.roic_series[0]
         table.add_row("ROIC", f"{r.value:.1%}", r.period, "calculated")
@@ -169,9 +169,9 @@ def _ask_dcf_assumptions(state: dict) -> dict:
 
     if financials and financials.free_cash_flow:
         fcf = financials.free_cash_flow[0]
-        console.print(f"  Latest FCF:    [cyan]${fcf.value/1e9:.1f}B[/cyan] ({fcf.period})")
+        console.print(f"  Latest FCF:    [cyan]{_fmt_usd(fcf.value)}[/cyan] ({fcf.period})")
     if market and market.market_cap:
-        console.print(f"  Market cap:    [cyan]${market.market_cap.value/1e9:.0f}B[/cyan]")
+        console.print(f"  Market cap:    [cyan]{_fmt_usd(market.market_cap.value)}[/cyan]")
     if market and market.price_current:
         console.print(f"  Current price: [cyan]${market.price_current.value:.2f}[/cyan]")
     if financials and financials.roic_series:
@@ -227,7 +227,7 @@ def _show_valuation(state: dict) -> None:
     table.add_column("Value", justify="right")
 
     if valuation.dcf_intrinsic_value:
-        table.add_row("DCF equity value", f"${valuation.dcf_intrinsic_value.value/1e9:.0f}B")
+        table.add_row("DCF equity value", _fmt_usd(valuation.dcf_intrinsic_value.value))
     if valuation.dcf_upside_pct is not None:
         color = "green" if valuation.dcf_upside_pct > 0 else "red"
         table.add_row("DCF upside", f"[{color}]{valuation.dcf_upside_pct:+.1f}%[/{color}]")
@@ -313,7 +313,7 @@ def _show_verdict(state: dict) -> None:
                     mcap_str = f"[{color}]{valuation.dcf_upside_pct:+.1f}% vs market cap[/{color}]"
                 ps_table.add_row(
                     "DCF equity value (total)",
-                    f"${valuation.dcf_intrinsic_value.value/1e9:.0f}B",
+                    _fmt_usd(valuation.dcf_intrinsic_value.value),
                     mcap_str,
                 )
             if valuation.reverse_dcf_implied_growth is not None:
@@ -379,7 +379,7 @@ def _show_peer_comparison(state: dict) -> None:
     table.add_column("Latest ROIC", justify="right")
     table.add_column("Trend (oldest→latest)", justify="left", style="dim")
 
-    # Primera fila: empresa analizada
+    # Primera fila: empresa analizada (siempre presente — EC-20)
     if financials and financials.roic_series:
         own_series = financials.roic_series[:3]
         own_trend = " → ".join(f"{r.value:.1%}" for r in reversed(own_series))
@@ -388,6 +388,13 @@ def _show_peer_comparison(state: dict) -> None:
             f"[cyan]{ticker}[/cyan]",
             f"[bold cyan]{own_latest.value:.1%}[/bold cyan] ({own_latest.period})",
             own_trend,
+        )
+    else:
+        # ROIC no calculable — fila explícita en lugar de subject ausente
+        table.add_row(
+            f"[cyan]{ticker}[/cyan]",
+            "[yellow]N/A — IC indeterminate[/yellow]",
+            "—",
         )
 
     for pr in competitive.peer_roic_comparison:

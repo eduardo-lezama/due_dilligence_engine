@@ -42,6 +42,7 @@ from due_diligence.llm.client import get_client
 from due_diligence.schemas.base import Citation, FinancialsReport
 from due_diligence.schemas.reports import CompetitiveReport
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
+from due_diligence.utils.formatting import fmt_usd
 
 log = structlog.get_logger()
 
@@ -132,14 +133,14 @@ def _format_financials_for_prompt(financials: FinancialsReport) -> str:
     # FCF generation
     if financials.free_cash_flow:
         fcf_str = ", ".join(
-            f"{mv.period}: ${mv.value/1e9:.1f}B" for mv in financials.free_cash_flow[:3]
+            f"{mv.period}: {fmt_usd(mv.value)}" for mv in financials.free_cash_flow[:3]
         )
         lines.append(f"Free cash flow: {fcf_str}")
 
     # Invested capital context
     if financials.invested_capital:
         lines.append(
-            f"Invested capital: ${financials.invested_capital.value/1e9:.1f}B ({financials.invested_capital.period})"
+            f"Invested capital: {fmt_usd(financials.invested_capital.value)} ({financials.invested_capital.period})"
         )
 
     return "\n".join(lines)

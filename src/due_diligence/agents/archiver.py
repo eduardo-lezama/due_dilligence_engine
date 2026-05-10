@@ -29,21 +29,9 @@ import structlog
 
 from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
+from due_diligence.utils.formatting import fmt_usd as _fmt_usd
 
 log = structlog.get_logger()
-
-
-def _fmt_usd(value: float) -> str:
-    """Formatter adaptativo USD — evita '$0.0B' para small caps (EC-14)."""
-    abs_v = abs(value)
-    if abs_v >= 1e9:
-        return f"${value / 1e9:.1f}B"
-    elif abs_v >= 1e6:
-        return f"${value / 1e6:.0f}M"
-    elif abs_v >= 1e3:
-        return f"${value / 1e3:.0f}k"
-    else:
-        return f"${value:.0f}"
 
 _CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS analyses (
@@ -249,13 +237,19 @@ def _render_markdown(state: AnalysisState) -> str:
     if competitive and not competitive.stub and competitive.peer_roic_comparison:
         lines += ["## Peer Comparison — ROIC", ""]
         lines += ["| Ticker | Latest ROIC | Trend (oldest→latest) | Note |", "|---|---|---|---|"]
-        # Primera fila: la empresa analizada (referencia)
+        # Primera fila: la empresa analizada (referencia) — SIEMPRE presente (EC-20).
+        # Aunque no haya ROIC computable (IC indeterminado por buybacks), el lector
+        # debe ver el ticker como ancla de la tabla, con explicación honesta.
         ticker_label = state.get("ticker", "Subject")  # type: ignore[typeddict-item]
         if financials_for_roic and financials_for_roic.roic_series:
             own_series = financials_for_roic.roic_series[:3]
             own_trend = " → ".join(f"{r.value:.1%}" for r in reversed(own_series))
             own_latest = own_series[0]
             lines.append(f"| **{ticker_label}** | **{own_latest.value:.1%}** ({own_latest.period}) | {own_trend} | ← subject |")
+        else:
+            # ROIC del subject no calculable (típicamente IC indeterminado por buybacks).
+            # El subject row aparece igualmente — sin él, la peer comparison es estéril.
+            lines.append(f"| **{ticker_label}** | N/A — IC indeterminate | — | ← subject |")
         # Filas de peers con tendencia
         for pr in competitive.peer_roic_comparison:
             if pr.roic_trail and len(pr.roic_trail) > 1:

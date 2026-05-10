@@ -50,15 +50,19 @@ console = Console()
 # Helpers de display
 # ---------------------------------------------------------------------------
 
-def _b(v: float) -> str:
-    """Formatea un valor en miles de millones con 1 decimal."""
-    return f"{v / 1e9:.1f}"
+def _fmt_usd(value: float) -> str:
+    """Formatter adaptativo USD — elige M/B según magnitud (EC-14)."""
+    abs_v = abs(value)
+    if abs_v >= 1e9:   return f"${value / 1e9:.1f}B"
+    elif abs_v >= 1e6: return f"${value / 1e6:.0f}M"
+    elif abs_v >= 1e3: return f"${value / 1e3:.0f}k"
+    else:              return f"${value:.0f}"
 
 
 def _show_financials_table(financials) -> None:
     table = Table(title=f"Financials — {financials.source_filing}", box=box.SIMPLE_HEAVY)
     table.add_column("Metric", style="bold")
-    table.add_column("Value (USD B)", justify="right")
+    table.add_column("Value", justify="right")
     table.add_column("Period")
     table.add_column("Source")
 
@@ -71,12 +75,12 @@ def _show_financials_table(financials) -> None:
     ]:
         if metrics:
             m = metrics[0]
-            table.add_row(label, _b(m.value), m.period, m.source)
+            table.add_row(label, _fmt_usd(m.value), m.period, m.source)
 
     if financials.total_debt:
-        table.add_row("Total Debt", _b(financials.total_debt.value), financials.total_debt.period, "XBRL")
+        table.add_row("Total Debt", _fmt_usd(financials.total_debt.value), financials.total_debt.period, "XBRL")
     if financials.cash_and_equivalents:
-        table.add_row("Cash + STI", _b(financials.cash_and_equivalents.value),
+        table.add_row("Cash + STI", _fmt_usd(financials.cash_and_equivalents.value),
                       financials.cash_and_equivalents.period, "XBRL")
     if financials.roic_series:
         r = financials.roic_series[0]
@@ -110,7 +114,7 @@ def _show_checkpoint1_summary(state: dict) -> None:
     market = state.get("market")
     if market and not market.stub:
         price = f"${market.price_current.value:.2f}" if market.price_current else "N/A"
-        mcap = f"${market.market_cap.value/1e9:.0f}B" if market.market_cap else "N/A"
+        mcap = _fmt_usd(market.market_cap.value) if market.market_cap else "N/A"
         table.add_row("Market", f"Price: {price} | MCap: {mcap}", "[green]OK[/green]")
     else:
         table.add_row("Market", "—", "[yellow]degraded[/yellow]")

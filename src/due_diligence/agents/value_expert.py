@@ -52,6 +52,26 @@ from due_diligence.schemas.reports import ValueExpertReport
 
 log = structlog.get_logger()
 
+
+def _fmt_usd(value: float) -> str:
+    """
+    Formatea un valor USD con unidad adaptativa según magnitud.
+
+    Evita el problema de small caps donde /1e9 produce '$0.0B' para
+    valores como $39.5M de FCF. El LLM recibe la cifra legible y la reproduce
+    correctamente en su análisis.
+    """
+    abs_v = abs(value)
+    if abs_v >= 1e9:
+        return f"${value / 1e9:.1f}B"
+    elif abs_v >= 1e6:
+        return f"${value / 1e6:.0f}M"
+    elif abs_v >= 1e3:
+        return f"${value / 1e3:.0f}k"
+    else:
+        return f"${value:.0f}"
+
+
 _SYSTEM_PROMPT = """You are an elite value investing analyst in the tradition of Buffett, Munger, Fisher, and Greenblatt.
 
 Your task is NOT to summarize the specialist reports — it is to INTEGRATE and ADJUDICATE conflicting signals across them, then issue a VERDICT.
@@ -104,23 +124,39 @@ def _format_context(state: AnalysisState) -> str:
         lines.append("## FINANCIALS (EDGAR XBRL — deterministic)")
         if financials.revenue:
             rev = financials.revenue[0]
-            lines.append(f"Revenue: ${rev.value/1e9:.1f}B ({rev.period})")
+            lines.append(f"Revenue: {_fmt_usd(rev.value)} ({rev.period})")
         if financials.operating_income:
             oi = financials.operating_income[0]
-            lines.append(f"Operating Income (EBIT): ${oi.value/1e9:.1f}B ({oi.period})")
+            lines.append(f"Operating Income (EBIT): {_fmt_usd(oi.value)} ({oi.period})")
         if financials.net_income:
             ni = financials.net_income[0]
-            lines.append(f"Net Income: ${ni.value/1e9:.1f}B ({ni.period})")
+            lines.append(f"Net Income: {_fmt_usd(ni.value)} ({ni.period})")
         if financials.free_cash_flow:
             fcf = financials.free_cash_flow[0]
-            lines.append(f"Free Cash Flow: ${fcf.value/1e9:.1f}B ({fcf.period})")
+            lines.append(f"Free Cash Flow: {_fmt_usd(fcf.value)} ({fcf.period})")
         if financials.roic_series:
             roic_str = ", ".join(f"{r.period}: {r.value:.1%}" for r in financials.roic_series[:3])
             lines.append(f"ROIC series: {roic_str}")
         if financials.total_debt is not None:
-            lines.append(f"Total Debt: ${financials.total_debt.value/1e9:.1f}B")
+            lines.append(f"Total Debt: {_fmt_usd(financials.total_debt.value)}")
         if financials.cash_and_equivalents is not None:
-            lines.append(f"Cash + STI: ${financials.cash_and_equivalents.value/1e9:.1f}B")
+            lines.append(f"Cash + STI: {_fmt_usd(financials.cash_and_equivalents.value)}")
+
+        # Margin compression auto-flag (Fix E): si hay 3+ años con gross margin decreciente,
+        # elevarlo como riesgo estructural para §7. Los datos vienen de XBRL (determinista).
+        if (financials.gross_profit and financials.revenue
+                and len(financials.gross_profit) >= 3 and len(financials.revenue) >= 3):
+            margins = []
+            for gp, rev in zip(financials.gross_profit, financials.revenue):
+                if rev.value and rev.value > 0:
+                    margins.append((gp.period, gp.value / rev.value))
+            # margins[0] = most recent; check if descending for 3+ years
+            if len(margins) >= 3 and all(margins[i][1] < margins[i + 1][1] for i in range(2)):
+                trend_str = " → ".join(f"{m:.1%}" for _, m in reversed(margins[:3]))
+                lines.append(
+                    f"⚠️ STRUCTURAL MARGIN RISK: gross margin has compressed 3 consecutive years "
+                    f"({trend_str}, oldest→latest). Elevate to §7 Risks as 'structural margin pressure'."
+                )
         lines.append("")
 
     # --- Management ---
@@ -157,7 +193,7 @@ def _format_context(state: AnalysisState) -> str:
         if filings.mda_highlights:
             lines.append(f"MDA highlights: {filings.mda_highlights}")
         if filings.backlog_usd is not None:
-            lines.append(f"Contracted backlog: ${filings.backlog_usd/1e9:.2f}B")
+            lines.append(f"Contracted backlog: {_fmt_usd(filings.backlog_usd)}")
         if filings.revenue_guidance:
             lines.append(f"Management guidance: {filings.revenue_guidance}")
         lines.append("")
@@ -169,7 +205,7 @@ def _format_context(state: AnalysisState) -> str:
         if market.price_current is not None:
             lines.append(f"Current price: ${market.price_current.value:.2f}")
         if market.market_cap is not None:
-            lines.append(f"Market cap: ${market.market_cap.value/1e9:.0f}B")
+            lines.append(f"Market cap: {_fmt_usd(market.market_cap.value)}")
         if market.price_52w_high is not None and market.price_52w_low is not None:
             lines.append(
                 f"52w range: ${market.price_52w_low.value:.2f} – ${market.price_52w_high.value:.2f}"
@@ -213,7 +249,7 @@ def _format_context(state: AnalysisState) -> str:
     if valuation is not None and not valuation.stub:
         lines.append("## VALUATION REPORT")
         if valuation.dcf_intrinsic_value is not None:
-            lines.append(f"DCF equity value: ${valuation.dcf_intrinsic_value.value/1e9:.0f}B")
+            lines.append(f"DCF equity value: {_fmt_usd(valuation.dcf_intrinsic_value.value)}")
         if valuation.dcf_upside_pct is not None:
             lines.append(f"DCF upside vs market cap: {valuation.dcf_upside_pct:+.1f}%")
         if valuation.reverse_dcf_implied_growth is not None:

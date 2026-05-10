@@ -226,32 +226,53 @@ def valuation_agent(state: AnalysisState) -> dict:
     elif market_cap is not None and price_current_mv is not None and price_current_mv.value > 0:
         shares = market_cap / price_current_mv.value
 
-    # --- 4. Near-term growth: user override > historical CAGR > default 7% ---
+    # --- 4. Near-term growth: user override > min(FCF_CAGR, revenue_CAGR) > default 7% ---
+    # ADR-022: se ancla en el mínimo de FCF CAGR y revenue CAGR.
+    # FCF es más volátil que revenue (working capital, timing de capex) — usar solo
+    # FCF CAGR sobreestima el growth sostenible para small caps con FCF ruidoso.
+    # El revenue CAGR actúa como techo natural: el FCF no puede crecer indefinidamente
+    # más rápido que el revenue sin compresión de márgenes.
     raw_cagr: Optional[float] = None
+    revenue_cagr: Optional[float] = state.get("historical_cagr_5y")  # type: ignore[assignment]
     if assumptions.revenue_growth_yr1_pct is not None:
         near_term_growth = assumptions.revenue_growth_yr1_pct / 100
     elif financials is not None and financials.free_cash_flow:
         raw_cagr = _fcf_cagr(financials.free_cash_flow)
-        near_term_growth = raw_cagr if raw_cagr is not None else 0.07
+        if raw_cagr is not None:
+            if revenue_cagr is not None and raw_cagr > revenue_cagr:
+                # FCF CAGR supera el revenue CAGR — usar revenue como techo defensivo
+                log.info(
+                    "valuation_fcf_cagr_capped_by_revenue",
+                    ticker=ticker,
+                    fcf_cagr=f"{raw_cagr:.1%}",
+                    revenue_cagr=f"{revenue_cagr:.1%}",
+                )
+                near_term_growth = revenue_cagr
+            else:
+                near_term_growth = raw_cagr
+        else:
+            near_term_growth = revenue_cagr if revenue_cagr is not None else 0.07
     else:
-        near_term_growth = 0.07
+        near_term_growth = revenue_cagr if revenue_cagr is not None else 0.07
 
     # Limitar a rango razonable para evitar proyecciones absurdas.
     # Guardar si se aplicó el cap — es señal de que el FCF histórico es anormal.
     growth_was_capped = near_term_growth > _MAX_NEAR_TERM_GROWTH or near_term_growth < _MIN_NEAR_TERM_GROWTH
     near_term_growth = max(_MIN_NEAR_TERM_GROWTH, min(_MAX_NEAR_TERM_GROWTH, near_term_growth))
 
-    # Construir nota de fiabilidad del DCF si el growth fue capeado.
-    # Ocurre en negocios cíclicos en el pico (FCF muy elevado vs historial) —
-    # el DCF forward proyecta un FCF inflado y produce upside irreal.
-    # En estos casos el reverse DCF (implied growth) es más informativo.
+    # Construir nota de fiabilidad del DCF.
+    # Dos condiciones la activan (pueden combinarse):
+    #   (a) growth capeado al 30% — FCF en pico cíclico.
+    #   (b) forward DCF y reverse DCF contradicen en >5pp — upside es artefacto de
+    #       assumptions que el mercado no paga. El reverse DCF es más informativo.
     dcf_reliability_note: Optional[str] = None
+    note_parts: list[str] = []
+
     if growth_was_capped and raw_cagr is not None and assumptions.revenue_growth_yr1_pct is None:
-        dcf_reliability_note = (
+        note_parts.append(
             f"⚠️ DCF growth capped at {_MAX_NEAR_TERM_GROWTH:.0%} "
             f"(raw FCF CAGR was {raw_cagr:.0%}). "
-            f"The base FCF may be at a cyclical peak — forward DCF likely overstates intrinsic value. "
-            f"The reverse DCF implied growth is more informative for cyclical businesses."
+            f"The base FCF may be at a cyclical peak — forward DCF likely overstates intrinsic value."
         )
         log.warning("valuation_dcf_growth_capped", ticker=ticker, raw_cagr=f"{raw_cagr:.0%}")
 
@@ -293,6 +314,33 @@ def valuation_agent(state: AnalysisState) -> dict:
     reverse_growth: Optional[float] = None
     if base_fcf is not None and market_cap is not None:
         reverse_growth = _reverse_dcf(base_fcf, market_cap, terminal_growth, wacc, years)
+
+    # Contradicción DCF (Fix C / EC-16): si el forward DCF asume un growth >5pp
+    # por encima del implied growth, el upside existe solo por assumptions que el
+    # mercado no está pagando. Añadir a la nota de fiabilidad.
+    _CONTRADICTION_THRESHOLD = 0.05
+    if (
+        reverse_growth is not None
+        and (near_term_growth - reverse_growth) > _CONTRADICTION_THRESHOLD
+        and assumptions.revenue_growth_yr1_pct is None  # solo si no hay override del usuario
+    ):
+        spread_pp = (near_term_growth - reverse_growth) * 100
+        note_parts.append(
+            f"⚠️ DCF contradiction: forward DCF assumes {near_term_growth:.1%} near-term growth "
+            f"but market prices only {reverse_growth:.1%} (spread: {spread_pp:.0f}pp). "
+            f"The DCF upside is conditional on growth materially above what the market currently implies — "
+            f"not a margin of safety. Reverse DCF is the more informative valuation anchor."
+        )
+        log.warning(
+            "valuation_dcf_contradiction",
+            ticker=ticker,
+            forward_growth=f"{near_term_growth:.1%}",
+            implied_growth=f"{reverse_growth:.1%}",
+            spread_pp=f"{spread_pp:.0f}",
+        )
+
+    if note_parts:
+        dcf_reliability_note = " ".join(note_parts)
 
     # --- 7. Múltiplos (requieren market cap) ---
     ev_ebit_mv: Optional[MetricValue] = None

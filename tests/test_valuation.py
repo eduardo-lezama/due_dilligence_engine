@@ -344,3 +344,137 @@ def test_checkpoint2_raises_outside_runnable_context():
     from due_diligence.agents.checkpoint import checkpoint2_node
     with pytest.raises(RuntimeError, match="runnable context"):
         checkpoint2_node({"ticker": "AAPL"})
+
+
+# ---------------------------------------------------------------------------
+# Tests: Fix B — revenue CAGR como techo del near-term growth (EC-15)
+# ---------------------------------------------------------------------------
+
+def test_valuation_agent_fcf_cagr_capped_by_revenue_cagr():
+    """
+    Cuando FCF CAGR > revenue CAGR, el agente usa el revenue CAGR como techo.
+
+    Escenario: FCF salta de $20M a $40M (CAGR=100%), revenue CAGR=8%.
+    El near-term growth resultante debe ser ~8%, no 100%.
+    El sensitivity table center debe reflejar ~8%, no valores absurdos.
+    """
+    financials = _build_financials()
+    # Sobreescribir FCF series con dos puntos: $20M → $40M (CAGR=100% en 1 año)
+    financials.free_cash_flow = [
+        MetricValue(value=40_000_000, unit="USD", period="FY2025", source="calculated"),
+        MetricValue(value=20_000_000, unit="USD", period="FY2024", source="calculated"),
+    ]
+    state = {
+        "ticker": "FAKE",
+        "financials": financials,
+        "market": _build_market_report(market_cap=500_000_000),
+        "historical_cagr_5y": 0.08,  # 8% revenue CAGR
+    }
+    report = valuation_agent(state)["valuation"]
+    # El sensitivity center debe ser ≤ 8% (revenue CAGR actúa como techo)
+    assert report.sensitivity_table is not None and len(report.sensitivity_table) == 3
+    center_growth = report.sensitivity_table[1]["near_term_growth_pct"]  # fila central
+    assert center_growth <= 8.5  # margen de 0.5pp por redondeo
+
+
+def test_valuation_agent_no_revenue_cagr_uses_fcf_cagr():
+    """
+    Sin historical_cagr_5y en estado, el agente usa FCF CAGR sin modificación
+    (manteniendo comportamiento anterior cuando no hay revenue CAGR disponible).
+    """
+    financials = _build_financials()
+    financials.free_cash_flow = [
+        MetricValue(value=110_000_000, unit="USD", period="FY2025", source="calculated"),
+        MetricValue(value=100_000_000, unit="USD", period="FY2024", source="calculated"),
+    ]
+    state = {
+        "ticker": "FAKE",
+        "financials": financials,
+        "market": _build_market_report(market_cap=500_000_000),
+        # sin historical_cagr_5y
+    }
+    report = valuation_agent(state)["valuation"]
+    # FCF CAGR = 10% → sensitivity center debe ser ~10%
+    assert report.sensitivity_table is not None
+    center_growth = report.sensitivity_table[1]["near_term_growth_pct"]
+    assert abs(center_growth - 10.0) < 0.5
+
+
+# ---------------------------------------------------------------------------
+# Tests: Fix C — flag de contradicción DCF (EC-16)
+# ---------------------------------------------------------------------------
+
+def test_valuation_agent_contradiction_flag_when_large_spread():
+    """
+    Cuando forward growth >> reverse implied growth (>5pp), dcf_reliability_note
+    debe incluir el warning de contradicción.
+
+    Escenario: FCF=$50M, market_cap=$400M, revenue CAGR=25%.
+    → near_term_growth = 25% (de revenue CAGR)
+    → reverse_dcf con mkt_cap tan pequeño relativo al DCF da implied_growth << 25%
+    → spread > 5pp → flag activado.
+    """
+    financials = _build_financials()
+    financials.free_cash_flow = [
+        MetricValue(value=50_000_000, unit="USD", period="FY2025", source="calculated"),
+        MetricValue(value=40_000_000, unit="USD", period="FY2024", source="calculated"),
+    ]
+    state = {
+        "ticker": "FAKE",
+        "financials": financials,
+        "market": _build_market_report(market_cap=400_000_000),
+        "historical_cagr_5y": 0.25,  # revenue CAGR 25% → near_term_growth capped a 25%
+    }
+    report = valuation_agent(state)["valuation"]
+    # DCF@25% >> $400M → implied growth << 25% → spread > 5pp → flag
+    assert report.dcf_reliability_note is not None
+    assert "contradiction" in report.dcf_reliability_note.lower()
+
+
+def test_valuation_agent_no_contradiction_flag_when_user_overrides_growth():
+    """
+    Cuando el usuario provee revenue_growth_yr1_pct manualmente, el flag de
+    contradicción no se activa (el usuario es consciente de sus assumptions).
+    """
+    financials = _build_financials()
+    financials.free_cash_flow = [
+        MetricValue(value=50_000_000, unit="USD", period="FY2025", source="calculated"),
+        MetricValue(value=40_000_000, unit="USD", period="FY2024", source="calculated"),
+    ]
+    state = {
+        "ticker": "FAKE",
+        "financials": financials,
+        "market": _build_market_report(market_cap=400_000_000),
+        "checkpoint2_user_input": {"revenue_growth_yr1_pct": 25.0},  # override explícito
+    }
+    report = valuation_agent(state)["valuation"]
+    # Con override del usuario, no se genera flag de contradicción
+    if report.dcf_reliability_note:
+        assert "contradiction" not in report.dcf_reliability_note.lower()
+
+
+# ---------------------------------------------------------------------------
+# Tests: Fix A — _fmt_usd formatter adaptativo (EC-14)
+# ---------------------------------------------------------------------------
+
+def test_fmt_usd_small_values_show_millions():
+    """Valores < $1B deben mostrarse en millones, no en billones."""
+    from due_diligence.agents.value_expert import _fmt_usd
+    assert _fmt_usd(39_500_000) == "$40M"
+    assert _fmt_usd(500_000_000) == "$500M"
+    assert _fmt_usd(1_100_000) == "$1M"
+
+
+def test_fmt_usd_large_values_show_billions():
+    """Valores >= $1B deben mostrarse en billones."""
+    from due_diligence.agents.value_expert import _fmt_usd
+    assert _fmt_usd(1_000_000_000) == "$1.0B"
+    assert _fmt_usd(2_800_000_000_000) == "$2800.0B"
+
+
+def test_fmt_usd_no_zero_b_for_small_caps():
+    """El problema original: $39.5M no debe aparecer como $0.0B."""
+    from due_diligence.agents.value_expert import _fmt_usd
+    result = _fmt_usd(39_500_000)
+    assert result != "$0.0B"
+    assert "M" in result

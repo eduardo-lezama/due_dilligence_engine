@@ -32,6 +32,19 @@ from due_diligence.graph.state import AnalysisState
 
 log = structlog.get_logger()
 
+
+def _fmt_usd(value: float) -> str:
+    """Formatter adaptativo USD — evita '$0.0B' para small caps (EC-14)."""
+    abs_v = abs(value)
+    if abs_v >= 1e9:
+        return f"${value / 1e9:.1f}B"
+    elif abs_v >= 1e6:
+        return f"${value / 1e6:.0f}M"
+    elif abs_v >= 1e3:
+        return f"${value / 1e3:.0f}k"
+    else:
+        return f"${value:.0f}"
+
 _CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS analyses (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,12 +123,21 @@ def _render_markdown(state: AnalysisState) -> str:
         lines += ["## Valuation Summary", ""]
 
         # Precio actual vs intrínseco por acción (primera tabla — más relevante)
+        market_for_range = state.get("market")      # type: ignore[typeddict-item]
         if valuation.price_current is not None or valuation.dcf_intrinsic_per_share is not None:
             lines += ["### Price vs Intrinsic Value (per share)", ""]
             lines.append("| | Per share |")
             lines.append("|---|---|")
             if valuation.price_current:
-                lines.append(f"| Market price | **${valuation.price_current.value:.2f}** |")
+                price_line = f"**${valuation.price_current.value:.2f}**"
+                # Añadir contexto 52w: dónde está el precio en el rango (Fix D)
+                if (market_for_range and not market_for_range.stub
+                        and market_for_range.price_52w_low is not None
+                        and market_for_range.price_52w_high is not None):
+                    lo = market_for_range.price_52w_low.value
+                    hi = market_for_range.price_52w_high.value
+                    price_line += f" (52w: ${lo:.2f}–${hi:.2f})"
+                lines.append(f"| Market price | {price_line} |")
             if valuation.dcf_intrinsic_per_share:
                 upside_str = ""
                 if valuation.price_current and valuation.price_current.value > 0:
@@ -130,7 +152,7 @@ def _render_markdown(state: AnalysisState) -> str:
         # Métricas agregadas
         rows = []
         if valuation.dcf_intrinsic_value:
-            rows.append(("DCF equity value (total)", f"${valuation.dcf_intrinsic_value.value/1e9:.0f}B"))
+            rows.append(("DCF equity value (total)", _fmt_usd(valuation.dcf_intrinsic_value.value)))
         if valuation.dcf_upside_pct is not None:
             rows.append(("DCF upside vs market cap", f"{valuation.dcf_upside_pct:+.1f}%"))
         if valuation.reverse_dcf_implied_growth is not None:
@@ -182,7 +204,7 @@ def _render_markdown(state: AnalysisState) -> str:
             if filings.geographic_revenue_breakdown:
                 lines += [f"**Revenue by geography:** {filings.geographic_revenue_breakdown}", ""]
             if filings.backlog_usd:
-                lines += [f"**Contracted backlog:** ${filings.backlog_usd/1e9:.2f}B", ""]
+                lines += [f"**Contracted backlog:** {_fmt_usd(filings.backlog_usd)}", ""]
             if filings.revenue_guidance:
                 lines += [f"**Management guidance:** {filings.revenue_guidance}", ""]
             if filings.key_regulatory_events:

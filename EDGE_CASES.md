@@ -67,6 +67,24 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 
 ---
 
+### EC-14 — Formatter $0.0B para small caps invalida §4 Financial Quality (BBW, JBSS)
+- **Síntoma**: el Value Expert dice "free cash flow was $0.0B" para BBW que tiene FCF real de $39.5M. Invalida §4 y el VERDICT rationale.
+- **Causa**: todas las cifras en `_format_context` se dividían por `1e9` con `.1f`, produciendo `$0.0B` para valores < $100M.
+- **Fix**: helper `_fmt_usd(value)` que adapta la unidad (M/B/k) según magnitud. Aplicado en `value_expert.py` y `archiver.py`. Ver ADR-022.
+- **Commit**: pendiente
+
+### EC-15 — DCF near-term growth absurdo por FCF CAGR ruidoso (BBW: 25.6% para retailer ~7%)
+- **Síntoma**: DCF upside +255% para BBW. Sensitivity table: 20.6%–30.6% near-term growth para una empresa de retail madura que crece ~7% en revenue.
+- **Causa**: el near-term growth se derivaba solo del FCF CAGR. El FCF oscila ±40% año a año por working capital y timing de capex → CAGR inestable y no representativo del growth sostenible.
+- **Fix**: `near_term_growth = min(FCF_CAGR, historical_cagr_5y)`. El revenue CAGR actúa como techo natural. Ver ADR-022.
+- **Commit**: pendiente
+
+### EC-16 — Sin flag cuando forward DCF y reverse DCF contradicen (BBW: spread 24pp)
+- **Síntoma**: forward DCF asume 25.6% growth (→ +255% upside) pero reverse DCF implica 1.6% growth en el precio actual. El sistema no lo señalaba.
+- **Causa**: no había check de coherencia entre los dos modelos.
+- **Fix**: si `near_term_growth - reverse_implied_growth > 5pp` (sin user override), añadir advertencia a `dcf_reliability_note`. Ver ADR-022.
+- **Commit**: pendiente
+
 ## Conocidos — pendientes de fix
 
 ### EC-11 — Foreign private issuers (ADRs no-US) fallan al intentar 10-K

@@ -2110,3 +2110,148 @@ Nuevo documento raíz que registra edge cases de producción de forma concisa: s
 
 *Última actualización: 2026-04-26 — ADR-021 performance tracking, fixes EC-01/02/03/05, EDGE_CASES.md. 196 tests, verde.*
 
+---
+
+## Fixes críticos post-producción — auditoría BBW y JBSS (2026-05-10)
+
+### El detonante: análisis de small caps revela tres bugs sistémicos
+
+Después de correr el sistema contra BBW (Build-A-Bear, mkt cap ~$300M) y JBSS (John B. Sanfilippo, revenue $1.1B), una auditoría externa con Opus 4.7 reveló tres bugs que invalidan partes del output para empresas de capitalización pequeña/media.
+
+### EC-14 — El formatter $0.0B: por qué el LLM "mentía" sobre el FCF
+
+**El síntoma observado**: El Value Expert escribía cosas como *"free cash flow was $0.0B"* para BBW, que tiene FCF real de $39.5M. Toda la sección §4 Financial Quality y el VERDICT rationale se construían sobre un FCF que el sistema decía que era cero.
+
+**La causa raíz**, en `value_expert.py:_format_context()`:
+
+```python
+# Antes — divide por 1 billón antes de enviar al LLM:
+lines.append(f"Free Cash Flow: ${fcf.value/1e9:.1f}B ({fcf.period})")
+
+# Para BBW con FCF=$39.5M:
+# 39,500,000 / 1,000,000,000 = 0.0395 → se muestra como $0.0B
+```
+
+El LLM no estaba inventando nada — recibía literalmente `"Free Cash Flow: $0.0B"` y lo reproducía fielmente. El error era en cómo el sistema formateaba los datos antes de enviárselos.
+
+**La solución**: helper `_fmt_usd(value)` que adapta la unidad:
+
+```python
+def _fmt_usd(value: float) -> str:
+    abs_v = abs(value)
+    if abs_v >= 1e9:   return f"${value / 1e9:.1f}B"
+    elif abs_v >= 1e6: return f"${value / 1e6:.0f}M"
+    elif abs_v >= 1e3: return f"${value / 1e3:.0f}k"
+    else:              return f"${value:.0f}"
+
+# BBW FCF=$39.5M → "$40M"  ✓
+# AAPL FCF=$120B  → "$120.0B" ✓
+# Micro-cap $500k → "$500k"  ✓
+```
+
+Este helper se define en `value_expert.py` y `archiver.py` — duplicado deliberado (YAGNI: no hay `utils.py` hasta que haya 3 usos).
+
+**Lección**: cuando el LLM produce output incorrecto, el primer lugar a buscar no es el prompt — es los datos que le enviaste. Un prompt perfecto sobre datos corruptos produce output corrupto.
+
+---
+
+### EC-15 — DCF growth assumptions absurdos: FCF CAGR es ruidoso
+
+**El síntoma**: BBW con near-term growth de 25.6% en la tabla DCF. Un retailer maduro que crece ~7% en revenue. El DCF resultante: +255% upside.
+
+**La causa raíz**, en `valuation.py`:
+
+El sistema calculaba el near-term growth como CAGR del FCF histórico. El problema: el FCF es mucho más volátil que el revenue. Puede oscilar ±40% año a año por:
+- Working capital swings (cobros adelantados, pagos diferidos)
+- Timing de pagos de capex (compras de equipamiento)
+- Variaciones en cuentas por cobrar
+
+Para BBW con FCF histórico irregular ($20M → $34M → $46M → $28M → $40M), el CAGR depende fuertemente de qué periodos devuelve EDGAR y puede dar resultados muy distintos a la realidad del negocio.
+
+**La solución**: `min(FCF_CAGR, revenue_CAGR)` cuando el revenue CAGR está disponible.
+
+```python
+# El FCF no puede crecer sostenidamente más rápido que el revenue
+# sin compresión de márgenes. min() da el número más conservador.
+if revenue_cagr is not None and raw_cagr > revenue_cagr:
+    near_term_growth = revenue_cagr  # revenue como techo
+else:
+    near_term_growth = raw_cagr
+```
+
+La jerarquía completa:
+1. Override del usuario (Checkpoint 2) — siempre respetado
+2. `min(FCF_CAGR, revenue_CAGR)` — cuando ambos disponibles
+3. `revenue_CAGR` solo — cuando FCF CAGR no calculable
+4. 7% por defecto — cuando no hay datos históricos
+
+**Por qué `min()` es el enfoque correcto**: en value investing, queremos el escenario conservador. Si el FCF CAGR supera el revenue CAGR, hay alguna razón (margen cíclicamente alto, working capital favorable temporal) que probablemente no persiste. El revenue CAGR es más estable y representa mejor la capacidad de crecimiento sostenible.
+
+---
+
+### EC-16 — La contradicción DCF que el sistema no detectaba
+
+**El síntoma**: BBW con forward DCF asumiendo 25.6% growth → upside +255%, pero el reverse DCF decía que el precio actual implica solo 1.6% growth. Spread de 24 puntos porcentuales. El sistema no lo señalaba en ningún lugar.
+
+**Qué significa esta contradicción**: el forward DCF calcula "si la empresa crece al 25.6%, vale $136/acción". El reverse DCF calcula "dado el precio actual de $38, el mercado está pagando por solo 1.6% de crecimiento". 
+
+Un spread de 24pp significa que el +255% de "upside" no existe como oportunidad real — existe solo como consecuencia de asumir un crecimiento que el mercado no está pagando. No es un error de valoración del mercado, es que el modelo usa assumptions que el mercado no comparte.
+
+**La solución**: flag automático cuando el spread supera 5pp:
+
+```python
+if (near_term_growth - reverse_growth) > 0.05:
+    note_parts.append(
+        f"⚠️ DCF contradiction: forward DCF assumes {near_term_growth:.1%} "
+        f"but market prices only {reverse_growth:.1%} (spread: {spread_pp:.0f}pp). "
+        f"DCF upside is conditional on growth the market doesn't currently price in — "
+        f"not a margin of safety."
+    )
+```
+
+El threshold de 5pp fue elegido para capturar discrepancias materiales sin generar ruido en empresas donde el forward y reverse naturalmente difieren un poco.
+
+**Guard importante**: el flag NO se activa cuando el usuario ha hecho override de los growth assumptions en Checkpoint 2. Si Eduardo decide deliberadamente proyectar 25% growth, esa es su thesis consciente — no un artefacto del sistema.
+
+---
+
+### Fix D — 52w range visible junto al precio
+
+Un dato simple pero muy relevante para value investing: ¿está el stock cerca de su mínimo o máximo anual? El report ahora muestra:
+
+```
+| Market price | **$38.37** (52w: $35.38–$75.85) |
+```
+
+Para BBW, esto hace inmediatamente visible que el stock está cerca del 52w low (-49% desde el máximo) — contexto crítico para entender si hay una oportunidad de precio.
+
+---
+
+### Fix E — Margin compression auto-flag
+
+Si el gross margin ha caído durante 3+ años consecutivos, el sistema lo detecta automáticamente y lo inserta en el contexto del Value Expert con instrucción explícita de elevarlo a §7 Risks:
+
+```python
+if all(margins[i][1] < margins[i + 1][1] for i in range(2)):
+    lines.append(
+        f"⚠️ STRUCTURAL MARGIN RISK: gross margin has compressed 3 consecutive years "
+        f"({trend_str}). Elevate to §7 Risks as 'structural margin pressure'."
+    )
+```
+
+Para JBSS (gross margin 21.2% → 19.8% → 18.4% en 3 años), esto se detecta automáticamente desde los datos XBRL — sin que el LLM tenga que "notarlo" en el texto del 10-K.
+
+---
+
+### Aprendizaje de la sesión
+
+Esta iteración demuestra el valor del ciclo: producción real → auditoría → diagnosis → fix. Los tres bugs existían desde Phase 1 pero solo se manifestaron cuando se analizaron small caps (BBW, JBSS). Las large caps como AAPL o FSLR tienen FCF y revenue grandes donde `/1e9` da números legibles, y FCF CAGRs más estables.
+
+El patrón de fallo siempre fue el mismo: **el sistema tomó un diseño razonable para large caps (Forbes 500) y lo aplicó sin ajuste a small caps**. El formatter, el growth methodology, y el DCF check todos asumían implícitamente que los números eran "grandes". EC-14, EC-15 y EC-16 son la misma clase de error: falta de testing con el rango completo de tamaños de empresa.
+
+**ADR-022** documenta las decisiones de diseño de estos tres fixes.
+
+---
+
+*Última actualización: 2026-05-10 — Fixes EC-14/15/16 + ADR-022. 203 tests, verde.*
+

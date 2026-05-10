@@ -2,9 +2,9 @@
 
 Sistema agentic personal de análisis fundamental de empresas con filosofía **value investing**. Multi-agente basado en LangGraph, provider-agnostic (Claude + OpenAI), con énfasis en **zero hallucination en datos numéricos** y modo **Socratic HITL** que combina análisis automatizado con aprendizaje continuo del usuario.
 
-**Estado actual**: Phase 1 (1a + 1b + 1c) completa y verificada en producción.
+**Estado actual**: Phase 1 + Phase 2 completas y verificadas en producción + 4 rondas de hardening post-producción (Oleadas 1, 1.5, 2 + MCE-22/23/26). Sistema validado contra small caps (BBW, JBSS), buyback-heavy compounders, drawdown stocks (con cobertura adaptativa de noticias), asset-light services, empresas con income statements simplificados, y empresas con 10-K amendments. Moat calibration rubric (ADR-024) previene over-classification de wide moat. 221 tests, todos verde.
 **Owner**: Eduardo (uso personal, no comercial).
-**Última actualización**: 2026-04-21.
+**Última actualización**: 2026-05-10.
 
 ```bash
 uv run due-diligence analyze AAPL   # pipeline completo con HITL
@@ -48,10 +48,22 @@ Esto justifica el patrón **Socratic HITL** — los checkpoints no son solo gate
 | Control de alucinaciones | Tool-based extraction + schema+citas validadas | ADR-005 |
 | HITL | Socratic checkpoints en 2 puntos (moat+mgmt, valoración) | ADR-006 |
 | Storage Fase 1 | SQLite + markdown files | ADR-007 |
-| RAG de memoria | Diferido a Fase 2 (corpus < 10 no justifica) | ADR-008 |
+| RAG de memoria | Re-trigger same-ticker en Fase 2.5 (no corpus general) | ADR-008/013 |
 | Output del Value Expert | Análisis estructurado + veredicto explícito + sizing sugerido | ADR-009 |
 | Deploy objetivo | NAS QNAP TS264 (webapp en fase 5 vía Docker) | ADR-010 |
 | Fuentes de datos US | `edgartools` (XBRL), Polygon free, Finnhub | ADR-011 |
+| Management agent fuentes | EDGAR DEF 14A trifecta + Tavily targeting | ADR-012 |
+| Citations + news visibility | Citations en appendix + URLs inline en news | ADR-014 |
+| Peer comparison | User-supplied (no SIC discovery) | ADR-015 |
+| Earnings transcripts | Finnhub primary source, Form 4 + transcripts integrados | ADR-016 |
+| 8-K event tracking | EDGAR Items 2.02/4.02/5.02 con lookback configurable | ADR-017 |
+| Socratic checkpoints v2 | Preguntas ancladas en datos reales del state | ADR-018 |
+| Value Expert prompt v2 | INTEGRATE & ADJUDICATE, no resumir | ADR-019 |
+| SqliteSaver | Diferido a Phase 5 (msgpack issue con Pydantic v2) | ADR-020 |
+| Performance metadata | Latencia + tokens + coste EUR persistidos | ADR-021 |
+| Small-cap display + DCF growth | Formatter adaptativo + min(FCF_CAGR, revenue_CAGR) | ADR-022 |
+| ROIC robusto + capital returns | Greenblatt-light fallback + buybacks/dividends en schema | ADR-023 |
+| Moat calibration rubric | 4 criterios estrictos para wide moat + post-hoc clamp | ADR-024 |
 
 ---
 
@@ -68,11 +80,23 @@ Las decisiones arquitectónicas viven como archivos individuales en [`docs/adr/`
 | [005](docs/adr/ADR-005-hallucination-control-by-architecture.md) | Control de alucinaciones por arquitectura, no por crítica | Accepted |
 | [006](docs/adr/ADR-006-socratic-hitl.md) | Socratic HITL en 2 checkpoints | Accepted |
 | [007](docs/adr/ADR-007-sqlite-markdown-storage.md) | SQLite + markdown para storage Fase 1 | Accepted |
-| [008](docs/adr/ADR-008-vector-rag-deferred.md) | Vector RAG diferido a Fase 2 | Accepted |
+| [008](docs/adr/ADR-008-vector-rag-deferred.md) | Vector RAG diferido a Fase 2 | Superseded by ADR-013 |
 | [009](docs/adr/ADR-009-verdict-plus-analysis.md) | Value Expert: análisis estructurado + veredicto | Accepted |
 | [010](docs/adr/ADR-010-nas-deploy-target.md) | Deploy target NAS QNAP TS264 | Accepted |
 | [011](docs/adr/ADR-011-us-data-sources.md) | Fuentes de datos US Fase 1 | Accepted |
 | [012](docs/adr/ADR-012-management-agent-data-sources.md) | Fuentes de datos Management Agent (EDGAR trifecta + Tavily) | Accepted |
+| [013](docs/adr/ADR-013-rag-trigger-same-ticker.md) | RAG trigger redefinido a re-análisis mismo ticker | Accepted |
+| [014](docs/adr/ADR-014-citations-news-attribution.md) | Citation visibility y news attribution en reports | Accepted |
+| [015](docs/adr/ADR-015-peer-comparison-user-supplied.md) | Peer comparison user-supplied en Checkpoint 1 | Accepted |
+| [016](docs/adr/ADR-016-earnings-transcripts-primary-source.md) | Earnings call transcripts como primary source | Accepted |
+| [017](docs/adr/ADR-017-8k-event-tracking.md) | 8-K event tracking desde EDGAR | Accepted |
+| [018](docs/adr/ADR-018-socratic-checkpoints-v2.md) | Socratic Checkpoints v2 — preguntas ancladas en datos | Accepted |
+| [019](docs/adr/ADR-019-value-expert-prompt-v2.md) | Value Expert prompt v2 — síntesis sobre rúbrica | Accepted |
+| [020](docs/adr/ADR-020-checkpointer-deferred-to-phase-5.md) | SqliteSaver checkpointer diferido a Phase 5 | Accepted |
+| [021](docs/adr/ADR-021-performance-metadata-tracking.md) | Performance metadata tracking — latencia y coste | Accepted |
+| [022](docs/adr/ADR-022-small-cap-display-and-dcf-growth-methodology.md) | Small-cap display formatter + DCF growth methodology | Accepted |
+| [023](docs/adr/ADR-023-roic-methodology-and-capital-returns.md) | ROIC robusto (Greenblatt-light fallback) + capital returns en schema | Accepted |
+| [024](docs/adr/ADR-024-moat-calibration-rubric.md) | Moat calibration rubric — criterios estrictos para wide moat | Accepted |
 
 Ver [`docs/adr/README.md`](docs/adr/README.md) para la política de ADRs y cómo añadir uno nuevo.
 

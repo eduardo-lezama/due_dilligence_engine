@@ -654,13 +654,12 @@ class EdgarManagementAdapter:
 
         set_identity(settings.sec_user_agent)
         company = Company(ticker)
-        filings = company.get_filings(form="10-K")
+        filing = _get_latest_full_10k(company)  # excluye 10-K/A (EC-27)
 
-        if not filings:
+        if not filing:
             log.warning("10k_not_found_for_item10", ticker=ticker)
             return ""
 
-        filing = filings.latest()
         log.info("10k_item10_fetch", ticker=ticker, period=str(filing.period_of_report))
 
         try:
@@ -675,6 +674,35 @@ class EdgarManagementAdapter:
         return item10_text[:max_chars]
 
 
+def _get_latest_full_10k(company):
+    """
+    Devuelve el último 10-K **original** (no amendment), excluyendo 10-K/A.
+
+    Por qué este helper (EC-27): cuando una empresa enmienda su 10-K, presenta un
+    "10-K/A" (amendment). Estos filings típicamente contienen solo las secciones
+    enmendadas (e.g., Part IV exhibits), NO el 10-K completo con Items 1A/7. Si
+    el sistema usa `filings.latest()` con `form="10-K"`, edgartools incluye 10-K/A
+    en los resultados — y `tenk.risk_factors`, `tenk.business`, `tenk.mda` devuelven
+    vacío silenciosamente.
+
+    Verificado en vivo con BBW (2026-05-10): último filing era un 10-K/A con solo
+    Part IV; Item 1A inaccesible vía cualquier path.
+
+    Returns: el filing 10-K original más reciente, o None si no hay.
+    """
+    filings = company.get_filings(form="10-K")
+    if not filings:
+        return None
+    # Excluir 10-K/A (amendments) — sus secciones suelen estar incompletas.
+    # edgartools devuelve el form como "10-K" o "10-K/A".
+    for f in filings:
+        if str(f.form).strip().upper() == "10-K":
+            return f
+    # Si todos son /A (caso extremo), devolver el más reciente — degraded mode.
+    log.warning("only_10ka_amendments_found", count=len(list(filings)))
+    return filings.latest()
+
+
 class EdgarFilingsAdapter:
     """
     Adapter para obtener las secciones cualitativas del 10-K anual.
@@ -684,9 +712,10 @@ class EdgarFilingsAdapter:
     - Item 1A: Risk Factors — riesgos materiales declarados por la empresa.
     - Item 7: MD&A — análisis de la dirección sobre resultados y tendencias.
 
-    Los tres métodos comparten el mismo patrón: obtener el 10-K más reciente,
-    extraer la sección semántica via edgartools 5.x, y truncar para el contexto LLM.
-    Se mockean individualmente en tests — ver tests/test_agents_1b.py.
+    Los tres métodos comparten el mismo patrón: obtener el 10-K original más reciente
+    (excluyendo 10-K/A — ver `_get_latest_full_10k`), extraer la sección semántica
+    via edgartools 5.x, y truncar para el contexto LLM. Se mockean individualmente
+    en tests — ver tests/test_agents_1b.py.
     """
 
     @staticmethod
@@ -704,13 +733,12 @@ class EdgarFilingsAdapter:
 
         set_identity(settings.sec_user_agent)
         company = Company(ticker)
-        filings = company.get_filings(form="10-K")
+        filing = _get_latest_full_10k(company)  # excluye 10-K/A (EC-27)
 
-        if not filings:
+        if not filing:
             log.warning("10k_not_found_for_business", ticker=ticker)
             return ""
 
-        filing = filings.latest()
         log.info("10k_business_fetch", ticker=ticker, period=str(filing.period_of_report))
 
         try:
@@ -725,37 +753,88 @@ class EdgarFilingsAdapter:
     @staticmethod
     def fetch_10k_risk_factors(ticker: str, max_chars: int = 10000) -> str:
         """
-        Obtiene el Item 1A del 10-K (Risk Factors).
+        Obtiene el Item 1A del 10-K (Risk Factors) con fallback regex (EC-27).
 
         Contiene los riesgos materiales que la empresa reconoce formalmente:
         regulatorios, competitivos, tecnológicos, macroeconómicos. Es la
         fuente primaria para §7.2 (Regulatory exposure) y §7.3 (Disruption)
-        del checklist. Riesgos declarados aquí tienen peso legal — omitirlos
-        expone a la empresa a responsabilidad civil.
+        del checklist.
 
-        En edgartools 5.x: `tenk.risk_factors` devuelve el texto del Item 1A.
+        Estrategia con dos pasos:
+            1. Primary: `tenk.risk_factors` de edgartools (rápido cuando funciona).
+            2. Fallback: regex sobre el texto completo del filing — busca encabezado
+               "Item 1A" y extrae hasta "Item 1B" o "Item 2". Necesario porque
+               edgartools 5.x falla en parsear Item 1A para muchos 10-K (BBW,
+               retailers, small caps con markup no estándar — verificado en vivo).
+
+        Esto sigue el mismo patrón que EC-21 (operating income con fallbacks):
+        no asumir que un parser único funciona para todo el universo de filers.
         """
+        import re
         from edgar import Company, set_identity  # type: ignore[import]
 
         set_identity(settings.sec_user_agent)
         company = Company(ticker)
-        filings = company.get_filings(form="10-K")
+        filing = _get_latest_full_10k(company)  # excluye 10-K/A (EC-27)
 
-        if not filings:
+        if not filing:
             log.warning("10k_not_found_for_risk_factors", ticker=ticker)
             return ""
 
-        filing = filings.latest()
         log.info("10k_risk_factors_fetch", ticker=ticker, period=str(filing.period_of_report))
 
+        # Step 1: primary — parser de edgartools
         try:
             tenk = filing.obj()
             text = str(tenk.risk_factors or "")
+            if text and len(text) > 500:  # threshold mínimo para considerar válido
+                return text[:max_chars]
         except Exception as e:
-            log.warning("10k_risk_factors_extraction_failed", ticker=ticker, error=str(e))
-            return ""
+            log.warning("10k_risk_factors_primary_failed", ticker=ticker, error=str(e))
 
-        return text[:max_chars]
+        # Step 2: fallback — regex sobre el texto completo del filing
+        try:
+            full_text = filing.document.text() if hasattr(filing, "document") else ""
+            if not full_text:
+                full_text = str(filing.text() if hasattr(filing, "text") else "")
+            if not full_text:
+                log.warning("10k_risk_factors_no_full_text", ticker=ticker)
+                return ""
+
+            # Buscar el header "Item 1A" (con variantes de capitalización y separadores).
+            # Un 10-K típico tiene varios "Item 1A" matches (índice + cuerpo); tomar el
+            # primero que esté seguido por "Risk Factors" en la siguiente línea o cerca.
+            # Patrón: "Item 1A" + opcional ". " + "Risk Factors" en los siguientes 100 chars
+            start_pattern = re.compile(
+                r"Item\s*1A\.?\s*[\.\:\s—-]*\s*Risk\s*Factors",
+                re.IGNORECASE,
+            )
+            # Extraer la última ocurrencia (la primera suele ser TOC/índice).
+            matches = list(start_pattern.finditer(full_text))
+            if not matches:
+                log.warning("10k_risk_factors_regex_no_match", ticker=ticker)
+                return ""
+            start_idx = matches[-1].end()  # última = cuerpo, no índice
+
+            # Buscar el final: próximo "Item 1B" o "Item 2" después de start_idx
+            end_pattern = re.compile(
+                r"Item\s*(1B|2)\.?\s",
+                re.IGNORECASE,
+            )
+            end_match = end_pattern.search(full_text, start_idx)
+            end_idx = end_match.start() if end_match else min(start_idx + 50000, len(full_text))
+
+            extracted = full_text[start_idx:end_idx].strip()
+            log.info(
+                "10k_risk_factors_regex_extracted",
+                ticker=ticker,
+                length=len(extracted),
+            )
+            return extracted[:max_chars]
+
+        except Exception as e:
+            log.warning("10k_risk_factors_fallback_failed", ticker=ticker, error=str(e))
+            return ""
 
     @staticmethod
     def fetch_10k_mda(ticker: str, max_chars: int = 10000) -> str:
@@ -773,13 +852,12 @@ class EdgarFilingsAdapter:
 
         set_identity(settings.sec_user_agent)
         company = Company(ticker)
-        filings = company.get_filings(form="10-K")
+        filing = _get_latest_full_10k(company)  # excluye 10-K/A (EC-27)
 
-        if not filings:
+        if not filing:
             log.warning("10k_not_found_for_mda", ticker=ticker)
             return ""
 
-        filing = filings.latest()
         log.info("10k_mda_fetch", ticker=ticker, period=str(filing.period_of_report))
 
         try:

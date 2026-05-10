@@ -268,7 +268,7 @@ Probabilistic:   management_agent, filings_agent, competitive_agent
                  value_expert, critic
 ```
 
-Los errores en la capa determinista son reproducibles y corregibles. Los errores en la capa probabilística son estocásticos — el mismo input puede dar outputs ligeramente distintos. Al mantener las capas separadas, puedes testear unitariamente el 100% de la capa determinista (188 tests en este proyecto) sin mockear LLMs.
+Los errores en la capa determinista son reproducibles y corregibles. Los errores en la capa probabilística son estocásticos — el mismo input puede dar outputs ligeramente distintos. Al mantener las capas separadas, puedes testear unitariamente el 100% de la capa determinista (221 tests en este proyecto) sin mockear LLMs.
 
 **Memory en agentes**
 Los sistemas agentes tienen típicamente tres tipos de memoria:
@@ -329,6 +329,20 @@ El ciclo correcto para sistemas de análisis con LLM:
 El primer run real de ACMR reveló en un análisis de 20 minutos más gaps que semanas de diseño teórico: el CEO fundador de 28 años invisible, la Entity List del BIS generalizada en "regulatory risk", el backlog de $1.27B inexistente en el report. Ninguno era un bug de código — eran decisiones de diseño (schema estrecho, prompt genérico, query con filtro temporal incorrecto) que solo se ven cuando el output se compara contra realidad.
 
 Los gaps arquitectónicos (pre-fetch del 10-K antes del fan-out, RAG same-ticker) se documentan con triggers en `docs/mce-evolution.md` y se resuelven cuando el ROI lo justifica. Los gaps de prompt y schema se resuelven inmediatamente porque son baratos y de alto impacto.
+
+### El meta-patrón "AAPL-bias"
+
+Después de varias rondas de auditorías externas (BBW analizada por Opus 4.7 en tres ocasiones), un patrón recurrente emergió: **el sistema fue diseñado y testeado contra empresas tipo AAPL** — large cap, equity grande, news flow constante, balance sheet clásico, XBRL completo con todos los conceptos estándar. Cuando se aplica al universo real de value investing, las asunciones implícitas se rompen sistemáticamente:
+
+- Small caps con income statements simplificados (sin `OperatingIncomeLoss` directo) → ROIC no calculable
+- Empresas con buybacks acumulados (AutoZone, Domino's) → equity bajo/negativo, fórmulas brittle
+- Stocks en drawdown → la noticia clave (tariff hit, profit warning) está fuera de la ventana de 30 días
+- Empresas que devuelven 100% del FCF → tesis core invisible si el schema no captura buybacks/dividends
+- Asset-light services → no reportan capex como línea separada, FCF mal calculado
+
+Cada uno de estos genera bugs en cascada: ROIC=N/A → tabla de peers sin ancla → §2 Moat Analysis sin números → confidence inflado/deflado mal calibrado. La solución arquitectónica recurrente es siempre la misma: **fallbacks de extracción + always-surface en context + reglas MUST en el prompt**.
+
+Este patrón se documenta como MCE-25 en `mce-evolution.md`: validar cada fix contra 4 arquetipos (large cap normal, small cap rentable, buyback-heavy, asset-light) antes de declararlo completo. La búsqueda manual de bugs duplicados es estructuralmente frágil.
 
 ---
 

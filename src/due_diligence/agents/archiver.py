@@ -110,6 +110,23 @@ def _render_markdown(state: AnalysisState) -> str:
     if valuation and not valuation.stub:
         lines += ["## Valuation Summary", ""]
 
+        # MCE-21: cuando hay contradicción DCF detectada, el warning sube a la cabecera
+        # de la sección Valuation antes de la tabla — el lector ve primero la advertencia,
+        # no el "+79% upside" engañoso.
+        has_contradiction = (
+            valuation.dcf_reliability_note
+            and "contradiction" in valuation.dcf_reliability_note.lower()
+        )
+        if has_contradiction:
+            lines += [
+                f"> {valuation.dcf_reliability_note}",
+                "",
+                "> **Reading guide**: when forward DCF and reverse DCF diverge materially, "
+                "the **reverse DCF (market-implied growth)** is the more informative anchor — "
+                "it tells you what assumptions the current price already discounts.",
+                "",
+            ]
+
         # Precio actual vs intrínseco por acción (primera tabla — más relevante)
         market_for_range = state.get("market")      # type: ignore[typeddict-item]
         if valuation.price_current is not None or valuation.dcf_intrinsic_per_share is not None:
@@ -131,19 +148,36 @@ def _render_markdown(state: AnalysisState) -> str:
                 if valuation.price_current and valuation.price_current.value > 0:
                     pct = (valuation.dcf_intrinsic_per_share.value - valuation.price_current.value) / valuation.price_current.value * 100
                     upside_str = f" ({pct:+.1f}%)"
-                lines.append(f"| DCF intrinsic (per share) | **${valuation.dcf_intrinsic_per_share.value:.2f}**{upside_str} |")
+                # MCE-21: cuando hay contradicción, etiquetar forward DCF como condicional
+                label = "DCF intrinsic (per share)"
+                if has_contradiction:
+                    label += " — *conditional on growth assumption*"
+                lines.append(f"| {label} | **${valuation.dcf_intrinsic_per_share.value:.2f}**{upside_str} |")
             else:
                 # DCF no computable — explicar por qué, no dejar la tabla vacía
                 lines.append("| DCF intrinsic (per share) | N/A — FCF negativo o insuficiente para DCF |")
             lines.append("")
 
-        # Métricas agregadas
+        # Métricas agregadas — orden depende de si hay contradicción (MCE-21)
         rows = []
+        if has_contradiction and valuation.reverse_dcf_implied_growth is not None:
+            # Reverse DCF como métrica primaria (headline) cuando contradice forward DCF
+            rows.append(
+                ("**Implied growth (reverse DCF — primary anchor)**",
+                 f"**{valuation.reverse_dcf_implied_growth:.1%}**")
+            )
         if valuation.dcf_intrinsic_value:
-            rows.append(("DCF equity value (total)", _fmt_usd(valuation.dcf_intrinsic_value.value)))
+            label = "DCF equity value (total)"
+            if has_contradiction:
+                label += " — *conditional*"
+            rows.append((label, _fmt_usd(valuation.dcf_intrinsic_value.value)))
         if valuation.dcf_upside_pct is not None:
-            rows.append(("DCF upside vs market cap", f"{valuation.dcf_upside_pct:+.1f}%"))
-        if valuation.reverse_dcf_implied_growth is not None:
+            label = "DCF upside vs market cap"
+            if has_contradiction:
+                label += " — *conditional*"
+            rows.append((label, f"{valuation.dcf_upside_pct:+.1f}%"))
+        if not has_contradiction and valuation.reverse_dcf_implied_growth is not None:
+            # Si no hay contradicción, reverse DCF va en su orden natural (después del forward)
             rows.append(("Implied growth (reverse DCF)", f"{valuation.reverse_dcf_implied_growth:.1%}"))
         if valuation.ev_ebit_multiple:
             rows.append(("EV/EBIT", f"{valuation.ev_ebit_multiple.value:.1f}x"))
@@ -167,7 +201,9 @@ def _render_markdown(state: AnalysisState) -> str:
                 f"{a.projection_years} years*"
             )
             lines.append("")
-        if valuation.dcf_reliability_note:
+        # Si la nota ya se mostró arriba (contradicción), no duplicarla. Si es de otro tipo
+        # (e.g. growth capped at 30% sin contradicción), mostrarla aquí.
+        if valuation.dcf_reliability_note and not has_contradiction:
             lines += [f"> {valuation.dcf_reliability_note}", ""]
 
     # --- Sensitivity table ---

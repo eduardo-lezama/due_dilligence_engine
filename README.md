@@ -2,7 +2,7 @@
 
 An agentic system for fundamental equity analysis, built on value investing principles. Given a US ticker, it runs a full multi-specialist analysis — from SEC filings to DCF valuation — and delivers a structured verdict with citations, a pre-mortem critique, and an archived report.
 
-> **Status:** Phase 1 + Phase 2 complete and verified. Phase 2 delivered peer ROIC comparison, earnings transcripts, 8-K event tracking, Socratic checkpoints, and Value Expert prompt v2. Phase 2.5 (same-ticker RAG) or Phase 3 (CAD/EU markets) is next.
+> **Status:** Phase 1 + Phase 2 complete + 4 post-production hardening rounds (Oleadas 1, 1.5, 2, plus MCE-22/23/26). System validated against small caps, buyback-heavy compounders, drawdown stocks (with adaptive news coverage), asset-light services, and companies with amended 10-K filings. Strict moat calibration rubric (ADR-024) prevents wide-moat over-classification. 221 tests, all green. Phase 2.5 (same-ticker RAG) or Phase 3 (CAD/EU markets) is next.
 
 ---
 
@@ -15,19 +15,19 @@ uv run due-diligence analyze AAPL
 The pipeline:
 
 1. **Supervisor** resolves the ticker to a CIK and routes the analysis
-2. **`financials_node`** — XBRL from EDGAR: revenue, FCF, ROIC, margins, balance sheet, 5y CAGR
+2. **`financials_node`** — XBRL from EDGAR: revenue, FCF, ROIC (with Greenblatt-light fallback for buyback-heavy companies), margins, balance sheet, 5y CAGR, **capital returns (buybacks + dividends)**, EBIT with multi-concept fallback for small caps
 3. **4 specialists run in parallel** (LangGraph `Send()` fan-out):
-   - `management_agent` — DEF 14A + Form 4 (insider pattern, founder detection) + Tavily (background, corporate structure) + Finnhub transcripts
-   - `filings_agent` — 10-K §1/§1A/§7: business, risk factors, MD&A, **backlog, guidance, geographic revenue, specific regulatory events verbatim**
-   - `market_agent` — Polygon (price, market cap, 52w) + Finnhub (news) + **EDGAR 8-K events** (Items 2.02/4.02/5.02)
-   - `competitive_agent` — ROIC series + Tavily: moat classification, competitive position
+   - `management_agent` — DEF 14A (targeted ownership/comp section extraction) + Form 4 (insider pattern, founder detection) + Tavily (background, corporate structure) + Finnhub transcripts
+   - `filings_agent` — 10-K §1/§1A/§7 (with **automatic 10-K/A amendment exclusion** + regex fallback for Item 1A): business, risk factors, MD&A, backlog, guidance, geographic revenue, specific regulatory events verbatim
+   - `market_agent` — Polygon (price, market cap, 52w) + Finnhub (news, 30d) + **adaptive Tavily** (drawdown stocks get extended news targeting tariff/guidance/regulatory) + **EDGAR 8-K events** (configurable items: 1.01, 2.02, 4.02, 5.02, 7.01, 8.01)
+   - `competitive_agent` — ROIC series + Tavily: moat classification with **strict 4-criteria rubric (ADR-024)** + post-hoc clamp downgrading wide → narrow when criteria fail
 4. **Checkpoint 1 (HITL, Socratic)** — data-grounded questions (moat/ROIC conflicts, insider ownership, CEO tenure); user reviews findings
 5. **`peers_node`** — EDGAR XBRL for 3-5 user-supplied peer tickers; injects peer ROIC into competitive report
 6. **Checkpoint 2 (HITL)** — shows historical CAGR anchor; user sets WACC, growth, projection years + justification
 7. **Valuation agent** — DCF, reverse DCF, EV/EBIT, EV/FCF, P/E, sensitivity table. Zero LLM numeric generation.
-8. **Value Expert** — synthesizes into 9-section analysis + BUY/HOLD/SELL. Prompt v2: must adjudicate conflicts, contrast implied growth vs CAGR, name concrete thesis-breaker
-9. **Critic agent** — independent pre-mortem: weaknesses, contra-thesis, failure scenarios
-10. **Archiver** — Markdown report: citations, **peer ROIC table with subject company as first row**, 8-K events, operational data (backlog, guidance, regulatory events), DCF reliability warning if cyclical peak detected + SQLite row
+8. **Value Expert** — synthesizes into 9-section analysis + BUY/HOLD/SELL. Prompt v2 with hard rules: adjudicate conflicts, contrast implied growth vs CAGR, name concrete thesis-breaker, **reconcile insider sale prices vs current price**, **report capital returns as % of FCF**, **report reinvestment rate (capex/OCF) with mode label**, **cross-check news + insider + margins for value trap pattern**. Sizing clamp: max ≤ confidence × 10
+9. **Critic agent** — independent pre-mortem with **structured red flags** (DCF contradiction, capital returns >80%, margin compression, price collapse + insider activity)
+10. **Archiver** — Markdown report: citations, **peer ROIC table with subject company always first row**, 8-K events, operational data (backlog, guidance, regulatory events), 52w range, DCF reliability warning if cyclical peak or forward/reverse contradiction detected + SQLite row
 
 ---
 
@@ -42,6 +42,9 @@ The pipeline:
 | **Tools fail loud** | Never a silent fallback from "tool broken" to "LLM invents number". Explicit error + log + branch abort if a critical metric is unavailable. |
 | **Socratic HITL** | Checkpoints aren't just approval gates — they carry didactic reasoning to help the user understand what matters and why. |
 | **Cyclical peak detection** | DCF warns when the FCF growth rate is capped (raw CAGR > 30%), signaling that the base FCF may be at a cyclical peak and the reverse DCF is more informative. |
+| **DCF contradiction flag** | If forward DCF assumes growth >5pp above the reverse-DCF implied growth (i.e. the upside is conditional on growth the market isn't pricing), the system flags it explicitly — the reverse DCF becomes the more informative anchor. |
+| **Robust to XBRL variability** | Multiple concept fallbacks for OCF, capex, EBIT, buybacks, dividends, and ROIC denominator. Small caps and asset-light services that don't report the standard `OperatingIncomeLoss` or have negative book equity from buybacks are first-class citizens, not excluded silently. |
+| **Adaptive number formatting** | Single-source `fmt_usd()` formatter adapts unit (M/B/k) by magnitude — small caps with $40M FCF show as `$40M`, not `$0.0B`. |
 | **US-only scope (Phase 1–2)** | Supports US domestic filers (10-K, XBRL US GAAP). Foreign private issuers (20-F, IFRS ADRs) require Phase 3 adapters. |
 
 ---
@@ -192,12 +195,13 @@ due_dilligence_engine/
 │   ├── llm/             # provider-agnostic LLM client (Claude primary, OpenAI fallback)
 │   ├── schemas/         # Pydantic v2 models: reports, base types, citations
 │   ├── tools/           # deterministic data adapters (edgar, polygon, finnhub, tavily)
+│   ├── utils/           # shared helpers — single source of truth for cross-cutting concerns (formatting, etc.)
 │   ├── config.py        # pydantic-settings: all env vars in one place
 │   └── cli.py           # typer CLI: interactive checkpoints, Socratic questions
 ├── tests/
-│   └── fixtures/        # cached API responses for offline testing (189 tests, zero real API calls)
+│   └── fixtures/        # cached API responses for offline testing (221 tests, zero real API calls)
 ├── docs/
-│   ├── adr/             # Architecture Decision Records (ADR-001 … ADR-020)
+│   ├── adr/             # Architecture Decision Records (ADR-001 … ADR-024)
 │   ├── checklist-value-investing.md
 │   ├── mce-evolution.md # deferred work with verifiable triggers
 │   └── phase-2-strategic-review.md

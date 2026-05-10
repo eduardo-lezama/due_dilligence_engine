@@ -64,10 +64,33 @@ RULES:
 - For qualitative claims, cite the web research source and excerpt.
 - Return ONLY valid JSON matching the schema below. No markdown outside JSON.
 
-MOAT CLASSIFICATION:
-- "wide": durable competitive advantage likely to persist 10+ years
-- "narrow": some competitive advantage but vulnerable to erosion in 5-10 years
-- "none": no identifiable structural advantage, commodity or cyclical business
+MOAT CLASSIFICATION RUBRIC — APPLY STRICTLY (ADR-024):
+
+The default is NARROW. WIDE requires ALL criteria below; missing any one downgrades to NARROW.
+
+WIDE moat — requires ALL of:
+1. ROIC > 15% sustained ≥ 4 consecutive years (use the full roic_series, not just latest).
+2. Capital base trending UP or stable — proxy: invested_capital growing OR buybacks <70% of FCF.
+   A company returning ~all FCF to shareholders has stagnant capital base = NOT wide moat.
+3. Revenue 3y CAGR ≥ 4% (real organic growth, not cyclical bounce).
+4. At least ONE specific structural advantage with EVIDENCE in the citations:
+   - Dominant scale (market share leader in defined market — name the share %)
+   - Network effects (with documented user/transaction growth flywheel)
+   - Switching costs (contractual / integration / data lock-in evidence)
+   - Brand pricing power AT SCALE (premium pricing data + gross margin >50% sustained)
+   - Regulatory barrier (license, patent, government contract moat)
+   - Efficient scale (small market, 1-2 dominant players, structural barrier to entry)
+
+If you classify as WIDE, you MUST list specific evidence for each of the 4 criteria in moat_analysis.
+If any criterion fails or evidence is absent, downgrade to NARROW.
+
+NARROW moat — ROIC > WACC sustained + at least one structural advantage above (real but vulnerable).
+   IMPORTANT: high-ROIC niche businesses with limited reinvestment runway (high payout, flat FCF,
+   stagnant capital base) are NARROW with high returns, NOT wide. They are cash cows on small niches,
+   not compounding machines. Examples: family-controlled specialty retailers (BKE), mature niche brands
+   with 95%+ FCF payout. The high ROIC reflects a small, well-defended moat — narrow by definition.
+
+NONE — declining ROIC, no specific advantage identifiable, commodity or pure cyclical.
 
 MOAT SOURCES (use only applicable):
 "brand", "switching_costs", "network_effects", "cost_advantage",
@@ -274,6 +297,20 @@ def competitive_agent(state: AnalysisState) -> dict:
     # --- 4. Parsear respuesta ---
     report = _parse_llm_response(response_text, ticker)
 
+    # --- 5. Moat calibration clamp (Fix #1 / EC-28 / ADR-024) ---
+    # Defensa en profundidad: si el LLM clasifica "wide" pero los criterios cuantitativos
+    # no lo soportan, downgrade a "narrow". Mismo patrón que sizing clamp en EC-24.
+    # El LLM puede ignorar la rúbrica del prompt; el clamp impone disciplina.
+    if report.moat_classification == "wide" and financials is not None:
+        downgrade_reasons = _check_wide_moat_criteria(financials)
+        if downgrade_reasons:
+            log.warning(
+                "competitive_moat_downgraded_wide_to_narrow",
+                ticker=ticker,
+                reasons=downgrade_reasons,
+            )
+            report = report.model_copy(update={"moat_classification": "narrow"})
+
     # Nota: peer_roic_comparison se construye en peers_node (no aquí).
     # competitive_agent corre en el fan-out ANTES de peers_node, así que
     # state["peer_financials"] no existe aún cuando este nodo ejecuta.
@@ -287,3 +324,45 @@ def competitive_agent(state: AnalysisState) -> dict:
     )
 
     return {"competitive": report}
+
+
+def _check_wide_moat_criteria(financials: FinancialsReport) -> list[str]:
+    """
+    Valida los 4 criterios cuantitativos de wide moat (ADR-024).
+
+    Returns:
+        Lista de razones por las que NO se cumple wide. Si vacía, criterios cumplidos.
+    """
+    fails: list[str] = []
+
+    # Criterio 1: ROIC > 15% sostenido ≥ 4 años
+    if not financials.roic_series or len(financials.roic_series) < 4:
+        fails.append("ROIC series < 4 years (need 4+ for wide)")
+    else:
+        roic_4y = financials.roic_series[:4]
+        if any(r.value < 0.15 for r in roic_4y):
+            below = [f"{r.period}: {r.value:.1%}" for r in roic_4y if r.value < 0.15]
+            fails.append(f"ROIC fell below 15% in: {', '.join(below)}")
+
+    # Criterio 2: Capital base estable o creciente — proxy: buybacks < 70% FCF
+    if financials.buybacks and financials.free_cash_flow:
+        bb_v = financials.buybacks[0].value
+        fcf_v = financials.free_cash_flow[0].value
+        if fcf_v > 0:
+            payout_pct = bb_v / fcf_v * 100
+            if payout_pct >= 70:
+                fails.append(
+                    f"Buybacks {payout_pct:.0f}% of FCF (≥70% = stagnant capital base, "
+                    f"cash cow profile not wide moat)"
+                )
+
+    # Criterio 3: Revenue 3y CAGR ≥ 4%
+    if financials.revenue and len(financials.revenue) >= 4:
+        newest = financials.revenue[0].value
+        oldest_3y = financials.revenue[3].value  # 3 años atrás
+        if oldest_3y > 0:
+            cagr = (newest / oldest_3y) ** (1 / 3) - 1
+            if cagr < 0.04:
+                fails.append(f"Revenue 3y CAGR {cagr:.1%} (<4% = no organic growth)")
+
+    return fails

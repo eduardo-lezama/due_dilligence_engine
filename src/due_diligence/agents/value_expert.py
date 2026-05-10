@@ -89,7 +89,7 @@ OUTPUT SCHEMA:
   "moat_analysis": "<§2: integrate ROIC evidence with qualitative moat classification. If peer ROIC data is available in context, explicitly compare the subject's ROIC against peers — name the numbers. If they conflict with the moat label, adjudicate with reasoning.>",
   "management_assessment": "<§3: skin in the game (insider %) + capital allocation track record + earnings call Q&A tone if available. Quote one verbatim phrase from transcripts if available. MUST reconcile insider sale prices vs current market price when both are in context — name the gap explicitly.>",
   "financial_quality": "<§4: FCF conversion, balance sheet, margin trends, earnings quality. If 'Capital returned to shareholders' is in context, you MUST report it explicitly: how much was returned, what % of FCF, split between buybacks/dividends. Capital allocation is core to value investing thesis.>",
-  "growth_reinvestment": "<§5: reinvestment rate (capex/OCF — MUST report the precomputed value if available), incremental ROIC, runway. State whether the company is in invest/balanced/harvest mode.>",
+  "growth_reinvestment": "<§5: reinvestment rate (capex/OCF — MUST report the precomputed value if available) + ROIC trend interpretation (incremental ROIC proxy — RISING means new capital earns above base, FALLING means value destruction). State whether the company is in invest/balanced/harvest mode AND whether marginal returns are positive or negative based on the ROIC trend.>",
   "valuation_section": "<§6: MUST contrast reverse-DCF implied growth vs historical 5y revenue CAGR. State the spread and what it implies about market expectations.>",
   "risks": "<§7: include any 8-K material events (especially Item 4.02) PLUS top risks from 10-K Item 1A. MUST cross-check news flow + insider activity + margin trends — if multiple signals point negative, name the value trap pattern explicitly.>",
   "psychological_lens": "<§8: why might this be mispriced? Contrarian thesis or consensus trap?>",
@@ -150,6 +150,18 @@ def _format_context(state: AnalysisState) -> str:
         if financials.roic_series:
             roic_str = ", ".join(f"{r.period}: {r.value:.1%}" for r in financials.roic_series[:3])
             lines.append(f"ROIC series: {roic_str}")
+            # Incremental ROIC proxy (Fix #3 / EC-26): la tendencia del ROIC dice si el capital
+            # marginal está ganando ≥ retorno que la base. Crítico para §5 Growth & Reinvestment.
+            if len(financials.roic_series) >= 2:
+                roic_latest = financials.roic_series[0].value
+                roic_oldest = financials.roic_series[-1].value
+                if roic_latest > roic_oldest * 1.05:  # +5% relative
+                    interp = "RISING — marginal ROIC > average ROIC (new capital earning above base)"
+                elif roic_latest < roic_oldest * 0.95:  # -5% relative
+                    interp = "FALLING — marginal ROIC < average ROIC (capital deployment value-destructive)"
+                else:
+                    interp = "STABLE — marginal ROIC ≈ average ROIC"
+                lines.append(f"ROIC trend interpretation (use in §5): {interp}")
         if financials.total_debt is not None:
             lines.append(f"Total Debt: {_fmt_usd(financials.total_debt.value)}")
         if financials.cash_and_equivalents is not None:

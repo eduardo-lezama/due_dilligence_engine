@@ -38,6 +38,7 @@ Cada ADR sigue: Status · Context · Decision · Consequences · Alternatives.
 | [021](ADR-021-performance-metadata-tracking.md) | Performance metadata tracking — latencia y coste | Accepted | 2.5 |
 | [022](ADR-022-small-cap-display-and-dcf-growth-methodology.md) | Small-cap display formatter + DCF growth methodology | Accepted | 2+ |
 | [023](ADR-023-roic-methodology-and-capital-returns.md) | ROIC robusto (fallback Greenblatt-light) + capital returns en schema | Accepted | 2+ |
+| [024](ADR-024-moat-calibration-rubric.md) | Moat calibration rubric — criterios estrictos para wide moat | Accepted | 2+ |
 
 ## Cómo añadir un ADR
 1. Crear `ADR-NNN-slug.md` incrementando N.

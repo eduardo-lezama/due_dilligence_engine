@@ -59,6 +59,30 @@ class Settings(BaseSettings):
     # management (5.02) siguen siendo relevantes aunque ocurrieran hace 9-10 meses.
     events_lookback_months: int = Field(12, validation_alias="EVENTS_LOOKBACK_MONTHS")
 
+    # News coverage extendida (MCE-19) — complementa Finnhub con Tavily targeting.
+    # Tavily se activa con queries específicas cuando el stock está en drawdown (catalizador
+    # típico fuera de la ventana de 30 días de Finnhub). Sin esto, news flow pierde
+    # contexto crítico (tariff disclosures, profit warnings, guidance cuts antiguos).
+    market_news_include_tavily: bool = Field(True, validation_alias="MARKET_NEWS_INCLUDE_TAVILY")
+    # Threshold de drawdown que activa búsqueda Tavily extendida (sin filtro temporal):
+    # ratio price_current / price_52w_high < threshold → ampliar cobertura.
+    market_news_drawdown_threshold: float = Field(
+        0.70, validation_alias="MARKET_NEWS_DRAWDOWN_THRESHOLD",
+    )
+
+    # 8-K Items a filtrar (MCE-20). Default ampliado para capturar más eventos materiales:
+    # - 1.01: Material Definitive Agreement (M&A, contratos relevantes)
+    # - 2.02: Results of Operations (earnings)
+    # - 4.02: Non-Reliance on Previously Issued Financials (restatement) — RED FLAG crítica
+    # - 5.02: Departure/Appointment of Officers
+    # - 7.01: Reg FD Disclosure (guidance updates fuera de earnings)
+    # - 8.01: Other Events (anuncios materiales — incluye tariff disclosures, supply chain)
+    # Configurable como lista separada por comas en .env: EDGAR_8K_ITEMS=2.02,4.02,5.02
+    edgar_8k_items: str = Field(
+        "1.01,2.02,4.02,5.02,7.01,8.01",
+        validation_alias="EDGAR_8K_ITEMS",
+    )
+
     # --- Performance tracking (ADR-021) ---
     # Tasa de cambio USD→EUR para reportar costes de LLM en EUR.
     # Usar USD_EUR_RATE en .env para actualizar sin tocar código.

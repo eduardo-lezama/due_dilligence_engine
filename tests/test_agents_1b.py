@@ -598,6 +598,70 @@ def test_market_agent_calls_polygon_and_finnhub(mocker, minimal_state):
     mock_finnhub.assert_called_once_with("AAPL")
 
 
+# --- Tests: MCE-19 — News con Tavily + ventana adaptativa ---
+
+def test_market_agent_skips_tavily_when_no_drawdown(mocker, minimal_state):
+    """
+    MCE-19: si stock está near 52w high (ratio >= 0.70), NO se activa Tavily.
+    Optimización de tokens — Finnhub 30 días basta para stocks normales.
+    """
+    polygon_data = {
+        "as_of_date": "2026-04-26",
+        "price_current": 195.0,    # near 52w high
+        "price_52w_high": 199.62,  # ratio 0.977
+        "price_52w_low": 164.08,
+        "market_cap": 2_800_000_000_000.0,
+    }
+    mocker.patch(
+        "due_diligence.agents.market.PolygonAdapter.fetch_market_data",
+        return_value=polygon_data,
+    )
+    mocker.patch(
+        "due_diligence.agents.market.FinnhubAdapter.fetch_company_news",
+        return_value=[],
+    )
+    tavily_spy = mocker.patch(
+        "due_diligence.agents.market.TavilyAdapter.search",
+        return_value=[],
+    )
+
+    market_agent(minimal_state)
+    assert tavily_spy.call_count == 0  # NOT invoked
+
+
+def test_market_agent_invokes_tavily_when_drawdown_detected(mocker, minimal_state):
+    """
+    MCE-19: si stock está en drawdown >30% desde 52w high (ratio <0.70), Tavily se invoca
+    con queries específicas para encontrar el catalizador del crash.
+    """
+    polygon_data = {
+        "as_of_date": "2026-05-10",
+        "price_current": 38.37,    # drawdown desde 75.85
+        "price_52w_high": 75.85,   # ratio 0.506 → < threshold 0.70
+        "price_52w_low": 35.38,
+        "market_cap": 500_000_000.0,
+    }
+    mocker.patch(
+        "due_diligence.agents.market.PolygonAdapter.fetch_market_data",
+        return_value=polygon_data,
+    )
+    mocker.patch(
+        "due_diligence.agents.market.FinnhubAdapter.fetch_company_news",
+        return_value=[],
+    )
+    tavily_spy = mocker.patch(
+        "due_diligence.agents.market.TavilyAdapter.search",
+        return_value=[
+            {"title": "Tariff hits margin", "url": "url1", "content": "..."},
+        ],
+    )
+
+    result = market_agent(minimal_state)
+    assert tavily_spy.call_count == 1  # invoked
+    # El summary debe contener el bloque "Extended news coverage"
+    assert "Extended news coverage" in result["market"].recent_news_summary
+
+
 # --- Tests: degraded mode de los adapters ---
 
 def test_polygon_skips_when_no_api_key(mocker):
@@ -695,13 +759,42 @@ def test_competitive_agent_stub_false(mocker, competitive_state):
 
 
 def test_competitive_agent_moat_classification(mocker, competitive_state):
-    """moat_classification se parsea correctamente."""
+    """
+    moat_classification se parsea correctamente, sujeto al moat calibration clamp (ADR-024).
+
+    Con la rúbrica estricta de wide moat, el LLM puede decir "wide" pero el clamp
+    post-hoc lo downgrade a "narrow" si los criterios cuantitativos fallan.
+    """
     _mock_competitive(mocker)
     result = competitive_agent(competitive_state)
     report: CompetitiveReport = result["competitive"]
-    assert report.moat_classification == "wide"
+    # El LLM dice "wide", pero el clamp aplica con AAPL fixture (≤3 años ROIC + CAGR <4%)
+    # → resultado esperado: "narrow" (downgraded). Es comportamiento correcto del clamp.
+    assert report.moat_classification == "narrow"
     assert "brand" in report.moat_sources
     assert "switching_costs" in report.moat_sources
+
+
+def test_competitive_agent_moat_clamp_downgrades_when_buyback_heavy(mocker, competitive_state):
+    """
+    Fix #1 / EC-28: si LLM dice "wide" pero buybacks ≥ 70% del FCF, downgrade a narrow.
+    Mismo patrón que sizing clamp en EC-24 — defensa en profundidad.
+    """
+    from due_diligence.schemas.base import MetricValue
+
+    # Inject buybacks que superan 70% del FCF en la fixture
+    state = dict(competitive_state)
+    financials = state["financials"]
+    financials = financials.model_copy(update={
+        "buybacks": [MetricValue(value=80_000_000, unit="USD", period="FY2025", source="XBRL")],
+        "free_cash_flow": [MetricValue(value=100_000_000, unit="USD", period="FY2025", source="calculated")],
+    })
+    state["financials"] = financials
+
+    _mock_competitive(mocker)
+    result = competitive_agent(state)
+    # 80M / 100M = 80% > 70% → criterio fallido → downgrade
+    assert result["competitive"].moat_classification == "narrow"
 
 
 def test_competitive_agent_citations_populated(mocker, competitive_state):

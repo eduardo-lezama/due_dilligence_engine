@@ -140,6 +140,26 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Síntoma**: `mgmt.insider_ownership_pct=null` aunque la empresa reporta ownership en su DEF 14A.
 - **Causa**: `fetch_def14a_text` truncaba el proxy a 12K chars. Para Russell 2000 típico, esa zona cubre intro + governance + board pero NO la "Security Ownership of Certain Beneficial Owners and Management" table (página 30-40 de un proxy típico).
 - **Fix**: extracción targeting — busca markers conocidos ("Security Ownership", "Beneficial Ownership", "Compensation Discussion") y extrae 4-5K chars alrededor de cada uno. Combina inicio + ownership + compensation en max 18K chars total. Más barato en tokens que solo subir el límite, y más robusto.
+- **Commit**: `ad52e7e`
+
+### EC-26 — Incremental ROIC no precomputado para §5
+- **Síntoma**: §5 Growth & Reinvestment decía "incremental ROIC not precomputed" — pero la información para inferirlo (ROIC trend) ya estaba en el contexto.
+- **Causa**: el LLM no conectaba "ROIC trend" con "marginal ROIC proxy" automáticamente. Sin instrucción explícita, no infería la relación.
+- **Fix**: en `_format_context`, surfacear interpretación explícita del trend: "RISING — marginal ROIC > average ROIC", "FALLING — marginal ROIC < average", "STABLE — ≈". Update §5 prompt rule para usar la interpretación.
+- **Commit**: pendiente
+
+### EC-27 — 10-K/A (amendments) leídos como 10-K originales — Item 1A/Business/MD&A invisibles
+- **Síntoma**: `mgmt`/`filings` Items 1A, 1, 7 todos vacíos para BBW. §7 dice "10-K risk section not available", §1 dice "business description not provided" aunque el sistema tiene el 10-K.
+- **Causa raíz** (verificada en vivo): el último filing 10-K de BBW es un **10-K/A (amendment)** que solo contiene Part IV (exhibits). El parser de edgartools devuelve secciones vacías para amendments. `filings.latest()` devolvía el amendment incompleto en lugar del 10-K original.
+- **Patrón sistémico**: afecta a CUALQUIER empresa que haya enmendado su 10-K (correcciones, suplementos, restatements). Misma raíz que EC-21 (XBRL variability) y EC-25 (truncate myopia) — system asume "happy path" y falla en variantes reales.
+- **Fix**: helper `_get_latest_full_10k(company)` que filtra `form == "10-K"` exactamente, excluyendo "10-K/A". Aplicado a las 4 funciones afectadas: `fetch_10k_business`, `fetch_10k_risk_factors`, `fetch_10k_mda`, `fetch_10k_item10`. Adicionalmente fallback regex sobre full text si edgartools parser falla en encontrar Item 1A.
+- **Commit**: pendiente
+
+### EC-28 — Moat clasificado "wide" basándose en ROIC alto sin más criterios
+- **Síntoma**: BBW promovido de "narrow" a "wide" en cuarta iteración solo porque ROIC pasó de N/A a 40.2%. Análisis externo identificó la clasificación como agresiva — BBW es cash cow nicho con returns altos, no wide moat compounder.
+- **Causa**: prompt del competitive_agent tenía rúbrica mínima ("wide = durable advantage 10+ years") sin criterios objetivos. LLM aplicaba heurístico mental "ROIC alto = moat fuerte = wide".
+- **Patrón**: misma clase que EC-15 (FCF CAGR como growth), EC-18 (equity como IC). Signal único usado para conclusión multifactorial.
+- **Fix**: rúbrica estricta multi-criterio (ADR-024) + clamp post-hoc. Wide moat requiere ROIC>15% × 4 años, capital base estable, revenue CAGR ≥4%, evidencia estructural específica. Si LLM dice "wide" pero criterios cuantitativos fallan → downgrade automático.
 - **Commit**: pendiente
 
 ## Conocidos — pendientes de fix

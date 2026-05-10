@@ -45,6 +45,7 @@ from due_diligence.schemas.reports import MarketReport
 from due_diligence.tools.edgar import EdgarEventsAdapter
 from due_diligence.tools.finnhub import FinnhubAdapter, format_news_for_prompt
 from due_diligence.tools.polygon import PolygonAdapter
+from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
 
 log = structlog.get_logger()
 
@@ -74,12 +75,33 @@ def market_agent(state: AnalysisState) -> dict:
     news_articles = FinnhubAdapter.fetch_company_news(ticker)
     recent_news_summary = format_news_for_prompt(news_articles)
 
-    # --- 3. Eventos materiales 8-K desde EDGAR (ADR-017) ---
+    # --- 2b. Cobertura extendida con Tavily si stock en drawdown (MCE-19) ---
+    # Finnhub limita a 30 días. Para stocks con drawdown >30% desde 52w high, el catalizador
+    # típico (tariff hit, profit warning, guidance cut) suele estar fuera de esa ventana.
+    # Tavily complementa con queries targeting sin filtro temporal estricto.
+    company_name = state.get("company_name", ticker)  # type: ignore[typeddict-item]
+    drawdown_news = _fetch_drawdown_context_news(
+        ticker=ticker,
+        company_name=company_name,
+        price_current=price_current,
+        price_52w_high=price_52w_high,
+    )
+    if drawdown_news:
+        recent_news_summary = (
+            f"{recent_news_summary}\n\n"
+            f"## Extended news coverage (drawdown context — Tavily, last 12 months)\n"
+            f"{drawdown_news}"
+        )
+
+    # --- 3. Eventos materiales 8-K desde EDGAR (ADR-017 + MCE-20) ---
     # Lookback controlado por settings.events_lookback_months (default 12).
-    # Filtra Items 2.02 (earnings), 4.02 (restatement), 5.02 (mgmt changes).
-    # Item 4.02 es señal roja crítica — restatement contable.
+    # Items configurables via EDGAR_8K_ITEMS — default ampliado a 6 items críticos:
+    # 1.01 (M&A), 2.02 (earnings), 4.02 (restatement RED FLAG), 5.02 (mgmt changes),
+    # 7.01 (Reg FD / guidance updates), 8.01 (other material events incluyendo tariff disclosures).
+    items_filter = [s.strip() for s in settings.edgar_8k_items.split(",") if s.strip()]
     material_events = EdgarEventsAdapter.fetch_8k_events(
         ticker,
+        items=items_filter,
         months=settings.events_lookback_months,
     )
 
@@ -110,3 +132,64 @@ def _to_mv(value: float | None, unit: str, period: str) -> MetricValue | None:
     if value is None:
         return None
     return MetricValue(value=value, unit=unit, period=period, source="Polygon")
+
+
+def _fetch_drawdown_context_news(
+    ticker: str,
+    company_name: str,
+    price_current: MetricValue | None,
+    price_52w_high: MetricValue | None,
+) -> str:
+    """
+    Fetch noticias extendidas via Tavily cuando el stock está en drawdown (MCE-19).
+
+    Por qué adaptativo y no siempre:
+        Finnhub (30 días) cubre el news flow reciente para stocks normales.
+        Para stocks con caídas materiales (drawdown >30%), el catalizador suele
+        estar 2-6 meses atrás — fuera del lookback de Finnhub. Ejemplos:
+            - BBW: tariff disclosure de Dec 2025 invisible al sistema (run May 2026).
+            - Cualquier stock con profit warning, guidance cut, regulatory event antiguo.
+
+        Activar Tavily SIEMPRE costaría tokens innecesarios para stocks near-high
+        donde Finnhub ya cubre lo relevante. Activación condicional preserva eficiencia.
+
+    Returns:
+        String formateado con artículos Tavily, o "" si no aplica (no drawdown
+        o Tavily no configurado o feature flag disabled).
+    """
+    if not settings.market_news_include_tavily:
+        return ""
+    if price_current is None or price_52w_high is None or price_52w_high.value <= 0:
+        return ""
+
+    ratio = price_current.value / price_52w_high.value
+    if ratio >= settings.market_news_drawdown_threshold:
+        log.debug(
+            "market_drawdown_news_skipped",
+            ticker=ticker,
+            ratio=f"{ratio:.2f}",
+            threshold=settings.market_news_drawdown_threshold,
+        )
+        return ""
+
+    drawdown_pct = (1 - ratio) * 100
+    log.info(
+        "market_drawdown_detected",
+        ticker=ticker,
+        drawdown_pct=f"{drawdown_pct:.0f}%",
+        triggering_extended_news=True,
+    )
+
+    # Queries targeting catalizadores típicos de drawdowns. time_range=None para máxima
+    # cobertura histórica; el LLM downstream filtra por relevancia.
+    queries = [
+        (f"{company_name} stock decline drop guidance miss profit warning", None),
+        (f"{ticker} {company_name} tariff supply chain margin compression", None),
+        (f"{ticker} {company_name} regulatory risk SEC investigation", None),
+    ]
+    try:
+        results = TavilyAdapter.search(queries)
+        return format_tavily_for_prompt(results, max_chars_per_result=600)
+    except Exception as e:
+        log.warning("market_tavily_drawdown_failed", ticker=ticker, error=str(e))
+        return ""

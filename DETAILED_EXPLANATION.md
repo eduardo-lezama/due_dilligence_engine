@@ -2658,3 +2658,161 @@ Tras los 5 fixes:
 
 *Última actualización: 2026-05-10 — Oleada 1.5 (EC-21/22/23/24/25). 218 tests, verde.*
 
+---
+
+## Oleada 2 — Cuarta auditoría BBW: calibración + cobertura (2026-05-10)
+
+### El detonante: re-run de BBW post-Oleada 1.5 revela 4 issues nuevos
+
+Tras Oleada 1.5, BBW se re-corrió y Opus auditó. Resultado: **los bugs estructurales están resueltos** (ROIC, capital returns, citations flow, sizing). Lo que queda son **refinements de calibración + cobertura**:
+
+1. **Moat sobreajustado a "wide"** — BBW promovido de narrow → wide solo porque ROIC apareció (40.2%). Análisis externo: clasificación agresiva, BBW es cash cow nicho con returns altos, no compounder durable.
+2. **Item 1A (Risk Factors) inaccesible** — §7 dice "10-K risk section not available". Bug nuevo, sistémico.
+3. **Tariff narrative sigue invisible** — 4 iteraciones después, MCE-19 sigue pendiente.
+4. **8-K vacío para stock con -49% drawdown** — Items 1.01, 7.01, 8.01 no filtrados.
+
+### EC-26 — Incremental ROIC: surfacear interpretación, no solo el dato
+
+§5 Growth & Reinvestment decía "incremental ROIC not precomputed" aunque el ROIC trend ya estaba en contexto. El LLM no inferia automáticamente "trend rising = marginal ROIC > average".
+
+Fix: `_format_context` ahora emite interpretación explícita:
+
+```
+ROIC series: FY2026: 40.2%, FY2025: 39.6%, FY2024: 37.5%
+ROIC trend interpretation (use in §5): RISING — marginal ROIC > average ROIC
+  (new capital earning above base)
+```
+
+§5 prompt rule actualizada para usar la interpretación. Mismo patrón que reinvestment rate (precomputar y surfacear, no esperar inferencia).
+
+### EC-27 — El bug del 10-K/A: sistémico y silencioso
+
+Investigación en vivo reveló: **el último filing 10-K de BBW es un `10-K/A` (amendment)**. Estos amendments contienen solo las secciones enmendadas (típicamente Part IV — exhibits). El parser de edgartools devuelve secciones vacías para Items 1, 1A, 7.
+
+`filings.latest()` con `form="10-K"` incluía amendments. Resultado: para BBW, las 4 funciones del adapter (`fetch_10k_business`, `fetch_10k_risk_factors`, `fetch_10k_mda`, `fetch_10k_item10`) devolvían texto vacío silenciosamente.
+
+**Esto NO es específico de BBW**. Cualquier empresa que haya enmendado su 10-K (correcciones, suplementos, restatements posteriores) tiene este problema. La fix es sistémica:
+
+```python
+def _get_latest_full_10k(company):
+    """Devuelve el último 10-K original (form == '10-K' exacto), no amendments."""
+    filings = company.get_filings(form="10-K")
+    for f in filings:
+        if str(f.form).strip().upper() == "10-K":
+            return f
+    return filings.latest()  # degraded: solo amendments disponibles
+```
+
+Aplicado a las 4 funciones afectadas. **Verificado en vivo**: BBW Item 1A pasa de 0 chars a contenido válido ("We operate in a changing environment that involves numerous known and unknown risks...").
+
+### EC-28 — Moat calibration: ROIC alto ≠ wide moat (ADR-024)
+
+El bug más conceptualmente importante de Oleada 2. La rúbrica anterior era mínima:
+
+```
+- "wide": durable competitive advantage likely to persist 10+ years
+- "narrow": some competitive advantage but vulnerable
+```
+
+Sin criterios objetivos. El LLM aplicaba el heurístico mental "ROIC alto = moat fuerte = wide". Para BBW (ROIC 40%+), saltó a wide aunque la empresa tiene **capital base estática** (99% del FCF se devuelve al accionista) y **FCF flat 4 años**.
+
+**El insight teórico clave**: ROIC alto puede venir de DOS perfiles cualitativamente distintos:
+
+| Perfil | Mecánica | Moat real |
+|--------|----------|-----------|
+| **Compounder durable** | ROIC × reinvestment × runway → capital base CRECE → FCF crece exponencialmente | Wide |
+| **Cash cow nicho** | ROIC × reinvestment limitado × runway saturado → capital base ESTÁTICA → FCF estable | Narrow con returns altos |
+
+BBW es claramente el segundo. Es lo que el Critic identificó correctamente: *"high ROIC and large shareholder distributions mask the fact that the company is not converting that economic quality into growing free cash flow."*
+
+**Fix arquitectónico** (ADR-024): rúbrica multi-criterio + clamp post-hoc:
+
+```python
+WIDE moat — requires ALL of:
+1. ROIC > 15% sustained ≥ 4 consecutive years
+2. Capital base trending UP or stable (proxy: buybacks <70% of FCF)
+3. Revenue 3y CAGR ≥ 4% (real organic growth)
+4. ≥1 specific structural advantage with EVIDENCE (scale/network/switching/regulatory/brand at scale)
+```
+
+Si el LLM dice "wide" pero los criterios cuantitativos fallan → clamp programático downgrade a "narrow" con razones logueadas. Mismo patrón de defensa en profundidad que sizing clamp en EC-24.
+
+**Para BBW específicamente**: criterio #2 falla (buybacks 70%+ del FCF) → downgrade automático a narrow. Resultado correcto.
+
+### MCE-19 — News coverage extendida con activación adaptativa
+
+Tras 4 iteraciones, el "tariff narrative" seguía invisible al sistema. Causa: Finnhub limitado a 30 días, el catalizador del crash (-49%) era de Dec 2025 — fuera de ventana.
+
+Solución: complementar con Tavily, **pero solo cuando el drawdown lo justifica**. Filosofía: para stocks near-high (Finnhub cubre el news flow relevante), no añadir tokens innecesarios. Para stocks con drawdown >30%, ampliar cobertura.
+
+```python
+ratio = price_current / price_52w_high
+if ratio < 0.70:  # drawdown ≥ 30%
+    # Tavily targeting: profit warnings, tariff, regulatory
+    queries = [
+        f"{company_name} stock decline guidance miss profit warning",
+        f"{ticker} {company_name} tariff supply chain margin compression",
+        f"{ticker} {company_name} regulatory risk SEC investigation",
+    ]
+    extra_news = TavilyAdapter.search(queries, time_range=None)
+```
+
+**Por qué adaptativo y no siempre**: optimización de tokens. Activación condicional preserva eficiencia para stocks normales. Configurable via `.env`.
+
+### MCE-20 — 8-K filter ampliado
+
+Default anterior: `[2.02, 4.02, 5.02]`. Para BBW con -49%, "no material 8-K events" era sospechoso. Items relevantes faltaban:
+
+- **1.01** Material Definitive Agreement (M&A, contratos)
+- **7.01** Reg FD Disclosure (guidance updates fuera de earnings)
+- **8.01** Other Events (anuncios materiales — incluye tariff disclosures)
+
+Default expandido a 6 items. Configurable via `EDGAR_8K_ITEMS=...` en `.env`.
+
+### MCE-21 — Reverse DCF como headline cuando contradice
+
+Cuando el flag de contradicción DCF se activa (forward growth - reverse implied growth > 5pp), el report seguía mostrando el forward DCF como número headline en la tabla, con el warning solo como blockquote después.
+
+Si declaramos que el reverse DCF es "the more informative anchor", debe **liderar** visualmente en ese caso:
+
+- Warning sube a la cabecera de la sección Valuation (antes de la tabla)
+- Reading guide explícita: "when forward and reverse diverge, reverse is the primary anchor"
+- Tabla reordenada: "Implied growth (reverse DCF — primary anchor)" como primera fila destacada
+- Forward DCF marcado como "*conditional on growth assumption*"
+
+### El balance tras 4 iteraciones
+
+Eje | Antes Oleada 2 | Después Oleada 2
+---|---|---
+Datos cuantitativos | Sólido | Sólido (ROIC, capital returns, EV/EBIT)
+Coordinación subagentes | Resuelta | Resuelta + Item 1A finalmente visible
+Reasoning Value Expert | Bueno con tendencia a sobrecorregir | **Calibrado** (moat rubric estricta)
+Reasoning Critic | Excelente | Excelente
+Decision Frame | Excelente | Excelente
+**Detección narrativas** (tariff, guidance) | **Pendiente — blind spot principal** | **Cubierto** (Tavily adaptativo)
+**Detección 8-K** | **Pendiente** | **Cubierto** (filter expandido)
+**Calibración moat label** | **Refinable** | **Calibrado** (rúbrica + clamp)
+Coherencia confidence/sizing | Resuelta | Resuelta
+
+### El meta-patrón confirmado por cuarta vez
+
+Cada Oleada ha encontrado el mismo tipo de error: **el sistema usa heurísticos simples (un signal → una conclusión) para problemas multifactoriales**. La solución arquitectónica recurrente es:
+
+1. **Rúbrica multi-criterio en prompt** (educativa, primer intento)
+2. **Clamp post-hoc programático** (defensa en profundidad)
+3. **Logging auditable** (decisión trazable)
+
+Aplicado consistentemente:
+
+- EC-15: FCF CAGR + revenue CAGR cap → growth conservador
+- EC-18: equity-based IC + total_assets fallback → ROIC robusto
+- EC-21: OperatingIncomeLoss + 3 fallbacks → EBIT siempre disponible
+- EC-24: sizing por confidence × 10 (clamp) → coherencia
+- **EC-28: moat 4-criteria + clamp → calibración correcta**
+
+Este patrón debería aplicarse a futuros bugs sistémicos.
+
+---
+
+*Última actualización: 2026-05-10 — Oleada 2 (EC-26/27/28 + MCE-19/20/21) + ADR-024. 221 tests, verde.*
+

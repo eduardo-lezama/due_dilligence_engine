@@ -59,3 +59,75 @@ def test_supervisor_invalid_ticker_raises(mocker):
 
     with pytest.raises(ValueError, match="INVALID_TICKER"):
         supervisor_node({"ticker": "INVALID_TICKER"})
+
+
+def test_supervisor_foreign_filer_20f_detected(mocker):
+    """
+    EC-36: foreign private issuer (NMM-like) sin 10-K pero con 20-F debe fallar
+    con DataUnavailableError educativo, NO con AttributeError críptico.
+    """
+    from due_diligence.tools.edgar import DataUnavailableError
+
+    mock_company = mocker.MagicMock()
+    mock_company.cik = 1415921
+    mock_company.name = "Navios Maritime Partners L.P."
+    mock_company.industry = "Deep Sea Foreign Transportation of Freight"
+
+    # 10-K query returns .latest() == None (foreign filer no presenta 10-K)
+    mock_10k_filings = mocker.MagicMock()
+    mock_10k_filings.latest.return_value = None
+    # 20-F query returns a real filing (the foreign filer's annual report)
+    mock_20f_filings = mocker.MagicMock()
+    mock_20f_latest = mocker.MagicMock()
+    mock_20f_latest.filing_date = "2026-03-12"
+    mock_20f_latest.period_of_report = "2025-12-31"
+    mock_20f_filings.latest.return_value = mock_20f_latest
+
+    def get_filings_side_effect(form=None):
+        if form == "10-K":
+            return mock_10k_filings
+        if form == "20-F":
+            return mock_20f_filings
+        return mocker.MagicMock()
+
+    mock_company.get_filings.side_effect = get_filings_side_effect
+    mocker.patch("due_diligence.agents.supervisor.Company", return_value=mock_company)
+
+    from due_diligence.agents.supervisor import supervisor_node
+
+    with pytest.raises(DataUnavailableError) as exc_info:
+        supervisor_node({"ticker": "NMM"})
+
+    error_msg = str(exc_info.value)
+    assert "foreign private issuer" in error_msg
+    assert "20-F" in error_msg
+    assert "Phase 3" in error_msg or "MCE-13" in error_msg
+    assert "2026-03-12" in error_msg  # filing date helpful for user
+
+
+def test_supervisor_no_10k_no_20f_distinct_message(mocker):
+    """
+    EC-36: ticker existe en EDGAR pero sin 10-K NI 20-F (private/SPAC/delisted)
+    debe fallar con DataUnavailableError distinto al de foreign filer.
+    """
+    from due_diligence.tools.edgar import DataUnavailableError
+
+    mock_company = mocker.MagicMock()
+    mock_company.cik = 9999999
+
+    # Ni 10-K ni 20-F disponibles
+    mock_empty_filings = mocker.MagicMock()
+    mock_empty_filings.latest.return_value = None
+    mock_company.get_filings.return_value = mock_empty_filings
+
+    mocker.patch("due_diligence.agents.supervisor.Company", return_value=mock_company)
+
+    from due_diligence.agents.supervisor import supervisor_node
+
+    with pytest.raises(DataUnavailableError) as exc_info:
+        supervisor_node({"ticker": "SHELL"})
+
+    error_msg = str(exc_info.value)
+    # Mensaje distinto al de foreign filer — categoría diferente
+    assert "private company" in error_msg or "delisted" in error_msg or "SPAC" in error_msg
+    assert "foreign private issuer" not in error_msg  # NO confundir con foreign filer

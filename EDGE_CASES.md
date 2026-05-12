@@ -187,6 +187,26 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Fix**: computar avg annual ΔROIC en pp/year y surfacearlo. Para BBW: "RISING — marginal ROIC > average (avg ΔROIC: +0.9pp/year over 3 years)".
 - **Commit**: `16555c4`
 
+### EC-36 — Foreign private issuers (20-F filers) crashean supervisor con AttributeError críptico (NMM)
+- **Síntoma**: `due-diligence analyze NMM` (Navios Maritime Partners, Marshall Islands shipping LP) crashea con `AttributeError: 'NoneType' object has no attribute 'period_of_report'` envuelto en `ValueError: NMM: could not resolve ticker in EDGAR`. Mensaje engañoso — el ticker SÍ está en EDGAR (CIK 1415921 obtenido), pero NMM no tiene 10-K (22 filings 20-F en su lugar).
+- **Causa raíz**: `supervisor_node` llamaba `company.get_filings(form="10-K").latest()` y asumía que devolvía siempre un filing. Para foreign filers, devuelve `None` → `.period_of_report` crashea. El except genérico oculta la categoría real del problema.
+- **Patrón sistémico**: misma clase que EC-11 (foreign ADRs no soportados — ya conocido) y EC-35 (financial firms). Tres categorías de empresas fuera del scope:
+  1. **Financieras** (SIC 6000-6799) — detectado en `EdgarAdapter.fetch_raw` (EC-35)
+  2. **Foreign filers** (Form 20-F) — detectado en `supervisor_node` (EC-36, este)
+  3. **Sin annual report** (private, pre-SPAC, delisted) — detectado en `supervisor_node`
+- **Fix**: refactorizar `supervisor_node` con detección categorizada:
+  1. Step 1: ticker resolution (`Company(ticker)` + `.cik`) — fail con `ValueError("ticker not found")` si no existe
+  2. Step 2: 10-K availability (`get_filings("10-K").latest()`)
+     - Si existe → continuar con flujo normal
+     - Si None → Step 3: check 20-F. Si existe → `DataUnavailableError("foreign private issuer")` con mensaje educativo (industry, última 20-F fecha, referencia a Phase 3/MCE-13)
+     - Si tampoco hay 20-F → `DataUnavailableError("private/SPAC/delisted")` con mensaje específico
+- **Beneficios**:
+  - Mensaje educativo en lugar de stack trace críptico — el usuario entiende QUÉ pasa y cuándo se soportará
+  - Tres categorías distinguidas — antes todas caían en el mismo "could not resolve ticker"
+  - Consistente con el patrón de EC-35 (detect-and-fail-loud por categoría arquitectónica)
+- **Para NMM específicamente**: el mensaje ahora dice "Navios Maritime Partners L.P. is a foreign private issuer (industry: Deep Sea Foreign Transportation of Freight). It files Form 20-F... Last 20-F filed: 2026-03-12 for FY 2025-12-31."
+- **Commit**: pendiente
+
 ### EC-35 — Empresas financieras (SIC 6000-6799) producen errors crípticos en extracción de revenue (AGM)
 - **Síntoma**: `due-diligence analyze AGM` (Federal Agricultural Mortgage / Farmer Mac) lanza `DataUnavailableError: AGM: revenue concept not found in income statement`. Mensaje confuso porque AGM SÍ reporta income — solo que no como "Revenue".
 - **Causa raíz**: AGM es una empresa **financiera** (SIC 6111 — Federal & Federally-Sponsored Credit Agencies). Las financieras no usan los conceptos XBRL estándar `RevenueFromContractWithCustomer` o `Revenues`. Sus equivalentes son: `InterestIncomeOperating`, `InterestExpense`, `InterestIncomeExpenseNet` (Net Interest Income), `InvestmentIncomeInterest`. La analogía de "revenue" para banks/insurers/mortgage cos es Net Interest Income — un concepto **estructuralmente distinto**.
@@ -222,12 +242,12 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 
 ## Conocidos — pendientes de fix
 
-### EC-11 — Foreign private issuers (ADRs no-US) fallan al intentar 10-K
-- **Tickers afectados**: GRVY (Corea), ONON (Suiza), BABA (China), TSM (Taiwan), cualquier 20-F filer.
-- **Síntoma**: error en supervisor/EDGAR al intentar fetchear 10-K — la empresa solo tiene 20-F.
-- **Causa**: el sistema está construido para 10-K US GAAP. 20-F tiene estructura diferente e IFRS/local GAAP.
-- **Status**: limitación conocida. Phase 3 añadirá soporte 20-F. Ver `docs/mce-evolution.md` MCE-13.
-- **Workaround**: usar solo tickers de empresas US domésticas (o ADRs de empresas que también tengan 10-K).
+### EC-11 — Foreign private issuers (ADRs no-US, 20-F filers)
+- **Tickers afectados**: GRVY (Corea), ONON (Suiza), BABA (China), TSM (Taiwan), NMM (Marshall Islands), cualquier 20-F filer.
+- **Síntoma original**: crash críptico (`AttributeError: NoneType has no attribute period_of_report`) envuelto en mensaje engañoso "could not resolve ticker".
+- **Status — detection mejorada en EC-36 (commit pendiente)**: el supervisor ahora distingue 3 categorías y emite mensaje educativo cuando detecta 20-F. **No analiza la empresa todavía** — soporte arquitectónico de 20-F sigue diferido a Phase 3 (MCE-13). Pero el error ya no es críptico — el usuario sabe exactamente qué pasa y cuándo se soportará.
+- **Workaround actual**: usar solo tickers de empresas US domésticas (o ADRs de empresas que también tengan 10-K).
+- **Phase 3 trabajo necesario**: ver MCE-13 — adapter para 20-F IFRS, schema con currency awareness, partnership distributions (K-1).
 
 ### EC-12 — UAA (Under Armour) falla con `float() argument must be a string or real number, not 'NoneType'`
 - **Síntoma**: `peers_node_peer_failed` al intentar fetchear UAA como peer.

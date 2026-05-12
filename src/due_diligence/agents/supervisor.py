@@ -40,6 +40,12 @@ def supervisor_node(state: AnalysisState) -> dict:
     """
     Valida el ticker, resuelve CIK, extrae as_of_date y genera run_id.
 
+    Detección categorizada (EC-36):
+        El error original "could not resolve ticker" era engañoso — agrupaba
+        tres escenarios distintos (ticker inexistente, foreign 20-F filer,
+        no-10-K filer) bajo el mismo mensaje. Ahora se distinguen con detección
+        explícita y mensajes educativos, igual que EC-35 (financial firms).
+
     Args:
         state: Estado del grafo — solo necesita state["ticker"].
 
@@ -48,23 +54,53 @@ def supervisor_node(state: AnalysisState) -> dict:
         y campos cross-cutting inicializados (citations, unverified_claims, cost_usd).
 
     Raises:
-        ValueError: Si el ticker no existe en EDGAR o no tiene 10-K disponible.
+        ValueError: Si el ticker no existe en EDGAR.
+        DataUnavailableError: Si el ticker existe pero es foreign filer (20-F),
+            partnership con K-1, o cualquier otra categoría no soportada.
     """
+    from due_diligence.tools.edgar import DataUnavailableError
+
     ticker = state["ticker"].upper()  # normalizar: "aapl" → "AAPL"
 
     # set_identity es obligatorio por la política de uso de EDGAR:
     # identifica quién hace las requests (nombre + email del sec_user_agent)
     set_identity(settings.sec_user_agent)
 
+    # Step 1: ticker resolution — ¿existe la empresa en EDGAR?
     try:
         company = Company(ticker)
-        # zfill(10): convierte el entero 320193 → "0000320193" (formato estándar SEC)
-        cik = str(company.cik).zfill(10)
-        latest_10k = company.get_filings(form="10-K").latest()
-        as_of_date = str(latest_10k.period_of_report)
+        cik = str(company.cik).zfill(10)  # int → "0000320193"
     except Exception as e:
-        # Fail loud (ADR-005): nunca continuar con un ticker inválido
-        raise ValueError(f"{ticker}: could not resolve ticker in EDGAR — {e}")
+        raise ValueError(f"{ticker}: ticker not found in EDGAR — {e}")
+
+    # Step 2: 10-K availability — ¿es un US domestic filer estándar?
+    latest_10k = company.get_filings(form="10-K").latest()
+    if latest_10k is not None:
+        as_of_date = str(latest_10k.period_of_report)
+    else:
+        # No hay 10-K — distinguir foreign filer (20-F) de otros casos
+        latest_20f = company.get_filings(form="20-F").latest()
+        if latest_20f is not None:
+            # Foreign private issuer — EC-11 conocido, soporte diferido a Phase 3
+            company_name = getattr(company, "name", ticker)
+            industry = getattr(company, "industry", "Unknown")
+            raise DataUnavailableError(
+                f"{ticker} ({company_name}) is a foreign private issuer "
+                f"(industry: {industry}). It files Form 20-F with the SEC, not 10-K. "
+                f"This system's XBRL extraction is built for US GAAP 10-K filers — "
+                f"20-F uses IFRS or local GAAP with different concept tagging, and "
+                f"the analytical framework may differ (e.g. partnerships with K-1 "
+                f"distributions, foreign-domiciled compounders). Foreign filers support "
+                f"is deferred to Phase 3 (ver MCE-13). Last 20-F filed: "
+                f"{latest_20f.filing_date} for FY {latest_20f.period_of_report}."
+            )
+        # Sin 10-K ni 20-F — caso raro (private company, SPAC pre-merger, recently delisted)
+        raise DataUnavailableError(
+            f"{ticker} (CIK {cik}) exists in EDGAR but has no 10-K or 20-F filings. "
+            f"This could be a private company, pre-merger SPAC, recently delisted entity, "
+            f"or non-operating shell. The system requires an annual report to extract "
+            f"financials. Verify the ticker is currently public and reporting."
+        )
 
     # UUID truncado a 12 chars: suficientemente único para identificar un run,
     # lo suficientemente corto para mostrarlo en el CLI sin ruido

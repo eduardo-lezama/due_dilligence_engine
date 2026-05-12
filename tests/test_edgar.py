@@ -172,3 +172,47 @@ def test_parse_financials_handles_missing_shares_outstanding(aapl_raw):
     # El resto del report debe construirse sin errores
     assert report.ticker == "AAPL"
     assert len(report.revenue) > 0
+
+
+def test_fetch_raw_rejects_financial_firms_by_sic(mocker):
+    """
+    EC-35: empresas financieras (SIC 6000-6799) deben rechazarse con error claro,
+    NO procesarse con framework no-financiero. Verifica que el sistema sigue
+    ADR-005 (fail loud) en lugar de producir output indefendible.
+    """
+    from due_diligence.tools.edgar import EdgarAdapter, DataUnavailableError
+
+    mock_company = mocker.MagicMock()
+    mock_company.sic = "6111"
+    mock_company.industry = "Federal & Federally-Sponsored Credit Agencies"
+    # Patch en el módulo edgar de donde se hace `from edgar import Company`
+    mocker.patch("edgar.Company", return_value=mock_company)
+    mocker.patch("edgar.set_identity")
+
+    with pytest.raises(DataUnavailableError) as exc_info:
+        EdgarAdapter.fetch_raw("AGM")
+
+    error_msg = str(exc_info.value)
+    assert "financial firm" in error_msg
+    assert "6111" in error_msg
+    assert "DCF, EV/EBIT, ROIC" in error_msg  # mensaje educativo
+
+
+def test_fetch_raw_accepts_non_financial_sic(mocker):
+    """
+    EC-35: empresas no-financieras (SIC fuera de 6000-6799) deben pasar la verificación
+    SIC y continuar con la extracción normal. Test que el check no es overly broad.
+    """
+    from due_diligence.tools.edgar import EdgarAdapter
+
+    mock_company = mocker.MagicMock()
+    mock_company.sic = "3571"
+    mock_company.industry = "Electronic Computers"
+    mock_company.get_facts.side_effect = RuntimeError("stop after SIC check")
+    mocker.patch("edgar.Company", return_value=mock_company)
+    mocker.patch("edgar.set_identity")
+
+    # Si el SIC check fuera overly broad, lanzaría DataUnavailableError aquí.
+    # En su lugar debe pasar y llegar a get_facts() (que mockeamos con RuntimeError).
+    with pytest.raises(RuntimeError, match="stop after SIC check"):
+        EdgarAdapter.fetch_raw("AAPL")

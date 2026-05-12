@@ -180,6 +180,22 @@ Sección `## DETECTED FLAGS` añadida al `_build_critic_prompt`. 5 tests en `tes
 ### MCE-26 — Auditoría sistemática post-fix — RESUELTO 2026-05-10
 Sección "Cuando se arregla un bug — auditoría sistemática post-fix" añadida al `CLAUDE.md` raíz. Regla obligatoria de 4 pasos: identificar patrón → grep `src/` completo → arreglar/documentar cada ocurrencia → declarar fix completo. Previene regresiones tipo EC-14→EC-17.
 
+### MCE-27 — Soporte de empresas financieras (SIC 6000-6799) — Phase 3+
+- **Trigger**: cuando Eduardo quiera analizar bancos, insurers, mortgage cos, brokers o REITs como parte de su universe de value investing (Buffett invierte en bancos — es parte del juego).
+- **Problema detectado** (EC-35): el framework actual (DCF, EV/EBIT, ROIC, capex, gross margin) NO aplica a empresas financieras. Hoy se rechazan con detect-and-fail-loud. Pero financials SÍ son universe value relevante.
+- **Trabajo requerido**:
+  1. **Detector mejorado**: SIC + concept-based detection (presencia de `InterestIncomeOperating`, ausencia de `Revenue`). Hoy solo SIC.
+  2. **Schema financiero** (`FinancialsReportFinancial`): NetInterestIncome, NetInterestMargin, Tier1Capital, NPL ratio, allowance for loan losses, book value per share, tangible book value.
+  3. **Agente de valoración financiera**: P/TBV multiple, P/E normalizado, dividend discount model, ROE vs cost of equity.
+  4. **Agentes adaptados**: management agent (proxy statement diferente), competitive (peer set distinto), value_expert prompt (checklist financial).
+  5. **Sub-clasificación por SIC**:
+     - 6000-6099 (banks): NII, NIM, deposit franchise, credit quality
+     - 6100-6199 (non-depository credit): loan portfolio quality, funding cost
+     - 6300-6499 (insurance): combined ratio, reserves, float
+     - 6500-6599 + 6700-6798 (REITs): FFO, AFFO, NAV, occupancy, lease structure
+- **Estimación**: ~2-3 semanas (es un framework paralelo, no un parche)
+- **Prioridad**: media — depende de cuánto del portfolio personal de Eduardo sean financials. Hoy rechazo loud educa al usuario.
+
 ### MCE-16 — Skill `modo-profesor` (Socratic teaching patterns)
 - **Trigger**: ≥3 sesiones reales de desarrollo con la regla "Modo Profesor" de CLAUDE.md activa y patrones claros de qué funciona (analogías, secuenciación de conceptos, preguntas tipo)
 - **Acción**: `.claude/skills/modo-profesor/SKILL.md` con patrones Socráticos cristalizados — biblioteca de analogías para conceptos del stack (LangGraph, Pydantic, XBRL), secuencias de introducción de conceptos por capa, preguntas tipo para verificar comprensión, reglas de cuándo pausar vs avanzar.

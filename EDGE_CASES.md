@@ -187,6 +187,20 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Fix**: computar avg annual ΔROIC en pp/year y surfacearlo. Para BBW: "RISING — marginal ROIC > average (avg ΔROIC: +0.9pp/year over 3 years)".
 - **Commit**: `16555c4`
 
+### EC-35 — Empresas financieras (SIC 6000-6799) producen errors crípticos en extracción de revenue (AGM)
+- **Síntoma**: `due-diligence analyze AGM` (Federal Agricultural Mortgage / Farmer Mac) lanza `DataUnavailableError: AGM: revenue concept not found in income statement`. Mensaje confuso porque AGM SÍ reporta income — solo que no como "Revenue".
+- **Causa raíz**: AGM es una empresa **financiera** (SIC 6111 — Federal & Federally-Sponsored Credit Agencies). Las financieras no usan los conceptos XBRL estándar `RevenueFromContractWithCustomer` o `Revenues`. Sus equivalentes son: `InterestIncomeOperating`, `InterestExpense`, `InterestIncomeExpenseNet` (Net Interest Income), `InvestmentIncomeInterest`. La analogía de "revenue" para banks/insurers/mortgage cos es Net Interest Income — un concepto **estructuralmente distinto**.
+- **Análisis arquitectónico**: añadir fallbacks que mapean NII a "revenue" sería un **error metodológico**, no una mejora. Las financieras requieren un framework completo distinto:
+  - DCF / EV/EBIT NO aplica → usan P/Tangible Book, P/E sobre normalized earnings, dividend discount model
+  - ROIC NO aplica → usan ROE, ROA, NIM (Net Interest Margin)
+  - Capex casi inexistente; "inventario" son loans/deposits
+  - "Operating margin" no tiene sentido → eficiencia ratio (non-int expense / revenue)
+- **Decisión** (consistente con ADR-005 "fail loud"): detectar empresas financieras por SIC code (6000-6799) y rechazar con mensaje educativo. Producir output con framework no-financiero sería misleading — números con apariencia de validez pero indefendibles.
+- **Fix**: en `EdgarAdapter.fetch_raw`, check SIC code via `company.sic` antes de extracción. Si está en rango 6000-6799, raise `DataUnavailableError` con mensaje claro explicando (a) que es empresa financiera, (b) qué framework usaría, (c) que está diferido a Phase 3+.
+- **Patrón meta**: misma clase de problema que EC-11 (foreign 20-F filers) — empresa fuera del scope arquitectónico del sistema. Detect-and-fail-loud es más honest que producir output cuestionable.
+- **Phase 3+ trabajo necesario**: ver MCE-27 en `mce-evolution.md` para el roadmap de soporte de financials (separate ROE-based valuation agent, NIM/efficiency metrics, P/TBV multiples).
+- **Commit**: pendiente
+
 ### EC-34 — XBRL sin shares_outstanding crashea el parser (CRD.A, dual-class small caps)
 - **Síntoma**: `due-diligence analyze CRD.A` lanza `TypeError: float() argument must be a string or real number, not 'NoneType'`. CRD.A (Crawford & Company class A) y otros dual-class small caps no reportan `facts.shares_outstanding` en XBRL — edgartools devuelve None.
 - **Causa**: el parser hacía `float(facts.shares_outstanding)` sin null-check, y luego construía un `MetricValue(value=None)` que violaba el invariante del schema (value: float requerido).

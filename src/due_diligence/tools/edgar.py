@@ -58,6 +58,32 @@ class EdgarAdapter:
         log.info("edgar_fetch_start", ticker=ticker)
 
         company = Company(ticker)
+
+        # Detect-and-fail-loud para empresas financieras (EC-35).
+        # SIC 6000-6799: bancos, non-depository credit, brokers, insurance, RE, REITs, holding cos.
+        # No usan "Revenue" — usan Net Interest Income, fees, premiums. Su framework de
+        # valoración (ROE, P/Tangible Book, NIM, dividend discount) es estructuralmente
+        # distinto al del sistema (DCF, EV/EBIT, ROIC). Mapear NII como "revenue" produciría
+        # output con apariencia de validez pero indefendible — viola ADR-005 (fail loud).
+        # Soporte de financials diferido a Phase 3+ (ver mce-evolution.md).
+        sic = str(getattr(company, "sic", "") or "")
+        industry = str(getattr(company, "industry", "") or "Unknown")
+        if sic and sic[:1] == "6" and len(sic) >= 4:
+            try:
+                sic_int = int(sic[:4])
+            except ValueError:
+                sic_int = 0
+            if 6000 <= sic_int <= 6799:
+                raise DataUnavailableError(
+                    f"{ticker} appears to be a financial firm (SIC: {sic} — {industry}). "
+                    f"This system's analysis framework (DCF, EV/EBIT, ROIC) does NOT apply to "
+                    f"banks, mortgage companies, insurers, brokers, or REITs — they require "
+                    f"ROE-based valuation, Net Interest Margin analysis, and tangible book "
+                    f"multiples. Producing output for AGM-like firms would be misleading "
+                    f"(NII is not revenue, loans are not 'inventory'). Financial firms support "
+                    f"is deferred to Phase 3+. Use traditional value investing analysis for now."
+                )
+
         facts = company.get_facts()
 
         filings = company.get_filings(form="10-K")

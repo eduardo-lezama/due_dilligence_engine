@@ -89,8 +89,11 @@ def test_archiver_writes_markdown_file(mocker, tmp_path):
     state = _make_full_state(tmp_path)
     archiver_node(state)
 
-    md_files = list(reports_dir.glob("AAPL-*.md"))
+    # Nuevo formato: <DATE>-<TICKER>-<VERDICT>.md
+    md_files = list(reports_dir.glob("*-AAPL-*.md"))
     assert len(md_files) == 1
+    # Verify the verdict appears in the filename (full state should produce BUY)
+    assert "BUY" in md_files[0].name
 
 
 def test_archiver_markdown_contains_verdict(mocker, tmp_path):
@@ -100,7 +103,7 @@ def test_archiver_markdown_contains_verdict(mocker, tmp_path):
 
     archiver_node(_make_full_state(tmp_path))
 
-    md_file = list(reports_dir.glob("AAPL-*.md"))[0]
+    md_file = list(reports_dir.glob("*-AAPL-*.md"))[0]
     content = md_file.read_text(encoding="utf-8")
     assert "BUY" in content
     assert "72%" in content
@@ -143,8 +146,10 @@ def test_archiver_degraded_minimal_state(mocker, tmp_path):
     result = archiver_node({"ticker": "MSFT"})
     assert result == {}
 
-    md_files = list((tmp_path / "reports").glob("MSFT-*.md"))
+    # Stub state sin VERDICT → filename usa "PENDING" como placeholder
+    md_files = list((tmp_path / "reports").glob("*-MSFT-*.md"))
     assert len(md_files) == 1
+    assert "PENDING" in md_files[0].name
 
 
 def test_archiver_multiple_runs_insert_multiple_rows(mocker, tmp_path):

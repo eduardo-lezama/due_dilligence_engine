@@ -4,7 +4,7 @@ Archiver Node — persistencia del análisis completo.
 Qué hace este módulo:
     Implementa el nodo LangGraph `archiver_node` que persiste el análisis
     completo en dos formatos:
-    - Markdown: data/reports/<TICKER>-<DATE>.md (legible, archivable en git)
+    - Markdown: data/reports/<DATE>-<TICKER>-<VERDICT>.md (legible, archivable en git)
     - SQLite: data/analyses.db (consultable, historial comparativo)
 
 Por qué dos formatos:
@@ -477,9 +477,12 @@ def archiver_node(state: AnalysisState) -> dict:
     report_md = _render_markdown(state)
 
     # --- Escribir markdown ---
+    # Formato: <DATE>-<TICKER>-<VERDICT>.md (ordenable cronológicamente + filtrable por verdict).
+    # Si el análisis no produjo VERDICT (stub o parse error), usar "PENDING" como placeholder.
     reports_dir = Path(settings.reports_dir)
     reports_dir.mkdir(parents=True, exist_ok=True)
-    report_filename = f"{ticker}-{today}.md"
+    verdict_label = verdict if verdict in ("BUY", "HOLD", "SELL") else "PENDING"
+    report_filename = f"{today}-{ticker}-{verdict_label}.md"
     report_path = reports_dir / report_filename
 
     try:

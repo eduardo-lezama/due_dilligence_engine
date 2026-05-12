@@ -199,7 +199,7 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Fix**: en `EdgarAdapter.fetch_raw`, check SIC code via `company.sic` antes de extracción. Si está en rango 6000-6799, raise `DataUnavailableError` con mensaje claro explicando (a) que es empresa financiera, (b) qué framework usaría, (c) que está diferido a Phase 3+.
 - **Patrón meta**: misma clase de problema que EC-11 (foreign 20-F filers) — empresa fuera del scope arquitectónico del sistema. Detect-and-fail-loud es más honest que producir output cuestionable.
 - **Phase 3+ trabajo necesario**: ver MCE-27 en `mce-evolution.md` para el roadmap de soporte de financials (separate ROE-based valuation agent, NIM/efficiency metrics, P/TBV multiples).
-- **Commit**: pendiente
+- **Commit**: `7d3a17d`
 
 ### EC-34 — XBRL sin shares_outstanding crashea el parser (CRD.A, dual-class small caps)
 - **Síntoma**: `due-diligence analyze CRD.A` lanza `TypeError: float() argument must be a string or real number, not 'NoneType'`. CRD.A (Crawford & Company class A) y otros dual-class small caps no reportan `facts.shares_outstanding` en XBRL — edgartools devuelve None.

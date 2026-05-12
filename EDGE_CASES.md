@@ -205,7 +205,7 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
   - Tres categorías distinguidas — antes todas caían en el mismo "could not resolve ticker"
   - Consistente con el patrón de EC-35 (detect-and-fail-loud por categoría arquitectónica)
 - **Para NMM específicamente**: el mensaje ahora dice "Navios Maritime Partners L.P. is a foreign private issuer (industry: Deep Sea Foreign Transportation of Freight). It files Form 20-F... Last 20-F filed: 2026-03-12 for FY 2025-12-31."
-- **Commit**: pendiente
+- **Commit**: `87c0170`
 
 ### EC-35 — Empresas financieras (SIC 6000-6799) producen errors crípticos en extracción de revenue (AGM)
 - **Síntoma**: `due-diligence analyze AGM` (Federal Agricultural Mortgage / Farmer Mac) lanza `DataUnavailableError: AGM: revenue concept not found in income statement`. Mensaje confuso porque AGM SÍ reporta income — solo que no como "Revenue".

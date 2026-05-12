@@ -2,7 +2,7 @@
 
 An agentic system for fundamental equity analysis, built on value investing principles. Given a US ticker, it runs a full multi-specialist analysis — from SEC filings to DCF valuation — and delivers a structured verdict with citations, a pre-mortem critique, and an archived report.
 
-> **Status:** Phase 1 + Phase 2 complete + 5 post-production hardening rounds (Oleadas 1, 1.5, 2, 2.5, plus MCE-22/23/26). System validated against small caps, buyback-heavy compounders, drawdown stocks (with adaptive news coverage and ticker-collision-aware queries), asset-light services, and companies with amended 10-K filings. Strict moat calibration rubric (ADR-024) prevents wide-moat over-classification. Robust XBRL extraction (multi-concept fallbacks for EBIT, OCF, capex, capital returns; format-mismatch-tolerant 8-K filter; TOC-aware DEF 14A targeted extraction). 221 tests, all green. Phase 2.5 (same-ticker RAG) or Phase 3 (CAD/EU markets) is next.
+> **Status:** Phase 1 + Phase 2 complete, with 5 post-production hardening rounds. The system has been validated against a range of company archetypes beyond the large-cap baseline: small caps, buyback-heavy compounders, stocks in sharp drawdown, asset-light businesses, and companies with amended annual filings. 222 tests, all green. Next: Phase 2.5 (re-analysis delta for the same ticker) or Phase 3 (Canadian and European markets).
 
 ---
 
@@ -12,22 +12,45 @@ An agentic system for fundamental equity analysis, built on value investing prin
 uv run due-diligence analyze AAPL
 ```
 
-The pipeline:
+The analysis runs as a pipeline of specialized agents. Each agent has a single responsibility and hands its output to the next.
 
-1. **Supervisor** resolves the ticker to a CIK and routes the analysis
-2. **`financials_node`** — XBRL from EDGAR: revenue, FCF, ROIC (with Greenblatt-light fallback for buyback-heavy companies), margins, balance sheet, 5y CAGR, **capital returns (buybacks + dividends)**, EBIT with multi-concept fallback for small caps
-3. **4 specialists run in parallel** (LangGraph `Send()` fan-out):
-   - `management_agent` — DEF 14A (targeted ownership/comp section extraction) + Form 4 (insider pattern, founder detection) + Tavily (background, corporate structure) + Finnhub transcripts
-   - `filings_agent` — 10-K §1/§1A/§7 (with **automatic 10-K/A amendment exclusion** + regex fallback for Item 1A): business, risk factors, MD&A, backlog, guidance, geographic revenue, specific regulatory events verbatim
-   - `market_agent` — Polygon (price, market cap, 52w) + Finnhub (news, 30d) + **adaptive Tavily** (drawdown stocks get extended news targeting tariff/guidance/regulatory) + **EDGAR 8-K events** (configurable items: 1.01, 2.02, 4.02, 5.02, 7.01, 8.01)
-   - `competitive_agent` — ROIC series + Tavily: moat classification with **strict 4-criteria rubric (ADR-024)** + post-hoc clamp downgrading wide → narrow when criteria fail
-4. **Checkpoint 1 (HITL, Socratic)** — data-grounded questions (moat/ROIC conflicts, insider ownership, CEO tenure); user reviews findings
-5. **`peers_node`** — EDGAR XBRL for 3-5 user-supplied peer tickers; injects peer ROIC into competitive report
-6. **Checkpoint 2 (HITL)** — shows historical CAGR anchor; user sets WACC, growth, projection years + justification
-7. **Valuation agent** — DCF, reverse DCF, EV/EBIT, EV/FCF, P/E, sensitivity table. Zero LLM numeric generation.
-8. **Value Expert** — synthesizes into 9-section analysis + BUY/HOLD/SELL. Prompt v2 with hard rules: adjudicate conflicts, contrast implied growth vs CAGR, name concrete thesis-breaker, **reconcile insider sale prices vs current price**, **report capital returns as % of FCF**, **report reinvestment rate (capex/OCF) with mode label**, **cross-check news + insider + margins for value trap pattern**. Sizing clamp: max ≤ confidence × 10
-9. **Critic agent** — independent pre-mortem with **structured red flags** (DCF contradiction, capital returns >80%, margin compression, price collapse + insider activity)
-10. **Archiver** — Markdown report: citations, **peer ROIC table with subject company always first row**, 8-K events, operational data (backlog, guidance, regulatory events), 52w range, DCF reliability warning if cyclical peak or forward/reverse contradiction detected + SQLite row
+**Step 1 — Supervisor**
+Looks up the company behind the ticker and validates that it's a supported US domestic filer. This is the entry point; nothing runs until it succeeds.
+
+**Step 2 — Financials** *(deterministic, no LLM)*
+Pulls the hard numbers from primary sources: revenue trend, profit margins, return on invested capital (ROIC), free cash flow, debt load, and how much the company returns to shareholders through buybacks and dividends — all over a 5-year window. This layer contains zero LLM involvement: the numbers are extracted and computed deterministically from SEC filings.
+
+**Step 3 — Four specialists run in parallel**
+Once the financials are ready, four agents work simultaneously:
+
+- **Management** — Investigates who runs the company and whether they're aligned with shareholders. Is the founder still involved? Do executives own meaningful equity? What does the insider transaction history look like — are they buying or selling, and at what prices relative to today? Sources: proxy statement, Form 4 filings, earnings call transcripts.
+
+- **Business & Risk** — Reads the company's own narrative. What does the business actually do, in its own words? What risks does management explicitly flag? What is the outlook — are there signs of business momentum, backlog, guidance, or geographic concentration risk? Source: annual report (10-K).
+
+- **Market & News** — Gathers current market context. What is the stock trading at, what's the 52-week range, what are the material corporate events from the past 30 days — earnings announcements, executive departures, major contracts? For stocks that have fallen sharply, it casts a wider news net to capture tariff, guidance, or regulatory stories that may explain the drawdown. Sources: market data and SEC event filings (8-K).
+
+- **Competitive position & Moat** — Answers the central value-investing question: does this business have a durable competitive advantage? It evaluates whether ROIC has been consistently above cost of capital for multiple years, whether the capital base is stable (not shrinking through asset disposals), and whether there is a credible structural reason competitors can't erode the returns. Moat classification uses a strict four-criteria rubric — "wide moat" requires clear evidence on all four.
+
+**Step 4 — Checkpoint 1** *(you review, you decide)*
+The system pauses and presents its findings. It asks pointed, data-grounded questions about conflicts or anomalies — for example, if ROIC is high but insiders are selling aggressively, or if the moat thesis conflicts with margin trends. You also name the peer companies you want compared.
+
+**Step 5 — Peer benchmarking** *(deterministic, no LLM)*
+Fetches the same financial metrics for the peers you specified, so ROIC, margins, and growth can be compared side by side on a level playing field.
+
+**Step 6 — Checkpoint 2** *(you set the assumptions)*
+Before the valuation runs, the system shows you what the historical growth data implies as an anchor. You input your own assumptions — discount rate, expected growth, time horizon — and explain your reasoning. The system records this.
+
+**Step 7 — Valuation** *(deterministic, no LLM)*
+Runs four valuation methods with your inputs: discounted cash flow (DCF), reverse DCF (what growth rate does the current price imply?), and two earnings-based multiples. It also produces a sensitivity table showing intrinsic value across a range of growth and discount rate combinations. Every number is computed, never generated by a language model.
+
+**Step 8 — Value Expert**
+Synthesizes everything — financials, management quality, competitive position, market context, peer comparison, and valuation — into a structured 9-section investment thesis. It is required to: adjudicate conflicts between signals, compare the DCF growth assumption against the historical CAGR, name one concrete thesis-breaker (the specific fact that would invalidate the investment case), and cross-check news, insider activity, and margins for value trap patterns. Delivers a BUY / HOLD / SELL verdict with a position size recommendation capped by conviction.
+
+**Step 9 — Critic**
+A separate agent reads the Value Expert's thesis with the explicit goal of finding the strongest counter-argument. It looks for DCF assumptions that contradict what the reverse DCF implies, capital return ratios that suggest the business is running on fumes rather than reinvesting, signs of margin compression hidden by headline numbers, and whether a price collapse combined with insider selling is being rationalized away. This agent never sees the Value Expert's conclusion before forming its own assessment.
+
+**Step 10 — Archiver**
+Saves the full report — verdict, per-share intrinsic value, upside/downside, citations with source excerpts, peer ROIC table, and corporate events — to a Markdown file and a SQLite database row for historical tracking.
 
 ---
 

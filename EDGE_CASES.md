@@ -206,19 +206,19 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
   - Material (>$250K): genuine conviction
   - ABSENCE during drawdown >30%: itself a negative signal — state explicitly
 - Schema §3 description actualizada para forzar la clasificación.
-- **Commit**: pendiente
+- **Commit**: `911f995`
 
 ### EC-40 — Tariff/regulatory risk analizado a nivel empresa, no por segmento
 - **Síntoma**: §7 de MOS dijo tariff es "direct margin and competitiveness risk" sin diferenciar segmentos. Realidad: el segmento potash absorbió la tariff vía pricing (+$275M EBITDA YoY), el segmento phosphate fue machacado por input costs (-$280M en raw materials sulphur/ammonia). MISMO risk con SIGNOS opuestos por segmento.
 - **Patrón sistémico**: cualquier multi-segment company. Examples: GOOGL (search vs cloud vs YouTube), AMZN (retail vs AWS), NVDA (datacenter vs gaming). Generic "tariff risk" o "regulatory risk" sin segmentación pierde la dirección causal real del problema.
 - **Fix**: regla #12 en `_SYSTEM_PROMPT` y schema §7 description. Si business_description menciona múltiples segmentos, MUST analizar named risks per segmento, no a nivel empresa. Cuantificar cuando data lo permite.
-- **Commit**: pendiente
+- **Commit**: `911f995`
 
 ### EC-41 — Quarterly news data mencionada como factoide pero no integrada en thesis
 - **Síntoma**: report MOS §7 mencionó "Q1 2026 net loss $258M" como dato aislado. NO actualizó §4 Financial Quality (sigue anclado en FY2025) ni §5 Growth conclusions. Tampoco integró el guidance withdrawal de phosphate como red flag con peso en el verdict.
 - **Patrón sistémico**: cualquier análisis run mid-year donde hay news con quarterly data más reciente que el 10-K. Es el caso normal — el sistema queda anclado en data anual cuando news tiene info más fresca.
 - **Fix**: regla #13 en `_SYSTEM_PROMPT` y schema §4/§5/§7 descriptions. Si news menciona Q1/Q2/Q3 metrics post-10-K (loss/EBIT/guidance/margin QoQ), MUST integrar en §4 y §5, no solo §7. Guidance withdrawals/cuts son red flags materiales con peso explícito en verdict.
-- **Commit**: pendiente
+- **Commit**: `911f995`
 
 ### EC-42 — Peer set sin validación de SIC (MOS audit: CF/FMC/CTVA peers irrelevantes)
 - **Síntoma**: MOS auditor identificó que CF (nitrógeno fertilizante, business distinto), FMC (pesticidas, aún más distinto), CTVA (seed + crop protection) **no son apples-to-apples peers** para Mosaic (phosphate + potash). La conclusión del moat analysis se basaba en peer set inadecuado.
@@ -226,7 +226,7 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Fix**: validación SIC en `peers_node`. Para cada peer, fetch `company.sic` via edgartools. Comparar prefijo 2 dígitos vs el SIC del subject. Si difiere → añadir warning a `state["peer_sic_mismatches"]`. Value Expert recibe estos warnings en context y debe reflejarlos en §2 Moat Analysis (descontando peso del peer mismatched).
 - **No bloquea**: el sistema sigue procesando los peers. Solo informa al Expert para que ajuste su análisis.
 - **2 tests añadidos**: same-prefix SIC (no warning) y different-industry-group (warning surface a state).
-- **Commit**: pendiente
+- **Commit**: `911f995`
 
 ### EC-38 — ROIC trend truncado a 3 años oculta ciclicidad (MOS picos cíclicos invisibles)
 - **Síntoma**: report MOS mostraba "ROIC: FY2023 5.7%, FY2024 2.6%, FY2025 3.5%" en §2 y §5 — 3 puntos. Pero las citations tenían 4 (FY2022: 20.3%, FY2023: 5.7%, FY2024: 2.6%, FY2025: 3.5%). El cálculo del avg ΔROIC SÍ usaba la serie completa (-5.6pp/year sobre 3 años intervals = consistente con (3.5 - 20.3) / 3), pero el DISPLAY truncaba ocultando el pico cíclico FY2022 20.3%.

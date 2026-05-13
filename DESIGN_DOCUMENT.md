@@ -2,9 +2,9 @@
 
 Sistema agentic personal de análisis fundamental de empresas con filosofía **value investing**. Multi-agente basado en LangGraph, provider-agnostic (Claude + OpenAI), con énfasis en **zero hallucination en datos numéricos** y modo **Socratic HITL** que combina análisis automatizado con aprendizaje continuo del usuario.
 
-**Estado actual**: Phase 1 + Phase 2 completas y verificadas en producción + 5 rondas de hardening post-producción (Oleadas 1, 1.5, 2, 2.5 + MCE-22/23/26). Sistema validado contra small caps (BBW, JBSS), buyback-heavy compounders, drawdown stocks (con cobertura adaptativa de noticias y queries ticker-collision-aware), asset-light services, empresas con income statements simplificados, empresas con 10-K amendments, y filings con format-mismatch en items XBRL. Moat calibration rubric (ADR-024) previene over-classification de wide moat. 221 tests, todos verde.
+**Estado actual**: Phase 1 + Phase 2 completas y verificadas en producción + 7 rondas de hardening post-producción (Oleadas 1, 1.5, 2, 2.5, 3.0, 3.1 + MCE-22/23/26). Sistema validado contra small caps (BBW, JBSS), buyback-heavy compounders, drawdown stocks (con cobertura adaptativa de noticias y queries ticker-collision-aware), asset-light services, empresas con income statements simplificados, empresas con 10-K amendments, filings con format-mismatch en items XBRL, cyclicals en trough con FCF negativo (NOPAT DCF fallback), y filers cuyo debt XBRL no aparece en la vista curada de edgartools (raw facts fallback). Análisis cualitativo reforzado con clasificación de insider activity por magnitud, análisis de riesgos por segmento, integración de quarterly news, y validación SIC de peer set. Moat calibration rubric (ADR-024) previene over-classification de wide moat. 230 tests, todos verde.
 **Owner**: Eduardo (uso personal, no comercial).
-**Última actualización**: 2026-05-10.
+**Última actualización**: 2026-05-13.
 
 ```bash
 uv run due-diligence analyze AAPL   # pipeline completo con HITL

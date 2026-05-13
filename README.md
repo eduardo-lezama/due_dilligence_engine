@@ -2,7 +2,7 @@
 
 An agentic system for fundamental equity analysis, built on value investing principles. Given a US ticker, it runs a full multi-specialist analysis — from SEC filings to DCF valuation — and delivers a structured verdict with citations, a pre-mortem critique, and an archived report.
 
-> **Status:** Phase 1 + Phase 2 complete, with 6 post-production hardening rounds. The system has been validated against a range of company archetypes beyond the large-cap baseline: small caps, buyback-heavy compounders, stocks in sharp drawdown, asset-light businesses, companies with amended annual filings, foreign 20-F filers (detect-and-fail-loud), financial firms (detect-and-fail-loud), and **cyclicals in trough with negative FCF** (NOPAT-based DCF fallback) and **filers whose debt XBRL bypasses edgartools' curated balance sheet view** (raw facts fallback). 228 tests, all green. Next: Phase 2.5 (re-analysis delta for the same ticker) or Phase 3 (Canadian and European markets).
+> **Status:** Phase 1 + Phase 2 complete, with 7 post-production hardening rounds (Oleadas 1, 1.5, 2, 2.5, 3.0, 3.1, plus MCE-22/23/26). The system has been validated against a range of company archetypes beyond the large-cap baseline: small caps, buyback-heavy compounders, stocks in sharp drawdown (with adaptive news coverage and ticker-collision-aware queries), asset-light businesses, companies with amended annual filings, foreign 20-F filers (detect-and-fail-loud), financial firms (detect-and-fail-loud), cyclicals in trough with negative FCF (NOPAT-based DCF fallback), and filers whose debt XBRL bypasses edgartools' curated balance sheet view (raw facts fallback). Qualitative analysis hardened with 4-tier insider activity classification, segment-aware risk analysis, quarterly news integration, and peer SIC validation. 230 tests, all green. Next: Phase 2.5 (re-analysis delta for the same ticker) or Phase 3 (Canadian and European markets).
 
 ---
 
@@ -222,7 +222,7 @@ due_dilligence_engine/
 │   ├── config.py        # pydantic-settings: all env vars in one place
 │   └── cli.py           # typer CLI: interactive checkpoints, Socratic questions
 ├── tests/
-│   └── fixtures/        # cached API responses for offline testing (221 tests, zero real API calls)
+│   └── fixtures/        # cached API responses for offline testing (230 tests, zero real API calls)
 ├── docs/
 │   ├── adr/             # Architecture Decision Records (ADR-001 … ADR-024)
 │   ├── checklist-value-investing.md

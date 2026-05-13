@@ -2931,3 +2931,164 @@ El Value Expert no distinguía entre headline (título) y validated claim (cuerp
 
 *Última actualización: 2026-05-10 — Oleada 2.5 (EC-29/30/31/32/33). 221 tests, verde.*
 
+---
+
+## Oleada 3.0 — Audit de MOS revela nivel arquitectónico nuevo (2026-05-13)
+
+### El detonante: una empresa cíclica con XBRL atípico
+
+El análisis de MOS (Mosaic Fertilizer) generó un report cuyo §4 Financial Quality decía literalmente *"Debt is $0 and cash plus STI is $277M, so the balance sheet is not strained by leverage"*. Mosaic tiene **$5,054M de deuda real**. El error invertía completamente la narrativa del balance sheet — un auditor externo lo calificó como "ERROR DE DATOS CATASTRÓFICO".
+
+Y no era el único bug. El audit identificó 3 issues estructurales (+4 de prompt engineering, que cerramos en Oleada 3.1 abajo). Los 3 estructurales revelaron patrones arquitectónicos importantes.
+
+### EC-37 — Cuando la API curada miente: el bug del Debt $0
+
+Investigación en vivo de MOS reveló una capa nueva del meta-pattern. Hasta entonces, todos los bugs de extracción XBRL eran sobre **vocabulario heterogéneo**: distintos filers usan distintos `us-gaap:XXX` concepts para la misma realidad. Por ejemplo, EBIT puede venir de `OperatingIncomeLoss` directo (AAPL) o derivado de `GrossProfit - SellingGeneralAndAdministrativeExpense` (BBW). La solución arquitectónica era siempre **cadenas de fallback de concepts**.
+
+EC-37 es distinto. Para MOS:
+
+```python
+# Raw _facts contains:
+us-gaap:LongTermDebtAndCapitalLeaseObligations = $4,250.9M FY2025  ✓ existe
+
+# Curated balance_sheet().to_dataframe():
+"LongTermDebtAndCapitalLeaseObligations" not in df.index  ✗ filtrado
+```
+
+El concept correcto **SÍ ESTÁ** en el XBRL raw. Pero la vista curada de edgartools no lo incluye en su DataFrame, probablemente por características del filing (presentation tags / ordering / custom taxonomy extension). Nuestro código consultaba `bs_df.index` y devolvía silently 0.
+
+**Solución arquitectónica**: nuevo nivel de fallback, **bypass directo al raw API**:
+
+```python
+def _get_from_facts(concept: str, period: str) -> dict | None:
+    """Raw facts fallback bypassing curated views (EC-37)."""
+    fact = facts.get_annual_fact(f"us-gaap:{concept}")
+    if fact is None: return None
+    if str(fact.fiscal_year) != period.replace("FY", ""): return None  # reject stale
+    return {"value": float(fact.numeric_value), "period": period}
+```
+
+Compuesto en `_extract_balance_concept(concepts, period, kind)` que aplica fallback de 2 niveles: (1) curated view primero (rápido para la mayoría), (2) raw facts via `get_annual_fact("us-gaap:CONCEPT")` con validación de fiscal_year.
+
+**Verificación en vivo**: MOS pasa de `Debt $0` a `Total Debt $5,054M` ($4,251M LT + $803M ST). AAPL sigue sin regresión.
+
+**La lección meta más amplia**: cualquier API con dos niveles (curado y raw) puede tener inconsistencias. Tratar el curado como atajo de performance, no como fuente de verdad. Para datos críticos, validar contra raw cuando el curado devuelve null/zero.
+
+### EC-38 — Slice [:3] hardcoded ocultaba ciclicidad
+
+Bug más simple. El report de MOS mostraba 3 años de ROIC (FY2023, FY2024, FY2025), pero las citations tenían 4 (FY2022 era 20.3% — pico cíclico post-guerra Ucrania). El sistema literalmente **calculaba avg ΔROIC sobre 3 años** porque el slice `[:3]` truncaba el display.
+
+Para empresas cíclicas, perder el dato del pico cambia la narrativa completamente. "ROIC en lento decline" vs "colapso del 97.5% desde el pico cíclico". Ambas son técnicamente verdad, pero la segunda es la lectura correcta.
+
+**Fix**: 5 sitios con `[:3]` cambiados a `[:5]`. El sistema ahora surface 4-5 años de ROIC. Los sites de moat criteria (`[:4]` para wide moat threshold) y peer trail (`[:3]`) se mantienen porque son semánticos, no displays.
+
+**Lección**: hardcoded slices son ataja de Phase 1 cuando los reports eran cortos. Para series temporales que capturan ciclos, mostrar la serie completa siempre.
+
+### EC-13 — DCF EBIT-based fallback cuando FCF<0 (resuelto desde Oleada 0)
+
+Issue conocido pendiente desde el inicio. Reactivado por MOS porque el report decía *"I cannot state the exact reverse-DCF implied growth number because it was not provided"* — y de hecho, sin reverse DCF para una empresa value, todo el §6 Valuation queda sin anchor.
+
+Causa: `valuation_agent` requería `base_fcf > 0` para TODO el flujo (DCF, reverse DCF, sensitivity table). Si una empresa estaba en trough cíclico (MOS FY2025: FCF -$535M pero EBIT $822M positivo), el sistema se saltaba toda la valoración.
+
+**Fix arquitectónico**: nuevo helper `_normalized_fcf_proxy(ebit, net_income)` que computa NOPAT = EBIT × (1 - tax_rate). Tax rate se deriva del gap EBIT→NI cuando ambos están disponibles (clamp 10-40%), default 25% post-TCJA.
+
+```python
+dcf_base = base_fcf if base_fcf > 0 else _normalized_fcf_proxy(ebit, net_income)
+```
+
+Todas las métricas downstream (DCF, reverse DCF, sensitivity table) usan el mismo `dcf_base`. La `dcf_reliability_note` documenta cuándo se usa NOPAT proxy y sus limitaciones:
+
+> *"⚠️ DCF computed on NORMALIZED NOPAT ($541M = EBIT × (1-tax)) because reported FCF was negative ($-535M in FY2025). This is appropriate for cyclical troughs or heavy reinvestment but ignores working capital and maintenance vs growth capex split — treat as directional, not point estimate."*
+
+**Por qué importa**: empresas en trough cíclico (commodities, fertilizers, materials) o en heavy reinvestment (growth-stage) son parte central del universe value. Sin este fallback, el sistema las excluía del análisis. Con el fallback, producen valoración directional defensible.
+
+### Cambio de VERDICT HOLD → SELL como consecuencia
+
+Antes del fix (datos incorrectos):
+- "Debt $0, no DCF anchor, balance sheet sin strain" → **HOLD** razonable
+
+Después del fix (datos correctos):
+- Debt $5.1B (leverage moderada en trough)
+- DCF intrinsic $14.48 vs precio $22.39 = **-35% overvalued** según NOPAT proxy
+- ROIC colapsó 83% desde pico cíclico (visible con serie completa)
+- → **SELL** verdict con 0% sizing — exactamente lo que recomendó el panel auditor
+
+El sistema produjo el output economicamente correcto **automáticamente** porque la cadena de razonamiento operó sobre datos reales. No hubo que cambiar prompts ni heurísticas — solo arreglar los datos.
+
+---
+
+## Oleada 3.1 — 4 refinements de calidad cualitativa (2026-05-13)
+
+Los hallazgos #3-#6 del audit MOS son prompt/heuristic refinements. Cada uno cierra un gap específico aplicable a cualquier empresa, no solo a MOS.
+
+### EC-39 — Insider activity classification por magnitud
+
+§3 calificaba un token purchase de director de $17K como "neutral" / "modest confidence" — generosamente. Realidad: $17K es **cosmetic compliance** (alignment minimum), no convicción material.
+
+**Fix**: nueva regla #11 en `_SYSTEM_PROMPT` con rubric de 4 niveles:
+
+- Token (<$50K total): cosmetic compliance, NOT conviction
+- Modest ($50K-$250K): mild confidence, especially from CEO/CFO
+- Material (>$250K): genuine conviction worth weighing in verdict
+- **ABSENCE during drawdown >30%**: itself a negative signal — insiders chose not to add at depressed prices
+
+El último punto es importante y nuevo. Antes el sistema solo flageaba presencia de insider activity. Ahora también flagea la **ausencia** durante drawdowns como información negativa por sí misma.
+
+### EC-40 — Segment-aware risk analysis
+
+§7 analizaba tariff como riesgo a nivel empresa. Para MOS específicamente, el panel auditor señaló que ese análisis pierde la dirección causal real: la tariff sobre potash importado de Canadá fue **absorbida vía pricing** (segment potash EBITDA +$275M YoY), mientras que el segmento phosphate fue machacado por **input costs no relacionados con tariff** (sulphur, ammonia, geopolitical -$280M).
+
+Mismo "tariff risk" pero **signos opuestos por segmento**. El sistema lo agrupaba como un solo risk genérico.
+
+**Aplicabilidad sistémica**: cualquier multi-segment company. Examples:
+- GOOGL: search (ads, AI risk) vs cloud (capex risk) vs YouTube (content moderation risk)
+- AMZN: retail (margin compression) vs AWS (margin expansion)
+- NVDA: datacenter (CUDA moat) vs gaming (cycle dependent)
+
+**Fix**: regla #12 que obliga analizar named risks per segmento cuando el business_description menciona múltiples segmentos.
+
+### EC-41 — Quarterly news integration
+
+El sistema mencionaba "Q1 2026 net loss $258M" en §7 como factoide aislado pero no actualizaba §4 Financial Quality (anclado a FY2025 10-K) ni §5 Growth conclusions. Más grave: el **guidance withdrawal** de phosphate output 2026 — un evento material — quedaba enterrado en §7 sin peso en el verdict.
+
+**Aplicabilidad**: caso normal de cualquier análisis run mid-year (10-K anual + 1-3 quarters de noticias posteriores). El sistema queda anclado en data anual cuando news tiene info más reciente.
+
+**Fix**: regla #13 — si news menciona Q1/Q2/Q3 metrics post-10-K, MUST integrar en §4 y §5. Guidance changes son red flags materiales con peso explícito en verdict.
+
+### EC-42 — Peer SIC validation
+
+Eduardo aportó CF, FMC, CTVA como peers para MOS. Auditor identificó que **ninguno es apples-to-apples**: CF es nitrógeno (gas natural economics), FMC es pesticidas, CTVA es seed + crop protection. La conclusión sobre moat de MOS se basaba en peer set inadecuado.
+
+**Aplicabilidad**: cualquier análisis con peer set user-input. Los peers son responsabilidad del usuario, pero el sistema puede **validar y advertir** sobre mismatches sin bloquear.
+
+**Fix**: nueva validación en `peers_node`. Fetch SIC code de cada peer + subject via `Company().sic`. Comparar prefix 2 dígitos. Si difiere → añadir warning a `state["peer_sic_mismatches"]`. Value Expert recibe el warning en context y debe reflejarlo en §2 Moat Analysis descontando peso del peer mismatched.
+
+```python
+state["peer_sic_mismatches"] = [
+    "MSFT (SIC 7372, Prepackaged Software) vs MOS (SIC 2870, Chemicals): "
+    "diferente industria — peer no apples-to-apples"
+]
+```
+
+No bloquea — informa al Expert. Coherente con la filosofía: el usuario decide los peers, el sistema valida la calidad y avisa.
+
+### Estado tras Oleada 3.0 + 3.1
+
+Los 7 hallazgos del MOS audit cerrados:
+
+| # | Hallazgo | Fix | Tipo |
+|---|----------|-----|------|
+| 1 | Debt $0 catastrophic | EC-37 | Estructural (raw facts fallback) |
+| 2 | ROIC truncated 3y | EC-38 | Bug visualization |
+| 3 | Q1 not integrated | EC-41 | Prompt rule |
+| 4 | Insider buying mal interpretado | EC-39 | Prompt rule + rubric |
+| 5 | Tariff unidimensional | EC-40 | Prompt rule + segment-awareness |
+| 6 | Peer set débil | EC-42 | Code (SIC validation + warning) |
+| 7 | Reverse DCF "not provided" | EC-13 | Estructural (NOPAT proxy fallback) |
+
+**230 tests verde** en suite completa. El verdict de MOS cambió HOLD → SELL automáticamente como consecuencia de los fixes — el reasoning sobre datos correctos produce conclusiones distintas a las del reasoning sobre datos rotos.
+
+---
+
+*Última actualización: 2026-05-13 — Oleadas 3.0 (EC-37/38, EC-13 resuelto) + 3.1 (EC-39/40/41/42). 230 tests, verde.*
+

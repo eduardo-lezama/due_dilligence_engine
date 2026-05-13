@@ -268,7 +268,7 @@ Probabilistic:   management_agent, filings_agent, competitive_agent
                  value_expert, critic
 ```
 
-Los errores en la capa determinista son reproducibles y corregibles. Los errores en la capa probabilística son estocásticos — el mismo input puede dar outputs ligeramente distintos. Al mantener las capas separadas, puedes testear unitariamente el 100% de la capa determinista (221 tests en este proyecto) sin mockear LLMs.
+Los errores en la capa determinista son reproducibles y corregibles. Los errores en la capa probabilística son estocásticos — el mismo input puede dar outputs ligeramente distintos. Al mantener las capas separadas, puedes testear unitariamente el 100% de la capa determinista (230 tests en este proyecto) sin mockear LLMs.
 
 **Memory en agentes**
 Los sistemas agentes tienen típicamente tres tipos de memoria:
@@ -347,6 +347,26 @@ Después de varias rondas de auditorías externas (BBW analizada por Opus 4.7 en
 Cada uno de estos genera bugs en cascada: ROIC=N/A → tabla de peers sin ancla → §2 Moat Analysis sin números → confidence inflado/deflado mal calibrado. La solución arquitectónica recurrente es siempre la misma: **fallbacks de extracción + always-surface en context + reglas MUST en el prompt**.
 
 Este patrón se documenta como MCE-25 en `mce-evolution.md`: validar cada fix contra 4 arquetipos (large cap normal, small cap rentable, buyback-heavy, asset-light) antes de declararlo completo. La búsqueda manual de bugs duplicados es estructuralmente frágil.
+
+### Nueva capa descubierta: la API curada también miente (EC-37, Oleada 3.0)
+
+El audit de MOS (Mosaic Fertilizer) reveló un nivel arquitectónico más profundo. Hasta entonces los bugs eran sobre **vocabulario heterogéneo** (distintos filers usan distintos concept names para la misma realidad económica). EC-37 mostró otro patrón:
+
+> **El concept correcto SÍ existe en el XBRL raw, pero la API curada de edgartools lo oculta.**
+
+Para MOS: `us-gaap:LongTermDebtAndCapitalLeaseObligations` existe en `facts._facts` con valor $4,251M. Pero `facts.balance_sheet().to_dataframe()` no incluye ese concept en su índice — la presentación curada lo filtra. Nuestro extractor confiaba en la vista curada y devolvía silently $0 de deuda. Para una empresa con $5B reales de deuda, esto invierte completamente la narrativa del balance sheet (de "no leverage" a "leverage significativo en trough cíclico").
+
+La solución arquitectónica añade un nuevo nivel de fallback:
+
+```
+Layer 1: curated balance_sheet().to_dataframe() — vista normalizada
+Layer 2: facts.get_annual_fact("us-gaap:CONCEPT") — bypass directo al raw fact
+Layer 3: fail loud explícito si ninguno tiene el dato
+```
+
+**La lección**: en cualquier API que ofrezca dos niveles (curado y raw), tratar el curado como atajo de rendimiento, no como fuente de verdad. Cuando el dato es crítico (debt, equity, revenue), validar que la curada lo tiene; si no, ir al raw. Cualquier extracción con potencial silent zero es candidata a este patrón.
+
+Esto es el mismo principio que aplica al multi-fallback de vocabulario (`OperatingIncomeLoss` → `GrossProfit - SG&A` → `Pretax - Interest`) pero en un eje distinto: **fuente del dato** en lugar de **nombre del concept**.
 
 ---
 

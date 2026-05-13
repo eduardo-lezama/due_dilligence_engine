@@ -24,11 +24,37 @@ from __future__ import annotations
 
 import structlog
 
+from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
 from due_diligence.schemas.reports import PeerROIC
 from due_diligence.tools.edgar import DataUnavailableError, EdgarAdapter
 
 log = structlog.get_logger()
+
+
+def _get_sic(ticker: str) -> tuple[str | None, str | None]:
+    """
+    Recupera SIC code e industria de un ticker via edgartools.
+
+    Helper para validación de calidad del peer set (EC-42). Si el subject
+    es SIC 2870 (fertilizantes) y un peer es SIC 2873 (nitrógeno) — diferente
+    sub-sector, comparación apples-to-oranges. SIC code prefix (2 dígitos)
+    captura el nivel de industria; comparación por prefix evita warnings
+    espurios cuando los códigos exactos difieren pero pertenecen al mismo
+    grupo industrial.
+
+    Returns: (sic_code, industry_name) o (None, None) si fetch falla.
+    """
+    try:
+        from edgar import Company, set_identity  # type: ignore[import]
+        set_identity(settings.sec_user_agent)
+        company = Company(ticker)
+        sic = str(getattr(company, "sic", "") or "") or None
+        industry = str(getattr(company, "industry", "") or "")
+        return sic, industry
+    except Exception as e:
+        log.debug("peers_sic_fetch_failed", ticker=ticker, error=str(e))
+        return None, None
 
 
 def peers_node(state: AnalysisState) -> dict:
@@ -46,8 +72,32 @@ def peers_node(state: AnalysisState) -> dict:
         log.info("peers_node_skipped", reason="no peers provided")
         return {"peer_financials": []}
 
+    # SIC validation (EC-42): comparar industria del subject vs cada peer.
+    # Si los 2 primeros dígitos del SIC difieren, los negocios pertenecen a
+    # subsectores distintos — comparación apples-to-oranges. Surfacear warning
+    # al Value Expert para que lo refleje en §2 Moat Analysis.
+    subject_ticker = str(state.get("ticker", "") or "")  # type: ignore[typeddict-item]
+    subject_sic, subject_industry = _get_sic(subject_ticker) if subject_ticker else (None, None)
+    sic_mismatches: list[str] = []
+
     reports = []
     for peer_ticker in peers:
+        # Validar SIC match (EC-42) — fetch SIC primero para diagnóstico, luego raw para datos
+        peer_sic, peer_industry = _get_sic(peer_ticker)
+        if subject_sic and peer_sic and len(subject_sic) >= 2 and len(peer_sic) >= 2:
+            if subject_sic[:2] != peer_sic[:2]:
+                sic_mismatches.append(
+                    f"{peer_ticker} (SIC {peer_sic} — {peer_industry}) vs "
+                    f"{subject_ticker} (SIC {subject_sic} — {subject_industry}): "
+                    f"diferente industria — peer no apples-to-apples"
+                )
+                log.warning(
+                    "peers_sic_mismatch",
+                    peer=peer_ticker,
+                    peer_sic=peer_sic,
+                    subject_sic=subject_sic,
+                )
+
         try:
             raw = EdgarAdapter.fetch_raw(peer_ticker)
             rep = EdgarAdapter.parse_financials(raw)
@@ -61,6 +111,8 @@ def peers_node(state: AnalysisState) -> dict:
     log.info("peers_node_complete", total_peers=len(peers), fetched=len(reports))
 
     out: dict = {"peer_financials": reports}
+    if sic_mismatches:
+        out["peer_sic_mismatches"] = sic_mismatches
 
     # Construir peer_roic_comparison desde los peers fetched con éxito.
     peer_roic: list[PeerROIC] = []

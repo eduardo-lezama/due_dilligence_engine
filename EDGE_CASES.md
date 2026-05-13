@@ -197,6 +197,37 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Patrón meta**: el sistema asume que la API curada tiene todo. La realidad XBRL es heterogénea EN AMBOS NIVELES — vocabulario del concept (EC-01/21) Y disponibilidad en views curadas (EC-37). Cualquier extracción crítica debe tener fallback al raw facts.
 - **Commit**: `11985d3`
 
+### EC-39 — Insider buying clasificado sin distinguir magnitud (MOS audit: $17K token = "neutral")
+- **Síntoma**: §3 calificó una compra de director de $17K como "neutral" / "modest confidence" (MOS audit), aunque es claramente un token purchase de cumplimiento. El sistema trataba CUALQUIER compra como "alignment signal" sin distinguir magnitud.
+- **Patrón sistémico**: cualquier análisis con insider activity. Una compra de $17K vs $5M tiene implicaciones completamente distintas. Adicionalmente: la AUSENCIA de open-market buying por CEO/CFO durante un drawdown >30% es una señal por sí misma (insiders chose not to add at depressed prices).
+- **Fix**: regla #11 en `_SYSTEM_PROMPT` con rubric de 4 niveles:
+  - Token purchase (<$50K total): cosmetic compliance, NOT conviction
+  - Modest ($50K-$250K): mild confidence signal
+  - Material (>$250K): genuine conviction
+  - ABSENCE during drawdown >30%: itself a negative signal — state explicitly
+- Schema §3 description actualizada para forzar la clasificación.
+- **Commit**: pendiente
+
+### EC-40 — Tariff/regulatory risk analizado a nivel empresa, no por segmento
+- **Síntoma**: §7 de MOS dijo tariff es "direct margin and competitiveness risk" sin diferenciar segmentos. Realidad: el segmento potash absorbió la tariff vía pricing (+$275M EBITDA YoY), el segmento phosphate fue machacado por input costs (-$280M en raw materials sulphur/ammonia). MISMO risk con SIGNOS opuestos por segmento.
+- **Patrón sistémico**: cualquier multi-segment company. Examples: GOOGL (search vs cloud vs YouTube), AMZN (retail vs AWS), NVDA (datacenter vs gaming). Generic "tariff risk" o "regulatory risk" sin segmentación pierde la dirección causal real del problema.
+- **Fix**: regla #12 en `_SYSTEM_PROMPT` y schema §7 description. Si business_description menciona múltiples segmentos, MUST analizar named risks per segmento, no a nivel empresa. Cuantificar cuando data lo permite.
+- **Commit**: pendiente
+
+### EC-41 — Quarterly news data mencionada como factoide pero no integrada en thesis
+- **Síntoma**: report MOS §7 mencionó "Q1 2026 net loss $258M" como dato aislado. NO actualizó §4 Financial Quality (sigue anclado en FY2025) ni §5 Growth conclusions. Tampoco integró el guidance withdrawal de phosphate como red flag con peso en el verdict.
+- **Patrón sistémico**: cualquier análisis run mid-year donde hay news con quarterly data más reciente que el 10-K. Es el caso normal — el sistema queda anclado en data anual cuando news tiene info más fresca.
+- **Fix**: regla #13 en `_SYSTEM_PROMPT` y schema §4/§5/§7 descriptions. Si news menciona Q1/Q2/Q3 metrics post-10-K (loss/EBIT/guidance/margin QoQ), MUST integrar en §4 y §5, no solo §7. Guidance withdrawals/cuts son red flags materiales con peso explícito en verdict.
+- **Commit**: pendiente
+
+### EC-42 — Peer set sin validación de SIC (MOS audit: CF/FMC/CTVA peers irrelevantes)
+- **Síntoma**: MOS auditor identificó que CF (nitrógeno fertilizante, business distinto), FMC (pesticidas, aún más distinto), CTVA (seed + crop protection) **no son apples-to-apples peers** para Mosaic (phosphate + potash). La conclusión del moat analysis se basaba en peer set inadecuado.
+- **Patrón sistémico**: peers son user input. El sistema asumía que el usuario elige bien. Pero el usuario puede elegir mal, especialmente para empresas en sub-sectores específicos (fertilizers tiene 4-5 sub-categorías muy distintas).
+- **Fix**: validación SIC en `peers_node`. Para cada peer, fetch `company.sic` via edgartools. Comparar prefijo 2 dígitos vs el SIC del subject. Si difiere → añadir warning a `state["peer_sic_mismatches"]`. Value Expert recibe estos warnings en context y debe reflejarlos en §2 Moat Analysis (descontando peso del peer mismatched).
+- **No bloquea**: el sistema sigue procesando los peers. Solo informa al Expert para que ajuste su análisis.
+- **2 tests añadidos**: same-prefix SIC (no warning) y different-industry-group (warning surface a state).
+- **Commit**: pendiente
+
 ### EC-38 — ROIC trend truncado a 3 años oculta ciclicidad (MOS picos cíclicos invisibles)
 - **Síntoma**: report MOS mostraba "ROIC: FY2023 5.7%, FY2024 2.6%, FY2025 3.5%" en §2 y §5 — 3 puntos. Pero las citations tenían 4 (FY2022: 20.3%, FY2023: 5.7%, FY2024: 2.6%, FY2025: 3.5%). El cálculo del avg ΔROIC SÍ usaba la serie completa (-5.6pp/year sobre 3 años intervals = consistente con (3.5 - 20.3) / 3), pero el DISPLAY truncaba ocultando el pico cíclico FY2022 20.3%.
 - **Impacto en thesis**: para empresas cíclicas como MOS (fertilizantes — pico post-guerra Ucrania 2022), el patrón "pico extremo → regresión brutal a la media" es la lectura correcta. Mostrar solo 3 años del periodo de regresión oculta el contexto cíclico y produce conclusión incorrecta (sistema dice "ROIC declining slowly" cuando la realidad es "colapso 97% desde pico").

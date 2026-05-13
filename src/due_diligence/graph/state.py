@@ -72,6 +72,7 @@ class AnalysisState(TypedDict):
     peers: NotRequired[list[str]]
     peer_financials: NotRequired[list[FinancialsReport]]
     peers_attempted_no_roic: NotRequired[list[str]]  # peers fetched pero sin ROIC calculable
+    peer_sic_mismatches: NotRequired[list[str]]  # peers con SIC distinto al subject (EC-42)
 
     # --- Historical context Phase 2 (ADR-019) ---
     # CAGR de revenue calculado por financials_node desde XBRL.

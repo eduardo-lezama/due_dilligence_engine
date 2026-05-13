@@ -70,7 +70,14 @@ RULES — NON-NEGOTIABLE:
 8. §7 Risks MUST cross-check signals: if (a) news flow shows price decline AND (b) insider activity shows selling at higher prices recently AND (c) margin trends are deteriorating, name this combination explicitly as a "value trap signal pattern" — multiple signs pointing the same direction.
 9. If a section lacks sufficient data, say so explicitly rather than speculating.
 10. NEWS HEADLINE QUALITY: news headlines from Finnhub/Tavily are TITLES, not validated claims. Treat them as suggestive only. Quote a headline phrase as a fact ONLY if it is corroborated by either: (a) the article body summary, (b) a 10-K/10-Q section, or (c) financial data in the context. Phrases like "rising receivables risk margins" appearing only in a title are not financial claims — do not echo them as if validated. If a news headline contains awkward phrasing or what looks like a parsing artifact, ignore it entirely.
-11. Return ONLY valid JSON. No markdown fences, no preamble, no commentary outside the JSON.
+11. INSIDER ACTIVITY MAGNITUDE (§3): when classifying insider buying as a signal, use the TOTAL DOLLAR VALUE, not just count or direction. Apply this rubric:
+    - Token purchase (<$50K total): cosmetic compliance/alignment, NOT a conviction signal. Often a single director satisfying a minimum ownership requirement.
+    - Modest insider buying ($50K–$250K total): mild confidence signal, especially from CEO/CFO. From outside directors, mostly compliance.
+    - Material insider buying (>$250K total): genuine conviction signal worth weighing in the verdict.
+    - ABSENCE OF BUYING during drawdown >30% from 52w high: this is itself a signal — when insiders had the opportunity to add at depressed prices and chose not to, that is a negative information signal, not "neutral." State this explicitly when the stock is in drawdown AND no material buying by CEO/CFO/COO appears in the last 12 months.
+12. SEGMENT-AWARE RISK ANALYSIS (§7): if the business has multiple distinct segments (multi-segment 10-K, named in business_description), analyze the named risks PER SEGMENT, not at company level. The same risk (e.g. tariff, regulatory, commodity price) often has opposite signs across segments. Example: a fertilizer producer's potash segment may absorb a tariff via pricing while the phosphate segment is hit by input-cost inflation — naming "tariff risk" generically misses the real direction. Identify which segment carries which risk and quantify when data allows.
+13. QUARTERLY DATA INTEGRATION (§4/§5/§7): if news flow mentions specific quarterly metrics ('Q1 2026 net loss $258M', 'gross margin compressed 140bps QoQ', 'guidance withdrawn for FY2026') that are more recent than the 10-K, you MUST integrate them into §4 Financial Quality and §5 Growth conclusions — not just mention them as factoids in §7. If a management guidance withdrawal or cut appears in news, treat it as a material red flag in §7 with explicit weight in the verdict, regardless of whether 10-K Item 1A mentions it.
+14. Return ONLY valid JSON. No markdown fences, no preamble, no commentary outside the JSON.
 
 VERDICT RUBRIC:
 - BUY: moat confirmed + quality management + DCF upside >20% + no material 8-K red flags + conflicting signals resolved in favor of the bull case.
@@ -88,11 +95,11 @@ OUTPUT SCHEMA:
 {
   "business_understanding": "<§1: 3-4 sentences. What does it do, how does it make money, circle of competence>",
   "moat_analysis": "<§2: integrate ROIC evidence with qualitative moat classification. If peer ROIC data is available in context, explicitly compare the subject's ROIC against peers — name the numbers. If they conflict with the moat label, adjudicate with reasoning.>",
-  "management_assessment": "<§3: skin in the game (insider %) + capital allocation track record + earnings call Q&A tone if available. Quote one verbatim phrase from transcripts if available. MUST reconcile insider sale prices vs current market price when both are in context — name the gap explicitly.>",
-  "financial_quality": "<§4: FCF conversion, balance sheet, margin trends, earnings quality. If 'Capital returned to shareholders' is in context, you MUST report it explicitly: how much was returned, what % of FCF, split between buybacks/dividends. Capital allocation is core to value investing thesis.>",
-  "growth_reinvestment": "<§5: reinvestment rate (capex/OCF — MUST report the precomputed value if available) + ROIC trend interpretation (incremental ROIC proxy — RISING means new capital earns above base, FALLING means value destruction). State whether the company is in invest/balanced/harvest mode AND whether marginal returns are positive or negative based on the ROIC trend.>",
+  "management_assessment": "<§3: skin in the game (insider %) + capital allocation track record + earnings call Q&A tone if available. Quote one verbatim phrase from transcripts if available. MUST reconcile insider sale prices vs current market price when both are in context — name the gap explicitly. MUST classify insider buying by TOTAL DOLLAR MAGNITUDE per rule 11: token (<$50K) is cosmetic, NOT conviction. ABSENCE of CEO/CFO open-market buying during drawdown >30% is itself a negative signal.>",
+  "financial_quality": "<§4: FCF conversion, balance sheet, margin trends, earnings quality. If 'Capital returned to shareholders' is in context, you MUST report it explicitly: how much was returned, what % of FCF, split between buybacks/dividends. Capital allocation is core to value investing thesis. If quarterly news data is more recent than 10-K, update conclusions accordingly (rule 13).>",
+  "growth_reinvestment": "<§5: reinvestment rate (capex/OCF — MUST report the precomputed value if available) + ROIC trend interpretation (incremental ROIC proxy — RISING means new capital earns above base, FALLING means value destruction). State whether the company is in invest/balanced/harvest mode AND whether marginal returns are positive or negative based on the ROIC trend. Integrate quarterly news data when more recent than 10-K (rule 13).>",
   "valuation_section": "<§6: MUST contrast reverse-DCF implied growth vs historical 5y revenue CAGR. State the spread and what it implies about market expectations.>",
-  "risks": "<§7: include any 8-K material events (especially Item 4.02) PLUS top risks from 10-K Item 1A. MUST cross-check news flow + insider activity + margin trends — if multiple signals point negative, name the value trap pattern explicitly.>",
+  "risks": "<§7: include any 8-K material events (especially Item 4.02) PLUS top risks from 10-K Item 1A. MUST cross-check news flow + insider activity + margin trends — if multiple signals point negative, name the value trap pattern explicitly. MUST analyze named risks PER SEGMENT when company is multi-segment (rule 12) — same tariff/regulatory/commodity risk often has opposite signs across segments. MUST integrate any quarterly news data more recent than the 10-K (Q1/Q2/Q3 metrics, guidance changes) and weigh them in the verdict, not just mention as factoids (rule 13).>",
   "psychological_lens": "<§8: why might this be mispriced? Contrarian thesis or consensus trap?>",
   "decision_frame": "<§9: MUST state the thesis-breaker as a concrete observable condition. No vague placeholders.>",
   "verdict": "BUY" | "HOLD" | "SELL",
@@ -313,6 +320,14 @@ def _format_context(state: AnalysisState) -> str:
                     lines.append(f"  {pr.ticker} (peer): {pr.roic:.1%} ({pr.period}) | trend: {trail_str}")
                 else:
                     lines.append(f"  {pr.ticker} (peer): {pr.roic:.1%} ({pr.period})")
+            # Peer SIC mismatches (EC-42): si algún peer es de industria distinta al subject,
+            # la comparación es apples-to-oranges — surface al Expert para que lo refleje en §2.
+            sic_mismatches = state.get("peer_sic_mismatches", [])  # type: ignore[typeddict-item]
+            if sic_mismatches:
+                lines.append("⚠️ PEER QUALITY CAVEAT — SIC industry mismatches detected:")
+                for m in sic_mismatches:
+                    lines.append(f"  - {m}")
+                lines.append("  → In §2 Moat Analysis, explicitly state which peers are NOT apples-to-apples and discount their comparison weight.")
         lines.append("")
 
     # --- Valuation ---

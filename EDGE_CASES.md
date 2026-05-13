@@ -195,14 +195,14 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Aplicado a**: extracción de `long_term_debt` y `short_term_debt`. Cadena LT debt expandida con `LongTermDebtAndCapitalLeaseObligations` y `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities`. Cadena ST debt expandida con `LongTermDebtAndCapitalLeaseObligationsCurrent`.
 - **Verificado en vivo**: MOS pasa de "Debt $0" a **"Total Debt $5,054M"** ($4,251M LT + $803M ST). AAPL sin regresión ($90,678M LT + $12,350M ST).
 - **Patrón meta**: el sistema asume que la API curada tiene todo. La realidad XBRL es heterogénea EN AMBOS NIVELES — vocabulario del concept (EC-01/21) Y disponibilidad en views curadas (EC-37). Cualquier extracción crítica debe tener fallback al raw facts.
-- **Commit**: pendiente
+- **Commit**: `11985d3`
 
 ### EC-38 — ROIC trend truncado a 3 años oculta ciclicidad (MOS picos cíclicos invisibles)
 - **Síntoma**: report MOS mostraba "ROIC: FY2023 5.7%, FY2024 2.6%, FY2025 3.5%" en §2 y §5 — 3 puntos. Pero las citations tenían 4 (FY2022: 20.3%, FY2023: 5.7%, FY2024: 2.6%, FY2025: 3.5%). El cálculo del avg ΔROIC SÍ usaba la serie completa (-5.6pp/year sobre 3 años intervals = consistente con (3.5 - 20.3) / 3), pero el DISPLAY truncaba ocultando el pico cíclico FY2022 20.3%.
 - **Impacto en thesis**: para empresas cíclicas como MOS (fertilizantes — pico post-guerra Ucrania 2022), el patrón "pico extremo → regresión brutal a la media" es la lectura correcta. Mostrar solo 3 años del periodo de regresión oculta el contexto cíclico y produce conclusión incorrecta (sistema dice "ROIC declining slowly" cuando la realidad es "colapso 97% desde pico").
 - **Causa**: slice `[:3]` hardcoded en 5 sitios (`value_expert.py`, `archiver.py`, `cli.py`, `critic.py`, peer comparison block en value_expert). Decisión legacy de Phase 1 cuando los reports eran más cortos.
 - **Fix**: cambiar a `[:5]` en todos los display sites para subject ROIC. La cadena `[:4]` en `competitive.py` (criterio de wide moat) se mantiene — es threshold semántico, no display. La cadena `[:3]` en `peers.py` para trail de peers también se mantiene — los peers no necesitan tanta historia como el subject.
-- **Commit**: pendiente
+- **Commit**: `11985d3`
 - **Síntoma**: `due-diligence analyze NMM` (Navios Maritime Partners, Marshall Islands shipping LP) crashea con `AttributeError: 'NoneType' object has no attribute 'period_of_report'` envuelto en `ValueError: NMM: could not resolve ticker in EDGAR`. Mensaje engañoso — el ticker SÍ está en EDGAR (CIK 1415921 obtenido), pero NMM no tiene 10-K (22 filings 20-F en su lugar).
 - **Causa raíz**: `supervisor_node` llamaba `company.get_filings(form="10-K").latest()` y asumía que devolvía siempre un filing. Para foreign filers, devuelve `None` → `.period_of_report` crashea. El except genérico oculta la categoría real del problema.
 - **Patrón sistémico**: misma clase que EC-11 (foreign ADRs no soportados — ya conocido) y EC-35 (financial firms). Tres categorías de empresas fuera del scope:
@@ -280,4 +280,4 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **DCF, reverse DCF, sensitivity table** todos usan el mismo `dcf_base` resultante. La `dcf_reliability_note` documenta cuándo se usa NOPAT proxy:
   > "⚠️ DCF computed on NORMALIZED NOPAT ($617M = EBIT × (1-tax)) because reported FCF was negative (-$535M in FY2025). This is appropriate for cyclical troughs or heavy reinvestment but ignores working capital and maintenance vs growth capex split — treat as directional, not point estimate."
 - **Limitación documentada**: sobreestima FCF sostenible para cyclicals en trough (cuando maintenance capex es alto). El note lo marca como "directional only" para que el lector lo trate apropiadamente.
-- **Commit**: pendiente
+- **Commit**: `11985d3`

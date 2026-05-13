@@ -187,7 +187,22 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Fix**: computar avg annual ΔROIC en pp/year y surfacearlo. Para BBW: "RISING — marginal ROIC > average (avg ΔROIC: +0.9pp/year over 3 years)".
 - **Commit**: `16555c4`
 
-### EC-36 — Foreign private issuers (20-F filers) crashean supervisor con AttributeError críptico (NMM)
+### EC-37 — Debt extraction silent failure: edgartools curated balance_sheet omite conceptos válidos (MOS)
+- **Síntoma**: report de MOS dijo "Debt is $0 and cash plus STI is $277M" — pero Mosaic tiene **$5,054M de deuda** real (verificado StockAnalysis). El sistema invirtió completamente la narrativa del balance sheet sin warning. Auditor externo (Opus 4.7) calificó como "ERROR DE DATOS CATASTRÓFICO" en su review.
+- **Causa raíz** (verificada en vivo): MOS reporta su deuda en XBRL con concept `us-gaap:LongTermDebtAndCapitalLeaseObligations` (incluye capital leases, formato IFRS-style común en industriales). Este concept SÍ existe en `facts._facts` (raw fact list) pero **NO aparece** en `facts.balance_sheet().to_dataframe()` — la vista curada de edgartools lo filtra por alguna característica del filing (presentation tags / ordering / custom taxonomy extension).
+- **Diferencia con bugs previos**: hasta ahora todos los fixes de extracción XBRL eran sobre **vocabulario heterogéneo** (EC-01 OCF, EC-21 EBIT — el filer usa un concept distinto). EC-37 es **un nivel arquitectónico más profundo**: el concept correcto SÍ existe en el XBRL pero la **API curada de edgartools nos lo oculta**. Nuestro `_get_point(bs_df, ...)` devolvía silently 0.
+- **Fix**: nuevo helper `_get_from_facts(concept, period)` que bypasea el `bs_df` curado y query directo a `facts.get_annual_fact("us-gaap:CONCEPT")`. Helper compuesto `_extract_balance_concept(concepts, period, kind)` aplica el fallback en 2 niveles: (1) curated view primero (rápido), (2) raw facts via `get_annual_fact` con prefijo `us-gaap:`. Valida que `fiscal_year` del fact retornado coincida con target (descarta facts stale de conceptos descontinuados).
+- **Aplicado a**: extracción de `long_term_debt` y `short_term_debt`. Cadena LT debt expandida con `LongTermDebtAndCapitalLeaseObligations` y `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities`. Cadena ST debt expandida con `LongTermDebtAndCapitalLeaseObligationsCurrent`.
+- **Verificado en vivo**: MOS pasa de "Debt $0" a **"Total Debt $5,054M"** ($4,251M LT + $803M ST). AAPL sin regresión ($90,678M LT + $12,350M ST).
+- **Patrón meta**: el sistema asume que la API curada tiene todo. La realidad XBRL es heterogénea EN AMBOS NIVELES — vocabulario del concept (EC-01/21) Y disponibilidad en views curadas (EC-37). Cualquier extracción crítica debe tener fallback al raw facts.
+- **Commit**: pendiente
+
+### EC-38 — ROIC trend truncado a 3 años oculta ciclicidad (MOS picos cíclicos invisibles)
+- **Síntoma**: report MOS mostraba "ROIC: FY2023 5.7%, FY2024 2.6%, FY2025 3.5%" en §2 y §5 — 3 puntos. Pero las citations tenían 4 (FY2022: 20.3%, FY2023: 5.7%, FY2024: 2.6%, FY2025: 3.5%). El cálculo del avg ΔROIC SÍ usaba la serie completa (-5.6pp/year sobre 3 años intervals = consistente con (3.5 - 20.3) / 3), pero el DISPLAY truncaba ocultando el pico cíclico FY2022 20.3%.
+- **Impacto en thesis**: para empresas cíclicas como MOS (fertilizantes — pico post-guerra Ucrania 2022), el patrón "pico extremo → regresión brutal a la media" es la lectura correcta. Mostrar solo 3 años del periodo de regresión oculta el contexto cíclico y produce conclusión incorrecta (sistema dice "ROIC declining slowly" cuando la realidad es "colapso 97% desde pico").
+- **Causa**: slice `[:3]` hardcoded en 5 sitios (`value_expert.py`, `archiver.py`, `cli.py`, `critic.py`, peer comparison block en value_expert). Decisión legacy de Phase 1 cuando los reports eran más cortos.
+- **Fix**: cambiar a `[:5]` en todos los display sites para subject ROIC. La cadena `[:4]` en `competitive.py` (criterio de wide moat) se mantiene — es threshold semántico, no display. La cadena `[:3]` en `peers.py` para trail de peers también se mantiene — los peers no necesitan tanta historia como el subject.
+- **Commit**: pendiente
 - **Síntoma**: `due-diligence analyze NMM` (Navios Maritime Partners, Marshall Islands shipping LP) crashea con `AttributeError: 'NoneType' object has no attribute 'period_of_report'` envuelto en `ValueError: NMM: could not resolve ticker in EDGAR`. Mensaje engañoso — el ticker SÍ está en EDGAR (CIK 1415921 obtenido), pero NMM no tiene 10-K (22 filings 20-F en su lugar).
 - **Causa raíz**: `supervisor_node` llamaba `company.get_filings(form="10-K").latest()` y asumía que devolvía siempre un filing. Para foreign filers, devuelve `None` → `.period_of_report` crashea. El except genérico oculta la categoría real del problema.
 - **Patrón sistémico**: misma clase que EC-11 (foreign ADRs no soportados — ya conocido) y EC-35 (financial firms). Tres categorías de empresas fuera del scope:
@@ -254,7 +269,15 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Causa**: un campo en el XBRL de UAA devuelve `None` donde se espera un número. No investigado aún.
 - **Status**: pendiente diagnóstico. Probablemente un concepto de balance sheet con valor `None` en el raw XBRL.
 
-### EC-13 — DCF N/A cuando FCF es negativo pero EBIT es positivo (empresas en inversión)
-- **Síntoma**: empresas con EBIT positivo pero FCF negativo (reinvirtiendo agresivamente) no producen DCF.
-- **Causa**: el DCF requiere `base_fcf > 0`. Sin fallback a EBIT-based valuation.
-- **Status**: pendiente. Workaround: el usuario puede introducir manualmente el near-term growth y el sistema usa EBIT para los múltiplos. Un EBIT-based DCF como fallback sería la solución correcta.
+### EC-13 — DCF N/A cuando FCF es negativo pero EBIT es positivo (empresas en inversión) — RESUELTO
+- **Síntoma original**: empresas con EBIT positivo pero FCF negativo (cyclical trough o heavy reinvestment) producían DCF N/A y reverse DCF "not provided". Reactivado por MOS FY2025 (FCF -$535M, EBIT $822M) — el report decía explícitamente "I cannot state the exact reverse-DCF implied growth number because it was not provided".
+- **Causa**: `valuation_agent` requería `base_fcf > 0` para todo el flujo (DCF, reverse DCF, sensitivity table). Sin fallback.
+- **Fix**: nuevo helper `_normalized_fcf_proxy(ebit, net_income)` que computa NOPAT = EBIT × (1 - effective_tax_rate). Tax rate derivado del gap EBIT→NI cuando ambos disponibles (clamp 10-40%), default 25% (US corporate post-TCJA mediana).
+- **Estrategia condicional en `valuation_agent`**:
+  - Si `base_fcf > 0` → usar FCF normal (comportamiento previo)
+  - Si `base_fcf <= 0` Y `ebit > 0` → usar NOPAT proxy. `dcf_base_source = "NOPAT proxy (EBIT × (1-tax))"`
+  - Si ninguno aplica → DCF=N/A (caso financiero o sin EBIT)
+- **DCF, reverse DCF, sensitivity table** todos usan el mismo `dcf_base` resultante. La `dcf_reliability_note` documenta cuándo se usa NOPAT proxy:
+  > "⚠️ DCF computed on NORMALIZED NOPAT ($617M = EBIT × (1-tax)) because reported FCF was negative (-$535M in FY2025). This is appropriate for cyclical troughs or heavy reinvestment but ignores working capital and maintenance vs growth capex split — treat as directional, not point estimate."
+- **Limitación documentada**: sobreestima FCF sostenible para cyclicals en trough (cuando maintenance capex es alto). El note lo marca como "directional only" para que el lector lo trate apropiadamente.
+- **Commit**: pendiente

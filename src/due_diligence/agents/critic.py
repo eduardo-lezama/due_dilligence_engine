@@ -96,7 +96,8 @@ def _build_critic_prompt(state: AnalysisState) -> str:
     if financials is not None:
         lines.append("## KEY FINANCIALS (for grounding weaknesses)")
         if financials.roic_series:
-            roic_str = ", ".join(f"{r.period}: {r.value:.1%}" for r in financials.roic_series[:3])
+            # Serie completa (hasta 5 años) — para que el Critic vea ciclicidad y picos (EC-38)
+            roic_str = ", ".join(f"{r.period}: {r.value:.1%}" for r in financials.roic_series[:5])
             lines.append(f"ROIC: {roic_str}")
         if financials.free_cash_flow:
             fcf_trend = [f"{f.period}: {fmt_usd(f.value)}" for f in financials.free_cash_flow[:3]]

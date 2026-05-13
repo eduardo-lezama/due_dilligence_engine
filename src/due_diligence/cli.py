@@ -381,7 +381,7 @@ def _show_peer_comparison(state: dict) -> None:
 
     # Primera fila: empresa analizada (siempre presente — EC-20)
     if financials and financials.roic_series:
-        own_series = financials.roic_series[:3]
+        own_series = financials.roic_series[:5]  # serie completa (EC-38)
         own_trend = " → ".join(f"{r.value:.1%}" for r in reversed(own_series))
         own_latest = own_series[0]
         table.add_row(

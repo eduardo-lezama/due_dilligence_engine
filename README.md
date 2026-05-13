@@ -2,7 +2,7 @@
 
 An agentic system for fundamental equity analysis, built on value investing principles. Given a US ticker, it runs a full multi-specialist analysis — from SEC filings to DCF valuation — and delivers a structured verdict with citations, a pre-mortem critique, and an archived report.
 
-> **Status:** Phase 1 + Phase 2 complete, with 5 post-production hardening rounds. The system has been validated against a range of company archetypes beyond the large-cap baseline: small caps, buyback-heavy compounders, stocks in sharp drawdown, asset-light businesses, and companies with amended annual filings. 222 tests, all green. Next: Phase 2.5 (re-analysis delta for the same ticker) or Phase 3 (Canadian and European markets).
+> **Status:** Phase 1 + Phase 2 complete, with 6 post-production hardening rounds. The system has been validated against a range of company archetypes beyond the large-cap baseline: small caps, buyback-heavy compounders, stocks in sharp drawdown, asset-light businesses, companies with amended annual filings, foreign 20-F filers (detect-and-fail-loud), financial firms (detect-and-fail-loud), and **cyclicals in trough with negative FCF** (NOPAT-based DCF fallback) and **filers whose debt XBRL bypasses edgartools' curated balance sheet view** (raw facts fallback). 228 tests, all green. Next: Phase 2.5 (re-analysis delta for the same ticker) or Phase 3 (Canadian and European markets).
 
 ---
 

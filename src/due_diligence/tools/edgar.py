@@ -189,6 +189,84 @@ class EdgarAdapter:
 
             return []
 
+        def _get_from_facts(concept: str, period: str) -> dict | None:
+            """Raw facts fallback bypassing edgartools' curated views (EC-37).
+
+            edgartools `balance_sheet().to_dataframe()` y `income_statement().to_dataframe()`
+            son vistas curadas — algunas empresas (MOS verificado en producción) tienen
+            conceptos us-gaap estándar en sus raw `_facts` pero excluidos del DataFrame
+            curado. Cuando los extractores normales fallan, este helper consulta directo
+            al raw fact con `facts.get_annual_fact()` usando el prefijo `us-gaap:`.
+
+            Valida que el fiscal_year del fact retornado coincida con el target
+            (get_annual_fact devuelve la última anual conocida — para conceptos
+            descontinuados puede ser stale).
+
+            Args:
+                concept: Concept name SIN prefijo (ej. "LongTermDebtAndCapitalLeaseObligations")
+                period: Target FY label (ej. "FY2025")
+
+            Returns:
+                {"value": float, "period": str} o None si no encontrado / año stale.
+            """
+            target_year = period.replace("FY", "")  # "FY2025" → "2025"
+            full_concept = f"us-gaap:{concept}"
+            try:
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")  # silenciar "Unknown concept" warnings
+                    fact = facts.get_annual_fact(full_concept)
+            except Exception:
+                return None
+            if fact is None:
+                return None
+            # Validar fiscal year — get_annual_fact devuelve el último anual conocido,
+            # que puede ser stale (e.g. LongTermDebt FY2015 para una empresa que ahora
+            # usa LongTermDebtAndCapitalLeaseObligations).
+            if str(getattr(fact, "fiscal_year", "")) != target_year:
+                return None
+            value = getattr(fact, "numeric_value", None)
+            if value is None:
+                return None
+            return {"value": float(value), "period": period}
+
+        def _extract_balance_concept(
+            concepts: tuple[str, ...], period: str, kind: str
+        ) -> dict | None:
+            """Extrae un concepto del balance sheet con cadena de fallback (EC-37).
+
+            Estrategia en dos pasos:
+                1. Vista curada `bs_df` (rápido, funciona para la mayoría)
+                2. Raw facts via `_get_from_facts` (fallback para filers con XBRL atípico)
+
+            Loguea cuándo se usa el fallback — útil para diagnosticar empresas problemáticas.
+
+            Args:
+                concepts: Tupla de concepts a probar en orden de prevalencia.
+                period: Target FY label.
+                kind: Etiqueta para logging (e.g. "lt_debt", "st_debt").
+
+            Returns:
+                Primer match (dict) o None si ningún concept devuelve dato.
+            """
+            # Step 1: curated view
+            for c in concepts:
+                if c in bs_df.index:
+                    try:
+                        return _get_point(bs_df, c, period)
+                    except DataUnavailableError:
+                        pass
+            # Step 2: raw facts fallback
+            for c in concepts:
+                result = _get_from_facts(c, period)
+                if result is not None:
+                    log.info(
+                        "balance_raw_facts_fallback_used",
+                        concept=c, ticker=ticker, kind=kind,
+                    )
+                    return result
+            return None
+
         def _get_point(df: Any, concept: str, period: str) -> dict:
             """Extrae el valor más reciente de un concepto puntual (balance sheet)."""
             if concept not in df.index:
@@ -213,30 +291,50 @@ class EdgarAdapter:
             raise DataUnavailableError(f"{ticker}: revenue concept not found in income statement")
 
         # --- Balance sheet ---
-        # LongTermDebt: distintas empresas usan distintos conceptos XBRL.
-        # Intentamos en orden de prevalencia; si ninguno existe, total_debt = 0.
-        lt_debt = None
-        for _lt_concept in ("LongTermDebt", "LongTermDebtNoncurrent",
-                             "LongTermDebtAndCapitalLeaseObligations",
-                             "LongTermNotesPayable"):
-            if _lt_concept in bs_df.index:
-                try:
-                    lt_debt = _get_point(bs_df, _lt_concept, fy_label)
-                    break
-                except DataUnavailableError:
-                    pass
+        # LongTermDebt: cadena de fallback de conceptos XBRL (EC-37).
+        # MOS (verificado en producción) usa `LongTermDebtAndCapitalLeaseObligations`
+        # que NO está en el bs_df curado de edgartools aunque SÍ está en raw _facts.
+        # _extract_balance_concept aplica fallback en 2 niveles: curated view → raw facts.
+        _LT_DEBT_CONCEPTS = (
+            "LongTermDebt",
+            "LongTermDebtNoncurrent",
+            "LongTermDebtAndCapitalLeaseObligations",
+            "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities",
+            "LongTermNotesPayable",
+        )
+        lt_debt = _extract_balance_concept(_LT_DEBT_CONCEPTS, fy_label, "lt_debt")
         if lt_debt is None:
             lt_debt = {"value": 0.0, "period": fy_label}
 
-        # ShortTermBorrowings + porción corriente de LTD (opcional — no todas las empresas)
+        # ShortTermBorrowings + porción corriente de LTD (opcional — no todas las empresas).
+        # Sumar concepts mutually-exclusive en orden de relevancia. Para cada concept:
+        # primero curated view, luego raw facts fallback.
+        _ST_DEBT_CONCEPTS = (
+            "ShortTermBorrowings",
+            "LongTermDebtCurrent",
+            "LongTermDebtAndCapitalLeaseObligationsCurrent",
+            "NotesPayableCurrent",
+            "DebtCurrent",
+        )
         st_debt_value = 0.0
-        for _st_concept in ("ShortTermBorrowings", "LongTermDebtCurrent",
-                             "NotesPayableCurrent", "DebtCurrent"):
+        for _st_concept in _ST_DEBT_CONCEPTS:
+            val = None
             if _st_concept in bs_df.index:
                 try:
-                    st_debt_value += _get_point(bs_df, _st_concept, fy_label)["value"]
+                    val = _get_point(bs_df, _st_concept, fy_label)["value"]
                 except DataUnavailableError:
                     pass
+            if val is None:
+                # Raw facts fallback (EC-37)
+                result = _get_from_facts(_st_concept, fy_label)
+                if result is not None:
+                    val = result["value"]
+                    log.info(
+                        "balance_raw_facts_fallback_used",
+                        concept=_st_concept, ticker=ticker, kind="st_debt_component",
+                    )
+            if val:
+                st_debt_value += val
 
         # Cash and equivalents
         cash = None

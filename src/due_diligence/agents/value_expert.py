@@ -149,7 +149,10 @@ def _format_context(state: AnalysisState) -> str:
                 )
 
         if financials.roic_series:
-            roic_str = ", ".join(f"{r.period}: {r.value:.1%}" for r in financials.roic_series[:3])
+            # Surfacear serie completa (hasta 5 años) — antes truncábamos a 3 lo que
+            # ocultaba picos/valles cíclicos (EC-38). El cálculo de avg ΔROIC abajo ya
+            # usa la serie completa, así que el display debe ser consistente.
+            roic_str = ", ".join(f"{r.period}: {r.value:.1%}" for r in financials.roic_series[:5])
             lines.append(f"ROIC series: {roic_str}")
             # Incremental ROIC proxy (Fix #3 + EC-32): tendencia + delta concreto en pp.
             # Antes solo emitíamos interpretación cualitativa (RISING/FALLING). Auditoría
@@ -300,7 +303,8 @@ def _format_context(state: AnalysisState) -> str:
             lines.append("Peer ROIC comparison (use in §2 — trail shows trend; flag cyclicals vs compounders):")
             financials = state.get("financials")  # type: ignore[typeddict-item]
             if financials and financials.roic_series:
-                own_series = financials.roic_series[:3]
+                # Serie completa (hasta 5 años) — antes [:3] ocultaba ciclicidad (EC-38)
+                own_series = financials.roic_series[:5]
                 own_trail = " → ".join(f"{r.value:.1%}" for r in reversed(own_series))
                 lines.append(f"  {ticker} (subject): {own_series[0].value:.1%} ({own_series[0].period}) | trend: {own_trail}")
             for pr in competitive.peer_roic_comparison:

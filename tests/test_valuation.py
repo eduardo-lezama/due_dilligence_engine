@@ -431,6 +431,44 @@ def test_valuation_agent_contradiction_flag_when_large_spread():
     assert "contradiction" in report.dcf_reliability_note.lower()
 
 
+def test_valuation_agent_nopat_fallback_when_fcf_negative():
+    """
+    EC-13: cuando FCF es negativo pero EBIT es positivo (cyclical trough o heavy
+    reinvestment), el DCF debe computarse sobre NOPAT proxy (EBIT × (1-tax)) en
+    lugar de devolver N/A. Caso emblemático: MOS FY2025 (FCF -$535M, EBIT $822M).
+    """
+    financials = _build_financials()
+    # Forzar FCF negativo, mantener EBIT positivo (escenario MOS)
+    financials.free_cash_flow = [
+        MetricValue(value=-500_000_000, unit="USD", period="FY2025", source="calculated"),
+    ]
+    financials.operating_income = [
+        MetricValue(value=800_000_000, unit="USD", period="FY2025", source="XBRL"),
+    ]
+    financials.net_income = [
+        MetricValue(value=550_000_000, unit="USD", period="FY2025", source="XBRL"),
+    ]
+    state = {
+        "ticker": "FAKE",
+        "financials": financials,
+        "market": _build_market_report(market_cap=5_000_000_000),
+    }
+    report = valuation_agent(state)["valuation"]
+
+    # Debe computarse DCF (no N/A) usando NOPAT proxy
+    assert report.dcf_intrinsic_value is not None
+    assert report.dcf_intrinsic_value.value > 0
+    # Source debe indicar el fallback
+    assert "NOPAT" in report.dcf_intrinsic_value.source
+    # Reliability note debe explicar
+    assert report.dcf_reliability_note is not None
+    assert "NOPAT" in report.dcf_reliability_note
+    # Reverse DCF también debe estar (usa mismo base)
+    assert report.reverse_dcf_implied_growth is not None
+    # Sensitivity table también debe poblarse
+    assert len(report.sensitivity_table) == 3
+
+
 def test_valuation_agent_no_contradiction_flag_when_user_overrides_growth():
     """
     Cuando el usuario provee revenue_growth_yr1_pct manualmente, el flag de

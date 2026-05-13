@@ -130,6 +130,42 @@ def _reverse_dcf(
     return round(result, 4)
 
 
+def _normalized_fcf_proxy(ebit: float, net_income: Optional[float]) -> Optional[float]:
+    """
+    Proxy de cash generation normalizado cuando el FCF reportado es negativo (EC-13).
+
+    Cuándo se usa: empresas en trough cíclico (MOS FY2025: FCF -$535M pero EBIT $822M)
+    o en heavy reinvestment (growth-stage). Sin este fallback, el DCF se salta y el
+    sistema devuelve "N/A — FCF insufficient", lo que pierde toda valoración para una
+    clase entera del universo value (cyclicals descontados, compounders en inversión).
+
+    Cálculo: NOPAT = EBIT × (1 − effective_tax_rate).
+        - Si net_income también disponible y NI < EBIT: derive tax rate de la diferencia
+          (proxy razonable que ignora interest expense — OK para análisis directional).
+        - Si no: usar 25% default (mediana US corporate effective tax post-TCJA).
+
+    Limitación: ignora working capital y maintenance vs growth capex. Sobreestima FCF
+    sostenible para cyclicals en trough (cuando capex de mantenimiento es alto). Se
+    documenta en `dcf_reliability_note` para que el lector lo trate como directional.
+
+    Args:
+        ebit: Operating income (EBIT) en USD, periodo más reciente.
+        net_income: Net income en USD (para derivar tax rate), opcional.
+
+    Returns:
+        NOPAT proxy en USD, o None si EBIT no disponible/no-positivo.
+    """
+    if ebit is None or ebit <= 0:
+        return None
+    if net_income is not None and net_income > 0 and ebit > net_income:
+        # Derive tax rate del gap EBIT→NI (ignora interest expense — OK proxy)
+        derived_rate = 1 - (net_income / ebit)
+        tax_rate = max(0.10, min(derived_rate, 0.40))  # clamp realista
+    else:
+        tax_rate = 0.25  # US corporate post-TCJA mediana
+    return ebit * (1 - tax_rate)
+
+
 def _sensitivity_table(
     base_fcf: float,
     terminal_growth: float,
@@ -285,35 +321,52 @@ def valuation_agent(state: AnalysisState) -> dict:
         years=years,
     )
 
-    # --- 5. DCF ---
+    # --- 5. DCF — usar FCF si positivo, fallback a NOPAT proxy si FCF<0 pero EBIT>0 (EC-13) ---
+    # Empresas en trough cíclico (MOS FY2025: FCF -$535M / EBIT $822M) o heavy reinvestment
+    # (growth-stage) tienen FCF negativo transitorio pero EBIT positivo. Sin este fallback,
+    # el sistema devolvía "N/A — FCF insufficient" perdiendo toda valoración. Usar NOPAT
+    # como proxy de cash generation normalizado preserva la valoración directional.
+    dcf_base: Optional[float] = None
+    dcf_base_source: str = ""  # etiqueta para `MetricValue.source` y reliability note
+
+    if base_fcf is not None and base_fcf > 0:
+        dcf_base = base_fcf
+        dcf_base_source = "FCF"
+    elif ebit is not None and ebit > 0:
+        proxy = _normalized_fcf_proxy(ebit, net_income)
+        if proxy is not None and proxy > 0:
+            dcf_base = proxy
+            dcf_base_source = "NOPAT proxy (EBIT × (1-tax))"
+
     dcf_value: Optional[MetricValue] = None
     dcf_per_share: Optional[MetricValue] = None
     dcf_upside: Optional[float] = None
 
-    if base_fcf is not None and base_fcf > 0:
-        equity_value = _two_stage_dcf(base_fcf, near_term_growth, terminal_growth, wacc, years)
+    if dcf_base is not None and dcf_base > 0:
+        equity_value = _two_stage_dcf(dcf_base, near_term_growth, terminal_growth, wacc, years)
         dcf_value = MetricValue(
             value=round(equity_value),
             unit="USD",
             period=fcf_period,
-            source="calculated",
+            source=f"calculated ({dcf_base_source})",
         )
         if shares is not None and shares > 0:
             dcf_per_share = MetricValue(
                 value=round(equity_value / shares, 2),
                 unit="USD/share",
                 period=fcf_period,
-                source="calculated",
+                source=f"calculated ({dcf_base_source})",
             )
         if market_cap is not None and market_cap > 0:
             dcf_upside = round((equity_value - market_cap) / market_cap * 100, 1)
     else:
-        log.warning("valuation_agent_no_fcf", ticker=ticker)
+        log.warning("valuation_agent_no_dcf_base", ticker=ticker,
+                    fcf=base_fcf, ebit=ebit)
 
-    # --- 6. Reverse DCF ---
+    # --- 6. Reverse DCF — usa el mismo dcf_base (FCF o NOPAT proxy) ---
     reverse_growth: Optional[float] = None
-    if base_fcf is not None and market_cap is not None:
-        reverse_growth = _reverse_dcf(base_fcf, market_cap, terminal_growth, wacc, years)
+    if dcf_base is not None and market_cap is not None:
+        reverse_growth = _reverse_dcf(dcf_base, market_cap, terminal_growth, wacc, years)
 
     # Contradicción DCF (Fix C / EC-16): si el forward DCF asume un growth >5pp
     # por encima del implied growth, el upside existe solo por assumptions que el
@@ -339,6 +392,25 @@ def valuation_agent(state: AnalysisState) -> dict:
             spread_pp=f"{spread_pp:.0f}",
         )
 
+    # Nota EC-13: cuando usamos NOPAT proxy en lugar de FCF, documentarlo explícitamente.
+    # El lector debe saber que la valoración es directional, no point estimate.
+    if dcf_base_source.startswith("NOPAT") and dcf_base is not None and base_fcf is not None:
+        note_parts.append(
+            f"⚠️ DCF computed on NORMALIZED NOPAT (${dcf_base / 1e6:.0f}M = EBIT × (1-tax)) "
+            f"because reported FCF was negative (${base_fcf / 1e6:.0f}M in {fcf_period}). "
+            f"This is appropriate for cyclical troughs or heavy reinvestment but ignores "
+            f"working capital and maintenance vs growth capex split — treat as directional, "
+            f"not point estimate. Reverse DCF implied growth uses same NOPAT base."
+        )
+        log.info(
+            "valuation_dcf_nopat_fallback",
+            ticker=ticker,
+            fcf=base_fcf,
+            ebit=ebit,
+            nopat_proxy=dcf_base,
+        )
+
+    # Actualizar sensitivity table también si usamos NOPAT proxy
     if note_parts:
         dcf_reliability_note = " ".join(note_parts)
 
@@ -381,10 +453,10 @@ def valuation_agent(state: AnalysisState) -> dict:
                 source="calculated",
             )
 
-    # --- 8. Sensitivity table ---
+    # --- 8. Sensitivity table — usa dcf_base (FCF o NOPAT proxy según fallback EC-13) ---
     sensitivity: list[dict] = []
-    if base_fcf is not None and base_fcf > 0:
-        sensitivity = _sensitivity_table(base_fcf, terminal_growth, years, wacc, near_term_growth)
+    if dcf_base is not None and dcf_base > 0:
+        sensitivity = _sensitivity_table(dcf_base, terminal_growth, years, wacc, near_term_growth)
 
     # --- 9. Construir el report ---
     report = ValuationReport(

@@ -278,7 +278,7 @@ def _render_markdown(state: AnalysisState) -> str:
         # debe ver el ticker como ancla de la tabla, con explicación honesta.
         ticker_label = state.get("ticker", "Subject")  # type: ignore[typeddict-item]
         if financials_for_roic and financials_for_roic.roic_series:
-            own_series = financials_for_roic.roic_series[:3]
+            own_series = financials_for_roic.roic_series[:5]  # serie completa (EC-38)
             own_trend = " → ".join(f"{r.value:.1%}" for r in reversed(own_series))
             own_latest = own_series[0]
             lines.append(f"| **{ticker_label}** | **{own_latest.value:.1%}** ({own_latest.period}) | {own_trend} | ← subject |")

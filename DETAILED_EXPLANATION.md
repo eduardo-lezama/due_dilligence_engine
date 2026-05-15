@@ -3092,3 +3092,294 @@ Los 7 hallazgos del MOS audit cerrados:
 
 *Última actualización: 2026-05-13 — Oleadas 3.0 (EC-37/38, EC-13 resuelto) + 3.1 (EC-39/40/41/42). 230 tests, verde.*
 
+---
+
+## Oleada 4 — MRCY/ANET audits: quarterly data + insider clarity + thesis-break (2026-05-15)
+
+### El detonante: análisis de MRCY con 11 meses de lag
+
+Corriste MRCY (Mercury Systems, FY ending June). El 10-K tenía 11 meses de antigüedad — el sistema no tenía datos de los últimos 3 quarters. El LLM definía thesis-break conditions que los propios news del report ya negaban. Insider activity mezclaba hedge funds activistas con directivos reales. Tres bugs sistémicos.
+
+### EC-44 + MCE-24 light — Quarterly data dual-source
+
+**El problema**: cuando el 10-K tiene >90 días de antigüedad, el análisis usa datos desactualizados. Para MRCY, el DCF se basaba en FCF de FY2024 sin saber que Q3 FY2026 había sido positivo.
+
+**Dos fuentes complementarias**:
+
+1. **8-K Item 2.02 — earnings press release** (`fetch_earnings_press_release`): texto narrativo del trimestre más reciente. Revenue, EPS, guidance del CEO. Surfaceado como `## QUARTERLY UPDATE` en el contexto del Value Expert. El LLM recibe el lenguaje exacto de la dirección.
+
+2. **10-Q XBRL snapshot** (`fetch_quarterly_snapshot`): extrae revenue/EBIT/gross_profit del 10-Q más reciente cuando el 10-K tiene >90 días stale. Datos deterministas desde XBRL. Surfaceado como `## QUARTERLY XBRL (10-Q — deterministic, MORE RECENT than 10-K)`.
+
+El prioriry chain para el press release: `EX-99.*` exhibit → inline Item 2.02 → `obj.body`. El contenido real (revenue, EPS) está en el exhibit, no en el inline text que es solo un header de referencia (EC-51).
+
+**ADR-025**: documenta esta estrategia dual-source como decisión arquitectónica.
+
+**Deuda técnica conocida**: `fetch_quarterly_snapshot()` devuelve `dict[str, Any]` en lugar de un Pydantic model, y `quarterly_snapshot: NotRequired[dict]` en `AnalysisState` no tiene tipo estructurado. Viola el invariante "All outputs are Pydantic v2 models". Registrado como deuda para MCE futuro — no bloquea el sistema.
+
+### EC-43 — Form 4: separar insiders reales de beneficial owners institucionales
+
+**El problema**: JANA Partners (hedge fund activista con >10% de MRCY) aparecía en el Form 4 como "insider seller". El LLM lo interpretaba como señal bearish de management. JANA vende por razones de portfolio, no por conocimiento privilegiado del negocio.
+
+**La solución**: `_is_institutional_holder()` con heurísticas de nombre (LP, LLC, "Management", "Partners", "Capital", "Fund") y tipo de reportante. `format_form4_for_prompt()` separa en 3 categorías:
+
+1. **Discretionary insider transactions** — officers/directors reales (señal relevante)
+2. **10b5-1 pre-arranged plans** — ventas programadas (EC-50: no son señal bearish)
+3. **Institutional/beneficial owner transactions** — >10% holders institucionales (contexto, no señal directa)
+
+**EC-50 — 10b5-1 plan detection**: `_detect_10b5_1_plan()` lee footnotes del Form 4 + texto del filing. `Rule #17` en el system prompt del Value Expert prohíbe usar ventas 10b5-1 como señal bearish.
+
+### EC-45 + ADR-026 — Thesis-break self-consistency validation
+
+**El problema**: el LLM podía definir thesis-break conditions que los propios datos del report ya contradecían. "Thesis breaks if EBIT stays negative" cuando el press release del Q3 en el mismo análisis decía EBIT positivo.
+
+**Defense in depth — dos capas**:
+
+1. **Prompt layer** (Rule #15): self-check obligatorio antes de escribir thesis breaks. Instrucción: "verify your thesis-break conditions are not already triggered by the data in this report."
+
+2. **Deterministic layer** (`_thesis_break_self_check()`): post-processing keyword-based tras la respuesta del LLM. Detecta contradicciones entre `decision_frame` y `financial_quality`/`risks`/`growth`. Añade warning al report, no bloquea el verdict.
+
+**ADR-026**: documenta el patrón como "dual-layer validation: prompt soft rail + deterministic post-check." Coherente con defense-in-depth ya aplicado en moat calibration, CAGR cap, etc.
+
+### EC-46/47/48 — Mejoras de calidad de contexto
+
+- **EC-46** — Staleness warning: si 10-K >180 días, inyecta advertencia en la sección FINANCIALS instruyendo al LLM priorizar datos trimestrales.
+- **EC-47** — CAGR qualifiers: warnings para span corto (<4 años), crecimiento extremo (>40%), CAGR negativo. Previene que el LLM ancle el DCF a datos no representativos.
+- **EC-48** — Finnhub transcripts fallback via Tavily: cuando Finnhub devuelve `[]` (free tier), 2 queries Tavily para summaries de earnings calls. No reemplaza el transcript verbatim pero da contexto cualitativo sobre guidance/tone.
+
+### EC-49 — JSON mode para Value Expert
+
+**El problema**: `gpt-5.4-mini` paraba mid-JSON con `finish_reason='stop'`, produciendo JSONs incompletos que fallaban al parsear.
+
+**La solución**: `response_format={"type":"json_object"}` como parámetro opcional en `LLMClient.complete()` y `_complete_openai()`. El Value Expert lo usa explícitamente. Retry automático si el parse falla.
+
+**Consideración arquitectónica**: el parámetro `response_format` es ignorado silenciosamente en la ruta Anthropic — Anthropic no tiene ese modo (usa su propio structured output). Esto significa que JSON mode solo está garantizado cuando el provider es OpenAI. Documentado en el docstring del método.
+
+### Otros fixes
+
+- **EC-43 CLI**: el CLI buscaba `{ticker}-{date}.md` pero archiver guardaba `{date}-{ticker}-{verdict}.md`. Nunca mostraba "Report saved". Alineado con la convención del archiver.
+- **DCF rename**: "DCF contradiction" → "DCF spread note" en `valuation.py`, `critic.py` y tests. No es un error, es divergencia esperada entre assumptions del analista y market-implied growth.
+
+### Archivos modificados (Windsurf commits e52f65a, 9e84db7, 49ee110)
+
+| Archivo | Cambio principal |
+|---|---|
+| `tools/edgar.py` | `EdgarEventsAdapter.fetch_earnings_press_release()`, `fetch_quarterly_snapshot()`, `_extract_8k_item_text()` |
+| `agents/management.py` | Form 4 filtrado de beneficial owners, 10b5-1 detection |
+| `agents/financials.py` | Llama a `fetch_quarterly_snapshot`, añade `quarterly_snapshot` al state |
+| `agents/value_expert.py` | `## QUARTERLY UPDATE`, `## QUARTERLY XBRL`, `_thesis_break_self_check()`, Rules #15-17 |
+| `agents/market.py` | `quarterly_earnings_text`, `quarterly_earnings_date` en MarketReport |
+| `agents/valuation.py` | DCF spread rename |
+| `agents/critic.py` | DCF spread rename |
+| `llm/client.py` | `response_format` param, retry lógica |
+| `graph/state.py` | `quarterly_snapshot: NotRequired[dict]` |
+| `schemas/reports.py` | `MarketReport: +quarterly_earnings_text, +quarterly_earnings_date` |
+| `cli.py` | Filename mismatch fix |
+| `docs/adr/` | ADR-025, ADR-026 |
+| `EDGE_CASES.md` | EC-43 a EC-51 documentados |
+
+---
+
+*Oleada 4 — 2026-05-15 — 282 tests verde. Commits: e52f65a + 9e84db7 + 49ee110.*
+
+---
+
+## Oleada 4.5 — Corrección de deuda técnica: `quarterly_snapshot` → modelo Pydantic (2026-05-15)
+
+### El problema que resolvía
+
+Windsurf implementó `fetch_quarterly_snapshot()` en `edgar.py` retornando `dict[str, Any] | None`. Ese dict viajaba por todo el grafo — de `financials_node` al estado, del estado a `_format_context()` en `value_expert.py` — accedido con `.get("period")`, `.get("revenue")`, etc.
+
+Esto violaba dos invariantes documentados en `due_diligence/CLAUDE.md`:
+- **"All module outputs are Pydantic v2 models. No bare `dict` returns."**
+- **"Every adapter implements `fetch_raw(ticker) -> dict` + `parse_*(raw) -> PydanticModel`"** (patrón fetch/parse separado)
+
+El riesgo concreto: si una key del dict se renombraba (ej. `"operating_income"` → `"ebit"`), el bug era silencioso. El LLM recibía `None` en el contexto sin ningún error de validación, produciendo un análisis incompleto sin señal de fallo.
+
+### La corrección
+
+**5 archivos, mismo patrón que el resto del proyecto:**
+
+**1. `schemas/reports.py` — nuevo modelo `QuarterlySnapshot`**
+
+```python
+class QuarterlySnapshot(BaseModel):
+    period: str
+    revenue: float
+    operating_income: Optional[float] = None
+    gross_profit: Optional[float] = None
+    filing_date: Optional[str] = None
+```
+
+`revenue` es obligatorio (si no hay revenue, `fetch_quarterly_snapshot` ya retornaba `None` antes). Los demás son `Optional` porque small caps con XBRL atípico pueden no reportar EBIT o gross profit como línea separada.
+
+**2. `tools/edgar.py` — separación fetch/parse**
+
+Se extrae `parse_quarterly_snapshot(raw: dict) -> QuarterlySnapshot` como método estático puro, siguiendo exactamente el patrón de `parse_financials`. `fetch_quarterly_snapshot` ahora llama a `parse_quarterly_snapshot(snapshot)` en lugar de retornar el dict directamente. Return type: `QuarterlySnapshot | None`.
+
+La separación permite testear el parsing con un dict construido inline — sin llamar a EDGAR, sin mocks complejos, 100% determinista.
+
+**3. `graph/state.py` — tipo correcto en el estado**
+
+```python
+# Antes:
+quarterly_snapshot: NotRequired[dict]
+
+# Después:
+quarterly_snapshot: NotRequired[QuarterlySnapshot]
+```
+
+Ahora el grafo tiene contrato tipado en ese campo. Un nodo que intentara asignar un dict rompería en tiempo de análisis estático (mypy/pyright).
+
+**4. `agents/value_expert.py` — acceso tipado**
+
+```python
+# Antes (acceso por dict):
+q_snap.get('period', '?')
+q_snap['revenue']
+
+# Después (acceso por atributo):
+q_snap.period
+q_snap.revenue
+```
+
+**5. Tests — función pura testeable**
+
+4 tests en `test_edgar.py` para `parse_quarterly_snapshot`: snapshot completo, mínimo (solo revenue), sin EBIT, period preservado. Ninguno llama a EDGAR.
+
+El test existente en `test_value_expert.py` que construía el snapshot como dict se actualizó para usar `QuarterlySnapshot(...)`.
+
+### Por qué este patrón es importante
+
+`parse_financials` fue el primer ejemplo: separar el I/O de la transformación hace que los tests no dependan de la red. El mismo razonamiento aplica a cualquier dato externo que el sistema consume — 10-K anual, 10-Q trimestral, datos de mercado. Cuando Windsurf implementó el quarterly snapshot rápido, mezcló ambas capas. Esta corrección restaura la separación.
+
+**Resultado: 289 tests verde.**
+
+---
+
+## MCE-18 — Peer Valuation Multiples + Magic Formula Rank (2026-05-15)
+
+### El problema que resuelve
+
+Antes de MCE-18, la tabla de peer comparison mostraba **solo ROIC**. Esto respondía "¿quién tiene mejor calidad de capital?" pero no "¿está esta empresa cara o barata frente a sus peers?". El Value Expert tampoco tenía contexto cuantitativo para §6 Valuation: no podía decir si el EV/EBIT de AAPL es un descuento o una prima respecto al sector.
+
+MCE-18 añade **tres métricas relativas** y un **ranking sintético**:
+- **EV/EBIT** — múltiplo de valoración basado en EBIT operativo (más limpio que P/E: no afectado por estructura de capital ni amortizaciones).
+- **FCF yield** — FCF / market_cap × 100 — cuánto cash genera la empresa por cada € invertido.
+- **Magic Formula rank** — ranking combinado de Greenblatt: earnings yield (EBIT/EV, mayor = más barato) + ROIC (mayor = mejor calidad). Combined score más bajo = rank #1 = mejor empresa por precio-calidad.
+
+### Arquitectura — Enfoque A: sin nodos nuevos en el grafo
+
+Cero cambios en `graph.py`. Se extienden nodos existentes:
+
+```
+peers_node → (fetch Polygon por peer) → PeerValuation list → state["peer_valuations"]
+                                                                        ↓
+valuation_node → _compute_magic_formula_rank() → magic_formula_rank en ValuationReport
+                                               → peer_valuations actualizados con mf_rank
+                                                        ↓
+archiver → tabla ## Peer Comparison — Relative Valuation + fila MF rank en métricas
+value_expert → ## PEER RELATIVE VALUATION en _format_context() para §6
+```
+
+El dato de mercado (market_cap) por peer viene de **Polygon**, que ya se usa para el subject. La secuencia `peers_node → checkpoint2 → valuation_node` garantiza que los multiples de peers están disponibles cuando valuation_node necesita rankear.
+
+### PeerValuation — nuevo schema Pydantic
+
+```python
+class PeerValuation(BaseModel):
+    ticker: str
+    roic: float
+    period: str
+    ev_ebit: Optional[float] = None      # None si no hay market data o EBIT <= 0
+    fcf_yield_pct: Optional[float] = None # None si FCF < 0 o no hay market data
+    mf_rank: Optional[int] = None        # None hasta que valuation_node lo computa
+    no_market_data: bool = False         # True si Polygon no devuelve market_cap
+```
+
+La degradación es explícita por campo, no un flag genérico. Un peer sin Polygon data tiene `no_market_data=True` y sus multiples son `None`, pero el peer sigue en la lista (para que el archiver y el Expert sepan que fue intentado y por qué falta).
+
+### _build_peer_valuations — lógica de cómputo
+
+En `peers_node`, después de fetchear EDGAR por cada peer, se llama a `PolygonAdapter.fetch_market_data(peer_ticker)` y se computa:
+
+```
+EV = market_cap + total_debt - cash_and_equivalents
+EV/EBIT = round(EV / EBIT, 2)    [solo si EBIT > 0 y EV > 0]
+FCF yield = round(FCF / market_cap * 100, 2)  [solo si FCF > 0]
+```
+
+Si Polygon falla con excepción (network, rate limit): `try/except` → `no_market_data=True`, sin abortar el batch. Si EV resulta negativo (empresa net-cash extrema): `log.warning` + `ev_ebit=None`.
+
+### _compute_magic_formula_rank — algoritmo de Greenblatt
+
+```python
+# Para cada participante válido (subject + peers con ev_ebit > 0):
+ey_rank = rank por earnings_yield descendente  # 100 / ev_ebit; mayor = más barato
+roic_rank = rank por roic descendente          # mayor = mejor calidad
+combined = ey_rank + roic_rank                 # menor = mejor
+mf_rank = rank por combined ascendente         # rank 1 = mejor combinación
+```
+
+Exclusiones del ranking:
+- Subject: si `earnings_yield is None` (EBIT ≤ 0) o `roic is None`
+- Peers: si `no_market_data=True`, `ev_ebit is None`, `ev_ebit ≤ 0`, o `roic is None`
+
+Menos de 2 participantes válidos → ranking no computable, se devuelve `(None, peers_sin_cambio)`.
+
+El `mf_rank` por peer se propaga mediante `pv.model_copy(update={"mf_rank": rank})` — inmutable, patrón Pydantic v2 correcto.
+
+`valuation_node` devuelve **dos claves** al estado LangGraph: `{"valuation": report, "peer_valuations": updated_list}`. LangGraph merge ambas sin conflictos.
+
+### Output en archiver
+
+**Nueva tabla** `## Peer Comparison — Relative Valuation`:
+
+```markdown
+| Ticker | EV/EBIT | FCF Yield | ROIC  | MF Rank        |
+|--------|---------|-----------|-------|----------------|
+| AAPL   | 24.1x   | 3.8%      | 87.4% | **#1** ← subject |
+| MSFT   | 18.5x   | 3.2%      | 34.1% | #2             |
+| GOOGL  | 14.1x   | 4.9%      | 22.3% | #3             |
+```
+
+**Nueva fila** en métricas agregadas de Valuation: `Magic Formula rank | #1 of 3 (peers: MSFT, GOOGL) — Greenblatt earnings yield + ROIC`.
+
+### Context para el Value Expert
+
+`_format_context()` inyecta un bloque `## PEER RELATIVE VALUATION` con:
+- Subject EV/EBIT vs peer median → `"subject trades at discount/premium to peers"`
+- Subject FCF yield vs peer median
+- `Subject MF rank: #1 of 3 (Greenblatt earnings yield + ROIC — #1 = best)`
+- `[WARNING] TICKER excluded from MF rank — no market data available` para excluidos
+
+La mediana usa `statistics.median()` (promedio de dos centrales en listas pares) — no index-floor.
+
+### Decisiones de diseño importantes
+
+1. **Sin P/E**: el P/E usa GAAP net income, afectado por amortizaciones de intangibles y one-time items. EV/EBIT es más limpio para comparaciones de negocio operativo.
+
+2. **FCF yield sobre market_cap, no EV**: convención estándar para el inversor (FCF disponible para el accionista relativo al precio pagado). Consistente con cómo `_build_peer_valuations` lo computa.
+
+3. **MF rank en valuation_node, no en peers_node**: el rank es relativo entre subject + todos los peers — requiere que todos los datos estén disponibles. peers_node tiene los peers pero no el subject. valuation_node tiene ambos.
+
+4. **Polygon por peer en peers_node, no en valuation_node**: peers_node ya itera sobre cada peer (EDGAR loop). Añadir Polygon allí no cambia el número de iteraciones. valuation_node no tiene ese loop.
+
+### Archivos modificados
+
+| Archivo | Cambio |
+|---|---|
+| `schemas/reports.py` | `PeerValuation` class |
+| `graph/state.py` | `peer_valuations: NotRequired[list[PeerValuation]]` |
+| `agents/peers.py` | `_build_peer_valuations()` + Polygon call |
+| `agents/valuation.py` | `_compute_magic_formula_rank()` + wiring |
+| `agents/archiver.py` | `_render_peer_relative_valuation()` + MF rank row |
+| `agents/value_expert.py` | `## PEER RELATIVE VALUATION` en `_format_context()` |
+| `tests/test_peers_agent.py` | +9 tests |
+| `tests/test_valuation.py` | +9 tests |
+| `tests/test_archiver.py` | +4 tests |
+| `tests/test_value_expert.py` | +3 tests |
+
+---
+
+*Última actualización: 2026-05-15 — MCE-18 Peer Valuation Multiples + Magic Formula Rank. 285 tests, verde.*
+

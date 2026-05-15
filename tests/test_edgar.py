@@ -62,6 +62,76 @@ def test_parse_financials_cash_includes_short_term_investments(aapl_raw):
     assert report.cash_and_equivalents.value == pytest.approx(expected_cash)
 
 
+# ---------------------------------------------------------------------------
+# parse_quarterly_snapshot — pure function tests (no EDGAR call, no fixture file)
+# ---------------------------------------------------------------------------
+
+class TestParseQuarterlySnapshot:
+    """
+    Tests de parse_quarterly_snapshot como función pura.
+
+    No requieren fixture de red ni mock — el input es un dict construido inline,
+    igual que parse_financials se testa con el JSON guardado en fixtures/.
+    Esto garantiza que el parsing es 100% determinista e independiente de EDGAR.
+    """
+
+    def test_complete_snapshot_all_fields(self):
+        """Todos los campos presentes → QuarterlySnapshot correctamente tipado."""
+        from due_diligence.tools.edgar import EdgarAdapter
+        from due_diligence.schemas.reports import QuarterlySnapshot
+
+        raw = {
+            "period": "Q1 2026",
+            "revenue": 95_359_000_000.0,
+            "operating_income": 29_567_000_000.0,
+            "gross_profit": 43_879_000_000.0,
+            "filing_date": "2026-02-05",
+        }
+        snap = EdgarAdapter.parse_quarterly_snapshot(raw)
+
+        assert isinstance(snap, QuarterlySnapshot)
+        assert snap.period == "Q1 2026"
+        assert snap.revenue == pytest.approx(95_359_000_000.0)
+        assert snap.operating_income == pytest.approx(29_567_000_000.0)
+        assert snap.gross_profit == pytest.approx(43_879_000_000.0)
+        assert snap.filing_date == "2026-02-05"
+
+    def test_minimal_snapshot_only_revenue(self):
+        """Solo revenue presente (mínimo válido) → optional fields son None."""
+        from due_diligence.tools.edgar import EdgarAdapter
+
+        raw = {"period": "Q2 2025", "revenue": 10_500_000.0}
+        snap = EdgarAdapter.parse_quarterly_snapshot(raw)
+
+        assert snap.period == "Q2 2025"
+        assert snap.revenue == pytest.approx(10_500_000.0)
+        assert snap.operating_income is None
+        assert snap.gross_profit is None
+        assert snap.filing_date is None
+
+    def test_snapshot_without_operating_income_only(self):
+        """Gross profit presente pero sin EBIT — patrón frecuente en small caps."""
+        from due_diligence.tools.edgar import EdgarAdapter
+
+        raw = {
+            "period": "Q3 2025",
+            "revenue": 48_000_000.0,
+            "gross_profit": 21_000_000.0,
+        }
+        snap = EdgarAdapter.parse_quarterly_snapshot(raw)
+
+        assert snap.gross_profit == pytest.approx(21_000_000.0)
+        assert snap.operating_income is None
+
+    def test_snapshot_period_preserved_exactly(self):
+        """El period se preserva sin transformación — el LLM lo cita verbatim."""
+        from due_diligence.tools.edgar import EdgarAdapter
+
+        raw = {"period": "Q4 2024", "revenue": 1.0}
+        snap = EdgarAdapter.parse_quarterly_snapshot(raw)
+        assert snap.period == "Q4 2024"
+
+
 def test_parse_financials_source_filing(aapl_raw):
     from due_diligence.tools.edgar import EdgarAdapter
 

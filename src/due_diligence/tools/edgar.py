@@ -31,6 +31,7 @@ import structlog
 
 from due_diligence.config import settings
 from due_diligence.schemas.base import FinancialsReport, MetricValue
+from due_diligence.schemas.reports import QuarterlySnapshot
 
 log = structlog.get_logger()
 
@@ -600,11 +601,34 @@ class EdgarAdapter:
 
 
     @staticmethod
+    def parse_quarterly_snapshot(raw: dict[str, Any]) -> QuarterlySnapshot:
+        """
+        Pure function — transforma raw dict en QuarterlySnapshot validado.
+
+        Separada de fetch_quarterly_snapshot para seguir el patrón fetch_raw/parse_*
+        del proyecto: la lógica de parsing es determinista y testeable con fixtures
+        sin llamar a EDGAR (igual que parse_financials para el 10-K anual).
+
+        Args:
+            raw: Dict con keys {period, revenue, operating_income?, gross_profit?, filing_date?}
+
+        Returns:
+            QuarterlySnapshot con contrato Pydantic validado.
+        """
+        return QuarterlySnapshot(
+            period=raw["period"],
+            revenue=raw["revenue"],
+            operating_income=raw.get("operating_income"),
+            gross_profit=raw.get("gross_profit"),
+            filing_date=raw.get("filing_date"),
+        )
+
+    @staticmethod
     def fetch_quarterly_snapshot(
         ticker: str,
         tenk_as_of: date | None = None,
         staleness_threshold_days: int = 90,
-    ) -> dict[str, Any] | None:
+    ) -> QuarterlySnapshot | None:
         """
         Obtiene métricas clave del 10-Q más reciente si el 10-K está stale (EC-44/MCE-24).
 
@@ -695,7 +719,7 @@ class EdgarAdapter:
             period=latest_q,
             revenue=snapshot["revenue"],
         )
-        return snapshot
+        return EdgarAdapter.parse_quarterly_snapshot(snapshot)
 
 
 def get_financials(ticker: str) -> FinancialsReport:

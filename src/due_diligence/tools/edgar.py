@@ -882,6 +882,11 @@ class EdgarManagementAdapter:
                 if real_trades.empty:
                     continue
 
+                # 10b5-1 plan detection: si el filing menciona "10b5-1" en footnotes
+                # o body, todas las transacciones de este filing son pre-arranged y
+                # NO informativas sobre insider sentiment. (EC-50)
+                is_10b5_1 = _detect_10b5_1_plan(filing, obj)
+
                 for _, row in real_trades.iterrows():
                     filer_name = str(row.get("Insider", ""))
                     position = str(row.get("Position", ""))
@@ -893,6 +898,7 @@ class EdgarManagementAdapter:
                         "price_per_share": float(row.get("Price", 0) or 0),
                         "transaction_type": "buy" if row.get("Code") == "P" else "sell",
                         "is_institutional": _is_institutional_holder(filer_name, position),
+                        "is_10b5_1_plan": is_10b5_1,
                     })
 
             except Exception as e:
@@ -1151,6 +1157,51 @@ _OFFICER_POSITION_KEYWORDS = {
 }
 
 
+def _detect_10b5_1_plan(filing: object, obj: object) -> bool:
+    """
+    Detecta si un Form 4 filing reporta transacciones bajo un plan 10b5-1 (EC-50).
+
+    Las ventas bajo planes 10b5-1 son pre-programadas y NO reflejan la visión actual
+    del insider sobre la empresa. La decisión de vender se tomó meses antes.
+
+    Estrategia de detección (3 layers):
+    1. Footnotes del objeto Form 4 (obj.footnotes si existe)
+    2. Texto completo del filing (filing.text() o filing primary document)
+    3. Campo 'TransactionTimeliness' o 'isDirectorTenPercentOwner' hints
+
+    Returns True si hay evidencia de plan 10b5-1.
+    """
+    _10B5_PATTERNS = ("10b5-1", "rule 10b5", "10b-5-1", "trading plan", "pre-arranged")
+
+    # Layer 1: footnotes del parsed object
+    try:
+        footnotes = getattr(obj, "footnotes", None)
+        if footnotes:
+            fn_text = str(footnotes).lower() if footnotes else ""
+            if any(p in fn_text for p in _10B5_PATTERNS):
+                return True
+    except Exception:
+        pass
+
+    # Layer 2: texto del filing (HTML/XML) — buscar la cadena directamente
+    try:
+        # edgartools: filing tiene .text() o acceso al documento primario
+        filing_text = ""
+        if callable(getattr(filing, "text", None)):
+            filing_text = (filing.text() or "")[:10000].lower()
+        elif hasattr(filing, "attachments"):
+            primary = getattr(filing.attachments, "primary_document", None)
+            if primary and callable(getattr(primary, "text", None)):
+                filing_text = (primary.text() or "")[:10000].lower()
+
+        if filing_text and any(p in filing_text for p in _10B5_PATTERNS):
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
 def _is_institutional_holder(filer_name: str, position: str) -> bool:
     """
     Detecta si un filer de Form 4 es un beneficial owner institucional (>10% holder)
@@ -1192,15 +1243,21 @@ def format_form4_for_prompt(transactions: list[dict]) -> str:
     filtrados en fetch_form4_transactions. Formato: insider | posición | acción |
     shares | precio | fecha. Legible para el LLM sin procesar JSON crudo.
 
-    Separa transacciones de officers/directors (insider sentiment con skin in the game)
-    de beneficial owners institucionales (>10% holders como hedge funds, LPs) para que
-    el LLM no inflé señales de insider selling con flujo institucional. EC-43.
+    Tres categorías separadas:
+    1. Discretionary officer/director trades (insider sentiment — informative)
+    2. 10b5-1 pre-arranged plan trades (NOT informative about current sentiment) — EC-50
+    3. Institutional >10% holder trades (portfolio flow — NOT insider sentiment) — EC-43
     """
     if not transactions:
         return "No open-market insider purchases or sales found in the last 12 months."
 
-    insiders = [t for t in transactions if not t.get("is_institutional", False)]
+    # Separar por categoría
+    non_institutional = [t for t in transactions if not t.get("is_institutional", False)]
     institutional = [t for t in transactions if t.get("is_institutional", False)]
+
+    # Dentro de non-institutional, separar 10b5-1 de discretionary
+    discretionary = [t for t in non_institutional if not t.get("is_10b5_1_plan", False)]
+    planned_10b5 = [t for t in non_institutional if t.get("is_10b5_1_plan", False)]
 
     def _fmt(txns: list[dict]) -> list[str]:
         lines = []
@@ -1215,11 +1272,21 @@ def format_form4_for_prompt(transactions: list[dict]) -> str:
 
     parts: list[str] = []
 
-    if insiders:
-        parts.append("OFFICER/DIRECTOR transactions (insider sentiment — skin in the game):")
-        parts.extend(_fmt(insiders))
+    if discretionary:
+        parts.append("OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the game):")
+        parts.extend(_fmt(discretionary))
     else:
-        parts.append("No officer/director open-market transactions in the last 12 months.")
+        parts.append("No discretionary officer/director open-market transactions in the last 12 months.")
+
+    if planned_10b5:
+        parts.append("")
+        parts.append("10b5-1 PRE-ARRANGED PLAN transactions (NOT informative about current sentiment):")
+        parts.extend(_fmt(planned_10b5))
+        parts.append(
+            "  [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell "
+            "was made when the plan was adopted, NOT at the execution date. Do NOT use these as "
+            "bearish signals. They reflect estate/tax/diversification planning, not conviction.]"
+        )
 
     if institutional:
         parts.append("")
@@ -1427,10 +1494,39 @@ class EdgarEventsAdapter:
                 if not has_202:
                     continue
 
-                # Extraer texto del Item 2.02
-                text = _extract_8k_item_text(obj, ["2.02"], max_chars=max_chars)
+                # Extraer texto del press release.
+                # Priority 1: Exhibit 99.1 (donde está el press release real con
+                # revenue, EPS, guidance). ~90% de 8-K Item 2.02 usan este patrón.
+                # Priority 2: Item 2.02 inline text (raro, pero algunos filers lo usan).
+                # Priority 3: body completo del filing.
+                text = ""
+                try:
+                    attachments = getattr(f, "attachments", None)
+                    # edgartools: filing.attachments.exhibits → list of EX-* items
+                    exhibits = (
+                        getattr(attachments, "exhibits", None)
+                        or attachments
+                        or []
+                    )
+                    for exhibit in exhibits:
+                        doc_type = getattr(exhibit, "document_type", "") or ""
+                        if doc_type.upper().startswith("EX-99"):
+                            exhibit_text = exhibit.text() if callable(getattr(exhibit, "text", None)) else ""
+                            if exhibit_text and len(exhibit_text.strip()) > 200:
+                                text = exhibit_text.strip()[:max_chars]
+                                log.debug(
+                                    "earnings_pr_exhibit_extracted",
+                                    ticker=ticker,
+                                    exhibit_type=doc_type,
+                                    text_length=len(text),
+                                )
+                                break
+                except Exception as ex:
+                    log.debug("earnings_pr_exhibit_extract_failed", ticker=ticker, error=str(ex))
+
                 if not text:
-                    # Fallback: intentar el body completo
+                    text = _extract_8k_item_text(obj, ["2.02"], max_chars=max_chars)
+                if not text:
                     text = str(getattr(obj, "body", "") or "")[:max_chars]
                 if not text or len(text.strip()) < 100:
                     continue

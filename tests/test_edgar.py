@@ -329,7 +329,7 @@ class TestFormatForm4WithInstitutional:
 
         txns = [self._make_txn("JANA Partners LLC", "10% Owner", True)]
         result = format_form4_for_prompt(txns)
-        assert "No officer/director open-market transactions" in result
+        assert "No discretionary officer/director open-market transactions" in result
         assert "INSTITUTIONAL >10% HOLDER" in result
 
     def test_empty_transactions(self):
@@ -349,3 +349,97 @@ class TestFormatForm4WithInstitutional:
         }]
         result = format_form4_for_prompt(txns)
         assert "OFFICER/DIRECTOR" in result
+
+    def test_10b5_1_plan_sales_separated(self):
+        """Ventas 10b5-1 van a sección separada, no como insider sentiment."""
+        from due_diligence.tools.edgar import format_form4_for_prompt
+
+        txns = [
+            {
+                "filer_name": "CEO Jane", "position": "CEO",
+                "transaction_date": "2026-04-10", "shares": 500000,
+                "price_per_share": 160.0, "transaction_type": "sell",
+                "is_institutional": False, "is_10b5_1_plan": True,
+            },
+            {
+                "filer_name": "CFO Bob", "position": "CFO",
+                "transaction_date": "2026-03-15", "shares": 5000,
+                "price_per_share": 140.0, "transaction_type": "buy",
+                "is_institutional": False, "is_10b5_1_plan": False,
+            },
+        ]
+        result = format_form4_for_prompt(txns)
+        # CEO sale goes to 10b5-1 section, NOT officer/director
+        assert "10b5-1 PRE-ARRANGED PLAN" in result
+        assert "NOT informative about current sentiment" in result
+        # CFO buy is discretionary → in officer/director section
+        assert "OFFICER/DIRECTOR discretionary" in result
+        assert "CFO Bob" in result
+
+    def test_10b5_1_all_planned_shows_no_discretionary(self):
+        """Cuando todas las transacciones son 10b5-1, no hay discretionary."""
+        from due_diligence.tools.edgar import format_form4_for_prompt
+
+        txns = [{
+            "filer_name": "CEO Jane", "position": "CEO",
+            "transaction_date": "2026-04-10", "shares": 500000,
+            "price_per_share": 160.0, "transaction_type": "sell",
+            "is_institutional": False, "is_10b5_1_plan": True,
+        }]
+        result = format_form4_for_prompt(txns)
+        assert "No discretionary officer/director" in result
+        assert "10b5-1 PRE-ARRANGED PLAN" in result
+
+
+class TestDetect10b51Plan:
+    """Tests for _detect_10b5_1_plan heuristic (EC-50)."""
+
+    def test_detects_from_footnotes(self):
+        """Si footnotes menciona 10b5-1, devuelve True."""
+        from due_diligence.tools.edgar import _detect_10b5_1_plan
+
+        class MockObj:
+            footnotes = "Sales pursuant to a Rule 10b5-1 trading plan adopted on 2025-11-14."
+
+        class MockFiling:
+            pass
+
+        assert _detect_10b5_1_plan(MockFiling(), MockObj()) is True
+
+    def test_detects_from_filing_text(self):
+        """Si filing.text() menciona 10b5-1, devuelve True."""
+        from due_diligence.tools.edgar import _detect_10b5_1_plan
+
+        class MockObj:
+            footnotes = None
+
+        class MockFiling:
+            def text(self):
+                return "This transaction was executed under a pre-arranged 10b5-1 trading plan."
+
+        assert _detect_10b5_1_plan(MockFiling(), MockObj()) is True
+
+    def test_returns_false_when_no_plan(self):
+        """Sin evidencia de plan, devuelve False."""
+        from due_diligence.tools.edgar import _detect_10b5_1_plan
+
+        class MockObj:
+            footnotes = "Standard Form 4 filing. No special arrangements."
+
+        class MockFiling:
+            def text(self):
+                return "Standard insider transaction filing."
+
+        assert _detect_10b5_1_plan(MockFiling(), MockObj()) is False
+
+    def test_handles_missing_attributes_gracefully(self):
+        """Objetos sin footnotes ni text() no crashean."""
+        from due_diligence.tools.edgar import _detect_10b5_1_plan
+
+        class MockObj:
+            pass
+
+        class MockFiling:
+            pass
+
+        assert _detect_10b5_1_plan(MockFiling(), MockObj()) is False

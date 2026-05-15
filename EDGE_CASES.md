@@ -325,6 +325,31 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Fix**: (1) `response_format={"type":"json_object"}` en la llamada al value_expert — fuerza JSON válido completo, (2) retry automático si parse falla (defense-in-depth), (3) nuevo param `response_format` en `LLMClient.complete()`.
 - **Commit**: pendiente
 
+### EC-50 — CEO selling tratado como señal bearish cuando es 10b5-1 plan (ANET)
+- **Síntoma**: Value Expert usó "insider distribution pattern" de CEO Ullal como factor contra el BUY. Realidad: las ventas eran bajo plan 10b5-1 adoptado meses antes, para trusts de familiares. No informativas sobre sentimiento actual.
+- **Patrón sistémico**: cualquier empresa con CEO/CFO que tenga 10b5-1 (la mayoría de large caps). Sin detección, el LLM trata toda venta como signal bearish.
+- **Fix dual-layer**:
+  1. **Data layer**: `_detect_10b5_1_plan()` busca "10b5-1" en footnotes del Form 4 + texto del filing. Marca transacciones como `is_10b5_1_plan: True`.
+  2. **Format layer**: `format_form4_for_prompt()` separa en 3 categorías: discretionary (informative), 10b5-1 planned (NOT informative), institutional (NOT insider sentiment). Con nota explícita para el LLM.
+  3. **Prompt layer**: Rule #17 en Value Expert system prompt prohíbe usar ventas 10b5-1 como señal bearish.
+- **6 tests añadidos**: detección footnotes, filing text, no-plan, missing attrs, format separation, all-planned.
+- **Commit**: pendiente
+
+### EC-51 — Press release quarterly vacío (Exhibit 99.1 no extraído)
+- **Síntoma**: Value Expert dice "quarterly press-release body is not included here" para ANET Q1 FY2026 pese a que el 8-K Item 2.02 sí existe. El report pierde revenue +35% YoY, guidance raise, gross margin QoQ compression.
+- **Causa**: `_extract_8k_item_text(obj, ["2.02"])` solo extrae texto inline del Item 2.02. Pero ~90% de 8-K earnings usan Exhibit 99.1 como vehículo — el Item 2.02 inline es solo un header de referencia ("On May 5, Arista issued a press release...").
+- **Fix**: priority chain en `fetch_earnings_press_release()`:
+  1. `filing.attachments.exhibits` → buscar `EX-99.*` → `exhibit.text()` (press release real)
+  2. Fallback: `_extract_8k_item_text(obj, ["2.02"])` (inline text)
+  3. Fallback: `obj.body` (body completo)
+- **Impacto**: desbloquea la feature EC-44 (quarterly data integration) para ~90% de empresas que antes recibían solo el header vacío.
+- **Commit**: pendiente
+
+### Fix menor — DCF "contradiction" renombrado a "spread note"
+- **Hallazgo**: el warning decía "DCF contradiction" lo cual implica un error. Realidad: es la divergencia esperada entre forward DCF (analyst assumptions) y reverse DCF (market-implied growth). No es una contradicción, es información.
+- **Fix**: rename a "DCF spread note" con framing correcto. Actualizado en `valuation.py`, `critic.py`, y tests.
+- **Commit**: pendiente
+
 ## Conocidos — pendientes de fix
 
 ### EC-11 — Foreign private issuers (ADRs no-US, 20-F filers)

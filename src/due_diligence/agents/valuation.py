@@ -39,7 +39,7 @@ import structlog
 
 from due_diligence.graph.state import AnalysisState
 from due_diligence.schemas.base import MetricValue
-from due_diligence.schemas.reports import ValuationInput, ValuationReport
+from due_diligence.schemas.reports import ValuationInput, ValuationReport, PeerValuation
 
 log = structlog.get_logger()
 
@@ -189,6 +189,104 @@ def _sensitivity_table(
             row["values"][f"wacc_{round(w*100,1)}pct"] = round(val / 1e9, 1)  # en USD B
         rows.append(row)
     return rows
+
+
+def _compute_magic_formula_rank(
+    subject_ticker: str,
+    subject_earnings_yield: Optional[float],
+    subject_roic: Optional[float],
+    peer_valuations: list[PeerValuation],
+) -> tuple[Optional[int], list[PeerValuation]]:
+    """
+    Compute Magic Formula rank (Greenblatt) for subject and all valid peers.
+
+    Algorithm: rank by earnings yield (EBIT/EV, higher=better) + rank by ROIC
+    (higher=better). Combined score = sum of both ranks (lower=better). Returns
+    (subject_rank, updated_peer_valuations_with_mf_rank_filled).
+
+    Requires >= 2 valid participants; returns (None, unchanged_peers) otherwise.
+    Excluded: peers with no_market_data=True or ev_ebit=None or roic=None; subject with
+    earnings_yield=None or roic=None.
+    Ties in combined score are broken by input order (Python stable sort) — no deterministic secondary key.
+    """
+    participants: list[dict] = []
+
+    # Add subject if it has valid data for both ranking components
+    if (
+        subject_earnings_yield is not None
+        and subject_earnings_yield > 0
+        and subject_roic is not None
+    ):
+        participants.append({
+            "ticker": subject_ticker,
+            "earnings_yield": subject_earnings_yield,  # percentage, higher = better
+            "roic": subject_roic,                       # ratio, higher = better
+            "is_subject": True,
+        })
+
+    # Add peers that have valid EV/EBIT (ev_ebit > 0, market data available)
+    for pv in peer_valuations:
+        if pv.no_market_data or pv.ev_ebit is None or pv.ev_ebit <= 0 or pv.roic is None:
+            # roic=None guard: defensive for future Optional[float] schema changes
+            continue
+        # Convert EV/EBIT to earnings yield: earnings_yield = 100 / ev_ebit
+        participants.append({
+            "ticker": pv.ticker,
+            "earnings_yield": round(100.0 / pv.ev_ebit, 4),
+            "roic": pv.roic,
+            "is_subject": False,
+        })
+
+    if len(participants) < 2:
+        return None, peer_valuations
+
+    # Rank by earnings yield descending (rank 1 = highest earnings yield = cheapest)
+    by_ey = sorted(participants, key=lambda x: x["earnings_yield"], reverse=True)
+    for i, p in enumerate(by_ey):
+        p["ey_rank"] = i + 1
+
+    # Rank by ROIC descending (rank 1 = highest ROIC = best quality)
+    by_roic = sorted(participants, key=lambda x: x["roic"], reverse=True)
+    for i, p in enumerate(by_roic):
+        p["roic_rank"] = i + 1
+
+    # Combined score — lower is better (Greenblatt)
+    for p in participants:
+        p["combined"] = p["ey_rank"] + p["roic_rank"]
+
+    by_combined = sorted(participants, key=lambda x: x["combined"])
+    for i, p in enumerate(by_combined):
+        p["mf_rank"] = i + 1
+
+    # Subject rank
+    subject_rank: Optional[int] = next(
+        (p["mf_rank"] for p in by_combined if p["is_subject"]),
+        None,
+    )
+
+    # Build map of peer ranks by ticker
+    peer_rank_map = {
+        p["ticker"]: p["mf_rank"]
+        for p in by_combined
+        if not p["is_subject"]
+    }
+
+    # Return updated peer_valuations with mf_rank filled for valid participants
+    updated: list[PeerValuation] = [
+        pv.model_copy(update={"mf_rank": peer_rank_map[pv.ticker]})
+        if pv.ticker in peer_rank_map
+        else pv
+        for pv in peer_valuations
+    ]
+
+    log.info(
+        "magic_formula_rank_computed",
+        subject=subject_ticker,
+        subject_rank=subject_rank,
+        participants=len(participants),
+    )
+
+    return subject_rank, updated
 
 
 def valuation_agent(state: AnalysisState) -> dict:
@@ -368,7 +466,7 @@ def valuation_agent(state: AnalysisState) -> dict:
     if dcf_base is not None and market_cap is not None:
         reverse_growth = _reverse_dcf(dcf_base, market_cap, terminal_growth, wacc, years)
 
-    # Contradicción DCF (Fix C / EC-16): si el forward DCF asume un growth >5pp
+    # DCF spread note (Fix C / EC-16): si el forward DCF asume un growth >5pp
     # por encima del implied growth, el upside existe solo por assumptions que el
     # mercado no está pagando. Añadir a la nota de fiabilidad.
     _CONTRADICTION_THRESHOLD = 0.05
@@ -379,13 +477,14 @@ def valuation_agent(state: AnalysisState) -> dict:
     ):
         spread_pp = (near_term_growth - reverse_growth) * 100
         note_parts.append(
-            f"⚠️ DCF contradiction: forward DCF assumes {near_term_growth:.1%} near-term growth "
-            f"but market prices only {reverse_growth:.1%} (spread: {spread_pp:.0f}pp). "
-            f"The DCF upside is conditional on growth materially above what the market currently implies — "
-            f"not a margin of safety. Reverse DCF is the more informative valuation anchor."
+            f"⚠️ DCF spread note: forward DCF uses {near_term_growth:.1%} near-term growth "
+            f"(historical CAGR) but the market currently prices only {reverse_growth:.1%} "
+            f"(spread: {spread_pp:.0f}pp). The DCF upside is conditional on the analyst's "
+            f"growth assumption being correct vs what the market discounts — not a free margin "
+            f"of safety. Reverse DCF is the more informative valuation anchor."
         )
         log.warning(
-            "valuation_dcf_contradiction",
+            "valuation_dcf_spread",
             ticker=ticker,
             forward_growth=f"{near_term_growth:.1%}",
             implied_growth=f"{reverse_growth:.1%}",
@@ -458,7 +557,23 @@ def valuation_agent(state: AnalysisState) -> dict:
     if dcf_base is not None and dcf_base > 0:
         sensitivity = _sensitivity_table(dcf_base, terminal_growth, years, wacc, near_term_growth)
 
-    # --- 9. Construir el report ---
+    # --- 9. Magic Formula rank (MCE-18) ---
+    # peer_valuations populated by peers_node; mf_rank=None there, computed here.
+    peer_valuations_raw: list[PeerValuation] = list(
+        state.get("peer_valuations") or []  # type: ignore[typeddict-item]
+    )
+    subject_roic_for_mf: Optional[float] = None
+    if financials is not None and financials.roic_series:
+        subject_roic_for_mf = financials.roic_series[0].value
+
+    mf_rank, updated_peer_valuations = _compute_magic_formula_rank(
+        subject_ticker=ticker,
+        subject_earnings_yield=earnings_yield,
+        subject_roic=subject_roic_for_mf,
+        peer_valuations=peer_valuations_raw,
+    )
+
+    # --- 10. Construir el report ---
     report = ValuationReport(
         ticker=ticker,
         stub=False,
@@ -471,7 +586,7 @@ def valuation_agent(state: AnalysisState) -> dict:
         ev_fcf_multiple=ev_fcf_mv,
         pe_multiple=pe_mv,
         earnings_yield_pct=earnings_yield,
-        magic_formula_rank=None,
+        magic_formula_rank=mf_rank,
         sensitivity_table=sensitivity,
         assumptions=assumptions,
         dcf_reliability_note=dcf_reliability_note,
@@ -486,4 +601,7 @@ def valuation_agent(state: AnalysisState) -> dict:
         pe=pe_mv.value if pe_mv else None,
     )
 
-    return {"valuation": report}
+    result: dict = {"valuation": report}
+    if updated_peer_valuations:
+        result["peer_valuations"] = updated_peer_valuations
+    return result

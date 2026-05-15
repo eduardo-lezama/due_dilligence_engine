@@ -146,21 +146,21 @@ def _detect_red_flags(state: AnalysisState) -> list[str]:
     El Critic los recibe como pivotes concretos para construir su contra-argumento.
 
     Flags actuales:
-        1. DCF contradiction (forward vs reverse divergen >5pp)
+        1. DCF spread (forward vs reverse divergen >5pp)
         2. Capital returns >80% del FCF (empresa madura sin reinversión)
         3. Margin compression 3+ años consecutivos
         4. Net debt creciente vs FCF estable (palanca financiera sin growth)
     """
     flags: list[str] = []
 
-    # Flag 1: DCF contradiction (ya existe el cálculo en valuation.py)
+    # Flag 1: DCF spread (forward growth > market-implied growth by >5pp)
     valuation = state.get("valuation")  # type: ignore[typeddict-item]
     if valuation is not None and not valuation.stub and valuation.dcf_reliability_note:
-        if "contradiction" in valuation.dcf_reliability_note.lower():
+        if "spread note" in valuation.dcf_reliability_note.lower():
             flags.append(
-                "DCF FORWARD/REVERSE CONTRADICTION: the bull case DCF upside is "
-                "conditional on growth assumptions the market does not currently price. "
-                "Use this to challenge the upside as artifact, not opportunity."
+                "DCF FORWARD/REVERSE SPREAD: the forward DCF upside is conditional on "
+                "growth assumptions above what the market currently prices. Challenge "
+                "whether the analyst's growth input is justified vs market consensus."
             )
 
     financials = state.get("financials")  # type: ignore[typeddict-item]

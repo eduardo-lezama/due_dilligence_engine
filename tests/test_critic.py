@@ -152,8 +152,8 @@ def test_parse_empty_weaknesses_allowed():
 # Tests: _detect_red_flags (MCE-23)
 # ---------------------------------------------------------------------------
 
-def test_detect_red_flags_dcf_contradiction():
-    """Si valuation tiene flag de contradicción DCF, _detect_red_flags lo emite."""
+def test_detect_red_flags_dcf_spread():
+    """Si valuation tiene flag de spread DCF, _detect_red_flags lo emite."""
     from due_diligence.agents.critic import _detect_red_flags
     from due_diligence.schemas.reports import ValuationReport
 
@@ -161,11 +161,11 @@ def test_detect_red_flags_dcf_contradiction():
         "ticker": "FAKE",
         "valuation": ValuationReport(
             ticker="FAKE", stub=False,
-            dcf_reliability_note="⚠️ DCF contradiction: forward DCF assumes 25% but market prices -2%.",
+            dcf_reliability_note="⚠️ DCF spread note: forward DCF uses 25% but market prices -2%.",
         ),
     }
     flags = _detect_red_flags(state)
-    assert any("contradiction" in f.lower() for f in flags)
+    assert any("spread" in f.lower() for f in flags)
 
 
 def test_detect_red_flags_high_capital_returns():
@@ -251,13 +251,13 @@ def test_critic_prompt_includes_detected_flags(mocker):
         "ticker": "FAKE",
         "valuation": ValuationReport(
             ticker="FAKE", stub=False,
-            dcf_reliability_note="⚠️ DCF contradiction detected.",
+            dcf_reliability_note="⚠️ DCF spread note: forward vs reverse diverge.",
         ),
     }
     critic_agent(state)
     user_prompt = mock_client.complete.call_args.kwargs["messages"][0]["content"]
     assert "DETECTED FLAGS" in user_prompt
-    assert "contradiction" in user_prompt.lower()
+    assert "spread" in user_prompt.lower()
 
 
 # ---------------------------------------------------------------------------

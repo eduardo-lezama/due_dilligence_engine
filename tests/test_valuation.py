@@ -428,7 +428,7 @@ def test_valuation_agent_contradiction_flag_when_large_spread():
     report = valuation_agent(state)["valuation"]
     # DCF@25% >> $400M → implied growth << 25% → spread > 5pp → flag
     assert report.dcf_reliability_note is not None
-    assert "contradiction" in report.dcf_reliability_note.lower()
+    assert "spread note" in report.dcf_reliability_note.lower()
 
 
 def test_valuation_agent_nopat_fallback_when_fcf_negative():
@@ -486,9 +486,9 @@ def test_valuation_agent_no_contradiction_flag_when_user_overrides_growth():
         "checkpoint2_user_input": {"revenue_growth_yr1_pct": 25.0},  # override explícito
     }
     report = valuation_agent(state)["valuation"]
-    # Con override del usuario, no se genera flag de contradicción
+    # Con override del usuario, no se genera flag de spread
     if report.dcf_reliability_note:
-        assert "contradiction" not in report.dcf_reliability_note.lower()
+        assert "spread note" not in report.dcf_reliability_note.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -516,3 +516,217 @@ def test_fmt_usd_no_zero_b_for_small_caps():
     result = _fmt_usd(39_500_000)
     assert result != "$0.0B"
     assert "M" in result
+
+
+# ---------------------------------------------------------------------------
+# Tests: _compute_magic_formula_rank (MCE-18)
+# ---------------------------------------------------------------------------
+
+def test_compute_magic_formula_rank_assigns_unique_ranks_to_all_participants():
+    """All 4 participants (subject + 3 peers) get unique ranks 1-4."""
+    from due_diligence.agents.valuation import _compute_magic_formula_rank
+    from due_diligence.schemas.reports import PeerValuation
+
+    peers = [
+        PeerValuation(ticker="MSFT", roic=0.341, period="FY2025", ev_ebit=18.5),
+        PeerValuation(ticker="GOOGL", roic=0.223, period="FY2025", ev_ebit=14.1),
+        PeerValuation(ticker="AMZN", roic=0.158, period="FY2025", ev_ebit=22.7),
+    ]
+    # Subject: earnings_yield=8.13% (approx 1/12.3*100), ROIC=87.4%
+    subject_rank, updated_peers = _compute_magic_formula_rank(
+        subject_ticker="AAPL",
+        subject_earnings_yield=8.13,
+        subject_roic=0.874,
+        peer_valuations=peers,
+    )
+
+    assert subject_rank is not None
+    peer_ranks = [pv.mf_rank for pv in updated_peers if pv.mf_rank is not None]
+    all_ranks = [subject_rank] + peer_ranks
+    assert len(all_ranks) == 4
+    assert sorted(all_ranks) == [1, 2, 3, 4]
+    assert subject_rank == 1  # AAPL has highest ROIC and competitive earnings yield
+
+
+def test_compute_magic_formula_rank_returns_none_with_only_subject():
+    """With no valid peers, returns None — minimum 2 participants required."""
+    from due_diligence.agents.valuation import _compute_magic_formula_rank
+
+    subject_rank, updated = _compute_magic_formula_rank(
+        subject_ticker="AAPL",
+        subject_earnings_yield=8.13,
+        subject_roic=0.874,
+        peer_valuations=[],
+    )
+
+    assert subject_rank is None
+    assert updated == []
+
+
+def test_compute_magic_formula_rank_subject_excluded_when_earnings_yield_none():
+    """Subject with earnings_yield=None (EBIT<=0) is excluded; peers still get ranks."""
+    from due_diligence.agents.valuation import _compute_magic_formula_rank
+    from due_diligence.schemas.reports import PeerValuation
+
+    peers = [
+        PeerValuation(ticker="MSFT", roic=0.341, period="FY2025", ev_ebit=18.5),
+        PeerValuation(ticker="GOOGL", roic=0.223, period="FY2025", ev_ebit=14.1),
+    ]
+
+    subject_rank, updated = _compute_magic_formula_rank(
+        subject_ticker="AAPL",
+        subject_earnings_yield=None,  # EBIT <= 0 — subject excluded
+        subject_roic=0.874,
+        peer_valuations=peers,
+    )
+
+    assert subject_rank is None
+    # Peers still get ranked among themselves
+    peer_ranks = [pv.mf_rank for pv in updated if pv.mf_rank is not None]
+    assert sorted(peer_ranks) == [1, 2]
+
+
+def test_compute_magic_formula_rank_excludes_peers_with_no_market_data():
+    """Peers with no_market_data=True are excluded from ranking; mf_rank stays None."""
+    from due_diligence.agents.valuation import _compute_magic_formula_rank
+    from due_diligence.schemas.reports import PeerValuation
+
+    peers = [
+        PeerValuation(ticker="VALID", roic=0.20, period="FY2025", ev_ebit=15.0),
+        PeerValuation(ticker="NODATA", roic=0.30, period="FY2025", no_market_data=True),
+    ]
+
+    subject_rank, updated = _compute_magic_formula_rank(
+        subject_ticker="AAPL",
+        subject_earnings_yield=8.13,
+        subject_roic=0.874,
+        peer_valuations=peers,
+    )
+
+    assert subject_rank in (1, 2)
+    valid_pv = next(pv for pv in updated if pv.ticker == "VALID")
+    nodata_pv = next(pv for pv in updated if pv.ticker == "NODATA")
+    assert valid_pv.mf_rank is not None
+    assert nodata_pv.mf_rank is None  # excluded, rank unchanged
+
+
+def test_compute_magic_formula_rank_excludes_peers_with_none_ev_ebit():
+    """Peers with ev_ebit=None (EBIT<=0) are excluded from ranking."""
+    from due_diligence.agents.valuation import _compute_magic_formula_rank
+    from due_diligence.schemas.reports import PeerValuation
+
+    peers = [
+        PeerValuation(ticker="VALID", roic=0.20, period="FY2025", ev_ebit=15.0),
+        PeerValuation(ticker="LOSS_CO", roic=0.05, period="FY2025", ev_ebit=None),
+    ]
+
+    subject_rank, updated = _compute_magic_formula_rank(
+        subject_ticker="AAPL",
+        subject_earnings_yield=8.13,
+        subject_roic=0.874,
+        peer_valuations=peers,
+    )
+
+    valid_pv = next(pv for pv in updated if pv.ticker == "VALID")
+    loss_pv = next(pv for pv in updated if pv.ticker == "LOSS_CO")
+    assert loss_pv.mf_rank is None
+    assert subject_rank is not None  # subject + VALID both participated
+    assert valid_pv.mf_rank is not None
+
+
+def test_compute_magic_formula_rank_high_roic_and_low_ev_ebit_gets_best_rank():
+    """The company with best combined earnings yield AND ROIC gets rank #1."""
+    from due_diligence.agents.valuation import _compute_magic_formula_rank
+    from due_diligence.schemas.reports import PeerValuation
+
+    # Subject: high ROIC (87.4%), low EV/EBIT -> high earnings yield -> should rank #1
+    peers = [
+        # PEER_A: mediocre on both
+        PeerValuation(ticker="PEER_A", roic=0.10, period="FY2025", ev_ebit=30.0),
+    ]
+
+    subject_rank, _ = _compute_magic_formula_rank(
+        subject_ticker="AAPL",
+        subject_earnings_yield=12.0,  # high earnings yield (low EV/EBIT)
+        subject_roic=0.874,           # high ROIC
+        peer_valuations=peers,
+    )
+
+    assert subject_rank == 1  # AAPL dominates on both metrics
+
+
+# ---------------------------------------------------------------------------
+# Tests: valuation_agent — Magic Formula rank wiring (MCE-18 Task 4)
+# ---------------------------------------------------------------------------
+
+def test_valuation_agent_populates_magic_formula_rank_when_peers_present():
+    """valuation_agent reads peer_valuations and populates magic_formula_rank."""
+    from due_diligence.agents.valuation import valuation_agent
+    from due_diligence.schemas.reports import PeerValuation
+
+    financials = _build_financials()
+    market = _build_market_report()
+
+    peers = [
+        PeerValuation(ticker="MSFT", roic=0.341, period="FY2025", ev_ebit=18.5),
+        PeerValuation(ticker="GOOGL", roic=0.223, period="FY2025", ev_ebit=14.1),
+    ]
+
+    state = {
+        "ticker": "AAPL",
+        "financials": financials,
+        "market": market,
+        "peer_valuations": peers,
+    }
+
+    result = valuation_agent(state)
+
+    assert result["valuation"].magic_formula_rank is not None
+    assert "peer_valuations" in result
+    ranked_peers = [pv for pv in result["peer_valuations"] if pv.mf_rank is not None]
+    assert len(ranked_peers) == 2
+
+
+def test_valuation_agent_magic_formula_rank_none_when_no_peers():
+    """valuation_agent leaves magic_formula_rank=None when no peer_valuations in state."""
+    from due_diligence.agents.valuation import valuation_agent
+
+    financials = _build_financials()
+    market = _build_market_report()
+
+    state = {
+        "ticker": "AAPL",
+        "financials": financials,
+        "market": market,
+        # no peer_valuations key
+    }
+
+    result = valuation_agent(state)
+
+    assert result["valuation"].magic_formula_rank is None
+    assert "peer_valuations" not in result
+
+
+def test_valuation_agent_returns_updated_peer_valuations_with_ranks():
+    """The returned peer_valuations list has mf_rank populated for valid peers."""
+    from due_diligence.agents.valuation import valuation_agent
+    from due_diligence.schemas.reports import PeerValuation
+
+    financials = _build_financials()
+    market = _build_market_report()
+
+    peers = [
+        PeerValuation(ticker="PEER_A", roic=0.10, period="FY2025", ev_ebit=30.0),
+    ]
+
+    result = valuation_agent({
+        "ticker": "AAPL",
+        "financials": financials,
+        "market": market,
+        "peer_valuations": peers,
+    })
+
+    # AAPL has high ROIC and likely positive earnings_yield -> rank #1
+    assert result["valuation"].magic_formula_rank == 1
+    assert result["peer_valuations"][0].ticker == "PEER_A"
+    assert result["peer_valuations"][0].mf_rank == 2

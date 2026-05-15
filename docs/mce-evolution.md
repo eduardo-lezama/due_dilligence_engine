@@ -196,6 +196,38 @@ Sección "Cuando se arregla un bug — auditoría sistemática post-fix" añadid
 - **Estimación**: ~2-3 semanas (es un framework paralelo, no un parche)
 - **Prioridad**: media — depende de cuánto del portfolio personal de Eduardo sean financials. Hoy rechazo loud educa al usuario.
 
+### MCE-28 — Cross-validator pre-Expert (data integrity layer)
+- **Trigger original**: EC-37 (audit MOS 2026-05-13) demostró que un dato XBRL roto (Debt $0 cuando real $5B) llega al Critic igual de roto que al Expert. El Critic actual razona sobre los mismos datos que el Expert — no puede detectar errores de fuente.
+- **Decisión actual (2026-05-15)**: **NO implementar ahora**. El "external audit pattern" (Eduardo audita reports con Opus 4.7 en sesión paralela) sigue siendo el mecanismo de validación cross-source preferido. Razones:
+  - EC-37 ya está arreglado en la fuente (raw facts fallback) — el bug catastrófico que motivó el análisis no puede recurrir igual
+  - El external audit con Opus es flexible, gratuito (Claude Pro), y captura más que data integrity — también catches reasoning gaps y prompt issues
+  - Internalizar la validación añade complejidad arquitectónica (otro nodo, fuente externa de ground truth, threshold tuning) sin garantía de coverage superior
+  - El patrón "humano + LLM external" tiene mejor signal-to-noise que un validator programático ciego
+- **Trigger para reactivar**: si aparece otro caso EC-37-class donde un dato crítico del XBRL diverge silenciosamente de la realidad Y el external audit pattern no lo cazó. Hasta entonces, mantener external audit como mecanismo primario.
+- **Propuesta diseño** (cuando se active):
+  1. **Nodo nuevo `validator_node`** entre `financials_node` y el fan-out de especialistas (ANTES del Expert, no después como un Critic con tools)
+  2. **Tool-lane puro** — sin LLM, código deterministic con fuente externa
+  3. **Checks de integridad**:
+     - **Balance sheet identity**: `Assets ≈ Equity + Liabilities` (chequeo intrínseco, no requiere fuente externa)
+     - **Cross-source debt comparison**: nuestro `total_debt` vs Yahoo Finance / StockAnalysis (vía Tavily targeted query o API directa si disponible)
+     - **Market cap reconciliation**: nuestro `market_cap` (Polygon) vs Yahoo
+     - **Recent quarterly check**: si hay 10-Q post-10-K, revenue/net income del último Q vs anualizado
+  4. **Output**: lista de discrepancies con magnitude y direction, escrita a `state["data_validation_warnings"]`
+  5. **Consumers**: tanto Expert (§4 Financial Quality) como Critic reciben los warnings en context — el Expert puede ajustar conclusión, el Critic puede usar como pivote
+  6. **No bloquea**: solo informa. La decisión de continuar/abortar se delega al Expert
+- **Por qué Opción D y no tool calls en Critic (Opción C)**:
+  - Separación de concerns: Critic = red-team reasoning. Validator = data verification. Mezclar las debilita ambas
+  - Catch EARLIER: si Debt está mal, todo el reasoning downstream es mentira. Validador en pre-Expert evita el reasoning falso desde el principio
+  - Preserva el patrón tool-lane / LLM-lane del proyecto (ADR-005). Tool calls en Critic introduce reasoning sobre tool outputs que no podemos validar
+  - Determinismo y testability: validator es código puro con fixtures. Critic con tools introduce non-determinism por search results variables
+- **Estimación**: ~6-8h (nodo + fuente externa + tests con fixtures de discrepancia)
+- **Coste runtime**: ~$0.005 + 2-3s latency por análisis (Tavily targeted queries — barato comparado con el coste del análisis completo)
+- **Prioridad**: media-baja mientras el external audit pattern funcione. Reactivar si:
+  - Eduardo no quiere seguir haciendo audits manuales con Opus
+  - Aparece un EC-37-class bug que el external audit no caza
+  - El proyecto pasa a Phase 5 (webapp multi-usuario) donde el external audit no escala
+- **Referencia conversación**: análisis arquitectónico completo en sesión 2026-05-14 (`dd-engine`).
+
 ### MCE-16 — Skill `modo-profesor` (Socratic teaching patterns)
 - **Trigger**: ≥3 sesiones reales de desarrollo con la regla "Modo Profesor" de CLAUDE.md activa y patrones claros de qué funciona (analogías, secuenciación de conceptos, preguntas tipo)
 - **Acción**: `.claude/skills/modo-profesor/SKILL.md` con patrones Socráticos cristalizados — biblioteca de analogías para conceptos del stack (LangGraph, Pydantic, XBRL), secuencias de introducción de conceptos por capa, preguntas tipo para verificar comprensión, reglas de cuándo pausar vs avanzar.

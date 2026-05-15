@@ -86,4 +86,16 @@ def financials_node(state: AnalysisState) -> dict:
     if cagr_5y is not None:
         out["historical_cagr_5y"] = cagr_5y
         out["historical_cagr_years"] = cagr_years
+
+    # Quarterly snapshot (EC-44/MCE-24): fetch 10-Q XBRL si el 10-K está stale.
+    # Solo 3 métricas clave (revenue, EBIT, gross profit) del quarter más reciente.
+    try:
+        q_snapshot = EdgarAdapter.fetch_quarterly_snapshot(
+            ticker, tenk_as_of=report.as_of_date
+        )
+        if q_snapshot is not None:
+            out["quarterly_snapshot"] = q_snapshot
+    except Exception as e:
+        log.warning("quarterly_snapshot_failed", ticker=ticker, error=str(e))
+
     return out

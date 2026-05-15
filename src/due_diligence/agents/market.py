@@ -105,6 +105,20 @@ def market_agent(state: AnalysisState) -> dict:
         months=settings.events_lookback_months,
     )
 
+    # --- 4. Earnings press release via 8-K Item 2.02 (EC-44) ---
+    # El press release contiene revenue, EPS, guidance, y métricas operativas
+    # trimestrales que el 10-K anual no tiene. Crítico para no operar con datos
+    # obsoletos cuando el 10-K tiene >6 meses de antigüedad.
+    quarterly_earnings_text = None
+    quarterly_earnings_date = None
+    try:
+        earnings_pr = EdgarEventsAdapter.fetch_earnings_press_release(ticker)
+        if earnings_pr:
+            quarterly_earnings_text = earnings_pr["text"]
+            quarterly_earnings_date = earnings_pr["filing_date"]
+    except Exception as e:
+        log.warning("earnings_press_release_fetch_failed", ticker=ticker, error=str(e))
+
     report = MarketReport(
         ticker=ticker,
         stub=False,
@@ -114,6 +128,8 @@ def market_agent(state: AnalysisState) -> dict:
         market_cap=market_cap,
         recent_news_summary=recent_news_summary,
         material_events=material_events,
+        quarterly_earnings_text=quarterly_earnings_text,
+        quarterly_earnings_date=quarterly_earnings_date,
     )
 
     log.info(

@@ -78,6 +78,8 @@ RULES — NON-NEGOTIABLE:
 12. SEGMENT-AWARE RISK ANALYSIS (§7): if the business has multiple distinct segments (multi-segment 10-K, named in business_description), analyze the named risks PER SEGMENT, not at company level. The same risk (e.g. tariff, regulatory, commodity price) often has opposite signs across segments. Example: a fertilizer producer's potash segment may absorb a tariff via pricing while the phosphate segment is hit by input-cost inflation — naming "tariff risk" generically misses the real direction. Identify which segment carries which risk and quantify when data allows.
 13. QUARTERLY DATA INTEGRATION (§4/§5/§7): if news flow mentions specific quarterly metrics ('Q1 2026 net loss $258M', 'gross margin compressed 140bps QoQ', 'guidance withdrawn for FY2026') that are more recent than the 10-K, you MUST integrate them into §4 Financial Quality and §5 Growth conclusions — not just mention them as factoids in §7. If a management guidance withdrawal or cut appears in news, treat it as a material red flag in §7 with explicit weight in the verdict, regardless of whether 10-K Item 1A mentions it.
 14. Return ONLY valid JSON. No markdown fences, no preamble, no commentary outside the JSON.
+15. THESIS-BREAK SELF-CHECK (§9): BEFORE finalizing the verdict, verify that the thesis-breaker condition you define in §9 is NOT ALREADY TRUE in the data you just analyzed. If the condition IS already met (e.g., you state "thesis breaks if gross margin falls below 30%" but §4 shows gross margin is already 28%), you MUST either (a) revise the verdict to reflect the already-broken thesis, or (b) choose a DIFFERENT thesis-breaker that is forward-looking. A verdict that contradicts its own thesis-breaker is a critical logical error.
+16. BACKLOG & BOOK-TO-BILL (§5): for defense, aerospace, industrial, government-contract, or long-cycle businesses, backlog and book-to-bill ratio are CRITICAL forward indicators. If the QUARTERLY UPDATE, press release, or filings report mentions backlog, orders, or book-to-bill, you MUST: (a) extract the absolute backlog figure and YoY change, (b) compute book-to-bill if orders and revenue are both available (orders/revenue; >1.0 = growing, <1.0 = shrinking), (c) integrate into §5 Growth as the PRIMARY growth signal (more reliable than revenue CAGR for contract businesses). If backlog is declining while revenue appears stable, flag this as a LEADING INDICATOR of future revenue decline in §7.
 
 VERDICT RUBRIC:
 - BUY: moat confirmed + quality management + DCF upside >20% + no material 8-K red flags + conflicting signals resolved in favor of the bull case.
@@ -122,6 +124,17 @@ def _format_context(state: AnalysisState) -> str:
     # --- Financials ---
     financials = state.get("financials")  # type: ignore[typeddict-item]
     if financials is not None:
+        # Staleness check (EC-46): si el 10-K tiene >180 días, advertir al LLM
+        # para que no trate los datos anuales como verdad absoluta cuando hay
+        # datos trimestrales más recientes (quarterly update, press releases).
+        from datetime import date as _date
+        staleness_days = (_date.today() - financials.as_of_date).days
+        if staleness_days > 180:
+            lines.append(
+                f"⚠️ DATA STALENESS WARNING: the 10-K data below is {staleness_days} days old "
+                f"(as-of {financials.as_of_date}). If a QUARTERLY UPDATE section appears below, "
+                f"those figures are MORE RECENT and should take precedence for §4, §5, and §7."
+            )
         lines.append("## FINANCIALS (EDGAR XBRL — deterministic)")
         if financials.revenue:
             rev = financials.revenue[0]
@@ -226,6 +239,19 @@ def _format_context(state: AnalysisState) -> str:
                     )
         lines.append("")
 
+    # --- Quarterly XBRL snapshot (EC-44/MCE-24) ---
+    q_snap = state.get("quarterly_snapshot")  # type: ignore[typeddict-item]
+    if q_snap is not None:
+        lines.append("## QUARTERLY XBRL (10-Q — deterministic, MORE RECENT than 10-K)")
+        lines.append(f"Period: {q_snap.get('period', '?')}")
+        if q_snap.get("revenue") is not None:
+            lines.append(f"Quarterly Revenue: {_fmt_usd(q_snap['revenue'])}")
+        if q_snap.get("operating_income") is not None:
+            lines.append(f"Quarterly Operating Income: {_fmt_usd(q_snap['operating_income'])}")
+        if q_snap.get("gross_profit") is not None:
+            lines.append(f"Quarterly Gross Profit: {_fmt_usd(q_snap['gross_profit'])}")
+        lines.append("")
+
     # --- Management ---
     mgmt = state.get("mgmt")  # type: ignore[typeddict-item]
     if mgmt is not None and not mgmt.stub:
@@ -289,6 +315,16 @@ def _format_context(state: AnalysisState) -> str:
             )
         if market.recent_news_summary:
             lines.append(f"Recent news: {market.recent_news_summary}")
+        # Quarterly earnings press release (EC-44) — datos trimestrales más recientes
+        # que el 10-K. Surfacear prominentemente para que Rule #13 se cumpla.
+        if market.quarterly_earnings_text:
+            lines.append("")
+            lines.append(f"## QUARTERLY UPDATE (8-K Item 2.02, filed {market.quarterly_earnings_date or '?'})")
+            lines.append("⚠️ This data is MORE RECENT than the 10-K annual report. "
+                         "You MUST integrate these figures into §4 Financial Quality "
+                         "and §5 Growth conclusions per Rule 13.")
+            lines.append(market.quarterly_earnings_text[:2500])
+            lines.append("")
         # 8-K material events para §7 Risks (ADR-017 + ADR-019)
         if market.material_events:
             lines.append("Material 8-K events:")
@@ -362,6 +398,27 @@ def _format_context(state: AnalysisState) -> str:
     if cagr is not None:
         lines.append("## HISTORICAL CONTEXT (for §6 Valuation)")
         lines.append(f"Revenue {cagr_years}y CAGR (from XBRL, last {cagr_years} fiscal years): {cagr:.1%}")
+        # Qualifier para periodos atípicos (EC-47): un CAGR de 2-3 años puede incluir
+        # distorsiones (COVID recovery, one-time contract, acquisition spike). El LLM
+        # debe saber cuándo el anchor es menos confiable.
+        qualifiers = []
+        if cagr_years < 4:
+            qualifiers.append(
+                f"⚠️ SHORT SPAN: only {cagr_years} years of data — CAGR may not represent "
+                f"normalized growth. Weight it less heavily than a full 5-year trend."
+            )
+        if cagr > 0.40:
+            qualifiers.append(
+                "⚠️ EXTREME GROWTH: CAGR >40% is likely unsustainable or distorted by "
+                "acquisition/recovery. Use a conservative reversion-to-mean assumption."
+            )
+        elif cagr < 0:
+            qualifiers.append(
+                "⚠️ NEGATIVE CAGR: revenue has been shrinking. Verify if this is secular "
+                "decline or cyclical trough before anchoring the DCF."
+            )
+        for q in qualifiers:
+            lines.append(q)
         lines.append(
             "Compare this to the reverse-DCF implied growth above. "
             "If implied growth > CAGR, the market is pricing acceleration. "
@@ -459,6 +516,74 @@ def _parse_response(response_text: str, ticker: str) -> ValueExpertReport:
         )
 
 
+def _thesis_break_self_check(
+    report: ValueExpertReport, context: str
+) -> ValueExpertReport:
+    """
+    Verifica que el thesis-breaker de §9 no sea ya verdadero en los datos (EC-45).
+
+    Heurística: busca en decision_frame patrones como "thesis breaks if X declines"
+    y luego verifica si financial_quality, risks, o growth_reinvestment ya describen X
+    como ocurriendo. Si detecta contradicción, loguea warning y añade caveat.
+
+    No modifica el verdict — eso sería overreach. Solo flagea la inconsistencia
+    para que el Critic y el usuario puedan evaluarla.
+    """
+    df = (report.decision_frame or "").lower()
+    if not df or len(df) < 20:
+        return report
+
+    # Frases que indican condiciones negativas en el thesis-breaker
+    negative_condition_phrases = [
+        "margin decline", "margin compress", "margin below", "margin fall",
+        "revenue decline", "revenue drop", "revenue fall", "revenue below",
+        "guidance cut", "guidance withdraw", "guidance lower",
+        "backlog decline", "backlog fall", "backlog shrink",
+        "debt increase", "leverage increase", "debt exceed",
+        "loss widen", "net loss", "negative earnings",
+        "cash burn", "negative fcf", "fcf negative",
+    ]
+
+    # Secciones del propio LLM que describen la realidad actual
+    own_text = " ".join(filter(None, [
+        report.financial_quality,
+        report.risks,
+        report.growth_reinvestment,
+    ])).lower()
+
+    if not own_text:
+        return report
+
+    # Buscar overlap: ¿el thesis-breaker menciona una condición que las secciones
+    # ya describen como ocurriendo?
+    triggered = []
+    for phrase in negative_condition_phrases:
+        words = phrase.split()
+        # Cada palabra del phrase debe aparecer en decision_frame
+        if all(w in df for w in words):
+            # Y al menos 2 de las palabras deben aparecer en las secciones propias
+            matches_in_own = sum(1 for w in words if w in own_text)
+            if matches_in_own >= 2:
+                triggered.append(phrase)
+
+    if triggered:
+        log.warning(
+            "thesis_break_already_true",
+            ticker=report.ticker,
+            triggered_phrases=triggered[:3],
+            verdict=report.verdict,
+        )
+        caveat = (
+            f"\n\n⚠️ THESIS-BREAK SELF-CHECK WARNING: the conditions "
+            f"[{', '.join(triggered[:3])}] appear to be ALREADY TRUE based on "
+            f"the analysis above. This may indicate the thesis is already broken "
+            f"and the verdict should be reassessed."
+        )
+        report.decision_frame = (report.decision_frame or "") + caveat
+
+    return report
+
+
 def value_expert_agent(state: AnalysisState) -> dict:
     """
     Nodo LangGraph: síntesis integrada de todos los reports + VERDICT.
@@ -491,6 +616,13 @@ def value_expert_agent(state: AnalysisState) -> dict:
     )
 
     report = _parse_response(response_text, ticker)
+
+    # --- Thesis-break self-check (EC-45) — defense-in-depth ---
+    # Detect if the thesis-breaker mentions a condition that the LLM's own
+    # sections already describe as true. This is a heuristic — not perfect,
+    # but catches obvious contradictions like MRCY ("thesis breaks if margin
+    # declines" when §4 already says margins are declining).
+    report = _thesis_break_self_check(report, context)
 
     log.info(
         "value_expert_complete",

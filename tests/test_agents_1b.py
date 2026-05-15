@@ -178,7 +178,7 @@ def test_management_agent_calls_edgar_and_tavily(mocker, minimal_state, llm_resp
     mock_def14a.assert_called_once_with("AAPL")
     mock_form4.assert_called_once_with("AAPL")
     mock_item10.assert_called_once_with("AAPL")
-    mock_tavily.assert_called_once()
+    assert mock_tavily.call_count >= 1  # may be 2 with transcript fallback (EC-48)
 
 
 # --- Tests: _parse_llm_response ---

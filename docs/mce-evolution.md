@@ -157,12 +157,13 @@ Implementado en commit pendiente. Nueva función `_detect_red_flags(state)` en `
 
 Sección `## DETECTED FLAGS` añadida al `_build_critic_prompt`. 5 tests en `test_critic.py`.
 
-### MCE-24 — Quarterly margin trends desde 10-Q (margin compression QoQ)
-- **Trigger**: Phase 2.5 o cuando el feedback consistente sea que los reports detectan margin compression solo a nivel anual
-- **Problema detectado**: 10-K es anual. Para una empresa cuyo Q3-Q4 muestra deterioro pero el FY total todavía no lo refleja, el sistema dice "margin improving" cuando la realidad reciente es "margin deteriorating".
-- **Solución propuesta**: parsear los últimos 4 trimestres de 10-Q para gross/operating margin. Comparar último Q vs Q anterior. Si compresión QoQ ≥ 100bps en 2+ trimestres consecutivos, flag.
-- **Estimación**: ~6-8h (nuevo adapter, schema extension, integration en value_expert)
-- **Prioridad**: media — feature mayor, no fix
+### MCE-24 — Quarterly margin trends desde 10-Q (margin compression QoQ) — **PARCIALMENTE RESUELTO 2026-05-15**
+- **Status**: Light implementation completada (ADR-025). Full margin trend analysis deferred to Phase 3+.
+- **Implementado**: `EdgarAdapter.fetch_quarterly_snapshot()` extrae revenue, operating_income, gross_profit del 10-Q más reciente cuando 10-K >90 días stale. Surfaceado en Value Expert como "QUARTERLY XBRL" section.
+- **Deferred**: QoQ margin trend analysis (4 quarters, compression detection). Razón: 80% del valor con 20% del esfuerzo — snapshot de 1 quarter cubre casos críticos (MRCY-like).
+- **Trigger para full implementation**: cuando se detecten casos donde el snapshot de 1 quarter no es suficiente (necesidad de tendencia multi-quarter).
+- **Estimación remaining**: ~4-6h (extender a 4 quarters, calcular deltas QoQ, flag compression)
+- **Prioridad**: baja — nice-to-have, no blocker
 
 ### MCE-25 — Test fixtures multi-arquetipo (large cap + small cap + buyback-heavy + drawdown)
 - **Trigger**: cuando se introduzca un fix más cuyo origen sea "diseño centrado en AAPL ideal"

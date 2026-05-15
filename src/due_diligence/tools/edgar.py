@@ -599,6 +599,105 @@ class EdgarAdapter:
         )
 
 
+    @staticmethod
+    def fetch_quarterly_snapshot(
+        ticker: str,
+        tenk_as_of: date | None = None,
+        staleness_threshold_days: int = 90,
+    ) -> dict[str, Any] | None:
+        """
+        Obtiene métricas clave del 10-Q más reciente si el 10-K está stale (EC-44/MCE-24).
+
+        Solo busca 10-Q si el 10-K tiene >staleness_threshold_days de antigüedad.
+        Extrae revenue, operating_income, gross_profit del quarter más reciente.
+
+        Args:
+            ticker: Ticker de la empresa.
+            tenk_as_of: Fecha del 10-K más reciente. Si None, siempre intenta.
+            staleness_threshold_days: Días de antigüedad del 10-K para activar fetch.
+
+        Returns:
+            dict con {period, revenue, operating_income, gross_profit, filing_date} o None.
+        """
+        if tenk_as_of is not None:
+            age_days = (date.today() - tenk_as_of).days
+            if age_days <= staleness_threshold_days:
+                log.debug(
+                    "quarterly_snapshot_skipped_fresh_10k",
+                    ticker=ticker,
+                    tenk_age_days=age_days,
+                )
+                return None
+
+        from edgar import Company, set_identity  # type: ignore[import]
+
+        set_identity(settings.sec_user_agent)
+        company = Company(ticker)
+
+        try:
+            q_fin = company.get_quarterly_financials()
+            inc = q_fin.income_statement()
+            inc_df = inc.to_dataframe()
+        except Exception as e:
+            log.warning("quarterly_snapshot_fetch_failed", ticker=ticker, error=str(e))
+            return None
+
+        # Columnas trimestrales: 'Q1 2026', 'Q4 2025', etc. — tomar la más reciente
+        q_cols = sorted(
+            [c for c in inc_df.columns if c.startswith("Q")],
+            reverse=True,
+        )
+        if not q_cols:
+            log.info("quarterly_snapshot_no_quarters", ticker=ticker)
+            return None
+
+        latest_q = q_cols[0]
+
+        def _get_val(df: Any, concepts: list[str]) -> float | None:
+            """Extrae valor del primer concepto que exista en el DataFrame."""
+            for concept in concepts:
+                if concept not in df.index:
+                    continue
+                row = df.loc[concept]
+                if row.ndim == 2:
+                    row = row.iloc[0]
+                val = row.get(latest_q)
+                if val is not None:
+                    import pandas as pd
+                    if pd.notna(val):
+                        return float(val)
+            return None
+
+        snapshot = {
+            "period": latest_q,
+            "revenue": _get_val(inc_df, [
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                "Revenues",
+                "SalesRevenueNet",
+                "RevenueFromContractWithCustomerIncludingAssessedTax",
+            ]),
+            "operating_income": _get_val(inc_df, [
+                "OperatingIncomeLoss",
+            ]),
+            "gross_profit": _get_val(inc_df, [
+                "GrossProfit",
+            ]),
+        }
+
+        # Solo devolver si al menos revenue está presente
+        if snapshot["revenue"] is None:
+            log.info("quarterly_snapshot_no_revenue", ticker=ticker, period=latest_q)
+            return None
+
+        log.info(
+            "quarterly_snapshot_fetched",
+            ticker=ticker,
+            period=latest_q,
+            revenue=snapshot["revenue"],
+        )
+        return snapshot
+
+
 def get_financials(ticker: str) -> FinancialsReport:
     raw = EdgarAdapter.fetch_raw(ticker)
     return EdgarAdapter.parse_financials(raw)
@@ -748,6 +847,12 @@ class EdgarManagementAdapter:
                                       #   Transaction Type, Code, Shares, Price, Date, ...
         Filtrar Code in ['P', 'S'] da solo las compras/ventas reales en mercado abierto.
 
+        Cada transacción incluye `is_institutional` (bool) que indica si el filer es
+        un beneficial owner institucional (>10% holder tipo LP, LLC, Fund, hedge fund)
+        vs un officer/director legítimo. Esto permite al downstream separar "insider
+        sentiment" (officers/directors con skin in the game) de "institutional flow"
+        (fondos tomando profits o rebalanceando). EC-43.
+
         Devuelve lista de dicts homogénea. Lista vacía si no hay transacciones P/S.
         """
         from datetime import date, timedelta
@@ -778,13 +883,16 @@ class EdgarManagementAdapter:
                     continue
 
                 for _, row in real_trades.iterrows():
+                    filer_name = str(row.get("Insider", ""))
+                    position = str(row.get("Position", ""))
                     transactions.append({
-                        "filer_name": str(row.get("Insider", "")),
-                        "position": str(row.get("Position", "")),
+                        "filer_name": filer_name,
+                        "position": position,
                         "transaction_date": str(row.get("Date", ""))[:10],  # solo YYYY-MM-DD
                         "shares": float(row.get("Shares", 0) or 0),
                         "price_per_share": float(row.get("Price", 0) or 0),
                         "transaction_type": "buy" if row.get("Code") == "P" else "sell",
+                        "is_institutional": _is_institutional_holder(filer_name, position),
                     })
 
             except Exception as e:
@@ -1027,6 +1135,55 @@ class EdgarFilingsAdapter:
         return text[:max_chars]
 
 
+# ---------- Form 4 institutional holder detection (EC-43) ---------- #
+
+# Palabras clave en nombre o posición que indican beneficial owner institucional
+# (hedge fund, LP, activist, etc.) vs officer/director legítimo.
+_INSTITUTIONAL_NAME_KEYWORDS = {
+    "partners", "capital", "management", "advisors", "fund", "holdings",
+    "investments", "asset", "ventures", "group", "associates",
+}
+_INSTITUTIONAL_SUFFIX_KEYWORDS = {"lp", "llc", "llp", "ltd", "inc", "corp"}
+_OFFICER_POSITION_KEYWORDS = {
+    "ceo", "cfo", "coo", "cto", "cio", "president", "vp", "vice president",
+    "director", "officer", "general counsel", "secretary", "treasurer",
+    "controller", "svp", "evp", "chief",
+}
+
+
+def _is_institutional_holder(filer_name: str, position: str) -> bool:
+    """
+    Detecta si un filer de Form 4 es un beneficial owner institucional (>10% holder)
+    vs un officer/director legítimo con skin in the game.
+
+    Heurística:
+    1. Si la posición contiene un título de officer/director → NO institucional.
+    2. Si la posición dice "10% Owner" y el nombre contiene keywords institucionales → SÍ.
+    3. Si el nombre contiene sufijos corporativos (LP, LLC, Ltd) → SÍ.
+
+    Esto NO excluye las transacciones — solo las marca para que el LLM las interprete
+    correctamente como "institutional flow" vs "insider sentiment".
+    """
+    pos_lower = position.lower()
+    name_lower = filer_name.lower()
+
+    # Si tiene título ejecutivo/director → insider legítimo
+    if any(kw in pos_lower for kw in _OFFICER_POSITION_KEYWORDS):
+        return False
+
+    # Sufijos corporativos en nombre → institucional
+    name_tokens = set(name_lower.replace(",", "").replace(".", "").split())
+    if name_tokens & _INSTITUTIONAL_SUFFIX_KEYWORDS:
+        return True
+
+    # "10% owner" + keywords de fondo en nombre → institucional
+    if "10%" in pos_lower or "owner" in pos_lower:
+        if any(kw in name_lower for kw in _INSTITUTIONAL_NAME_KEYWORDS):
+            return True
+
+    return False
+
+
 def format_form4_for_prompt(transactions: list[dict]) -> str:
     """
     Formatea transacciones Form 4 como tabla texto para inyectar en el prompt LLM.
@@ -1034,19 +1191,94 @@ def format_form4_for_prompt(transactions: list[dict]) -> str:
     Solo incluye compras/ventas reales (P/S) — ejercicios y retenciones ya fueron
     filtrados en fetch_form4_transactions. Formato: insider | posición | acción |
     shares | precio | fecha. Legible para el LLM sin procesar JSON crudo.
+
+    Separa transacciones de officers/directors (insider sentiment con skin in the game)
+    de beneficial owners institucionales (>10% holders como hedge funds, LPs) para que
+    el LLM no inflé señales de insider selling con flujo institucional. EC-43.
     """
     if not transactions:
         return "No open-market insider purchases or sales found in the last 12 months."
 
-    lines = ["Open-market insider transactions (last 12 months — P=buy, S=sell):"]
-    for t in transactions:
-        action = t["transaction_type"].upper()
-        price_str = f"@ ${t['price_per_share']:.2f}" if t["price_per_share"] else "(price N/A)"
-        lines.append(
-            f"  {t['filer_name']} ({t['position']}) | {action} | "
-            f"{t['shares']:,.0f} shares {price_str} | {t['transaction_date']}"
+    insiders = [t for t in transactions if not t.get("is_institutional", False)]
+    institutional = [t for t in transactions if t.get("is_institutional", False)]
+
+    def _fmt(txns: list[dict]) -> list[str]:
+        lines = []
+        for t in txns:
+            action = t["transaction_type"].upper()
+            price_str = f"@ ${t['price_per_share']:.2f}" if t["price_per_share"] else "(price N/A)"
+            lines.append(
+                f"  {t['filer_name']} ({t['position']}) | {action} | "
+                f"{t['shares']:,.0f} shares {price_str} | {t['transaction_date']}"
+            )
+        return lines
+
+    parts: list[str] = []
+
+    if insiders:
+        parts.append("OFFICER/DIRECTOR transactions (insider sentiment — skin in the game):")
+        parts.extend(_fmt(insiders))
+    else:
+        parts.append("No officer/director open-market transactions in the last 12 months.")
+
+    if institutional:
+        parts.append("")
+        parts.append(
+            "INSTITUTIONAL >10% HOLDER transactions (portfolio flow — NOT insider sentiment):"
         )
-    return "\n".join(lines)
+        parts.extend(_fmt(institutional))
+        parts.append(
+            "  [NOTE: institutional holders trade for portfolio reasons, not insider conviction. "
+            "Do NOT weight these as insider sentiment signals.]"
+        )
+
+    return "\n".join(parts)
+
+
+def _extract_8k_item_text(obj: object, item_numbers: list[str], max_chars: int = 800) -> str:
+    """
+    Extrae texto real de items específicos de un 8-K filing object (EC-44).
+
+    edgartools 5.x soporta acceso por item: eightk["2.02"] → texto del item.
+    Si no funciona, intenta body/summary como fallback.
+
+    Args:
+        obj: Objeto EightK de edgartools.
+        item_numbers: Lista de item numbers a extraer (e.g. ["2.02", "5.02"]).
+        max_chars: Máximo de caracteres totales a devolver.
+
+    Returns:
+        Texto concatenado de los items, o "" si no se pudo extraer nada.
+    """
+    parts: list[str] = []
+    chars_remaining = max_chars
+
+    for item_num in item_numbers:
+        if chars_remaining <= 0:
+            break
+        # Normalizar: strip "Item " prefix si viene con él
+        key = item_num.replace("Item ", "").strip()
+        try:
+            # edgartools: eightk["2.02"] → str con texto del item
+            text = obj[key]  # type: ignore[index]
+            if text and isinstance(text, str) and len(text.strip()) > 20:
+                chunk = text.strip()[:chars_remaining]
+                parts.append(f"[Item {key}] {chunk}")
+                chars_remaining -= len(chunk)
+                continue
+        except (KeyError, TypeError, IndexError, AttributeError):
+            pass
+        # Fallback: intentar acceso como atributo
+        try:
+            text = str(getattr(obj, f"item_{key.replace('.', '_')}", "") or "")
+            if text and len(text.strip()) > 20:
+                chunk = text.strip()[:chars_remaining]
+                parts.append(f"[Item {key}] {chunk}")
+                chars_remaining -= len(chunk)
+        except Exception:
+            pass
+
+    return "\n".join(parts)
 
 
 class EdgarEventsAdapter:
@@ -1118,7 +1350,15 @@ class EdgarEventsAdapter:
                 ]
                 if not matching:
                     continue
-                summary = str(getattr(obj, "summary", "") or "")[:600]
+
+                # --- Extracción mejorada de texto por item (EC-44) ---
+                # Intentar extraer texto real del item vía eightk["X.YY"] (edgartools 5.x).
+                # Esto da el body completo del item, mucho más rico que obj.summary.
+                # Fallback a obj.summary si la extracción por item falla.
+                summary = _extract_8k_item_text(obj, matching, max_chars=800)
+                if not summary:
+                    summary = str(getattr(obj, "summary", "") or "")[:600]
+
                 events.append({
                     "filing_date": str(f.filing_date),
                     "item_numbers": matching,
@@ -1135,3 +1375,80 @@ class EdgarEventsAdapter:
 
         log.info("edgar_events_fetched", ticker=ticker, count=len(events), months=months)
         return events
+
+    @staticmethod
+    def fetch_earnings_press_release(
+        ticker: str,
+        max_age_days: int = 120,
+        max_chars: int = 3000,
+    ) -> dict | None:
+        """
+        Obtiene el press release de earnings más reciente via 8-K Item 2.02.
+
+        Los 8-K Item 2.02 ("Results of Operations and Financial Condition")
+        contienen el press release completo que las empresas emiten con cada
+        earnings call. Incluye revenue, EPS, guidance, y métricas operativas
+        clave — datos trimestrales que el 10-K anual no tiene.
+
+        Solo busca dentro de max_age_days para evitar surfacear datos obsoletos.
+        Devuelve None si no hay 8-K 2.02 reciente.
+
+        Args:
+            ticker: Ticker de la empresa.
+            max_age_days: Máximo número de días para buscar hacia atrás. Default 120
+                (cubre ~1 quarter con margen).
+            max_chars: Máximo de caracteres a extraer del press release.
+
+        Returns:
+            dict con {filing_date, text, filing_url} o None.
+        """
+        from datetime import date, timedelta
+        from edgar import Company, set_identity  # type: ignore[import]
+
+        set_identity(settings.sec_user_agent)
+        company = Company(ticker)
+        start_date = (date.today() - timedelta(days=max_age_days)).isoformat()
+
+        try:
+            filings = list(company.get_filings(form="8-K", date=f"{start_date}:"))
+        except Exception as e:
+            log.warning("earnings_pr_filings_fetch_failed", ticker=ticker, error=str(e))
+            return None
+
+        for f in filings:
+            try:
+                obj = f.obj()
+                filed_items_raw = list(getattr(obj, "items", []) or [])
+                # Buscar solo Item 2.02
+                has_202 = any(
+                    i.replace("Item ", "").strip().lower() == "2.02"
+                    for i in filed_items_raw
+                )
+                if not has_202:
+                    continue
+
+                # Extraer texto del Item 2.02
+                text = _extract_8k_item_text(obj, ["2.02"], max_chars=max_chars)
+                if not text:
+                    # Fallback: intentar el body completo
+                    text = str(getattr(obj, "body", "") or "")[:max_chars]
+                if not text or len(text.strip()) < 100:
+                    continue
+
+                log.info(
+                    "earnings_press_release_found",
+                    ticker=ticker,
+                    filing_date=str(f.filing_date),
+                    text_length=len(text),
+                )
+                return {
+                    "filing_date": str(f.filing_date),
+                    "text": text,
+                    "filing_url": getattr(f, "filing_url", ""),
+                }
+            except Exception as e:
+                log.debug("earnings_pr_parse_failed", ticker=ticker, error=str(e))
+                continue
+
+        log.info("no_recent_earnings_press_release", ticker=ticker, max_age_days=max_age_days)
+        return None

@@ -74,6 +74,10 @@ class AnalysisState(TypedDict):
     peers_attempted_no_roic: NotRequired[list[str]]  # peers fetched pero sin ROIC calculable
     peer_sic_mismatches: NotRequired[list[str]]  # peers con SIC distinto al subject (EC-42)
 
+    # --- Quarterly XBRL snapshot (EC-44/MCE-24) ---
+    # 10-Q revenue/EBIT/gross_profit when 10-K is stale (>90 days).
+    quarterly_snapshot: NotRequired[dict]  # {period, revenue, operating_income, gross_profit}
+
     # --- Historical context Phase 2 (ADR-019) ---
     # CAGR de revenue calculado por financials_node desde XBRL.
     # historical_cagr_years indica el span real (puede ser 3 si solo hay 4 periodos).

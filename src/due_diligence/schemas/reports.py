@@ -69,6 +69,8 @@ class MarketReport(BaseModel):
     market_cap: Optional[MetricValue] = None  # Capitalización de mercado
     recent_news_summary: Optional[str] = None  # Resumen de noticias recientes
     material_events: list[dict] = Field(default_factory=list)  # Eventos 8-K materiales (ADR-017)
+    quarterly_earnings_text: Optional[str] = None  # Press release earnings más reciente (8-K 2.02, EC-44)
+    quarterly_earnings_date: Optional[str] = None  # Fecha del filing del press release
 
 
 class PeerROIC(BaseModel):

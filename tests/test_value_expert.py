@@ -387,3 +387,108 @@ def test_format_context_includes_material_events():
     }
     context = _format_context(state)
     assert "4.02" in context or "Restatement" in context or "material" in context.lower()
+
+
+# ---------------------------------------------------------------------------
+# Tests: _thesis_break_self_check (EC-45)
+# ---------------------------------------------------------------------------
+
+def test_format_context_cagr_short_span_qualifier():
+    """CAGR con <4 años emite qualifier de SHORT SPAN."""
+    from due_diligence.agents.value_expert import _format_context
+    context = _format_context({"ticker": "FSLR", "historical_cagr_5y": 0.25, "historical_cagr_years": 2})
+    assert "SHORT SPAN" in context
+    assert "2 years" in context
+
+
+def test_format_context_cagr_extreme_growth_qualifier():
+    """CAGR >40% emite qualifier de EXTREME GROWTH."""
+    from due_diligence.agents.value_expert import _format_context
+    context = _format_context({"ticker": "NVDA", "historical_cagr_5y": 0.55, "historical_cagr_years": 5})
+    assert "EXTREME GROWTH" in context
+    assert "SHORT SPAN" not in context  # 5 años es suficiente
+
+
+def test_format_context_cagr_negative_qualifier():
+    """CAGR negativo emite qualifier de NEGATIVE CAGR."""
+    from due_diligence.agents.value_expert import _format_context
+    context = _format_context({"ticker": "INTC", "historical_cagr_5y": -0.05, "historical_cagr_years": 5})
+    assert "NEGATIVE CAGR" in context
+
+
+def test_format_context_includes_quarterly_snapshot():
+    """Con quarterly_snapshot en state, aparece como QUARTERLY XBRL en contexto."""
+    from due_diligence.agents.value_expert import _format_context
+    state = {
+        "ticker": "MRCY",
+        "quarterly_snapshot": {
+            "period": "Q1 2026",
+            "revenue": 250_000_000,
+            "operating_income": -15_000_000,
+            "gross_profit": 80_000_000,
+        },
+    }
+    context = _format_context(state)
+    assert "QUARTERLY XBRL" in context
+    assert "Q1 2026" in context
+    assert "$250" in context
+
+
+def test_thesis_break_detects_margin_decline_contradiction():
+    """Si decision_frame dice 'thesis breaks if margin decline' y §4 ya dice margin decline → warning."""
+    from due_diligence.agents.value_expert import _thesis_break_self_check
+
+    report = ValueExpertReport(
+        ticker="MRCY", stub=False,
+        decision_frame="Thesis breaks if gross margin decline continues below 30% for two quarters.",
+        financial_quality="Gross margin has been in decline from 45% to 32%, compressing rapidly.",
+        risks="Operating margin decline is accelerating.",
+        verdict="HOLD", verdict_confidence=0.5,
+    )
+    checked = _thesis_break_self_check(report, "")
+    assert "THESIS-BREAK SELF-CHECK WARNING" in (checked.decision_frame or "")
+    assert "margin decline" in (checked.decision_frame or "").lower()
+
+
+def test_thesis_break_no_false_positive_on_forward_looking():
+    """Si el thesis-breaker es forward-looking y no ya presente → no caveat."""
+    from due_diligence.agents.value_expert import _thesis_break_self_check
+
+    report = ValueExpertReport(
+        ticker="AAPL", stub=False,
+        decision_frame="Thesis breaks if iPhone unit growth turns negative for 3 consecutive quarters.",
+        financial_quality="Strong FCF conversion, margins expanding. Revenue growing 8% YoY.",
+        risks="App Store regulatory risk in EU.",
+        verdict="BUY", verdict_confidence=0.75,
+    )
+    checked = _thesis_break_self_check(report, "")
+    assert "THESIS-BREAK SELF-CHECK WARNING" not in (checked.decision_frame or "")
+
+
+def test_thesis_break_no_crash_on_empty_sections():
+    """Con secciones vacías no falla."""
+    from due_diligence.agents.value_expert import _thesis_break_self_check
+
+    report = ValueExpertReport(
+        ticker="TEST", stub=False,
+        decision_frame="Thesis breaks if revenue decline exceeds 20%.",
+        verdict="HOLD", verdict_confidence=0.5,
+    )
+    checked = _thesis_break_self_check(report, "")
+    # No own_text → no puede detectar contradicción → no caveat
+    assert "THESIS-BREAK SELF-CHECK WARNING" not in (checked.decision_frame or "")
+
+
+def test_thesis_break_detects_guidance_cut():
+    """Guidance cut en thesis-breaker ya descrito en risks → warning."""
+    from due_diligence.agents.value_expert import _thesis_break_self_check
+
+    report = ValueExpertReport(
+        ticker="XYZ", stub=False,
+        decision_frame="Thesis breaks if management issues a guidance cut for FY2027.",
+        risks="Management already issued a guidance cut of 15% for FY2026, withdrawing full-year outlook.",
+        financial_quality="Revenue declining 8% QoQ.",
+        verdict="HOLD", verdict_confidence=0.4,
+    )
+    checked = _thesis_break_self_check(report, "")
+    assert "THESIS-BREAK SELF-CHECK WARNING" in (checked.decision_frame or "")

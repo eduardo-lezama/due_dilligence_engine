@@ -263,7 +263,26 @@ def management_agent(state: AnalysisState) -> dict:
     # Configurable en .env con TRANSCRIPT_QUARTERS=N si se quiere más contexto histórico.
     # Devuelve [] si FINNHUB_API_KEY no configurada (degraded mode limpio).
     transcripts = FinnhubAdapter.fetch_transcripts(ticker, quarters=settings.transcript_quarters)
-    transcripts_text = _format_transcripts(transcripts)
+
+    # Tavily fallback (EC-48): si Finnhub no devuelve transcripts (free tier),
+    # buscar resúmenes de earnings calls via web. No reemplaza el transcript full,
+    # pero da contexto cualitativo sobre guidance, tone, y métricas mencionadas.
+    if not transcripts:
+        log.info("transcripts_tavily_fallback", ticker=ticker)
+        transcript_queries = [
+            f"{ticker} {company_name} latest earnings call highlights key takeaways",
+            f"{ticker} {company_name} quarterly earnings call management commentary guidance",
+        ]
+        transcript_tavily = TavilyAdapter.search(transcript_queries, max_results_per_query=2)
+        if transcript_tavily:
+            fallback_lines = ["[Earnings call summaries from web — not verbatim transcripts]"]
+            for r in transcript_tavily[:3]:
+                fallback_lines.append(f"- {r.get('title', '')}: {r.get('content', '')[:600]}")
+            transcripts_text = "\n".join(fallback_lines)
+        else:
+            transcripts_text = _format_transcripts([])
+    else:
+        transcripts_text = _format_transcripts(transcripts)
 
     # --- 3. Construir prompt y llamar al LLM ---
     user_prompt = _build_user_prompt(

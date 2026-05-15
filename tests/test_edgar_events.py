@@ -18,8 +18,20 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
-def _make_fake_filing(items: list[str], summary: str, date_str: str, url: str = "") -> MagicMock:
-    """Helper que construye un mock de filing 8-K con la API de edgartools."""
+def _make_fake_filing(
+    items: list[str],
+    summary: str,
+    date_str: str,
+    url: str = "",
+    item_texts: dict[str, str] | None = None,
+) -> MagicMock:
+    """Helper que construye un mock de filing 8-K con la API de edgartools.
+
+    Args:
+        item_texts: dict opcional {item_number: text} para simular obj["2.02"] etc.
+            Si no se provee, obj[key] lanza KeyError (edgartools default cuando
+            el item no tiene texto extraíble).
+    """
     filing = MagicMock()
     filing.filing_date = date_str
     filing.filing_url = url
@@ -27,6 +39,21 @@ def _make_fake_filing(items: list[str], summary: str, date_str: str, url: str = 
     obj = MagicMock()
     obj.items = items
     obj.summary = summary
+
+    # Simular acceso por item: obj["2.02"] → texto, KeyError si no existe
+    _texts = item_texts or {}
+    def _getitem(key: str) -> str:
+        if key in _texts:
+            return _texts[key]
+        raise KeyError(key)
+    obj.__getitem__ = MagicMock(side_effect=_getitem)
+
+    # Desactivar atributos item_X_YY para no dar falsos positivos en fallback
+    obj.configure_mock(**{
+        f"item_{k.replace('.', '_')}": None
+        for k in items
+    })
+
     filing.obj.return_value = obj
     return filing
 

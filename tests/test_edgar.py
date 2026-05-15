@@ -235,3 +235,117 @@ def test_fetch_raw_accepts_non_financial_sic(mocker):
     # En su lugar debe pasar y llegar a get_facts() (que mockeamos con RuntimeError).
     with pytest.raises(RuntimeError, match="stop after SIC check"):
         EdgarAdapter.fetch_raw("AAPL")
+
+
+# ---------- EC-43: Form 4 institutional holder detection ---------- #
+
+
+class TestIsInstitutionalHolder:
+    """Tests para _is_institutional_holder: separar officers/directors de >10% holders."""
+
+    def test_cfo_is_not_institutional(self):
+        from due_diligence.tools.edgar import _is_institutional_holder
+        assert _is_institutional_holder("John Smith", "CFO") is False
+
+    def test_director_is_not_institutional(self):
+        from due_diligence.tools.edgar import _is_institutional_holder
+        assert _is_institutional_holder("Jane Doe", "Director") is False
+
+    def test_vp_is_not_institutional(self):
+        from due_diligence.tools.edgar import _is_institutional_holder
+        assert _is_institutional_holder("Bob Jones", "VP of Sales") is False
+
+    def test_president_is_not_institutional(self):
+        from due_diligence.tools.edgar import _is_institutional_holder
+        assert _is_institutional_holder("Alice Brown", "President and CEO") is False
+
+    def test_jana_partners_llc_is_institutional(self):
+        from due_diligence.tools.edgar import _is_institutional_holder
+        assert _is_institutional_holder("JANA Partners LLC", "10% Owner") is True
+
+    def test_blackrock_inc_is_institutional(self):
+        from due_diligence.tools.edgar import _is_institutional_holder
+        assert _is_institutional_holder("BlackRock Capital Management Inc", "10% Owner") is True
+
+    def test_llc_suffix_alone_is_institutional(self):
+        from due_diligence.tools.edgar import _is_institutional_holder
+        assert _is_institutional_holder("Acme Holdings LLC", "") is True
+
+    def test_lp_suffix_is_institutional(self):
+        from due_diligence.tools.edgar import _is_institutional_holder
+        assert _is_institutional_holder("Starboard Value LP", "10% Owner") is True
+
+    def test_plain_name_10pct_without_keywords_is_not_institutional(self):
+        """Un 10% owner con nombre de persona (no fondo) no es institucional."""
+        from due_diligence.tools.edgar import _is_institutional_holder
+        assert _is_institutional_holder("Warren Buffett", "10% Owner") is False
+
+    def test_officer_with_fund_name_is_not_institutional(self):
+        """Si la posición dice Director, no importa si el nombre suena a fondo."""
+        from due_diligence.tools.edgar import _is_institutional_holder
+        assert _is_institutional_holder("Capital Partners", "Director") is False
+
+    def test_general_counsel_is_not_institutional(self):
+        from due_diligence.tools.edgar import _is_institutional_holder
+        assert _is_institutional_holder("Sarah Connor", "General Counsel") is False
+
+
+class TestFormatForm4WithInstitutional:
+    """Tests para format_form4_for_prompt con separación institucional (EC-43)."""
+
+    def _make_txn(self, name, position, is_institutional, tx_type="sell"):
+        return {
+            "filer_name": name,
+            "position": position,
+            "transaction_date": "2026-01-15",
+            "shares": 1000,
+            "price_per_share": 40.0,
+            "transaction_type": tx_type,
+            "is_institutional": is_institutional,
+        }
+
+    def test_mixed_transactions_produces_two_sections(self):
+        from due_diligence.tools.edgar import format_form4_for_prompt
+
+        txns = [
+            self._make_txn("John Smith", "CFO", False),
+            self._make_txn("JANA Partners LLC", "10% Owner", True),
+        ]
+        result = format_form4_for_prompt(txns)
+        assert "OFFICER/DIRECTOR" in result
+        assert "INSTITUTIONAL >10% HOLDER" in result
+        assert "NOT insider sentiment" in result
+
+    def test_only_insiders_no_institutional_section(self):
+        from due_diligence.tools.edgar import format_form4_for_prompt
+
+        txns = [self._make_txn("John Smith", "CFO", False)]
+        result = format_form4_for_prompt(txns)
+        assert "OFFICER/DIRECTOR" in result
+        assert "INSTITUTIONAL" not in result
+
+    def test_only_institutional_shows_no_officer_message(self):
+        from due_diligence.tools.edgar import format_form4_for_prompt
+
+        txns = [self._make_txn("JANA Partners LLC", "10% Owner", True)]
+        result = format_form4_for_prompt(txns)
+        assert "No officer/director open-market transactions" in result
+        assert "INSTITUTIONAL >10% HOLDER" in result
+
+    def test_empty_transactions(self):
+        from due_diligence.tools.edgar import format_form4_for_prompt
+
+        result = format_form4_for_prompt([])
+        assert "No open-market insider purchases or sales" in result
+
+    def test_backward_compatible_without_is_institutional_key(self):
+        """Transacciones legacy sin is_institutional se tratan como insiders."""
+        from due_diligence.tools.edgar import format_form4_for_prompt
+
+        txns = [{
+            "filer_name": "Old Txn", "position": "CEO",
+            "transaction_date": "2025-06-01", "shares": 100,
+            "price_per_share": 50.0, "transaction_type": "buy",
+        }]
+        result = format_form4_for_prompt(txns)
+        assert "OFFICER/DIRECTOR" in result

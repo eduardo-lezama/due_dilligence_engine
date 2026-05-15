@@ -608,14 +608,29 @@ def value_expert_agent(state: AnalysisState) -> dict:
     # 8192 tokens: el prompt v2 genera respuestas más largas que el original
     # (9 secciones con adjudicación de conflictos + thesis-breaker concreto).
     # 4096 era insuficiente para empresas con contexto rico (ej. DRS con 20+ páginas de 10-K).
+    # response_format=json_object forces the model to produce valid JSON and
+    # prevents mid-JSON truncation (gpt-5.4-mini sometimes stops early otherwise).
     response_text = get_client().complete(
         messages=[{"role": "user", "content": user_prompt}],
         system=_SYSTEM_PROMPT,
         model=settings.openai_expert_model,
         max_tokens=8192,
+        response_format={"type": "json_object"},
     )
 
     report = _parse_response(response_text, ticker)
+
+    # Retry once if parse failed (defense-in-depth against model quirks).
+    if report.verdict_confidence == 0.0 and report.decision_frame and "[Parse error" in report.decision_frame:
+        log.warning("value_expert_retry", ticker=ticker, reason="parse_failed_first_attempt")
+        response_text = get_client().complete(
+            messages=[{"role": "user", "content": user_prompt}],
+            system=_SYSTEM_PROMPT,
+            model=settings.openai_expert_model,
+            max_tokens=8192,
+            response_format={"type": "json_object"},
+        )
+        report = _parse_response(response_text, ticker)
 
     # --- Thesis-break self-check (EC-45) — defense-in-depth ---
     # Detect if the thesis-breaker mentions a condition that the LLM's own

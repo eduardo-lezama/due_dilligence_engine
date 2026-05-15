@@ -101,6 +101,7 @@ class LLMClient:
         model: Optional[str] = None,
         system: Optional[str] = None,
         max_tokens: int = 4096,
+        response_format: Optional[dict] = None,
     ) -> str:
         """
         Envía mensajes al LLM con fallback automático.
@@ -110,6 +111,8 @@ class LLMClient:
             model: Modelo a usar (default: settings.default_model)
             system: Prompt del sistema (opcional)
             max_tokens: Máximo tokens en la respuesta
+            response_format: OpenAI response_format dict (e.g. {"type": "json_object"}).
+                             Ignored for Anthropic calls.
 
         Returns:
             Texto de la respuesta del LLM
@@ -121,14 +124,14 @@ class LLMClient:
             # confusión al ver "claude-*" en los logs siendo provider=openai.
             oai_model = model if (model and not model.startswith("claude")) else settings.openai_fallback_model
             log.info("llm_complete", provider="openai", reason="no_anthropic_key", model=oai_model)
-            return self._complete_openai(messages, system, max_tokens, model=oai_model)
+            return self._complete_openai(messages, system, max_tokens, model=oai_model, response_format=response_format)
         try:
             result = self._complete_anthropic(messages, model, system, max_tokens)
             log.debug("llm_complete", provider="anthropic", model=model)
             return result
         except Exception as e:
             log.warning("anthropic_failed_falling_back", error=str(e), model=model)
-            return self._complete_openai(messages, system, max_tokens, model=model)
+            return self._complete_openai(messages, system, max_tokens, model=model, response_format=response_format)
 
     def _complete_anthropic(
         self, messages: list[dict], model: str, system: Optional[str], max_tokens: int
@@ -144,6 +147,7 @@ class LLMClient:
     def _complete_openai(
         self, messages: list[dict], system: Optional[str], max_tokens: int,
         model: Optional[str] = None,
+        response_format: Optional[dict] = None,
     ) -> str:
         """
         Llamada a la API de OpenAI.
@@ -151,6 +155,8 @@ class LLMClient:
         model: si el caller pasa un modelo Claude (empieza por 'claude-'), se ignora
                y se usa openai_fallback_model. Si pasa un modelo OpenAI explícito
                (ej. 'gpt-5.4-mini'), se usa ese directamente.
+        response_format: si se pasa {"type": "json_object"}, fuerza JSON mode en
+               la respuesta del modelo. Previene truncaciones mid-JSON.
         """
         client = self._get_openai()
         # Ignorar modelos Claude si llegan aquí por fallback
@@ -164,11 +170,14 @@ class LLMClient:
         oai_messages.extend(messages)
         # GPT-5.x usa max_completion_tokens en lugar de max_tokens.
         # max_completion_tokens funciona en todos los modelos OpenAI actuales.
-        response = client.chat.completions.create(
-            model=resolved_model,
-            messages=oai_messages,
-            max_completion_tokens=max_tokens,
-        )
+        create_kwargs: dict = {
+            "model": resolved_model,
+            "messages": oai_messages,
+            "max_completion_tokens": max_tokens,
+        }
+        if response_format is not None:
+            create_kwargs["response_format"] = response_format
+        response = client.chat.completions.create(**create_kwargs)
         choice = response.choices[0]
         # Detectar truncación por límite de tokens — el JSON quedará incompleto.
         if choice.finish_reason == "length":

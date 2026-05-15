@@ -286,6 +286,45 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Fix**: regla #10 nueva en `_SYSTEM_PROMPT`: news headlines son sugerentes only. Quote a headline phrase as fact ONLY if corroborated by body summary, 10-K section, or financial data. Phrases con awkward wording que parecen parsing artifacts → ignorar.
 - **Commit**: `16555c4`
 
+### EC-43 — "Report saved" nunca aparecía en CLI (bug pre-existente)
+- **Síntoma**: la línea `Report saved: data/reports/...` nunca se mostraba tras completar un análisis. Performance metrics tampoco se appendeaban al markdown.
+- **Causa**: el CLI buscaba `{ticker}-{date}.md` (ej: `ANET-2026-05-15.md`) pero el archiver guardaba como `{date}-{ticker}-{verdict}.md` (ej: `2026-05-15-ANET-HOLD.md`). `report_file.exists()` siempre False.
+- **Fix**: alinear naming en `cli.py` con el formato del archiver: `{date}-{ticker}-{verdict}.md`. Extraer verdict del `state["synthesis"]`.
+- **Commit**: pendiente
+
+### EC-44 — 10-K stale sin datos quarterly disponibles (MRCY audit)
+- **Síntoma**: Value Expert analizaba MRCY con datos del 10-K FY2025 (as_of junio 2025) cuando ya había Q1 2026 con margin compression -140bps QoQ. El análisis ignoraba deterioro trimestral visible.
+- **Causa**: sistema solo usaba datos anuales del 10-K. Sin integración de datos trimestrales (8-K press releases ni 10-Q XBRL).
+- **Fix**: dual-source quarterly data (ADR-025): (1) 8-K Item 2.02 earnings press release en `market_agent`, (2) 10-Q XBRL snapshot en `financials_node` cuando 10-K >90 días stale. Staleness warning >180 días en Value Expert context.
+- **Commit**: pendiente
+
+### EC-45 — Thesis-breaker contradice los propios datos del análisis (MRCY)
+- **Síntoma**: Value Expert declaró "thesis breaks if gross margin falls below 30%" mientras §4 ya reportaba gross margin al 28%. Contradicción lógica en el report.
+- **Causa**: LLM no cross-checkea su thesis-breaker contra sus propias secciones previas.
+- **Fix**: Rule #15 (prompt self-check) + `_thesis_break_self_check()` post-processing heurístico que detecta contradicciones keyword-based y appends caveat warning. ADR-026.
+- **Commit**: pendiente
+
+### EC-46 — Sin warning cuando 10-K data es stale (>180 días)
+- **Síntoma**: Value Expert analizaba con data de 6+ meses sin indicación de que los datos pueden estar desactualizados.
+- **Fix**: warning explícito inyectado al inicio de la sección FINANCIALS en `_format_context` cuando `as_of_date` del 10-K es >180 días.
+- **Commit**: pendiente
+
+### EC-47 — CAGR histórico sin qualifier para periodos atípicos
+- **Síntoma**: CAGR de 3 años (incluye COVID recovery) presentado al LLM como si fuera representativo del growth sostenible. Anchor engañoso para DCF.
+- **Fix**: qualifiers en `_format_context`: short span (<4 años), extreme growth (>40%), negative CAGR. Cada uno con warning específico y guidance para el LLM.
+- **Commit**: pendiente
+
+### EC-48 — Finnhub transcripts vacíos sin fallback (free tier)
+- **Síntoma**: management_agent no recibía context de earnings calls cuando Finnhub free tier devuelve []. Pérdida de señal cualitativa (guidance, tone, management commentary).
+- **Fix**: fallback Tavily en `management_agent` — busca summaries/highlights de earnings calls via web cuando Finnhub devuelve []. No reemplaza transcript verbatim pero da contexto.
+- **Commit**: pendiente
+
+### EC-49 — Value Expert JSON truncado mid-response con finish_reason="stop" (ANET)
+- **Síntoma**: `value_expert_parse_failed` — JSON incompleto (1716 tokens de 8192 max). Report vacío: confidence=0%, sizing=0%, sin secciones. `finish_reason` era "stop", no "length".
+- **Causa**: `gpt-5.4-mini` sin `response_format={"type":"json_object"}` puede interpretar una `}` intermedia dentro del JSON como señal de stop. Diferente de EC-03 (que era por max_tokens insuficiente).
+- **Fix**: (1) `response_format={"type":"json_object"}` en la llamada al value_expert — fuerza JSON válido completo, (2) retry automático si parse falla (defense-in-depth), (3) nuevo param `response_format` en `LLMClient.complete()`.
+- **Commit**: pendiente
+
 ## Conocidos — pendientes de fix
 
 ### EC-11 — Foreign private issuers (ADRs no-US, 20-F filers)

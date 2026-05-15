@@ -580,7 +580,11 @@ def analyze_cmd(
 
     # Persistir en SQLite y appender al markdown
     from datetime import date
-    report_file = Path(settings.reports_dir).resolve() / f"{ticker}-{date.today().isoformat()}.md"
+    verdict_label = "PENDING"
+    synthesis = state.get("synthesis")
+    if synthesis and hasattr(synthesis, "verdict") and synthesis.verdict in ("BUY", "HOLD", "SELL"):
+        verdict_label = synthesis.verdict
+    report_file = Path(settings.reports_dir).resolve() / f"{date.today().isoformat()}-{ticker}-{verdict_label}.md"
     if run_id:
         try:
             from due_diligence.agents.archiver import update_performance_metrics

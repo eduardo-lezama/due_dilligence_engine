@@ -41,6 +41,7 @@ Checklist cubierto (docs/checklist-value-investing.md):
 from __future__ import annotations
 
 import json
+import statistics
 from typing import Any
 
 import structlog
@@ -244,13 +245,12 @@ def _format_context(state: AnalysisState) -> str:
     q_snap = state.get("quarterly_snapshot")  # type: ignore[typeddict-item]
     if q_snap is not None:
         lines.append("## QUARTERLY XBRL (10-Q — deterministic, MORE RECENT than 10-K)")
-        lines.append(f"Period: {q_snap.get('period', '?')}")
-        if q_snap.get("revenue") is not None:
-            lines.append(f"Quarterly Revenue: {_fmt_usd(q_snap['revenue'])}")
-        if q_snap.get("operating_income") is not None:
-            lines.append(f"Quarterly Operating Income: {_fmt_usd(q_snap['operating_income'])}")
-        if q_snap.get("gross_profit") is not None:
-            lines.append(f"Quarterly Gross Profit: {_fmt_usd(q_snap['gross_profit'])}")
+        lines.append(f"Period: {q_snap.period}")
+        lines.append(f"Quarterly Revenue: {_fmt_usd(q_snap.revenue)}")
+        if q_snap.operating_income is not None:
+            lines.append(f"Quarterly Operating Income: {_fmt_usd(q_snap.operating_income)}")
+        if q_snap.gross_profit is not None:
+            lines.append(f"Quarterly Gross Profit: {_fmt_usd(q_snap.gross_profit)}")
         lines.append("")
 
     # --- Management ---
@@ -391,6 +391,66 @@ def _format_context(state: AnalysisState) -> str:
                 f"DCF assumptions: WACC={a.wacc_pct}%, terminal_growth={a.terminal_growth_pct}%, "
                 f"years={a.projection_years}"
             )
+        lines.append("")
+
+    # --- Peer Relative Valuation context for §6 (MCE-18) ---
+    # Provides LLM with peer medians and MF rank so §6 Valuation can answer
+    # "is this company cheap or expensive relative to its sector?"
+    peer_valuations_ctx = state.get("peer_valuations") or []  # type: ignore[typeddict-item]
+    if peer_valuations_ctx:
+        lines.append("## PEER RELATIVE VALUATION (use in §6 — relative cheapness vs sector)")
+
+        valid_ev_ebits = [pv.ev_ebit for pv in peer_valuations_ctx if pv.ev_ebit is not None]
+        valid_fcf_yields = [pv.fcf_yield_pct for pv in peer_valuations_ctx if pv.fcf_yield_pct is not None]
+
+        # Subject EV/EBIT vs peer median
+        valuation_ctx = state.get("valuation")  # type: ignore[typeddict-item]
+        if valuation_ctx and valuation_ctx.ev_ebit_multiple and valid_ev_ebits:
+            peer_median_ev = statistics.median(valid_ev_ebits)
+            direction = "discount" if valuation_ctx.ev_ebit_multiple.value < peer_median_ev else "premium"
+            lines.append(
+                f"Subject EV/EBIT: {valuation_ctx.ev_ebit_multiple.value:.1f}x "
+                f"| Peer median: {peer_median_ev:.1f}x "
+                f"-> subject trades at {direction} to peers"
+            )
+
+        # Subject FCF yield vs peer median (computed from raw state — not in ValuationReport)
+        financials_ctx = state.get("financials")   # type: ignore[typeddict-item]
+        market_ctx = state.get("market")           # type: ignore[typeddict-item]
+        if (
+            financials_ctx and financials_ctx.free_cash_flow
+            and market_ctx and market_ctx.market_cap and market_ctx.market_cap.value
+            and valid_fcf_yields
+        ):
+            fcf_val = financials_ctx.free_cash_flow[0].value
+            mkt_val = market_ctx.market_cap.value
+            if fcf_val > 0 and mkt_val > 0:
+                subj_fcf_yield = fcf_val / mkt_val * 100
+                peer_median_fcf = statistics.median(valid_fcf_yields)
+                direction_fcf = "above" if subj_fcf_yield > peer_median_fcf else "below"
+                lines.append(
+                    f"Subject FCF yield: {subj_fcf_yield:.1f}% "
+                    f"| Peer median: {peer_median_fcf:.1f}% "
+                    f"-> subject FCF yield is {direction_fcf} peer median"
+                )
+
+        # MF rank
+        if valuation_ctx and valuation_ctx.magic_formula_rank is not None:
+            valid_pvs = [pv for pv in peer_valuations_ctx if pv.mf_rank is not None]
+            total = len(valid_pvs) + 1
+            lines.append(
+                f"Subject MF rank: #{valuation_ctx.magic_formula_rank} of {total} "
+                f"(Greenblatt earnings yield + ROIC — #1 = best)"
+            )
+
+        # Warnings for excluded peers
+        excluded = [pv.ticker for pv in peer_valuations_ctx if pv.no_market_data]
+        ebit_excluded = [pv.ticker for pv in peer_valuations_ctx if not pv.no_market_data and pv.ev_ebit is None]
+        for t in excluded:
+            lines.append(f"[WARNING] {t} excluded from MF rank — no market data available")
+        for t in ebit_excluded:
+            lines.append(f"[WARNING] {t} excluded from MF rank — no valid EBIT for EV/EBIT computation")
+
         lines.append("")
 
     # --- Historical CAGR anchor + user's growth justification (ADR-019) ---

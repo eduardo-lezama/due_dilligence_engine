@@ -37,6 +37,8 @@ from due_diligence.schemas.reports import (
     FilingsRAGReport,
     ManagementReport,
     MarketReport,
+    PeerValuation,
+    QuarterlySnapshot,
     ValuationReport,
     ValueExpertReport,
 )
@@ -73,10 +75,11 @@ class AnalysisState(TypedDict):
     peer_financials: NotRequired[list[FinancialsReport]]
     peers_attempted_no_roic: NotRequired[list[str]]  # peers fetched pero sin ROIC calculable
     peer_sic_mismatches: NotRequired[list[str]]  # peers con SIC distinto al subject (EC-42)
+    peer_valuations: NotRequired[list[PeerValuation]]  # Valuation multiples per peer (MCE-18)
 
     # --- Quarterly XBRL snapshot (EC-44/MCE-24) ---
     # 10-Q revenue/EBIT/gross_profit when 10-K is stale (>90 days).
-    quarterly_snapshot: NotRequired[dict]  # {period, revenue, operating_income, gross_profit}
+    quarterly_snapshot: NotRequired[QuarterlySnapshot]
 
     # --- Historical context Phase 2 (ADR-019) ---
     # CAGR de revenue calculado por financials_node desde XBRL.

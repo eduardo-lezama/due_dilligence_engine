@@ -419,14 +419,16 @@ def test_format_context_cagr_negative_qualifier():
 def test_format_context_includes_quarterly_snapshot():
     """Con quarterly_snapshot en state, aparece como QUARTERLY XBRL en contexto."""
     from due_diligence.agents.value_expert import _format_context
+    from due_diligence.schemas.reports import QuarterlySnapshot
+
     state = {
         "ticker": "MRCY",
-        "quarterly_snapshot": {
-            "period": "Q1 2026",
-            "revenue": 250_000_000,
-            "operating_income": -15_000_000,
-            "gross_profit": 80_000_000,
-        },
+        "quarterly_snapshot": QuarterlySnapshot(
+            period="Q1 2026",
+            revenue=250_000_000,
+            operating_income=-15_000_000,
+            gross_profit=80_000_000,
+        ),
     }
     context = _format_context(state)
     assert "QUARTERLY XBRL" in context
@@ -492,3 +494,67 @@ def test_thesis_break_detects_guidance_cut():
     )
     checked = _thesis_break_self_check(report, "")
     assert "THESIS-BREAK SELF-CHECK WARNING" in (checked.decision_frame or "")
+
+
+# ---------------------------------------------------------------------------
+# Tests: MCE-18 — peer relative valuation context in _format_context
+# ---------------------------------------------------------------------------
+
+def test_value_expert_context_includes_peer_relative_valuation_block():
+    """_format_context includes PEER RELATIVE VALUATION block when peer_valuations present."""
+    from due_diligence.agents.value_expert import _format_context
+    from due_diligence.schemas.reports import PeerValuation, ValuationReport
+    from due_diligence.schemas.base import MetricValue
+
+    state = {
+        "ticker": "AAPL",
+        "peer_valuations": [
+            PeerValuation(ticker="MSFT", roic=0.341, period="FY2025", ev_ebit=18.5, fcf_yield_pct=3.2, mf_rank=2),
+            PeerValuation(ticker="GOOGL", roic=0.223, period="FY2025", ev_ebit=14.1, fcf_yield_pct=4.9, mf_rank=1),
+        ],
+        "valuation": ValuationReport(
+            ticker="AAPL",
+            stub=False,
+            ev_ebit_multiple=MetricValue(value=12.3, unit="x", period="FY2025", source="calculated"),
+            earnings_yield_pct=8.1,
+            magic_formula_rank=3,
+        ),
+    }
+
+    context = _format_context(state)
+
+    assert "PEER RELATIVE VALUATION" in context
+    assert "§6" in context
+    assert "EV/EBIT" in context
+    assert "Peer median" in context
+    assert "MF rank" in context
+    assert "discount" in context or "premium" in context
+
+
+def test_value_expert_context_peer_block_absent_when_no_peer_valuations():
+    """PEER RELATIVE VALUATION block absent when no peer_valuations in state."""
+    from due_diligence.agents.value_expert import _format_context
+
+    context = _format_context({"ticker": "AAPL"})
+
+    assert "PEER RELATIVE VALUATION" not in context
+
+
+def test_value_expert_context_warns_about_excluded_peers():
+    """Context includes WARNING for peers with no_market_data=True."""
+    from due_diligence.agents.value_expert import _format_context
+    from due_diligence.schemas.reports import PeerValuation
+
+    state = {
+        "ticker": "AAPL",
+        "peer_valuations": [
+            PeerValuation(ticker="VALID", roic=0.20, period="FY2025", ev_ebit=15.0, mf_rank=1),
+            PeerValuation(ticker="NODATA", roic=0.25, period="FY2025", no_market_data=True),
+        ],
+    }
+
+    context = _format_context(state)
+
+    assert "NODATA" in context
+    assert "excluded" in context.lower()
+    assert "[WARNING]" in context

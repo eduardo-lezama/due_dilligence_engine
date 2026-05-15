@@ -281,3 +281,96 @@ def test_render_markdown_includes_market_news_section():
     md = _render_markdown(state)
     assert "## Market & News" in md
     assert "https://reuters.com/aapl-cook" in md
+
+
+# ---------------------------------------------------------------------------
+# Tests: Peer Relative Valuation (MCE-18)
+# ---------------------------------------------------------------------------
+
+def _make_peer_valuations_for_archiver():
+    """Two PeerValuation objects with all multiples set for archiver tests."""
+    from due_diligence.schemas.reports import PeerValuation
+    return [
+        PeerValuation(ticker="MSFT", roic=0.341, period="FY2025", ev_ebit=18.5, fcf_yield_pct=3.2, mf_rank=2),
+        PeerValuation(ticker="GOOGL", roic=0.223, period="FY2025", ev_ebit=14.1, fcf_yield_pct=4.9, mf_rank=1),
+    ]
+
+
+def test_archiver_renders_peer_relative_valuation_table():
+    """New ## Peer Comparison - Relative Valuation section appears when peer_valuations present."""
+    from due_diligence.agents.archiver import _render_markdown
+
+    state = {
+        "ticker": "AAPL",
+        "run_id": "test-run",
+        "as_of_date": "2025-09-27",
+        "peer_valuations": _make_peer_valuations_for_archiver(),
+    }
+
+    markdown = _render_markdown(state)
+
+    assert "## Peer Comparison — Relative Valuation" in markdown
+    assert "EV/EBIT" in markdown
+    assert "FCF Yield" in markdown
+    assert "MF Rank" in markdown
+    assert "MSFT" in markdown
+    assert "GOOGL" in markdown
+    assert "Magic Formula rank = combined rank" in markdown
+
+
+def test_archiver_relative_valuation_section_absent_when_no_peers():
+    """Relative Valuation section absent when peer_valuations not in state."""
+    from due_diligence.agents.archiver import _render_markdown
+
+    state = {"ticker": "AAPL", "run_id": "test-run", "as_of_date": "2025-09-27"}
+
+    markdown = _render_markdown(state)
+
+    assert "## Peer Comparison — Relative Valuation" not in markdown
+
+
+def test_archiver_shows_no_market_data_note_for_excluded_peer():
+    """Peer with no_market_data=True shows exclusion note in the table."""
+    from due_diligence.agents.archiver import _render_markdown
+    from due_diligence.schemas.reports import PeerValuation
+
+    state = {
+        "ticker": "AAPL",
+        "run_id": "test-run",
+        "as_of_date": "2025-09-27",
+        "peer_valuations": [
+            PeerValuation(ticker="VALID", roic=0.20, period="FY2025", ev_ebit=15.0, fcf_yield_pct=4.0, mf_rank=1),
+            PeerValuation(ticker="NODATA", roic=0.25, period="FY2025", no_market_data=True),
+        ],
+    }
+
+    markdown = _render_markdown(state)
+
+    assert "NODATA" in markdown
+    assert "no market data" in markdown.lower()
+
+
+def test_archiver_shows_mf_rank_in_aggregate_metrics():
+    """Magic Formula rank row appears in the Valuation aggregate metrics table."""
+    from due_diligence.agents.archiver import _render_markdown
+    from due_diligence.schemas.reports import ValuationReport
+    from due_diligence.schemas.base import MetricValue
+
+    state = {
+        "ticker": "AAPL",
+        "run_id": "test-run",
+        "as_of_date": "2025-09-27",
+        "peer_valuations": _make_peer_valuations_for_archiver(),
+        "valuation": ValuationReport(
+            ticker="AAPL",
+            stub=False,
+            earnings_yield_pct=8.1,
+            magic_formula_rank=3,
+            ev_ebit_multiple=MetricValue(value=12.3, unit="x", period="FY2025", source="calculated"),
+        ),
+    }
+
+    markdown = _render_markdown(state)
+
+    assert "Magic Formula rank" in markdown
+    assert "#3 of 3" in markdown  # 2 peers with mf_rank set + 1 subject = 3 total

@@ -85,6 +85,43 @@ class PeerROIC(BaseModel):
     # Campo backward-compatible: código que solo lee roic/period sigue funcionando.
 
 
+class PeerValuation(BaseModel):
+    """
+    Peer ticker with valuation multiples for relative comparison. MCE-18.
+
+    Built in peers_node via PolygonAdapter (market_cap) + XBRL (EBIT, FCF, debt, cash).
+    mf_rank is None until valuation_node computes it from the full subject+peer set.
+    """
+    ticker: str
+    roic: float                              # Most recent ROIC ratio (e.g. 0.341 = 34.1%)
+    period: str                              # Fiscal year label (e.g. "FY2025")
+    ev_ebit: Optional[float] = None          # EV / EBIT (None if no market data or EBIT <= 0)
+    fcf_yield_pct: Optional[float] = None    # FCF / market_cap * 100 (None if FCF <= 0 or no market data)
+    mf_rank: Optional[int] = None            # Magic Formula rank (1 = best); set by valuation_node
+    no_market_data: bool = False             # True if Polygon returned no market_cap for this peer
+
+
+class QuarterlySnapshot(BaseModel):
+    """
+    Snapshot de métricas clave del 10-Q más reciente (EC-44/MCE-24).
+
+    Se genera cuando el 10-K tiene más de 90 días de antigüedad — en ese caso,
+    los datos anuales ya no son la fuente más actualizada. Viaja por el grafo
+    como datos deterministas (XBRL de la SEC) para que el Value Expert pueda
+    integrar cifras trimestrales recientes en §4, §5 y §7.
+
+    Por qué solo 3 métricas:
+        Revenue, EBIT y gross profit son suficientes para detectar deterioro o mejora
+        de tendencia sin añadir complejidad de parsing. El objetivo es un snapshot
+        rápido, no un estado financiero completo.
+    """
+    period: str                              # Ej: "Q1 2026"
+    revenue: float                           # Revenue del quarter (siempre presente si el modelo existe)
+    operating_income: Optional[float] = None  # EBIT trimestral (puede faltar en small caps con XBRL atípico)
+    gross_profit: Optional[float] = None     # Gross profit trimestral
+    filing_date: Optional[str] = None        # ISO date del 10-Q filing (si disponible)
+
+
 class CompetitiveReport(BaseModel):
     """Reporte de análisis competitivo y moat."""
     ticker: str

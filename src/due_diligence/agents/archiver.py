@@ -187,6 +187,16 @@ def _render_markdown(state: AnalysisState) -> str:
             rows.append(("P/E", f"{valuation.pe_multiple.value:.1f}x"))
         if valuation.earnings_yield_pct is not None:
             rows.append(("Earnings yield (EBIT/EV)", f"{valuation.earnings_yield_pct:.1f}%"))
+        if valuation.magic_formula_rank is not None:
+            pv_list = state.get("peer_valuations") or []       # type: ignore[typeddict-item]
+            valid_pvs = [pv for pv in pv_list if pv.mf_rank is not None]
+            total_participants = len(valid_pvs) + 1            # +1 for subject
+            peer_tickers_str = ", ".join(pv.ticker for pv in valid_pvs)
+            rows.append((
+                "Magic Formula rank",
+                f"**#{valuation.magic_formula_rank} of {total_participants}**"
+                f" (peers: {peer_tickers_str}) — Greenblatt earnings yield + ROIC",
+            ))
         if rows:
             lines += ["### Aggregate Metrics", ""]
             lines.append("| Metric | Value |")
@@ -318,6 +328,9 @@ def _render_markdown(state: AnalysisState) -> str:
         else:
             lines += ["## Peer Comparison — ROIC", "", "Peer comparison skipped by user.", ""]
 
+    # --- Peer Relative Valuation (MCE-18): EV/EBIT, FCF yield, MF rank ---
+    lines += _render_peer_relative_valuation(state)
+
     # --- Market & News (ADR-014: news URLs preserved inline) ---
     market = state.get("market")              # type: ignore[typeddict-item]
     if market and not market.stub and market.recent_news_summary:
@@ -348,6 +361,97 @@ def _render_markdown(state: AnalysisState) -> str:
     ]
 
     return "\n".join(lines)
+
+
+def _render_peer_relative_valuation(state: AnalysisState) -> list[str]:
+    """
+    Render ## Peer Comparison - Relative Valuation table. MCE-18.
+
+    Shows EV/EBIT, FCF yield, ROIC, MF rank for subject + each peer.
+    Subject FCF yield computed inline from financials + market (not stored in ValuationReport).
+    Returns empty list if no peer_valuations in state.
+    """
+    peer_valuations = state.get("peer_valuations") or []          # type: ignore[typeddict-item]
+    if not peer_valuations:
+        return []
+
+    has_any_multiples = any(
+        pv.ev_ebit is not None or pv.fcf_yield_pct is not None
+        for pv in peer_valuations
+    )
+    if not has_any_multiples:
+        return []
+
+    valuation = state.get("valuation")                            # type: ignore[typeddict-item]
+    financials = state.get("financials")                          # type: ignore[typeddict-item]
+    market = state.get("market")                                  # type: ignore[typeddict-item]
+    ticker_label = state.get("ticker", "Subject")                 # type: ignore[typeddict-item]
+
+    lines: list[str] = ["## Peer Comparison — Relative Valuation", ""]
+    lines += ["| Ticker | EV/EBIT | FCF Yield | ROIC | MF Rank |", "|---|---|---|---|---|"]
+
+    # --- Subject row ---
+    subj_ev_ebit = (
+        f"{valuation.ev_ebit_multiple.value:.1f}x"
+        if (valuation and valuation.ev_ebit_multiple)
+        else "N/A"
+    )
+
+    # Compute subject FCF yield from raw data (FCF / market_cap * 100)
+    subj_fcf_yield = "N/A"
+    if (
+        financials and financials.free_cash_flow
+        and market and market.market_cap and market.market_cap.value
+    ):
+        fcf_val = financials.free_cash_flow[0].value
+        mkt_val = market.market_cap.value
+        if fcf_val > 0 and mkt_val > 0:
+            subj_fcf_yield = f"{fcf_val / mkt_val * 100:.1f}%"
+
+    subj_roic = "N/A"
+    if financials and financials.roic_series:
+        subj_roic = f"{financials.roic_series[0].value:.1%}"
+
+    subj_mf = (
+        f"**#{valuation.magic_formula_rank}**"
+        if (valuation and valuation.magic_formula_rank is not None)
+        else "N/A"
+    )
+
+    lines.append(
+        f"| **{ticker_label}** | **{subj_ev_ebit}** | **{subj_fcf_yield}** "
+        f"| **{subj_roic}** | {subj_mf} <- subject |"
+    )
+
+    # --- Peer rows ---
+    excluded_tickers: list[str] = []
+    for pv in peer_valuations:
+        if pv.no_market_data:
+            ev_str = "N/A — no market data"
+            fcf_str = "N/A — no market data"
+            excluded_tickers.append(pv.ticker)
+        else:
+            ev_str = f"{pv.ev_ebit:.1f}x" if pv.ev_ebit is not None else "N/A (EBIT<=0)"
+            fcf_str = f"{pv.fcf_yield_pct:.1f}%" if pv.fcf_yield_pct is not None else "N/A (FCF<0)"
+        roic_str = f"{pv.roic:.1%}"
+        rank_str = f"#{pv.mf_rank}" if pv.mf_rank is not None else "—"
+        lines.append(f"| {pv.ticker} | {ev_str} | {fcf_str} | {roic_str} | {rank_str} |")
+
+    lines.append("")
+    has_any_mf_rank = (
+        any(pv.mf_rank is not None for pv in peer_valuations)
+    )
+    if has_any_mf_rank:
+        lines.append(
+            "*Magic Formula rank = combined rank by earnings yield (EBIT/EV) + ROIC (Greenblatt). #1 = best.*"
+        )
+    if excluded_tickers:
+        lines.append(
+            f"*{', '.join(excluded_tickers)}: excluded from MF rank — no market data available.*"
+        )
+    lines.append("")
+
+    return lines
 
 
 def _render_citations_section(state: AnalysisState) -> list[str]:

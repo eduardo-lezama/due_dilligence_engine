@@ -26,8 +26,9 @@ import structlog
 
 from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
-from due_diligence.schemas.reports import PeerROIC
+from due_diligence.schemas.reports import PeerROIC, PeerValuation
 from due_diligence.tools.edgar import DataUnavailableError, EdgarAdapter
+from due_diligence.tools.polygon import PolygonAdapter
 
 log = structlog.get_logger()
 
@@ -55,6 +56,78 @@ def _get_sic(ticker: str) -> tuple[str | None, str | None]:
     except Exception as e:
         log.debug("peers_sic_fetch_failed", ticker=ticker, error=str(e))
         return None, None
+
+
+def _build_peer_valuations(reports: list) -> list[PeerValuation]:
+    """
+    Build PeerValuation list from FinancialsReport objects + Polygon market data. MCE-18.
+
+    For each peer: fetches market_cap via Polygon, computes EV/EBIT and FCF yield.
+    Graceful degradation: no Polygon data -> no_market_data=True, multiples=None.
+    Peers with EBIT <= 0 get ev_ebit=None. Peers with FCF <= 0 get fcf_yield_pct=None.
+    mf_rank is always None here — set by valuation_node after the full set is known.
+
+    Args:
+        reports: List of FinancialsReport objects (successfully parsed peers).
+
+    Returns:
+        List of PeerValuation, one per peer that has a roic_series entry.
+    """
+    result: list[PeerValuation] = []
+
+    for rep in reports:
+        if not rep.roic_series:
+            log.warning("peer_valuation_skipped_no_roic", peer=rep.ticker)
+            continue
+
+        roic = rep.roic_series[0].value
+        period = rep.roic_series[0].period
+
+        try:
+            mkt = PolygonAdapter.fetch_market_data(rep.ticker)
+        except Exception as exc:
+            log.warning("peer_valuation_polygon_failed", peer=rep.ticker, error=str(exc))
+            result.append(PeerValuation(ticker=rep.ticker, roic=roic, period=period, no_market_data=True))
+            continue
+        market_cap: float | None = mkt.get("market_cap")
+
+        if market_cap is None or market_cap <= 0:
+            result.append(PeerValuation(
+                ticker=rep.ticker,
+                roic=roic,
+                period=period,
+                no_market_data=True,
+            ))
+            log.warning("peer_valuation_no_market_data", peer=rep.ticker)
+            continue
+
+        ebit: float | None = rep.operating_income[0].value if rep.operating_income else None
+        fcf: float | None = rep.free_cash_flow[0].value if rep.free_cash_flow else None
+        debt: float = rep.total_debt.value if rep.total_debt is not None else 0.0
+        cash: float = rep.cash_and_equivalents.value if rep.cash_and_equivalents is not None else 0.0
+
+        ev = market_cap + debt - cash
+
+        if ev <= 0:
+            log.warning("peer_valuation_negative_ev", peer=rep.ticker, ev=ev)
+        ev_ebit: float | None = None
+        if ebit is not None and ebit > 0 and ev > 0:
+            ev_ebit = round(ev / ebit, 2)
+
+        fcf_yield_pct: float | None = None
+        if fcf is not None and fcf > 0:
+            fcf_yield_pct = round(fcf / market_cap * 100, 2)
+
+        result.append(PeerValuation(
+            ticker=rep.ticker,
+            roic=roic,
+            period=period,
+            ev_ebit=ev_ebit,
+            fcf_yield_pct=fcf_yield_pct,
+        ))
+        log.info("peer_valuation_built", peer=rep.ticker, ev_ebit=ev_ebit, fcf_yield_pct=fcf_yield_pct)
+
+    return result
 
 
 def peers_node(state: AnalysisState) -> dict:
@@ -145,5 +218,13 @@ def peers_node(state: AnalysisState) -> dict:
         log.warning("peers_node_no_roic_data", fetched=fetched_tickers,
                     hint="Peers fetched but none had computable ROIC from XBRL")
         out["peers_attempted_no_roic"] = fetched_tickers
+
+    # Build peer_valuations (MCE-18): EV/EBIT, FCF yield via Polygon market data.
+    # mf_rank is None here — set by valuation_node once the full subject+peer set is known.
+    if reports:
+        peer_valuations = _build_peer_valuations(reports)
+        if peer_valuations:
+            out["peer_valuations"] = peer_valuations
+            log.info("peer_valuations_built", count=len(peer_valuations))
 
     return out

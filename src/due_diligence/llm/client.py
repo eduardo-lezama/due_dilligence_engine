@@ -102,6 +102,7 @@ class LLMClient:
         system: Optional[str] = None,
         max_tokens: int = 4096,
         response_format: Optional[dict] = None,
+        temperature: float = 0.2,
     ) -> str:
         """
         Envía mensajes al LLM con fallback automático.
@@ -113,6 +114,10 @@ class LLMClient:
             max_tokens: Máximo tokens en la respuesta
             response_format: OpenAI response_format dict (e.g. {"type": "json_object"}).
                              Ignored for Anthropic calls.
+            temperature: Temperatura de sampling (default: 0.2). Bajo para máximo
+                         instruction-following y determinismo — los agentes de este sistema
+                         hacen JSON estructurado y role-identification, no escritura creativa.
+                         T=0.2 previene reasoning drift sin los artefactos de T=0 exacto.
 
         Returns:
             Texto de la respuesta del LLM
@@ -124,21 +129,27 @@ class LLMClient:
             # confusión al ver "claude-*" en los logs siendo provider=openai.
             oai_model = model if (model and not model.startswith("claude")) else settings.openai_fallback_model
             log.info("llm_complete", provider="openai", reason="no_anthropic_key", model=oai_model)
-            return self._complete_openai(messages, system, max_tokens, model=oai_model, response_format=response_format)
+            return self._complete_openai(messages, system, max_tokens, model=oai_model, response_format=response_format, temperature=temperature)
         try:
-            result = self._complete_anthropic(messages, model, system, max_tokens)
-            log.debug("llm_complete", provider="anthropic", model=model)
+            result = self._complete_anthropic(messages, model, system, max_tokens, temperature=temperature)
+            log.debug("llm_complete", provider="anthropic", model=model, temperature=temperature)
             return result
         except Exception as e:
             log.warning("anthropic_failed_falling_back", error=str(e), model=model)
-            return self._complete_openai(messages, system, max_tokens, model=model, response_format=response_format)
+            return self._complete_openai(messages, system, max_tokens, model=model, response_format=response_format, temperature=temperature)
 
     def _complete_anthropic(
-        self, messages: list[dict], model: str, system: Optional[str], max_tokens: int
+        self, messages: list[dict], model: str, system: Optional[str], max_tokens: int,
+        temperature: float = 0.2,
     ) -> str:
         """Llamada a la API de Anthropic Claude."""
         client = self._get_anthropic()
-        kwargs: dict = {"model": model, "max_tokens": max_tokens, "messages": messages}
+        kwargs: dict = {
+            "model": model,
+            "max_tokens": max_tokens,
+            "messages": messages,
+            "temperature": temperature,
+        }
         if system:
             kwargs["system"] = system
         response = client.messages.create(**kwargs)
@@ -148,6 +159,7 @@ class LLMClient:
         self, messages: list[dict], system: Optional[str], max_tokens: int,
         model: Optional[str] = None,
         response_format: Optional[dict] = None,
+        temperature: float = 0.2,
     ) -> str:
         """
         Llamada a la API de OpenAI.
@@ -174,6 +186,7 @@ class LLMClient:
             "model": resolved_model,
             "messages": oai_messages,
             "max_completion_tokens": max_tokens,
+            "temperature": temperature,
         }
         if response_format is not None:
             create_kwargs["response_format"] = response_format

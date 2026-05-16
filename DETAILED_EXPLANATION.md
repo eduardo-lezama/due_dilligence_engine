@@ -3383,3 +3383,125 @@ La mediana usa `statistics.median()` (promedio de dos centrales en listas pares)
 
 *Última actualización: 2026-05-15 — MCE-18 Peer Valuation Multiples + Magic Formula Rank. 285 tests, verde.*
 
+---
+
+## EC-52 + EC-53 + Temperature — Tres fixes de robustez post-auditoría CXDO (2026-05-16)
+
+### El detonante: auditoría externa detecta regresión en CXDO
+
+El análisis de CXDO (Crexendo, cloud communications) reveló tres fallos críticos detectados por auditoría con modelo externo. Ninguno era un bug de código (tipo format mismatch o field error) — los tres eran **gaps de diseño del sistema**: información correctamente extraída que el LLM interpretaba mal, o información disponible que no llegaba al agente correcto.
+
+### EC-52 — CEO role confusion: el LLM identifica como CEO a un ex-CEO convertido en Director
+
+#### Síntoma
+
+§3 Management del informe de CXDO decía: *"The CEO is a founder-CEO with 15 years of tenure... the CEO sold 25,000 shares."* El CEO real es Jeff Korn desde marzo 2023. Steven Mihaylo, al que llamaba CEO, es hoy Director/Chairman Emeritus con el 36.76% de ownership — lleva 15 años exactos como *ex*-CEO.
+
+#### Causa raíz
+
+El Form 4 que recibía el management agent ya etiquetaba correctamente a Mihaylo como `(Director)`. El dato correcto estaba en el prompt. El fallo fue de razonamiento del LLM: el DEF 14A (proxy statement) contenía la frase histórica *"Mr. Mihaylo was appointed our Chief Executive Officer in 2008"*, y el LLM ancló en esa frase de nombramiento histórico ignorando la etiqueta actual del Form 4.
+
+Segundo problema: cuando un CEO cambia, el nombramiento del nuevo CEO está en un 8-K Item 5.02 — pero el management agent nunca recibía esos eventos. El 8-K de noviembre 2025 nombrando a Korn solo llegaba al value_expert como resumen de 200 chars, después de que el management agent ya había corrido.
+
+**Efecto colateral**: el CEO real (Korn) sí vendió $253K de stock — señal más relevante que fue ignorada. La venta de Mihaylo (25.000 shares sobre 11.29M = 0.22% de su posición) se presentó como señal bajista cuando es ruido estadístico.
+
+#### Fix
+
+**Dos cambios en `management.py`**:
+
+1. Regla explícita en `_SYSTEM_PROMPT`: *"The authoritative source for a person's CURRENT role is their title in SOURCE 2 (Form 4) or SOURCE 3 (10-K Item 10). SOURCE 1 (DEF 14A) often contains historical appointment language that describes PAST roles. If SOURCE 2 labels someone as 'Director', they are NOT the current CEO regardless of historical proxy language."*
+
+2. El `management_agent()` ahora hace un fetch independiente de eventos 5.02 (`EdgarEventsAdapter.fetch_8k_events(ticker, items=["5.02"], months=12)`) e inyecta el resultado como **SOURCE 6** en el prompt. La función `_format_leadership_events()` formatea estos eventos como texto legible. El DEF 14A tiene precedencia histórica; los 5.02 tienen precedencia sobre el rol actual.
+
+#### Por qué este es un problema sistémico y no específico de CXDO
+
+El patrón "founder-turned-director con gran ownership" es muy común en el universo value investing: empresas donde el fundador creció la compañía durante décadas, contrató un CEO operador, y retuvo el control como major shareholder. Este patrón existe en decenas de small/mid caps. Sin la regla de role anchoring y sin los 5.02 events, el sistema siempre identificaría incorrectamente al major shareholder histórico como CEO actual.
+
+---
+
+### EC-53 — M&A post-10-K ignorado: adquisición de $35M no analizada
+
+#### Síntoma
+
+CXDO adquirió Estech Systems (ESI) por $35M el 2 de marzo 2026 — la mayor adquisición de su historia. El informe presentó:
+- Deuda de solo $228K como "balance sheet conservatively positioned" (ignorando que se consumieron ~$27.3M de cash post-10-K)
+- Q1 revenue +29% como señal de aceleración orgánica (ESI cerró el 2 de marzo, 1 mes antes del fin del Q1 — aportó ~$2.5M de revenue; el crecimiento orgánico real era ~14%, no 29%)
+- Ninguna mención de ESI en §4, §5, §6
+
+El 8-K del deal sí estaba en el sistema: aparecía en el Material Events table del informe como una línea de la tabla. El sistema tenía los datos — no tenía reglas ni capacidad de análisis para tratarlos diferente.
+
+#### Causa raíz
+
+**El sistema tenía un gap de diseño para adquisiciones post-10-K.** Comparación con lo que sí funcionaba:
+
+| Tipo de evento | Mecanismo | ¿Funciona? |
+|---|---|---|
+| Earnings trimestrales (Item 2.02) | Bloque `## QUARTERLY UPDATE` + Rule #13 obligatoria | ✅ |
+| Restatements (Item 4.02) | Mención en Rule #5 + SELL rubric | ✅ |
+| M&A (Item 1.01 con adquisición) | Línea de 200 chars en footnote genérico | ❌ |
+
+Cuando el M&A llega como línea de 200 chars mezclada con Reg FD investor presentations (Item 7.01), el LLM no tiene forma de distinguir "nos reuniremos con inversores" de "compramos una empresa por $35M que duplica nuestro TAM".
+
+#### Fix
+
+**Dos cambios en `value_expert.py`**:
+
+1. **Auto-flag M&A en `_format_context()`**: el código detecta ahora si algún Item 1.01 en `material_events` contiene keywords de adquisición (`"purchase agreement"`, `"acquisition"`, `"merger agreement"`, `"membership interest"`, `"acquired"`, etc.). Cuando los detecta, emite un bloque dedicado `## POST-10-K ACQUISITION DETECTED` con texto completo del evento (800 chars, no 200) y un ⚠️ warning de balance sheet staleness. Los demás eventos no-M&A siguen siendo footnotes de 200 chars.
+
+2. **Rule #18 en `_SYSTEM_PROMPT`**: cuando el bloque está presente, el LLM tiene instrucciones obligatorias:
+   - §4: MUST flag que deuda/cash del 10-K son anteriores a la adquisición y pueden ser materialmente diferentes
+   - §5: MUST separar crecimiento orgánico de inorgánico cuando el Q1 earnings date es posterior al cierre del deal
+   - §6: MUST cavetar EV multiples como directionales — el EV real puede ser materialmente mayor si se consumió cash y/o se tomó deuda
+   - §9: MUST nombrar el pending 10-Q (primer trimestral post-adquisición) como el evento que resolverá la incertidumbre
+
+#### Patrón de diseño aplicado: auto-flag proactivo
+
+Este fix sigue el **patrón #4 del proyecto** (documentado en `AGENTIC_PATTERNS.md`): *cuando una condición se cumple, el código emite una advertencia en el contexto proactivamente*. El LLM recibe un hecho estructurado ("POST-10-K ACQUISITION DETECTED"), no una tarea de inferencia ("¿hay alguna adquisición post-10-K?"). La distinción importa: si dependemos de que el LLM detecte el M&A, puede no hacerlo con temperatura baja o contexto denso. Si el código ya detectó y etiquetó, el LLM solo tiene que seguir la instrucción.
+
+#### Aplicabilidad sistémica
+
+Cualquier empresa que haya hecho una adquisición entre el cierre del 10-K y la fecha del análisis activa este mecanismo. Especialmente crítico en:
+- Small/mid caps con M&A frecuente (la ventana 10-K → análisis puede ser 3-6 meses)
+- Empresas en modo consolidación de su sector (serial acquirers)
+- Cualquier caso donde la adquisición es un evento de "step-change" en el run rate de revenue
+
+---
+
+### Temperature: por qué bajamos de default (1.0) a 0.2
+
+Hasta ahora el sistema usaba la temperatura por defecto de los proveedores (Claude: 1.0, OpenAI: 1.0). La confusión del CEO en CXDO fue el catalizador para reconsiderar esto.
+
+#### El problema con temperatura alta en este sistema
+
+Temperatura alta en un LLM = más aleatoriedad en el sampling de tokens = mayor probabilidad de que el modelo "se aleje" de la respuesta más obvia y siga caminos de razonamiento alternativos. Para tareas creativas (escritura, brainstorming) esto es deseable. Para este sistema, es perjudicial porque:
+
+1. **Instruction-following es menos fiable**: a T=1.0, el LLM puede ignorar una regla del system prompt con mayor probabilidad que a T=0.2. La confusión del CEO ocurrió aunque la regla ahora dice explícitamente qué fuente es autoritativa — pero con T=1.0, el LLM puede razonar "a pesar de lo que dice la regla, la DEF 14A indica que Mihaylo fue CEO y la Tavily web search también menciona founder CEO, por tanto..."
+2. **JSON schema compliance**: la probabilidad de desvíos del schema (campos extra, formatos alternativos) aumenta con temperatura.
+3. **Reproducibilidad**: mismo input → resultados distintos entre runs. Para un sistema de inversión personal, esta varianza es indeseable — dos análisis del mismo ticker en el mismo día no deberían diferir por aleatoriedad del LLM.
+4. **Citation quality**: a T baja, el LLM tiende a copiar más fielmente el texto de la fuente en el `excerpt` de la citation (comportamiento de "repetición exacta"). A T alta, puede parafrasear o ampliar.
+
+#### Por qué no T=0 (exactamente)
+
+Temperatura exactamente 0 fuerza siempre el token de mayor probabilidad (greedy decoding). En la práctica, puede producir outputs degenerados en edge cases (repetición de tokens, loops) y pierde toda capacidad de manejar ambigüedad. T=0.2 es prácticamente determinista (la probabilidad de tokens alternativos es exponencialmente pequeña) pero mantiene suficiente robustez.
+
+#### Implementación
+
+Se añadió `temperature: float = 0.2` como parámetro con default en `LLMClient.complete()`, `_complete_anthropic()`, y `_complete_openai()`. Todos los agentes existentes heredan automáticamente el nuevo default — no requirió cambios en ningún agente individual. Cualquier agente puede sobrescribir con `temperature=0.7` si en el futuro alguna tarea requiere más creatividad.
+
+---
+
+### Resumen de cambios
+
+| Archivo | Cambio |
+|---|---|
+| `llm/client.py` | `temperature=0.2` como default en `complete()` + propagación a ambos providers |
+| `agents/management.py` | Regla CEO role anchoring en `_SYSTEM_PROMPT` + fetch 5.02 events + SOURCE 6 en prompt |
+| `agents/value_expert.py` | M&A auto-flag en `_format_context()` + Rule #18 en `_SYSTEM_PROMPT` |
+| `EDGE_CASES.md` | EC-52 + EC-53 documentados |
+
+289 tests, verde.
+
+---
+
+*Última actualización: 2026-05-16 — EC-52 (CEO role confusion) + EC-53 (M&A blindspot) + temperature=0.2. 289 tests, verde.*
+

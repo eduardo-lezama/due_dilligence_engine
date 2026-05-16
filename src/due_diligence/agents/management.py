@@ -38,7 +38,7 @@ from due_diligence.graph.state import AnalysisState
 from due_diligence.llm.client import get_client
 from due_diligence.schemas.base import Citation
 from due_diligence.schemas.reports import ManagementReport
-from due_diligence.tools.edgar import EdgarManagementAdapter, format_form4_for_prompt
+from due_diligence.tools.edgar import EdgarEventsAdapter, EdgarManagementAdapter, format_form4_for_prompt
 from due_diligence.tools.finnhub import FinnhubAdapter
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
 
@@ -63,11 +63,17 @@ Analyze the provided context and answer the checklist questions below.
 
 RULES:
 - Base every claim ONLY on the provided context. Never invent facts.
+- CURRENT ROLE IDENTIFICATION — THIS IS CRITICAL: The authoritative source for a person's CURRENT role is their title in SOURCE 2 (Form 4) or SOURCE 3 (10-K Item 10). SOURCE 1 (DEF 14A) often contains historical appointment language that describes PAST roles. Do NOT use DEF 14A appointment language to assert someone is the current CEO. Examples of what to avoid:
+  * "Mr. X was appointed CEO in 2015" in the DEF 14A does NOT mean X is currently CEO — they may have since become Chairman or Director.
+  * If SOURCE 2 (Form 4) lists a person as "Director", they are NOT the current CEO, regardless of their historical title.
+  * If SOURCE 6 (5.02 leadership events) shows a new CEO appointment, that overrides all prior sources for current role identification.
+  * Identify the current CEO as the person titled "Chief Executive Officer" in SOURCE 3 (10-K Item 10) or SOURCE 6 (5.02 events), not from historical proxy language.
 - CITATION SOURCES — follow this strictly:
   * Numerical facts (ownership %, compensation $, Form 4 counts): cite ONLY SOURCE 1 (DEF 14A) or SOURCE 2 (Form 4). Never use web articles for numbers — they go stale.
   * CEO founder status, company history, patents: SOURCE 4 (web) is appropriate.
   * Qualitative governance, board reputation, track record: SOURCE 4 (web) and SOURCE 5 (transcripts) are appropriate.
   * SOURCE 3 (10-K Item 10) for director bios and committee memberships.
+  * SOURCE 6 (5.02 8-K events) for recent leadership transitions (CEO/CFO/COO departures and appointments).
 - When citing earnings call transcripts (SOURCE 5), set source_url to "Finnhub transcript <id>" and copy the speaker's verbatim sentence into `excerpt`.
 - If information is not available in the context, say "Not available in provided sources."
 - Return ONLY valid JSON matching the schema below. No markdown, no explanation outside JSON.
@@ -115,6 +121,24 @@ def _format_transcripts(transcripts: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _format_leadership_events(events: list[dict]) -> str:
+    """
+    Formatea eventos 5.02 (leadership transitions) como texto para el prompt.
+
+    Item 5.02 = Departure of Directors or Certain Officers; Election of Directors;
+    Appointment of Certain Officers. Es la fuente primaria para detectar cambios
+    de CEO/CFO/COO que ocurren entre filing periódicos.
+    """
+    if not events:
+        return "No Item 5.02 leadership transition events in the last 12 months."
+    lines = ["Recent leadership transitions (Item 5.02 — SEC primary source):"]
+    for e in events:
+        date = e.get("filing_date", "?")
+        summary = (e.get("summary_text") or "")[:600]
+        lines.append(f"  [{date}] {summary}")
+    return "\n".join(lines)
+
+
 def _build_user_prompt(
     ticker: str,
     company_name: str,
@@ -123,14 +147,25 @@ def _build_user_prompt(
     item10_text: str,
     tavily_text: str,
     transcripts_text: str = "",
+    leadership_events_text: str = "",
 ) -> str:
     """
     Construye el prompt de usuario con todo el contexto de fuentes.
 
     Cada sección está claramente etiquetada para que el LLM sepa de dónde
     viene cada fragmento — esto es crítico para generar citations correctas.
+    SOURCE 6 (5.02 events) es la fuente autoritativa para transiciones de liderazgo
+    recientes — overrides cualquier información histórica del DEF 14A sobre roles.
     """
     return f"""# Management Analysis: {ticker} ({company_name})
+
+## ⚠️ CURRENT LEADERSHIP — READ THIS FIRST (8-K Item 5.02, last 36 months)
+## This section OVERRIDES any biographical or historical appointment language in the sources below.
+## Sources 1-4 contain 10-K/DEF 14A biographical text that may reference PAST roles.
+## The current CEO/CFO/COO are identified HERE, not from historical proxy language.
+{leadership_events_text or "No Item 5.02 leadership transition events found in the last 36 months. Use SOURCE 3 (10-K Item 10) current officer table to identify the current CEO — look for the person whose CURRENT TITLE is 'Chief Executive Officer', not for historical appointment language."}
+
+---
 
 ## SOURCE 1: DEF 14A — Proxy Statement (compensation, ownership, board)
 {def14a_text or "DEF 14A not available."}
@@ -245,6 +280,14 @@ def management_agent(state: AnalysisState) -> dict:
     form4_transactions = EdgarManagementAdapter.fetch_form4_transactions(ticker)
     item10_text = EdgarManagementAdapter.fetch_10k_item10(ticker)
 
+    # 5.02 leadership transition events (EC-52): fuente autoritativa para cambios
+    # de CEO/CFO/COO. Lookback de 36 meses para capturar nombramientos de hasta ~3 años
+    # atrás — el cambio de CEO puede ocurrir mucho antes del análisis (ej. Korn/CXDO 2023).
+    # 12 meses era insuficiente: el nombramiento quedaba fuera de la ventana y SOURCE 6 llegaba vacío.
+    leadership_events = EdgarEventsAdapter.fetch_8k_events(ticker, items=["5.02"], months=36)
+    leadership_events_text = _format_leadership_events(leadership_events)
+    log.info("management_agent_leadership_events", ticker=ticker, count=len(leadership_events))
+
     # Formateamos Form 4 como tabla texto para el prompt
     form4_text = format_form4_for_prompt(form4_transactions)
 
@@ -293,6 +336,7 @@ def management_agent(state: AnalysisState) -> dict:
         item10_text=item10_text,
         tavily_text=tavily_text,
         transcripts_text=transcripts_text,
+        leadership_events_text=leadership_events_text,
     )
 
     log.info("management_agent_llm_call", ticker=ticker)

@@ -82,6 +82,16 @@ RULES — NON-NEGOTIABLE:
 15. THESIS-BREAK SELF-CHECK (§9): BEFORE finalizing the verdict, verify that the thesis-breaker condition you define in §9 is NOT ALREADY TRUE in the data you just analyzed. If the condition IS already met (e.g., you state "thesis breaks if gross margin falls below 30%" but §4 shows gross margin is already 28%), you MUST either (a) revise the verdict to reflect the already-broken thesis, or (b) choose a DIFFERENT thesis-breaker that is forward-looking. A verdict that contradicts its own thesis-breaker is a critical logical error.
 16. BACKLOG & BOOK-TO-BILL (§5): for defense, aerospace, industrial, government-contract, or long-cycle businesses, backlog and book-to-bill ratio are CRITICAL forward indicators. If the QUARTERLY UPDATE, press release, or filings report mentions backlog, orders, or book-to-bill, you MUST: (a) extract the absolute backlog figure and YoY change, (b) compute book-to-bill if orders and revenue are both available (orders/revenue; >1.0 = growing, <1.0 = shrinking), (c) integrate into §5 Growth as the PRIMARY growth signal (more reliable than revenue CAGR for contract businesses). If backlog is declining while revenue appears stable, flag this as a LEADING INDICATOR of future revenue decline in §7.
 17. 10b5-1 PLAN SALES (§3): transactions explicitly marked as "10b5-1 PRE-ARRANGED PLAN" in the insider activity data are NOT informative about current management sentiment. These sales were programmed months before execution — the decision date is the plan adoption date, not the execution date. Do NOT use them as evidence of insider distribution, bearish sentiment, or value trap signals. Instead, note them factually as "pre-arranged plan sale" and EXCLUDE them from your insider sentiment assessment. The relevant signals from insiders are: (a) discretionary open-market purchases (bullish), (b) ABSENCE of buying during drawdowns (mildly bearish per rule 11), (c) discretionary sales NOT under a plan (bearish). A CEO with a 10b5-1 for estate planning who also owns 15%+ is demonstrating alignment through ownership magnitude, not trading activity.
+18. PEER RELATIVE VALUATION (§6): when context contains a "## PEER RELATIVE VALUATION" block, §6 Valuation MUST use it. Specifically:
+    (a) State whether the subject trades at a discount or premium to the peer median EV/EBIT — name both numbers and the % gap. A premium requires a growth or quality justification; a discount is a potential margin of safety signal only if moat and quality pass.
+    (b) State whether the subject FCF yield is above or below the peer median — name both numbers. FCF yield above peer median suggests relative cheapness on cash generation; below suggests the market prices in higher growth or the business generates less cash than peers.
+    (c) If Magic Formula rank is available, name it and interpret it: rank 1 = best combined earnings yield + ROIC in the peer group; rank N = worst. A rank in the bottom half with a BUY thesis requires explicit justification.
+    (d) If all peers failed to fetch (block is absent), explicitly note in §6 that relative valuation context is unavailable and the absolute multiples (EV/EBIT, EV/FCF) must be interpreted without sector benchmarks — increase uncertainty accordingly.
+19. POST-10-K ACQUISITION (§4+§5+§6): when context contains a "## POST-10-K ACQUISITION DETECTED" block, treat this as a CRITICAL staleness warning for balance sheet and growth data:
+    (a) §4 Financial Quality MUST explicitly flag that reported debt and cash figures come from the 10-K balance sheet, which PREDATES the acquisition. If the deal involved material cash outlay or new credit facilities (visible in 8-K events), state that the actual post-acquisition balance sheet is materially different from the reported figures. Do NOT present pre-acquisition debt/cash as current fact.
+    (b) §5 Growth & Reinvestment MUST distinguish organic from inorganic revenue. If the acquisition closed DURING the most recent quarter reported (visible from the acquisition date vs Q1 press release date), the reported quarterly revenue growth includes an inorganic component. Flag this explicitly — do NOT present the blended growth rate as a pure organic signal. If the acquisition date and Q1 close date allow estimation of inorganic contribution, make the estimate.
+    (c) §6 Valuation MUST caveat EV-based multiples (EV/EBIT, EV/FCF) as potentially understated. If cash was consumed and/or debt was raised to finance the deal, the true EV is higher than what the 10-K balance sheet implies. Note this uncertainty explicitly — EV multiples based on pre-acquisition data are directional only, not precise.
+    (d) §9 Decision Frame MUST name the pending 10-Q (first quarterly filing post-acquisition) as the event that will resolve the balance sheet uncertainty and clarify organic growth rate.
 
 VERDICT RUBRIC:
 - BUY: moat confirmed + quality management + DCF upside >20% + no material 8-K red flags + conflicting signals resolved in favor of the bull case.
@@ -327,11 +337,58 @@ def _format_context(state: AnalysisState) -> str:
             lines.append(market.quarterly_earnings_text[:2500])
             lines.append("")
         # 8-K material events para §7 Risks (ADR-017 + ADR-019)
+        # Item 1.01 con lenguaje M&A recibe bloque propio con texto completo (EC-53):
+        # las adquisiciones post-10-K son eventos transformativos que invalidan el
+        # balance sheet y mezclan crecimiento orgánico con inorgánico.
         if market.material_events:
-            lines.append("Material 8-K events:")
+            # Separar eventos M&A (Item 1.01 con keywords de adquisición) del resto
+            ma_events = []
+            other_events = []
+            _MA_KEYWORDS = (
+                "purchase agreement", "acquisition", "merger agreement",
+                "membership interest", "acquired", "business combination",
+                "asset purchase",
+            )
             for e in market.material_events:
-                items_str = ", ".join(e.get("item_numbers", []))
-                lines.append(f"  [{e.get('filing_date', '?')}] Items {items_str}: {e.get('summary_text', '')[:200]}")
+                item_nums = [i.lower() for i in e.get("item_numbers", [])]
+                summary_lower = (e.get("summary_text") or "").lower()
+                is_ma = (
+                    any("1.01" in i for i in item_nums)
+                    and any(kw in summary_lower for kw in _MA_KEYWORDS)
+                )
+                if is_ma:
+                    ma_events.append(e)
+                else:
+                    other_events.append(e)
+
+            # Bloque dedicado para M&A — texto completo, balance sheet staleness warning
+            if ma_events:
+                lines.append("")
+                lines.append("## POST-10-K ACQUISITION DETECTED")
+                lines.append(
+                    "⚠️ One or more Item 1.01 8-K filings contain M&A activity AFTER the 10-K "
+                    "balance sheet date. Per Rule 18: (a) §4 balance sheet data is STALE, "
+                    "(b) §5 quarterly revenue growth may include inorganic contribution, "
+                    "(c) §6 EV multiples are directional only — true EV may be materially higher."
+                )
+                for e in ma_events:
+                    items_str = ", ".join(e.get("item_numbers", []))
+                    # Texto completo del evento (hasta 800 chars — ya filtrado en fetch)
+                    lines.append(
+                        f"  [{e.get('filing_date', '?')}] Items {items_str}: "
+                        f"{e.get('summary_text', '')[:800]}"
+                    )
+                lines.append("")
+
+            # Resto de eventos (no M&A) — resumen normal de 200 chars
+            if other_events:
+                lines.append("Material 8-K events:")
+                for e in other_events:
+                    items_str = ", ".join(e.get("item_numbers", []))
+                    lines.append(
+                        f"  [{e.get('filing_date', '?')}] Items {items_str}: "
+                        f"{e.get('summary_text', '')[:200]}"
+                    )
         lines.append("")
 
     # --- Competitive ---

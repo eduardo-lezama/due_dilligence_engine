@@ -364,6 +364,30 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Causa**: un campo en el XBRL de UAA devuelve `None` donde se espera un número. No investigado aún.
 - **Status**: pendiente diagnóstico. Probablemente un concepto de balance sheet con valor `None` en el raw XBRL.
 
+### EC-52 — CEO role confusion: management agent identifica como CEO a un ex-CEO convertido en Director (CXDO)
+- **Síntoma**: §3 reporta "The CEO is a founder-CEO with 15 years of tenure... the CEO sold 25,000 shares" para Mihaylo (Director con 36.76% ownership). CEO real es Jeff Korn desde marzo 2023.
+- **Causa raíz (doble)**:
+  1. El LLM anchó en DEF 14A "Mr. Mihaylo was appointed CEO in 2008" (historical language) e ignoró el label "Director" del Form 4. El system prompt no tenía regla explícita sobre cuál fuente es autoritativa para el rol *actual*.
+  2. El management agent no recibía eventos 5.02 (leadership transitions). El nombramiento de Korn como CEO estaba en un 8-K Item 5.02 pero ese filing solo llegaba al value_expert como resumen de 200 chars — demasiado tarde y demasiado truncado.
+- **Efecto colateral**: el CEO real (Korn, $253K vendidos) tenía señal más relevante que fue ignorada; la venta de Mihaylo (0.22% de su posición = ruido estadístico) fue amplificada.
+- **Fix**:
+  1. Regla explícita en `_SYSTEM_PROMPT` de `management.py`: Form 4 position label es autoritativo para el rol actual; DEF 14A historical appointments pueden describir roles pasados.
+  2. `management_agent()` ahora fetchea `EdgarEventsAdapter.fetch_8k_events(ticker, items=["5.02"], months=12)` y lo inyecta como SOURCE 6 en el prompt. Es la fuente primaria SEC para CEO/CFO/COO transitions recientes.
+- **Aplicabilidad**: cualquier empresa donde ha habido un cambio de CEO en los últimos ~3 años. Especialmente relevante cuando el ex-CEO sigue siendo major shareholder (common en founder-led companies que contratan un operador externo).
+- **Commit**: pendiente
+
+### EC-53 — M&A post-10-K ignorado por el sistema: adquisición de $35M no analizada en §4/§5/§6 (CXDO)
+- **Síntoma**: CXDO adquirió Estech Systems (ESI) por $35M en marzo 2026 — la mayor adquisición de su historia. El informe no menciona ESI en ninguna sección, presenta deuda $228K como "conservatively positioned" (ignorando que se consumió ~$27.3M de cash post-10-K), y el Q1 +29% revenue se interpreta como crecimiento orgánico (era mayormente inorgánico — ESI aportó ~$2.5M de 1 mes de revenue).
+- **Causa raíz (triple)**:
+  1. El Item 1.01 del 8-K de la adquisición llegaba al value_expert truncado a 200 chars — insuficiente para conocer términos del deal.
+  2. No había ninguna Rule en el value_expert system prompt para Item 1.01 M&A (las Rules existentes cubrían Item 4.02 restatements y Item 2.02 earnings). El LLM no tenía instrucción de "cuando hay M&A post-10-K, el balance sheet es stale".
+  3. El sistema tiene mecanismo de staleness para earnings (>90 días desde 10-K) pero no para cambios estructurales de capital post-10-K.
+- **Fix**:
+  1. En `value_expert.py` `_format_context()`: detección de Item 1.01 con M&A keywords (`"purchase agreement"`, `"acquisition"`, `"merger agreement"`, etc.). Cuando detectado: bloque `## POST-10-K ACQUISITION DETECTED` con texto completo (800 chars) + ⚠️ balance sheet staleness warning. Patrón auto-flag del proyecto.
+  2. Rule #18 en `_SYSTEM_PROMPT` del value_expert: cuando el bloque está presente, §4 MUST flag balance sheet stale, §5 MUST distinguir orgánico/inorgánico, §6 MUST cavetar EV multiples, §9 MUST nominar pending 10-Q como evento resolutor.
+- **Aplicabilidad sistemática**: cualquier empresa que haya hecho una adquisición material entre el 10-K y la fecha del análisis. Especialmente crítico para small/mid caps con M&A frecuente donde el 10-K puede tener 3-6 meses de antigüedad.
+- **Commit**: pendiente
+
 ### EC-13 — DCF N/A cuando FCF es negativo pero EBIT es positivo (empresas en inversión) — RESUELTO
 - **Síntoma original**: empresas con EBIT positivo pero FCF negativo (cyclical trough o heavy reinvestment) producían DCF N/A y reverse DCF "not provided". Reactivado por MOS FY2025 (FCF -$535M, EBIT $822M) — el report decía explícitamente "I cannot state the exact reverse-DCF implied growth number because it was not provided".
 - **Causa**: `valuation_agent` requería `base_fcf > 0` para todo el flujo (DCF, reverse DCF, sensitivity table). Sin fallback.

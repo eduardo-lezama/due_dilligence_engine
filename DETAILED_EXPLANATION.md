@@ -3505,3 +3505,60 @@ Se añadió `temperature: float = 0.2` como parámetro con default en `LLMClient
 
 *Última actualización: 2026-05-16 — EC-52 (CEO role confusion) + EC-53 (M&A blindspot) + temperature=0.2. 289 tests, verde.*
 
+---
+
+## MCE-25 — Test fixtures multi-arquetipo (2026-05-16)
+
+### El problema que resuelve
+
+Hasta ahora el único fixture real de EDGAR era `aapl_xbrl_raw.json`. Cada vez que un bug surgía de una asunción AAPL-centric, lo "arreglábamos" mutando ese fixture en el test — cambiando equity a -$50B o vaciando `operating_income`. Funciona, pero simula la *forma* del problema, no datos reales.
+
+El patrón se repitió 6 veces: EC-14 (BBW, FCF en millones → `$0.0B`), EC-18 (AZO, equity negativo por buybacks), EC-21 (BBW, sin `OperatingIncomeLoss` en XBRL), EC-34 (CRD.A, `shares_outstanding` None)... Cada empresa nueva revelaba un bug nuevo porque los tests no cubrían su clase estructural.
+
+MCE-25 convierte ese ciclo reactivo en coverage proactivo.
+
+### Los 4 arquetipos y qué prueba cada uno
+
+| Ticker | Arquetipo | Bug histórico asociado |
+|--------|-----------|------------------------|
+| AAPL | Large cap ideal | Baseline — todos los paths felices |
+| BBW | Small cap, revenue en millones | EC-14: `fmt_usd` producía `$0.0B` para FCF real de $39M |
+| AZO | Buyback-heavy, equity = -$3.4B | EC-18: IC fórmula primaria degenerada → fallback `assets-cash` |
+| PRDO | Asset-light, capex ausente en XBRL | FCF parser con `capex=None` sin NaN ni crash |
+
+### Cómo funciona el fixture parametrizado
+
+En pytest, `@pytest.fixture(params=[...])` hace que cualquier test que declare ese fixture se ejecute automáticamente una vez por cada valor. En `conftest.py`:
+
+```python
+@pytest.fixture(params=["aapl", "bbw", "azo", "prdo"], ids=["aapl", "bbw", "azo", "prdo"])
+def archetype_raw(request):
+    fixture_file = _FIXTURES_DIR / f"{request.param}_xbrl_raw.json"
+    return json.loads(fixture_file.read_text())
+```
+
+Un test como `def test_revenue_not_empty(archetype_raw)` genera 4 casos:
+```
+test_revenue_not_empty[aapl] PASSED
+test_revenue_not_empty[bbw]  PASSED
+test_revenue_not_empty[azo]  PASSED
+test_revenue_not_empty[prdo] PASSED
+```
+
+### Los 5 tests críticos
+
+1. **Smoke** — el parser no lanza excepción para ningún arquetipo.
+2. **Revenue not empty** — si revenue está vacío, el LLM recibe contexto vacío y alucina.
+3. **FCF no `$0.0B`** — EC-14. BBW con FCF $39M debe mostrar `$39M`, no `$0.0B`.
+4. **IC never None** — EC-18. AZO equity=-$3.4B activa el fallback `total_assets - cash`.
+5. **ROIC graceful** — EC-21. Si no hay EBIT, `roic_series=[]` es aceptable; crash no.
+
+### Cómo añadir un arquetipo nuevo
+
+1. Añadir ticker a `ARCHETYPES` en `scripts/fetch_archetype_fixtures.py`
+2. `uv run python scripts/fetch_archetype_fixtures.py`
+3. Añadir ticker a `_ARCHETYPE_TICKERS` en `tests/conftest.py`
+4. Los 5 tests existentes corren automáticamente — sin tocar `test_edgar_archetypes.py`
+
+*309 tests, verde.*
+

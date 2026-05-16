@@ -165,18 +165,14 @@ Sección `## DETECTED FLAGS` añadida al `_build_critic_prompt`. 5 tests en `tes
 - **Estimación remaining**: ~4-6h (extender a 4 quarters, calcular deltas QoQ, flag compression)
 - **Prioridad**: baja — nice-to-have, no blocker
 
-### MCE-25 — Test fixtures multi-arquetipo (large cap + small cap + buyback-heavy + drawdown)
-- **Trigger**: cuando se introduzca un fix más cuyo origen sea "diseño centrado en AAPL ideal"
-- **Problema detectado**: pattern recurrente — el sistema se diseñó/testeó contra AAPL-like (large cap, equity grande, news flow constante). Falla en small caps, buyback-heavy, drawdown stocks. Ya hemos visto esto en EC-14, EC-15, EC-16, EC-18, EC-19, EC-20.
-- **Solución propuesta**: añadir fixtures cacheadas a `tests/fixtures/` para 4 arquetipos:
-  - **Large cap normal**: AAPL (ya existe)
-  - **Small cap rentable**: BBW
-  - **Buyback-heavy con equity bajo/negativo**: AZO o DPZ (test de ROIC fallback)
-  - **Stock en drawdown**: cualquier ticker con price_52w_low / price_52w_high < 0.5
-  - **Asset-light services**: PRDO o similar (test de zero capex)
-- **Acción**: cada nuevo bug debe validarse contra los 4 arquetipos antes de declarar el fix completo. Esto convierte la búsqueda manual de bugs duplicados (que falló en EC-17) en regression test estructurado.
-- **Estimación**: ~4-6h (fetchear fixtures + reescribir tests críticos para parametrizarse sobre arquetipos)
-- **Prioridad**: alta — meta-pattern fix, previene categorías enteras de regresiones
+### MCE-25 — Test fixtures multi-arquetipo (large cap + small cap + buyback-heavy + drawdown) — RESUELTO 2026-05-16
+- **Arquetipos implementados**: AAPL (baseline), BBW (small cap), AZO (buyback-heavy equity negativo), PRDO (asset-light capex ausente).
+- **Fixtures**: `tests/fixtures/{aapl,bbw,azo,prdo}_xbrl_raw.json`
+- **Tests**: `tests/test_edgar_archetypes.py` — 5 critical-path tests × 4 arquetipos = 20 tests.
+  - Smoke (parse_financials no crash), revenue not empty, FCF no $0.0B (EC-14), IC never None (EC-18), ROIC graceful (EC-21).
+- **Fixture fetch**: `scripts/fetch_archetype_fixtures.py` — script one-shot para añadir arquetipos nuevos.
+- **Para añadir un arquetipo futuro**: añadir ticker a `ARCHETYPES` en el script + a `_ARCHETYPE_TICKERS` en `conftest.py`. Los 5 tests corren automáticamente.
+- **Commits**: `47f4688` (fixtures + script), siguiente commit (conftest + tests).
 
 ### MCE-26 — Auditoría sistemática post-fix — RESUELTO 2026-05-10
 Sección "Cuando se arregla un bug — auditoría sistemática post-fix" añadida al `CLAUDE.md` raíz. Regla obligatoria de 4 pasos: identificar patrón → grep `src/` completo → arreglar/documentar cada ocurrencia → declarar fix completo. Previene regresiones tipo EC-14→EC-17.

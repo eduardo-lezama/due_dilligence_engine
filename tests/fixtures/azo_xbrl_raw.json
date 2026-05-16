@@ -1,0 +1,203 @@
+{
+  "ticker": "AZO",
+  "cik": "0000866787",
+  "as_of_date": "2025-08-30",
+  "source_filing": "10-K FY2025",
+  "annual": {
+    "revenue": [
+      {
+        "value": 18938717000.0,
+        "period": "FY2025"
+      },
+      {
+        "value": 18490268000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 17457209000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 16252230000.0,
+        "period": "FY2022"
+      }
+    ],
+    "gross_profit": [
+      {
+        "value": 9966474000.0,
+        "period": "FY2025"
+      },
+      {
+        "value": 9817052000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 9070422000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 8472650000.0,
+        "period": "FY2022"
+      }
+    ],
+    "operating_income": [
+      {
+        "value": 3610156000.0,
+        "period": "FY2025"
+      },
+      {
+        "value": 3788708000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 3473986000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 3270729000.0,
+        "period": "FY2022"
+      }
+    ],
+    "net_income": [
+      {
+        "value": 2498247000.0,
+        "period": "FY2025"
+      },
+      {
+        "value": 2662427000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 2528426000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 2429604000.0,
+        "period": "FY2022"
+      }
+    ],
+    "operating_cash_flow": [
+      {
+        "value": 3117337000.0,
+        "period": "FY2025"
+      },
+      {
+        "value": 3004116000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 2940788000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 3211135000.0,
+        "period": "FY2022"
+      }
+    ],
+    "capex": [
+      {
+        "value": 1327257000.0,
+        "period": "FY2025"
+      },
+      {
+        "value": 1072696000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 796657000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 672391000.0,
+        "period": "FY2022"
+      }
+    ],
+    "income_tax": [
+      {
+        "value": 636085000.0,
+        "period": "FY2025"
+      },
+      {
+        "value": 674703000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 639188000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 649487000.0,
+        "period": "FY2022"
+      }
+    ],
+    "pretax_income": [
+      {
+        "value": 3134332000.0,
+        "period": "FY2025"
+      },
+      {
+        "value": 3337130000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 3167614000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 3079091000.0,
+        "period": "FY2022"
+      }
+    ],
+    "buybacks": [
+      {
+        "value": 1578186000.0,
+        "period": "FY2025"
+      },
+      {
+        "value": 3140917000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 3699552000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 4359991000.0,
+        "period": "FY2022"
+      }
+    ],
+    "dividends": []
+  },
+  "balance_sheet": {
+    "total_assets": {
+      "value": 19355324000.0,
+      "period": "FY2025"
+    },
+    "long_term_debt": {
+      "value": 8799775000.0,
+      "period": "FY2025"
+    },
+    "short_term_debt": {
+      "value": 0.0,
+      "period": "FY2025"
+    },
+    "cash_and_equivalents": {
+      "value": 271803000.0,
+      "period": "FY2025"
+    },
+    "short_term_investments": {
+      "value": 0.0,
+      "period": "FY2025"
+    },
+    "stockholders_equity": {
+      "value": -3414313000.0,
+      "period": "FY2025"
+    }
+  },
+  "shares": {
+    "shares_outstanding": {
+      "value": 16476820.0,
+      "period": "FY2025"
+    }
+  }
+}

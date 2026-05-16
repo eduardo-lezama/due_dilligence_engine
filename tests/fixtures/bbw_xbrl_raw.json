@@ -1,0 +1,220 @@
+{
+  "ticker": "BBW",
+  "cik": "0001113809",
+  "as_of_date": "2026-01-31",
+  "source_filing": "10-K FY2026",
+  "annual": {
+    "revenue": [
+      {
+        "value": 529832000.0,
+        "period": "FY2026"
+      },
+      {
+        "value": 486114000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 467937000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 411522000.0,
+        "period": "FY2022"
+      }
+    ],
+    "gross_profit": [
+      {
+        "value": 295629000.0,
+        "period": "FY2026"
+      },
+      {
+        "value": 264392000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 245872000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 217955000.0,
+        "period": "FY2022"
+      }
+    ],
+    "operating_income": [
+      {
+        "value": 66426000.0,
+        "period": "FY2026"
+      },
+      {
+        "value": 65400000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 61943000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 50705000.0,
+        "period": "FY2022"
+      }
+    ],
+    "net_income": [
+      {
+        "value": 52203000.0,
+        "period": "FY2026"
+      },
+      {
+        "value": 52805000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 47985000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 47265000.0,
+        "period": "FY2022"
+      }
+    ],
+    "operating_cash_flow": [
+      {
+        "value": 65052000.0,
+        "period": "FY2026"
+      },
+      {
+        "value": 64310000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 47276000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 28077000.0,
+        "period": "FY2022"
+      }
+    ],
+    "capex": [
+      {
+        "value": 25545000.0,
+        "period": "FY2026"
+      },
+      {
+        "value": 18295000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 13634000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 8130000.0,
+        "period": "FY2022"
+      }
+    ],
+    "income_tax": [
+      {
+        "value": 15024000.0,
+        "period": "FY2026"
+      },
+      {
+        "value": 13524000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 13939000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 3445000.0,
+        "period": "FY2022"
+      }
+    ],
+    "pretax_income": [
+      {
+        "value": 67227000.0,
+        "period": "FY2026"
+      },
+      {
+        "value": 66329000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 61924000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 50710000.0,
+        "period": "FY2022"
+      }
+    ],
+    "buybacks": [
+      {
+        "value": 27735000.0,
+        "period": "FY2026"
+      },
+      {
+        "value": 20500000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 24172000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 4358000.0,
+        "period": "FY2022"
+      }
+    ],
+    "dividends": [
+      {
+        "value": 11533000.0,
+        "period": "FY2026"
+      },
+      {
+        "value": 22062000.0,
+        "period": "FY2024"
+      },
+      {
+        "value": 292000.0,
+        "period": "FY2023"
+      },
+      {
+        "value": 19933000.0,
+        "period": "FY2022"
+      }
+    ]
+  },
+  "balance_sheet": {
+    "total_assets": {
+      "value": 345453000.0,
+      "period": "FY2026"
+    },
+    "long_term_debt": {
+      "value": 0.0,
+      "period": "FY2026"
+    },
+    "short_term_debt": {
+      "value": 0.0,
+      "period": "FY2026"
+    },
+    "cash_and_equivalents": {
+      "value": 26755000.0,
+      "period": "FY2026"
+    },
+    "short_term_investments": {
+      "value": 0.0,
+      "period": "FY2026"
+    },
+    "stockholders_equity": {
+      "value": 155028000.0,
+      "period": "FY2026"
+    }
+  },
+  "shares": {
+    "shares_outstanding": {
+      "value": 12580479.0,
+      "period": "FY2026"
+    }
+  }
+}

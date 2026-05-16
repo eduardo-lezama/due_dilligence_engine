@@ -64,7 +64,13 @@ Estos son principios arquitectónicos. Violarlos requiere discusión explícita 
 
 **Verificar contra DATOS REALES, no solo código**: cuando se añade o expande extracción de datos externos (XBRL, APIs, parsers), correr una vez contra una fixture viva y verificar el formato real de los outputs. EC-30 (8-K filter `"Item 8.01" vs "8.01"`) demostró que la lógica era correcta sintácticamente pero el formato real difería del asumido — silent format mismatch. Una verificación de 30 segundos con datos reales habría detectado el bug en su origen en lugar de 5 iteraciones después.
 
-**Adicionalmente**: cuando el bug tiene causa raíz "el sistema asume X-like" (e.g. "AAPL-like: large cap, equity grande"), validar el fix contra los 4 arquetipos de fixtures (cuando MCE-25 esté implementado): large cap normal, small cap rentable, buyback-heavy, asset-light services.
+**Adicionalmente (MCE-25 — IMPLEMENTADO)**: cuando el bug tiene causa raíz "el sistema asume X-like" (e.g. "AAPL-like: large cap, equity grande"), correr los tests de arquetipos antes de declarar el fix completo:
+
+```powershell
+uv run pytest tests/test_edgar_archetypes.py -v
+```
+
+Los 4 arquetipos son AAPL (large cap), BBW (small cap), AZO (buyback-heavy / equity negativo), PRDO (asset-light / capex ausente). Si el fix solo pasa en AAPL y falla en otro arquetipo, el fix está incompleto. Para añadir un arquetipo nuevo: `scripts/fetch_archetype_fixtures.py` + `_ARCHETYPE_TICKERS` en `tests/conftest.py`.
 
 ---
 

@@ -143,8 +143,12 @@ class ValuationInput(CheckpointInput):
     """Input extendido para Checkpoint 2 — assumptions de valuation."""
     wacc_pct: float = 9.0  # Weighted Average Cost of Capital
     terminal_growth_pct: float = 2.5  # Growth rate terminal
-    projection_years: int = 10  # Años de proyección DCF
-    revenue_growth_yr1_pct: Optional[float] = None  # Growth revenue año 1
+    projection_years: int = 10  # Años de proyección DCF (stage1 + fade combinados)
+    # 3-stage DCF: stage1_years a g1 constante, luego fade lineal a terminal (ADR-029).
+    # None → auto-split 50/50 (e.g. 10y → 5+5, 5y → 2+3). Override en Checkpoint 2.
+    stage1_years: Optional[int] = None   # None = projection_years // 2
+    fade_years: Optional[int] = None     # None = projection_years - stage1_years
+    revenue_growth_yr1_pct: Optional[float] = None  # Override de g1 (user sabe lo que hace)
     margin_assumption_pct: Optional[float] = None  # Margen operativo asumido
 
 
@@ -167,6 +171,19 @@ class ValuationReport(BaseModel):
     dcf_reliability_note: Optional[str] = None          # Warning cuando el DCF puede ser poco fiable
     near_term_growth_used_pct: Optional[float] = None   # Tasa de crecimiento FCF efectivamente usada en el DCF (e.g. 0.123 = 12.3%)
     near_term_growth_source: Optional[str] = None       # Procedencia: "user_override" | "fcf_cagr_Ny" | "fcf_cagr_Ny_rev_capped" | "revenue_cagr_fallback" | "default_7pct"
+    # --- 3-stage DCF (ADR-029) ---
+    stage1_years_used: Optional[int] = None             # Años con g1 constante
+    fade_years_used: Optional[int] = None               # Años de fade lineal g1→terminal
+    # --- EPV — Earnings Power Value (Greenwald) ---
+    epv_enterprise: Optional[MetricValue] = None        # NOPAT_mediana / WACC (enterprise value sin deuda)
+    epv_per_share: Optional[MetricValue] = None         # (EPV_enterprise - net_debt) / shares
+    epv_upside_pct: Optional[float] = None              # (EPV_enterprise - market_cap) / market_cap × 100
+    epv_source: Optional[str] = None                   # "ebit_median_5y" | "ebit_median_3y" | "ebit_latest"
+    # --- WACC advisory (ADR-029) ---
+    suggested_wacc_pct: Optional[float] = None          # CAPM simplificado (β=1, Rf hardcoded)
+    suggested_wacc_breakdown: Optional[str] = None      # "Rf=4.2% + β=1.0×ERP=5.0% + size_premium=0.5%"
+    # --- Convergence signaling (ADR-030) ---
+    valuation_methods_summary: list[dict] = Field(default_factory=list)  # 4 métodos con clasificación cheap/fair/expensive
 
 
 class ValueExpertReport(BaseModel):

@@ -195,13 +195,46 @@ def _ask_dcf_assumptions(state: dict) -> dict:
         except ValueError:
             return default
 
+    # WACC advisory antes del prompt (ADR-029)
+    market_cap_val: Optional[float] = None
+    market = state.get("market")
+    if market and market.market_cap:
+        market_cap_val = market.market_cap.value
+    from due_diligence.agents.valuation import _compute_suggested_wacc, _compute_near_term_growth, _resolve_stages
+    sugg_wacc, wacc_breakdown = _compute_suggested_wacc(market_cap=market_cap_val)
+    console.print(
+        f"\n[dim]  Suggested WACC: [bold]{sugg_wacc:.1f}%[/bold] ({wacc_breakdown})[/dim]"
+    )
+    console.print(
+        "[dim]  Note: β=1.0 is a simplification — override manually if you have a better estimate.[/dim]"
+    )
+
     wacc = _ask_float("  WACC % (e.g. 9.0)", 9.0)
     terminal = _ask_float("  Terminal growth % (e.g. 2.5)", 2.5)
     years = _ask_int("  Projection years (e.g. 10)", 10)
 
+    # 3-stage split: mostrar el split automático y permitir override (ADR-029)
+    auto_s1, auto_fd = _resolve_stages(years, None, None)
+    console.print(
+        f"\n[dim]  3-stage DCF split (auto): [bold]{auto_s1}y[/bold] constant growth "
+        f"+ [bold]{auto_fd}y[/bold] fade to terminal.[/dim]"
+    )
+    console.print(
+        "[dim]  To override, enter 'S1,FADE' (e.g. '3,4'). Press Enter to accept auto split.[/dim]"
+    )
+    stage_input = typer.prompt("  Stage split (Enter for auto)", default="auto")
+    stage1_override: Optional[int] = None
+    fade_override: Optional[int] = None
+    if stage_input.strip().lower() != "auto":
+        try:
+            parts = stage_input.split(",")
+            stage1_override = int(parts[0].strip())
+            fade_override = int(parts[1].strip()) if len(parts) > 1 else years - stage1_override
+        except (ValueError, IndexError):
+            console.print("[yellow]  ⚠ Invalid split format — using auto split.[/yellow]")
+
     # EC-54: pre-computar el valor auto y mostrarlo ANTES del prompt de override.
     # El usuario debe saber qué está overrideando antes de decidir si lo hace.
-    from due_diligence.agents.valuation import _compute_near_term_growth
     auto_growth, auto_source = _compute_near_term_growth(
         financials=state.get("financials"),
         revenue_cagr=state.get("historical_cagr_5y"),
@@ -213,10 +246,11 @@ def _ask_dcf_assumptions(state: dict) -> dict:
     }
     source_desc = _SOURCE_LABELS.get(auto_source, auto_source.replace("_", " "))
     console.print(
-        f"\n[dim]  Auto near-term growth: [bold]{auto_growth:.1%}[/bold] ({source_desc})[/dim]"
+        f"\n[dim]  Auto near-term growth (g1): [bold]{auto_growth:.1%}[/bold] ({source_desc})[/dim]"
     )
     console.print(
-        f"[dim]  Applied annually for {years} years (single-rate two-stage DCF).[/dim]"
+        f"[dim]  Applied for {auto_s1 if stage1_override is None else stage1_override}y, "
+        f"then fades linearly to terminal growth.[/dim]"
     )
     if "rev_capped" in auto_source:
         console.print(
@@ -245,6 +279,10 @@ def _ask_dcf_assumptions(state: dict) -> dict:
         "terminal_growth_pct": terminal,
         "projection_years": years,
     }
+    if stage1_override is not None:
+        result["stage1_years"] = stage1_override
+    if fade_override is not None:
+        result["fade_years"] = fade_override
     if growth is not None:
         result["revenue_growth_yr1_pct"] = growth
 
@@ -275,6 +313,12 @@ def _show_valuation(state: dict) -> None:
         table.add_row("P/E", f"{valuation.pe_multiple.value:.1f}x")
     if valuation.earnings_yield_pct is not None:
         table.add_row("Earnings yield (EBIT/EV)", f"{valuation.earnings_yield_pct:.1f}%")
+    if valuation.epv_upside_pct is not None:
+        epv_color = "green" if valuation.epv_upside_pct > 0 else "red"
+        table.add_row(
+            "EPV upside (zero-growth floor)",
+            f"[{epv_color}]{valuation.epv_upside_pct:+.1f}%[/{epv_color}]",
+        )
     console.print(table)
 
     if valuation.dcf_reliability_note:
@@ -282,8 +326,11 @@ def _show_valuation(state: dict) -> None:
 
     if valuation.assumptions:
         a = valuation.assumptions
+        stage_str = ""
+        if valuation.stage1_years_used is not None and valuation.fade_years_used is not None:
+            stage_str = f" · {valuation.stage1_years_used}y+{valuation.fade_years_used}y fade"
         console.print(
-            f"[dim]  DCF: WACC={a.wacc_pct}%, terminal={a.terminal_growth_pct}%, {a.projection_years}y[/dim]"
+            f"[dim]  DCF: WACC={a.wacc_pct}%, terminal={a.terminal_growth_pct}%, {a.projection_years}y{stage_str}[/dim]"
         )
 
 
@@ -338,6 +385,19 @@ def _show_verdict(state: dict) -> None:
                     "[dim]N/A[/dim]",
                     "[dim]FCF negativo — DCF no computable[/dim]",
                 )
+            # EPV per share — piso de valor sin crecimiento (Greenwald, ADR-029)
+            if valuation.epv_per_share is not None:
+                epv_delta = ""
+                if price_mv is not None and price_mv.value > 0:
+                    epv_pct = (valuation.epv_per_share.value - price_mv.value) / price_mv.value * 100
+                    epv_color = "green" if epv_pct > 0 else "red"
+                    epv_delta = f"[{epv_color}]{epv_pct:+.1f}% vs market[/{epv_color}]"
+                src = valuation.epv_source or "EBIT median"
+                ps_table.add_row(
+                    f"EPV *(zero-growth, {src})*",
+                    f"${valuation.epv_per_share.value:.2f}",
+                    epv_delta,
+                )
 
             # Equity value total para contexto
             if valuation.dcf_intrinsic_value:
@@ -371,14 +431,45 @@ def _show_verdict(state: dict) -> None:
             mult_table.add_row("P/E", f"{valuation.pe_multiple.value:.1f}x")
         if valuation.earnings_yield_pct is not None:
             mult_table.add_row("Earnings yield (EBIT/EV)", f"{valuation.earnings_yield_pct:.1f}%")
+        if valuation.magic_formula_rank is not None:
+            _pvs = state.get("peer_valuations") or []
+            _total = len([pv for pv in _pvs if pv.mf_rank is not None]) + 1
+            mult_table.add_row("Magic Formula rank", f"#{valuation.magic_formula_rank} of {_total}")
         if valuation.assumptions:
             a = valuation.assumptions
+            _stage_str = ""
+            if valuation.stage1_years_used is not None and valuation.fade_years_used is not None:
+                _stage_str = f" · {valuation.stage1_years_used}y+{valuation.fade_years_used}y fade"
             mult_table.add_row(
                 "[dim]DCF assumptions[/dim]",
-                f"[dim]WACC {a.wacc_pct}% / g={a.terminal_growth_pct}% / {a.projection_years}y[/dim]",
+                f"[dim]WACC {a.wacc_pct}% / g={a.terminal_growth_pct}% / {a.projection_years}y{_stage_str}[/dim]",
             )
+            if valuation.suggested_wacc_pct is not None:
+                mult_table.add_row(
+                    "[dim]WACC advisory[/dim]",
+                    f"[dim]{valuation.suggested_wacc_pct:.1f}% ({valuation.suggested_wacc_breakdown})[/dim]",
+                )
         if mult_table.row_count:
             console.print(mult_table)
+        # Convergence table (ADR-030)
+        if valuation.valuation_methods_summary:
+            conv_table = Table(title="Valuation Methods Convergence", box=box.SIMPLE_HEAVY)
+            conv_table.add_column("Method", style="bold")
+            conv_table.add_column("Signal", justify="right")
+            conv_table.add_column("", justify="center")
+            _cls_map = {
+                "cheap": "[green]cheap[/green]",
+                "expensive": "[red]expensive[/red]",
+                "fair": "[yellow]fair[/yellow]",
+                "n/a": "[dim]n/a[/dim]",
+            }
+            for _row in valuation.valuation_methods_summary:
+                _cls = _cls_map.get(_row["classification"], _row["classification"])
+                conv_table.add_row(_row["method"], _row.get("display_upside", "—"), _cls)
+            console.print(conv_table)
+            _cheap_n = sum(1 for r in valuation.valuation_methods_summary if r["classification"] == "cheap")
+            _total_n = len(valuation.valuation_methods_summary)
+            console.print(f"[dim]  Convergence: {_cheap_n}/{_total_n} cheap[/dim]")
 
     # Secciones del Expert
     sections = [
@@ -440,6 +531,37 @@ def _show_peer_comparison(state: dict) -> None:
 
     console.print(table)
     console.print()
+
+    # Peer EV/EBIT multiples table (MCE-18) — segunda tabla si hay datos de valoración
+    peer_valuations_list = state.get("peer_valuations") or []
+    has_multiples = any(pv.ev_ebit is not None or pv.fcf_yield_pct is not None for pv in peer_valuations_list)
+    if has_multiples:
+        valuation_state = state.get("valuation")
+        mult_t = Table(title="Peer Comparison — Multiples", box=box.SIMPLE_HEAVY)
+        mult_t.add_column("Ticker", style="bold")
+        mult_t.add_column("EV/EBIT", justify="right")
+        mult_t.add_column("FCF Yield", justify="right")
+        mult_t.add_column("MF Rank", justify="right")
+        # Fila del subject
+        subj_ev = (
+            f"[bold cyan]{valuation_state.ev_ebit_multiple.value:.1f}x[/bold cyan]"
+            if (valuation_state and valuation_state.ev_ebit_multiple) else "[dim]N/A[/dim]"
+        )
+        subj_mf = (
+            f"[bold cyan]#{valuation_state.magic_formula_rank}[/bold cyan]"
+            if (valuation_state and valuation_state.magic_formula_rank is not None) else "—"
+        )
+        mult_t.add_row(f"[cyan]{ticker}[/cyan]", subj_ev, "—", subj_mf)
+        for pv in peer_valuations_list:
+            if pv.no_market_data:
+                mult_t.add_row(pv.ticker, "[dim]no data[/dim]", "[dim]no data[/dim]", "—")
+            else:
+                ev_s = f"{pv.ev_ebit:.1f}x" if pv.ev_ebit is not None else "[dim]N/A (EBIT≤0)[/dim]"
+                fcf_s = f"{pv.fcf_yield_pct:.1f}%" if pv.fcf_yield_pct is not None else "[dim]N/A (FCF<0)[/dim]"
+                rank_s = f"#{pv.mf_rank}" if pv.mf_rank is not None else "—"
+                mult_t.add_row(pv.ticker, ev_s, fcf_s, rank_s)
+        console.print(mult_t)
+        console.print()
 
 
 def _show_critic(state: dict) -> None:

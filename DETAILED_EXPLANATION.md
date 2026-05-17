@@ -3689,3 +3689,147 @@ El autouse reemplaza el atributo del módulo, pero la referencia capturada al ob
 | Worst case (sin transcripts + drawdown) | 14 |
 
 *327 tests, verde.*
+
+---
+
+## 2026-05-17 — DCF Realismo + EPV + WACC Advisory + Convergencia de Métodos (ADR-029, ADR-030)
+
+### Problema que resolvemos
+
+El sistema tenía un DCF funcional pero con tres debilidades estructurales:
+
+1. **Crecimiento plano**: el DCF proyectaba la misma tasa de crecimiento (`g`) durante todos los N años. Para una empresa que crece al 11% durante 10 años, el FCF se multiplica 2.5×. El modelo presentaba esto como "probable" sin cuestionar si el negocio puede mantener ese ritmo una década.
+
+2. **Sin ancla de cero crecimiento**: no había forma de responder "¿cuánto vale este negocio si no crece nada más?". Esta es la pregunta de Greenwald que separa calidad de value trap.
+
+3. **WACC opaco**: Eduardo introducía el 9% como default sin ninguna referencia objetiva. Para una empresa de $500M en el entorno de tipos actual, 9% puede estar muy lejos del coste de capital real.
+
+Y un problema derivado: aunque el sistema calculaba DCF, reverse DCF y múltiplos de peers, el Value Expert no tenía una estructura explícita para sintetizar si estos métodos coincidían. La calidad del §6 dependía de que el LLM "se acordara" de comparar los métodos.
+
+---
+
+### Mejora 1: DCF en 3 Fases con Fade de Damodaran
+
+**El concepto**: en lugar de crecer al 11% durante 10 años y luego cortar a crecimiento terminal, el modelo ahora tiene tres etapas:
+
+- **Fase 1** (años 1–5): crecimiento constante al `g1` (lo que el usuario inputs o el sistema calcula)
+- **Fase 2** (años 6–10): el crecimiento *desacelera linealmente* desde `g1` hasta `terminal_growth`
+- **Fase 3**: perpetuidad al `terminal_growth` (igual que antes)
+
+**Por qué esto importa**: una empresa que hoy crece al 11% casi nunca seguirá creciendo al 11% en el año 10. El TAM se satura, la competencia entra, los ciclos actúan. El fade de Damodaran es la forma académicamente aceptada de modelar esta convergencia.
+
+**Efecto en los números**: para un DCF a 10 años al 11%, el modelo 3-fases produce un valor ~35–40% menor que el modelo plano. Esto no es ser pesimista — es ser realista. El modelo plano era el que sobrevaloraba sistemáticamente.
+
+**Compatibilidad hacia atrás**: `_two_stage_dcf` sigue existiendo como wrapper que llama `_three_stage_dcf(fade_years=0)`. Los 53 tests existentes de valoración pasan sin cambios.
+
+**En código**:
+```python
+def _three_stage_dcf(base_fcf, g1, terminal_growth, wacc, stage1_years, fade_years=0):
+    # Stage 1: g1 constante
+    for yr in range(1, stage1_years + 1):
+        pv += base_fcf * (1 + g1) ** yr / (1 + wacc) ** yr
+
+    # Stage 2: fade lineal de g1 → terminal_growth
+    for step in range(1, fade_years + 1):
+        g_step = g1 + (terminal_growth - g1) * step / fade_years
+        ...
+
+    # Stage 3: perpetuidad (Gordon Growth Model)
+    terminal_value = fcf_terminal * (1 + terminal_growth) / (wacc - terminal_growth)
+```
+
+**Split por defecto**: 50/50. Para 10 años: 5+5. Para 5 años: 2+3. El usuario puede overridearlo en el CLI con formato "S1,FADE" (por ejemplo "4,6").
+
+---
+
+### Mejora 2: EPV como Ancla de Cero Crecimiento (Greenwald)
+
+**El concepto**: Bruce Greenwald (Value Investing, Columbia) define EPV como el valor de los earnings actuales *sin crecimiento futuro*:
+
+```
+EPV_enterprise = NOPAT_normalizado / WACC
+EPV_equity     = EPV_enterprise − net_debt
+EPV_per_share  = EPV_equity / shares_outstanding
+```
+
+**Por qué NOPAT normalizado (mediana 5 años)**: Greenwald insiste en usar earnings "normalizados" — suavizados sobre el ciclo de negocio, no el dato más reciente. La mediana sobre 5 años elimina picos y valles cíclicos mejor que la media aritmética. Si solo hay 3 años disponibles, se usa la mediana de 3.
+
+**Interpretación**:
+- `EPV_per_share > precio de mercado` → el negocio vale más que su precio *sin crecer nada*. Esta es la señal BUY de mayor convicción posible en el framework de valor: no dependes de que la empresa crezca para que tu tesis funcione.
+- `EPV_per_share < precio de mercado` → el mercado está pagando un *premium por crecimiento*. No es BUY sin crecimiento. La pregunta es si ese crecimiento es creíble.
+
+**Tax rate**: derivado de NI/EBIT del año más reciente (clamped a [10%, 40%]). Si NI o EBIT no son coherentes, fallback al 25% corporativo US.
+
+**En el informe**: aparece como fila adicional en la tabla "Price vs Intrinsic Value" con el % de upside respecto al precio actual.
+
+---
+
+### Mejora 3: WACC Advisory (CAPM Simplificado)
+
+**El problema**: Eduardo no es experto en finanzas. Introducir WACC sin referencia es como conducir sin GPS. El 9% por defecto puede estar 2-3pp alejado del coste de capital real.
+
+**La solución**: antes de que aparezca el prompt de WACC, el sistema muestra un valor *sugerido*:
+
+```
+WACC sugerido: 9.7% (Rf=4.2% + β×ERP=5.0% + size_premium=0.5%)
+```
+
+Fórmula:
+```
+WACC_suggested = Rf + β × ERP + size_premium
+```
+
+- `Rf = 4.2%` — Treasury yield US 10y (hardcoded, se actualiza manualmente si los tipos cambian materialmente)
+- `β = 1.0` — simplificación (sin cálculo beta por empresa); declarado explícitamente
+- `ERP = 5.0%` — Damodaran historical ERP para US equities
+- `size_premium`: large cap >$10B: 0%; mid $2-10B: 0.5%; small $300M-$2B: 1.5%; micro <$300M: 3%
+
+**Este valor es advisory, no obligatorio**. Eduardo mantiene control total del input. La idea es anclar la decisión a un punto de referencia objetivo en lugar de "9% porque es el default".
+
+---
+
+### Mejora 4: Convergencia de Métodos de Valoración
+
+**El problema**: el sistema tenía 4 señales (DCF, EPV, reverse DCF vs CAGR histórico, EV/EBIT vs peers) pero el Value Expert las recibía como números aislados. La síntesis dependía de que el LLM "conectara los puntos" por su cuenta, con calidad variable.
+
+**La solución**: cada método emite una clasificación determinista `cheap / fair / expensive`:
+
+| Método | Cheap | Fair | Expensive |
+|--------|-------|------|-----------|
+| DCF upside | ≥20% | 0–20% | <0% |
+| EPV upside | ≥10% | -10–10% | <-10% |
+| Reverse DCF vs histórico | implied < histórico×0.75 | dentro del ±25% | implied > histórico×1.25 |
+| EV/EBIT vs peers | descuento ≥25% al peer | dentro del ±25% | premium ≥25% al peer |
+
+Estas clasificaciones se construyen en Python (`_build_methods_summary`), se almacenan en `ValuationReport.valuation_methods_summary`, se archivan en el informe como tabla Markdown, y se pasan al Value Expert como bloque estructurado.
+
+**Por qué el LLM sintetiza, no el código**: "3/4 cheap = BUY" sería una regla demasiado simple. Un negocio con ROIC del 40%, moat amplio y deuda cero que aparece como "fair" en EV/EBIT porque sus peers cotizan barato por razones sectoriales merece un análisis diferente que uno con ROIC del 8% y la misma clasificación. El LLM tiene el contexto cualitativo (gestión, moat, filings) para hacer este juicio. El código solo estructura los datos.
+
+**Rule #21** en el prompt del Value Expert:
+> "En §6 VALORACIÓN, sintetiza explícitamente el bloque VALUATION METHODS CONVERGENCE. Indica qué métodos coinciden, cuáles divergen, y qué implica la divergencia. Un recuento de convergencia (ej. '3/4 cheap') debe aparecer en §6."
+
+**En el informe archivado**:
+```markdown
+### Valuation Methods Convergence
+| Method          | Per Share | Signal              | Classification |
+|-----------------|-----------|---------------------|----------------|
+| DCF (3-stage)   | $85.20    | +42% upside         | cheap          |
+| EPV (Greenwald) | $68.40    | +13% upside         | cheap          |
+| Reverse DCF     | —         | implied 7% vs 9%    | fair           |
+| EV/EBIT vs Peers| —         | 18× vs 22× peers    | cheap          |
+
+3/4 methods classify as cheap or fair.
+```
+
+---
+
+### Flujo completo en producción
+
+1. `valuation_agent()` calcula DCF 3-fases, EPV, reverse DCF, EV/EBIT, WACC advisory, y classifications
+2. `ValuationReport` almacena todos los campos nuevos con tipos Pydantic
+3. CLI muestra WACC advisory antes del prompt, y el split de fases antes del prompt de crecimiento
+4. `archiver.py` renderiza la tabla de convergencia y la fila EPV
+5. `value_expert.py` recibe el bloque de convergencia estructurado + señal de EPV > market cap si aplica
+6. Value Expert sintetiza en §6 con convergence count explícito
+
+*377 tests, verde.*

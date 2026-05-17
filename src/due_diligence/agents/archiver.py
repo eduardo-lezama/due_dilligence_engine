@@ -158,6 +158,17 @@ def _render_markdown(state: AnalysisState) -> str:
             else:
                 # DCF no computable — explicar por qué, no dejar la tabla vacía
                 lines.append("| DCF intrinsic (per share) | N/A — FCF negativo o insuficiente para DCF |")
+            # EPV per share — piso de valor sin crecimiento (Greenwald, ADR-029)
+            if valuation.epv_per_share is not None:
+                epv_upside_str = ""
+                if valuation.price_current and valuation.price_current.value > 0:
+                    epv_pct = (valuation.epv_per_share.value - valuation.price_current.value) / valuation.price_current.value * 100
+                    epv_upside_str = f" ({epv_pct:+.1f}%)"
+                src = valuation.epv_source or "EBIT median"
+                lines.append(
+                    f"| EPV per share *(zero-growth floor, {src})* "
+                    f"| ${valuation.epv_per_share.value:.2f}{epv_upside_str} |"
+                )
             lines.append("")
 
         # Métricas agregadas — orden depende de si hay contradicción (MCE-21)
@@ -208,30 +219,69 @@ def _render_markdown(state: AnalysisState) -> str:
             lines.append("")
         if valuation.assumptions:
             a = valuation.assumptions
-            # EC-54: incluir near_term_growth en el footnote — es el parámetro más sensible
-            # del DCF y debe aparecer junto a WACC y terminal growth para que el lector
-            # pueda auditar completamente el cálculo sin tener que buscar en el texto.
+            # EC-54: incluir near_term_growth en el footnote con stage split (ADR-029)
             growth_str = ""
             if valuation.near_term_growth_used_pct is not None:
                 g_pct = valuation.near_term_growth_used_pct * 100
                 src = valuation.near_term_growth_source or "auto"
-                growth_str = f", near-term growth={g_pct:.1f}% ({src})"
+                growth_str = f", g1={g_pct:.1f}% ({src})"
+            stage_str = ""
+            if valuation.stage1_years_used is not None and valuation.fade_years_used is not None:
+                stage_str = (
+                    f" × {valuation.stage1_years_used}y constant"
+                    f", then {valuation.fade_years_used}y fade to terminal"
+                )
             lines.append(
-                f"*DCF assumptions: WACC={a.wacc_pct}%{growth_str}, "
-                f"terminal={a.terminal_growth_pct}%, {a.projection_years} years*"
+                f"*DCF assumptions: WACC={a.wacc_pct}%{growth_str}{stage_str}, "
+                f"terminal={a.terminal_growth_pct}%, "
+                f"{a.projection_years}y explicit (3-stage Damodaran fade)*"
             )
+            if valuation.suggested_wacc_pct is not None:
+                lines.append(
+                    f"*Suggested WACC (advisory): {valuation.suggested_wacc_pct:.1f}% "
+                    f"— {valuation.suggested_wacc_breakdown}*"
+                )
             lines.append("")
         # Mostrar reliability note si no se mostró ya arriba (spread → showed at top).
         # Con EC-54, la nota existe siempre que se calculó DCF, no solo en error conditions.
         if valuation.dcf_reliability_note and not has_contradiction:
             lines += [f"> {valuation.dcf_reliability_note}", ""]
 
+        # --- Convergence table (ADR-030) ---
+        if valuation.valuation_methods_summary:
+            cheap_count = sum(1 for r in valuation.valuation_methods_summary if r["classification"] == "cheap")
+            expensive_count = sum(1 for r in valuation.valuation_methods_summary if r["classification"] == "expensive")
+            fair_count = sum(1 for r in valuation.valuation_methods_summary if r["classification"] == "fair")
+            na_count = sum(1 for r in valuation.valuation_methods_summary if r["classification"] == "n/a")
+            lines += ["### Valuation Methods Convergence", ""]
+            lines.append("| Method | Per Share | Signal | Classification |")
+            lines.append("|---|---|---|---|")
+            for row in valuation.valuation_methods_summary:
+                cls = row["classification"]
+                cls_fmt = f"**{cls}**" if cls in ("cheap", "expensive") else cls
+                lines.append(
+                    f"| {row['method']} | {row['per_share']} "
+                    f"| {row['display_upside']} | {cls_fmt} |"
+                )
+            summary_parts = []
+            if cheap_count:
+                summary_parts.append(f"{cheap_count} cheap")
+            if fair_count:
+                summary_parts.append(f"{fair_count} fair")
+            if expensive_count:
+                summary_parts.append(f"{expensive_count} expensive")
+            if na_count:
+                summary_parts.append(f"{na_count} n/a")
+            lines.append("")
+            lines.append(f"*Convergence: {', '.join(summary_parts)} out of {len(valuation.valuation_methods_summary)} methods.*")
+            lines.append("")
+
     # --- Sensitivity table ---
     if valuation and valuation.sensitivity_table:
-        lines += ["### DCF Sensitivity (equity value, USD B)", ""]
+        lines += ["### DCF Sensitivity — 3-stage Damodaran fade (equity value, USD B)", ""]
         header_row = valuation.sensitivity_table[0]
         wacc_labels = list(header_row["values"].keys())
-        lines.append("| Near-term growth \\ WACC | " + " | ".join(wacc_labels) + " |")
+        lines.append("| g1 (Stage 1 growth) \\ WACC | " + " | ".join(wacc_labels) + " |")
         lines.append("|---|" + "---|" * len(wacc_labels))
         for row in valuation.sensitivity_table:
             vals = " | ".join(str(v) for v in row["values"].values())

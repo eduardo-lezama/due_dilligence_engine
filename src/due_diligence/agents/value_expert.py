@@ -97,6 +97,14 @@ RULES — NON-NEGOTIABLE:
     (b) Assess whether it is credible given §5 growth analysis and the quarterly data — does historical FCF CAGR reflect a sustainable run-rate or a cyclical peak/trough?
     (c) If the source is "GENERIC FALLBACK" (default_7pct), explicitly warn the reader that the DCF upside has no empirical basis and should be treated as purely illustrative. Do NOT present a DCF upside anchored on 7% generic as a solid investment thesis.
     (d) If source is "revenue CAGR proxy", note the limitation: revenue growing ≠ FCF growing if margins are compressing. State whether this is expansionary or contractionary for FCF specifically.
+    (e) State the 3-stage split used (e.g. "5y constant growth at X%, then 5y fade to terminal Y%") so the reader understands the model structure.
+
+21. VALUATION CONVERGENCE (§6): the context provides a "## VALUATION METHODS CONVERGENCE" block with 4 methods classified as cheap/fair/expensive. You MUST:
+    (a) Count the signals and state the convergence explicitly: "3 of 4 methods signal cheap", not just describe each individually.
+    (b) If 3 or 4 methods classify as "cheap" → state that conviction is high and explain why the convergence is meaningful.
+    (c) If methods diverge (e.g. DCF cheap but EPV expensive) → adopt HOLD bias by default. Explain in §6 which method you weight most and WHY — e.g. "EPV is the more conservative anchor here because the DCF relies on a growth rate the market is not pricing."
+    (d) EPV is the zero-growth floor: if EPV > market cap (EPV upside > 0%), state explicitly that a BUY does NOT require growth assumptions to hold — the margin of safety exists in the static business alone. This is the highest-conviction BUY signal.
+    (e) Never ignore the convergence count. A sentence like "DCF shows 35% upside" with no mention of EPV or reverse DCF is an incomplete §6.
 
 VERDICT RUBRIC:
 - BUY: moat confirmed + quality management + DCF upside >20% + no material 8-K red flags + conflicting signals resolved in favor of the bull case.
@@ -447,11 +455,31 @@ def _format_context(state: AnalysisState) -> str:
             lines.append(f"P/E: {valuation.pe_multiple.value:.1f}x")
         if valuation.earnings_yield_pct is not None:
             lines.append(f"Earnings yield (EBIT/EV): {valuation.earnings_yield_pct:.1f}%")
+        if valuation.epv_per_share is not None:
+            epv_upside_str = (
+                f" ({valuation.epv_upside_pct:+.1f}% vs market cap)"
+                if valuation.epv_upside_pct is not None else ""
+            )
+            lines.append(
+                f"EPV (zero-growth floor, Greenwald): ${valuation.epv_per_share.value:.2f}/sh"
+                f"{epv_upside_str} — source: {valuation.epv_source or 'EBIT median'}"
+            )
         if valuation.assumptions is not None:
             a = valuation.assumptions
+            stage_str = ""
+            if valuation.stage1_years_used and valuation.fade_years_used is not None:
+                stage_str = (
+                    f", 3-stage: {valuation.stage1_years_used}y constant + "
+                    f"{valuation.fade_years_used}y fade"
+                )
             lines.append(
                 f"DCF assumptions: WACC={a.wacc_pct}%, terminal_growth={a.terminal_growth_pct}%, "
-                f"years={a.projection_years}"
+                f"years={a.projection_years}{stage_str}"
+            )
+        if valuation.suggested_wacc_pct is not None:
+            lines.append(
+                f"Suggested WACC (advisory): {valuation.suggested_wacc_pct:.1f}% "
+                f"— {valuation.suggested_wacc_breakdown}"
             )
 
         # Bloque DCF GROWTH ASSUMPTION (EC-54) — el parámetro más sensible del DCF debe
@@ -506,6 +534,32 @@ def _format_context(state: AnalysisState) -> str:
 
             lines.append(f"\n## DCF GROWTH ASSUMPTION (use in §6 — most sensitive DCF parameter)")
             lines.append(growth_block)
+
+        # Bloque VALUATION METHODS CONVERGENCE (ADR-030) — tabla estructurada de 4 métodos.
+        # Le da al LLM los datos categorizados para que la regla #21 del prompt pueda
+        # sintetizar convergencia sin tener que inferirla de números crudos.
+        if valuation and valuation.valuation_methods_summary:
+            cheap = [r for r in valuation.valuation_methods_summary if r["classification"] == "cheap"]
+            expensive = [r for r in valuation.valuation_methods_summary if r["classification"] == "expensive"]
+            fair = [r for r in valuation.valuation_methods_summary if r["classification"] == "fair"]
+            total = len(valuation.valuation_methods_summary)
+            lines.append("\n## VALUATION METHODS CONVERGENCE (use in §6 — read Rule #21)")
+            for row in valuation.valuation_methods_summary:
+                if row["classification"] != "n/a":
+                    lines.append(
+                        f"- {row['method']}: **{row['classification'].upper()}** | {row['display_upside']}"
+                    )
+                else:
+                    lines.append(f"- {row['method']}: n/a (insufficient data)")
+            lines.append(
+                f"\nConvergence: {len(cheap)} cheap, {len(fair)} fair, {len(expensive)} expensive "
+                f"out of {total} methods."
+            )
+            if valuation.epv_upside_pct is not None and valuation.epv_upside_pct > 0:
+                lines.append(
+                    "EPV note: EPV > market cap — the stock is potentially below zero-growth value. "
+                    "A BUY verdict here does NOT require growth assumptions to hold."
+                )
 
         lines.append("")
 

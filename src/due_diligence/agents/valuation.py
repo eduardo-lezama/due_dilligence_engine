@@ -66,6 +66,57 @@ def _fcf_cagr(fcf_series: list[MetricValue]) -> Optional[float]:
     return (newest / oldest) ** (1 / n) - 1
 
 
+def _three_stage_dcf(
+    base_fcf: float,
+    g1: float,
+    terminal_growth: float,
+    wacc: float,
+    stage1_years: int,
+    fade_years: int = 0,
+) -> float:
+    """
+    DCF en tres etapas — Damodaran fade method (ADR-029).
+
+    Stage 1 (años 1..stage1_years): crecimiento constante a g1.
+    Stage 2 (años stage1_years+1..stage1_years+fade_years): fade lineal g1 → terminal_growth.
+    Stage 3: perpetuidad a terminal_growth (Gordon Growth Model).
+
+    fade_years=0 degrada al 2-stage clásico (compatibilidad retroactiva).
+    El fade reconoce que mantener g1 durante una década completa es menos probable
+    que normalizar hacia el crecimiento de la economía tras los primeros años de ventaja.
+
+    Returns:
+        Equity value total (USD). Suma de FCFs descontados + PV del terminal value.
+    """
+    # Asegurar wacc > terminal_growth para evitar denominador negativo o infinito
+    if wacc <= terminal_growth:
+        terminal_growth = wacc - 0.005
+
+    pv = 0.0
+    fcf = base_fcf
+
+    # Stage 1: g1 constante
+    for t in range(1, stage1_years + 1):
+        fcf *= 1 + g1
+        pv += fcf / (1 + wacc) ** t
+
+    # Stage 2: fade lineal de g1 → terminal_growth
+    # g_t en fade_t-ésimo año = g1 - (g1 - terminal_growth) * fade_t / fade_years
+    for fade_t in range(1, fade_years + 1):
+        g_t = g1 - (g1 - terminal_growth) * fade_t / fade_years
+        fcf *= 1 + g_t
+        t = stage1_years + fade_t
+        pv += fcf / (1 + wacc) ** t
+
+    # Stage 3: perpetuidad a terminal_growth (Gordon Growth Model)
+    total_explicit = stage1_years + fade_years
+    terminal_fcf = fcf * (1 + terminal_growth)
+    terminal_value = terminal_fcf / (wacc - terminal_growth)
+    pv += terminal_value / (1 + wacc) ** total_explicit
+
+    return pv
+
+
 def _two_stage_dcf(
     base_fcf: float,
     near_term_growth: float,
@@ -74,28 +125,41 @@ def _two_stage_dcf(
     years: int,
 ) -> float:
     """
-    DCF en dos etapas: crecimiento near-term durante `years` años,
-    luego perpetuidad con `terminal_growth`.
+    Wrapper de compatibilidad — delega a _three_stage_dcf con fade_years=0.
 
-    Returns:
-        Equity value total (USD). Suma de FCFs descontados + PV del terminal value.
+    Mantiene la firma original para que cualquier test o código externo que llame
+    _two_stage_dcf directamente siga funcionando sin cambios.
     """
-    # Asegurar que wacc > terminal_growth para que el denominador de la perpetuidad sea positivo
-    if wacc <= terminal_growth:
-        terminal_growth = wacc - 0.005  # 0.5% de margen mínimo
+    return _three_stage_dcf(
+        base_fcf, near_term_growth, terminal_growth, wacc,
+        stage1_years=years, fade_years=0,
+    )
 
-    pv = 0.0
-    fcf = base_fcf
-    for t in range(1, years + 1):
-        fcf *= 1 + near_term_growth
-        pv += fcf / (1 + wacc) ** t
 
-    # Terminal value: Gordon Growth Model aplicado al FCF del año final
-    terminal_fcf = fcf * (1 + terminal_growth)
-    terminal_value = terminal_fcf / (wacc - terminal_growth)
-    pv += terminal_value / (1 + wacc) ** years
+def _resolve_stages(
+    projection_years: int,
+    stage1_years: Optional[int],
+    fade_years: Optional[int],
+) -> tuple[int, int]:
+    """
+    Calcula stage1_years y fade_years con defaults inteligentes (ADR-029).
 
-    return pv
+    Lógica:
+    - Si el usuario especificó ambos: usarlos directamente.
+    - Si especificó solo stage1: fade = projection_years - stage1.
+    - Si no especificó nada: split 50/50 (stage1 = projection_years // 2).
+    - Si la suma excede projection_years: recortar fade para respetar el total.
+
+    El resultado siempre cumple stage1 >= 1 y fade >= 0.
+    """
+    if stage1_years is not None and fade_years is not None:
+        return max(1, stage1_years), max(0, fade_years)
+    if stage1_years is not None:
+        s1 = max(1, stage1_years)
+        return s1, max(0, projection_years - s1)
+    # Auto 50/50: stage1 al menos 1
+    s1 = max(1, projection_years // 2)
+    return s1, projection_years - s1
 
 
 def _reverse_dcf(
@@ -104,12 +168,18 @@ def _reverse_dcf(
     terminal_growth: float,
     wacc: float,
     years: int,
+    stage1_years: Optional[int] = None,
+    fade_years: Optional[int] = None,
 ) -> Optional[float]:
     """
-    Búsqueda binaria del near-term growth que iguala el DCF al target_value.
+    Búsqueda binaria del g1 (stage 1 growth) que iguala el DCF al target_value.
 
-    Dado el market cap actual como target, responde: ¿qué crecimiento está
-    implícito en el precio? Si el FCF base es negativo o el target es 0, retorna None.
+    Dado el market cap actual como target, responde: ¿qué crecimiento implica
+    el precio actual? Usa la misma estructura 3-stage que el forward DCF para
+    que los dos valores sean comparables.
+
+    Si stage1_years/fade_years son None, usa years como stage1 y fade=0
+    (comportamiento idéntico al 2-stage original).
 
     Returns:
         Growth rate implícito (fracción, ej 0.12 = 12%) o None si no calculable.
@@ -117,10 +187,14 @@ def _reverse_dcf(
     if base_fcf <= 0 or target_value <= 0:
         return None
 
+    s1 = stage1_years if stage1_years is not None else years
+    fd = fade_years if fade_years is not None else 0
+
     lo, hi = -0.50, 2.00  # rango: -50% a +200% growth anual
-    for _ in range(60):   # 60 iteraciones da precisión de ~4 decimal places
+    for _ in range(60):   # 60 iteraciones → precisión ~4 decimal places
         mid = (lo + hi) / 2
-        val = _two_stage_dcf(base_fcf, mid, terminal_growth, wacc, years)
+        val = _three_stage_dcf(base_fcf, mid, terminal_growth, wacc,
+                                stage1_years=s1, fade_years=fd)
         if val < target_value:
             lo = mid
         else:
@@ -164,6 +238,303 @@ def _normalized_fcf_proxy(ebit: float, net_income: Optional[float]) -> Optional[
     else:
         tax_rate = 0.25  # US corporate post-TCJA mediana
     return ebit * (1 - tax_rate)
+
+
+# --- Constantes WACC advisory (ADR-029) ---
+# Rf: US 10y Treasury yield — actualizar manualmente cuando los tipos cambien significativamente.
+_RF_PCT: float = 4.2    # as of 2026-05
+_ERP_PCT: float = 5.0   # Damodaran historical ERP (US)
+_BETA_DEFAULT: float = 1.0  # simplificación: β=1, sin cálculo de β específica de empresa
+
+
+def _ebit_median(
+    ebit_series: list,  # list[MetricValue]
+    min_periods: int = 3,
+) -> tuple[Optional[float], str]:
+    """
+    Mediana del EBIT en últimos periodos para normalización EPV (ADR-029).
+
+    Greenwald usa EBIT "normalizado" (suavizado sobre el ciclo) para evitar que
+    un pico o trough cíclico distorsione el EPV. La mediana es más robusta que
+    la media ante outliers.
+
+    Jerarquía: median_5y → median_Ny (≥3) → latest.
+
+    Returns:
+        (median_ebit_usd, source_label) donde source: "ebit_median_5y",
+        "ebit_median_Ny", "ebit_latest", o (None, "unavailable").
+    """
+    if not ebit_series:
+        return None, "unavailable"
+    values = [mv.value for mv in ebit_series if mv.value is not None and mv.value > 0]
+    if not values:
+        return None, "unavailable"
+
+    if len(values) >= 5:
+        subset = values[:5]
+        label = "ebit_median_5y"
+    elif len(values) >= min_periods:
+        subset = values[:len(values)]
+        label = f"ebit_median_{len(values)}y"
+    else:
+        subset = values[:1]
+        label = "ebit_latest"
+
+    sorted_vals = sorted(subset)
+    n = len(sorted_vals)
+    med = sorted_vals[n // 2] if n % 2 == 1 else (sorted_vals[n // 2 - 1] + sorted_vals[n // 2]) / 2
+    return med, label
+
+
+def _compute_epv(
+    ebit_series: list,  # list[MetricValue]
+    net_income_latest: Optional[float],
+    wacc: float,
+    net_debt: float,
+    shares: Optional[float],
+    market_cap: Optional[float],
+) -> tuple:  # (Optional[MetricValue], Optional[MetricValue], Optional[float], Optional[str])
+    """
+    Earnings Power Value — Greenwald (ADR-029).
+
+    EPV_enterprise = NOPAT_normalizado / WACC
+    EPV_equity = EPV_enterprise - net_debt
+    EPV_per_share = EPV_equity / shares
+
+    EPV_enterprise es comparable con market_cap (ambos enterprise-level).
+    EPV_per_share es comparable con market price (ambos equity-level).
+
+    Tax rate derivada de NI/EBIT si disponible, else 25% (US corporate default).
+
+    Returns:
+        (epv_enterprise_mv, epv_per_share_mv, epv_upside_pct, source_label)
+        Todos pueden ser None si no hay datos suficientes.
+    """
+    from due_diligence.schemas.base import MetricValue as _MV
+
+    ebit_med, source = _ebit_median(ebit_series)
+    if ebit_med is None or wacc <= 0:
+        return None, None, None, None
+
+    # Tax rate: derivar de NI/EBIT del último período si coherente
+    ebit_latest = ebit_series[0].value if ebit_series else None
+    if (
+        net_income_latest is not None
+        and net_income_latest > 0
+        and ebit_latest is not None
+        and ebit_latest > net_income_latest
+    ):
+        derived_tax = 1 - (net_income_latest / ebit_latest)
+        tax_rate = max(0.10, min(derived_tax, 0.40))
+    else:
+        tax_rate = 0.25
+
+    nopat = ebit_med * (1 - tax_rate)
+    epv_enterprise = nopat / wacc
+
+    period = ebit_series[0].period if ebit_series else "N/A"
+    epv_ent_mv = _MV(
+        value=round(epv_enterprise),
+        unit="USD",
+        period=period,
+        source=f"EPV ({source})",
+    )
+
+    epv_ps_mv: Optional[_MV] = None
+    epv_upside: Optional[float] = None
+
+    if shares is not None and shares > 0:
+        epv_equity = epv_enterprise - net_debt
+        epv_per_share_val = epv_equity / shares
+        epv_ps_mv = _MV(
+            value=round(epv_per_share_val, 2),
+            unit="USD/share",
+            period=period,
+            source=f"EPV ({source})",
+        )
+
+    if market_cap is not None and market_cap > 0:
+        # upside enterprise-level: (EPV_enterprise - mkt_cap) / mkt_cap
+        # mkt_cap sirve como proxy de enterprise value para este upside indicativo
+        epv_upside = round((epv_enterprise - market_cap) / market_cap * 100, 1)
+
+    return epv_ent_mv, epv_ps_mv, epv_upside, source
+
+
+def _compute_suggested_wacc(
+    market_cap: Optional[float],
+    rf_pct: float = _RF_PCT,
+    erp_pct: float = _ERP_PCT,
+    beta: float = _BETA_DEFAULT,
+) -> tuple[float, str]:
+    """
+    WACC advisory por CAPM simplificado (ADR-029).
+
+    Fórmula: WACC = Rf + β × ERP + size_premium
+    Con β=1 (simplificación — sin cálculo de beta específico por empresa).
+
+    size_premium por market cap bucket (Damodaran 2024):
+    >$10B (large cap):   0%
+    $2-10B (mid cap):    0.5%
+    $300M-$2B (small cap): 1.5%
+    <$300M (micro cap):  3.0%
+
+    Se presenta al usuario como "sugerencia" en Checkpoint 2.
+    El usuario puede hacer override con el WACC que considere apropiado.
+
+    Returns:
+        (wacc_pct_float, breakdown_string) — ej (9.7, "Rf=4.2% + β=1.0×ERP=5.0% + size_premium=0.5% (mid cap)")
+    """
+    if market_cap is None or market_cap >= 10e9:
+        size_label, size_prem = "large cap", 0.0
+    elif market_cap >= 2e9:
+        size_label, size_prem = "mid cap", 0.5
+    elif market_cap >= 300e6:
+        size_label, size_prem = "small cap", 1.5
+    else:
+        size_label, size_prem = "micro cap", 3.0
+
+    suggested = rf_pct + beta * erp_pct + size_prem
+    breakdown = (
+        f"Rf={rf_pct}% + β={beta}×ERP={erp_pct}% + size_premium={size_prem}% ({size_label})"
+    )
+    return round(suggested, 1), breakdown
+
+
+def _classify_dcf_upside(upside_pct: Optional[float]) -> str:
+    """Clasifica upside DCF: >20% cheap, (-20,20) fair, <-20% expensive."""
+    if upside_pct is None:
+        return "n/a"
+    if upside_pct > 20:
+        return "cheap"
+    if upside_pct < -20:
+        return "expensive"
+    return "fair"
+
+
+def _classify_epv_upside(upside_pct: Optional[float]) -> str:
+    """
+    Clasifica EPV vs market cap.
+
+    >10%: cheap (mercado paga menos que el valor sin crecimiento).
+    0-10%: fair (mercado paga algo por encima del EPV pero poco).
+    <0%: expensive (mercado valora el crecimiento; EPV no justifica el precio).
+    """
+    if upside_pct is None:
+        return "n/a"
+    if upside_pct > 10:
+        return "cheap"
+    if upside_pct < 0:
+        return "expensive"
+    return "fair"
+
+
+def _classify_reverse_vs_historical(
+    implied_growth: Optional[float],
+    historical_cagr: Optional[float],
+    threshold: float = 0.03,
+) -> str:
+    """
+    Compara el growth implícito por el precio actual con el CAGR histórico.
+
+    cheap: mercado descuenta menos crecimiento del que la empresa ha demostrado (±3pp).
+    expensive: mercado asume más crecimiento del que la empresa ha generado históricamente.
+    """
+    if implied_growth is None or historical_cagr is None:
+        return "n/a"
+    spread = implied_growth - historical_cagr
+    if spread < -threshold:
+        return "cheap"
+    if spread > threshold:
+        return "expensive"
+    return "fair"
+
+
+def _classify_ev_ebit_vs_peers(
+    subject_ev_ebit: Optional[float],
+    peer_ev_ebit_median: Optional[float],
+) -> str:
+    """
+    Compara EV/EBIT del sujeto con la mediana de sus peers.
+
+    <0.7× mediana = cheap (descuento relevante vs comparables).
+    >1.3× mediana = expensive (prima significativa sobre comparables).
+    """
+    if subject_ev_ebit is None or peer_ev_ebit_median is None or peer_ev_ebit_median <= 0:
+        return "n/a"
+    ratio = subject_ev_ebit / peer_ev_ebit_median
+    if ratio < 0.70:
+        return "cheap"
+    if ratio > 1.30:
+        return "expensive"
+    return "fair"
+
+
+def _build_methods_summary(
+    dcf_per_share,      # Optional[MetricValue]
+    dcf_upside_pct: Optional[float],
+    epv_per_share,      # Optional[MetricValue]
+    epv_upside_pct: Optional[float],
+    reverse_growth: Optional[float],
+    historical_cagr: Optional[float],
+    ev_ebit,            # Optional[MetricValue]
+    peer_ev_ebit_median: Optional[float],
+) -> list[dict]:
+    """
+    Tabla de 4 métodos de valoración con clasificación uniforme (ADR-030).
+
+    Cada fila: method, per_share, display_upside, classification.
+    Consumida por Value Expert (_format_context) y Archiver.
+
+    Los classifiers siguen umbrales simples: ver _classify_* functions.
+    La síntesis de la convergencia la hace el LLM (Value Expert regla #21)
+    en lugar de determinizarse en código para preservar la division tool/LLM lane.
+    """
+    def _fmt_usd(v: Optional[float]) -> str:
+        return f"${v:.2f}" if v is not None else "N/A"
+
+    def _fmt_pct(v: Optional[float]) -> str:
+        return f"{v:.1%}" if v is not None else "N/A"
+
+    def _fmt_x(v: Optional[float]) -> str:
+        return f"{v:.1f}x" if v is not None else "N/A"
+
+    ev_ebit_val = ev_ebit.value if ev_ebit is not None else None
+
+    return [
+        {
+            "method": "DCF (3-stage Damodaran fade)",
+            "per_share": _fmt_usd(dcf_per_share.value if dcf_per_share else None),
+            "upside_pct": dcf_upside_pct,
+            "display_upside": f"{dcf_upside_pct:+.1f}%" if dcf_upside_pct is not None else "N/A",
+            "classification": _classify_dcf_upside(dcf_upside_pct),
+        },
+        {
+            "method": "EPV (Greenwald — zero growth)",
+            "per_share": _fmt_usd(epv_per_share.value if epv_per_share else None),
+            "upside_pct": epv_upside_pct,
+            "display_upside": f"{epv_upside_pct:+.1f}%" if epv_upside_pct is not None else "N/A",
+            "classification": _classify_epv_upside(epv_upside_pct),
+        },
+        {
+            "method": "Reverse DCF (market-implied growth)",
+            "per_share": "N/A",
+            "upside_pct": None,
+            "display_upside": (
+                f"implied {_fmt_pct(reverse_growth)} vs historical {_fmt_pct(historical_cagr)}"
+            ),
+            "classification": _classify_reverse_vs_historical(reverse_growth, historical_cagr),
+        },
+        {
+            "method": "EV/EBIT vs peer median",
+            "per_share": "N/A",
+            "upside_pct": None,
+            "display_upside": (
+                f"{_fmt_x(ev_ebit_val)} vs peer median {_fmt_x(peer_ev_ebit_median)}"
+            ),
+            "classification": _classify_ev_ebit_vs_peers(ev_ebit_val, peer_ev_ebit_median),
+        },
+    ]
 
 
 def _compute_near_term_growth(
@@ -222,20 +593,31 @@ def _sensitivity_table(
     years: int,
     wacc_center: float,
     growth_center: float,
+    stage1_years: int = 0,
+    fade_years: int = 0,
 ) -> list[dict]:
     """
-    Tabla 3×3: eje X = WACC ± 1%, eje Y = near-term growth ± 5%.
+    Tabla 3×3: eje X = WACC ± 1%, eje Y = g1 (stage 1 growth) ± 5%.
 
-    Cada celda es el equity value total del DCF. Permite ver el rango de
-    valores razonables sin tener que re-ejecutar el análisis.
+    Cada celda es el equity value total del DCF 3-stage. Permite ver el rango de
+    valores razonables sin tener que re-ejecutar el análisis. El fade se mantiene
+    fijo en todas las celdas — solo g1 y WACC varían.
+
+    stage1_years=0 + fade_years=0 equivale al comportamiento 2-stage original
+    (stage1=years, fade=0) para compatibilidad en tests.
     """
+    # Si no se pasan stages, usar el total de years como stage1 sin fade
+    s1 = stage1_years if stage1_years > 0 else years
+    fd = fade_years
+
     rows = []
     for g_delta in (0.05, 0.0, -0.05):
         g = growth_center + g_delta
-        row = {"near_term_growth_pct": round((g) * 100, 1), "values": {}}
+        row = {"near_term_growth_pct": round(g * 100, 1), "values": {}}
         for w_delta in (-0.01, 0.0, 0.01):
             w = wacc_center + w_delta
-            val = _two_stage_dcf(base_fcf, g, terminal_growth, w, years)
+            val = _three_stage_dcf(base_fcf, g, terminal_growth, w,
+                                   stage1_years=s1, fade_years=fd)
             row["values"][f"wacc_{round(w*100,1)}pct"] = round(val / 1e9, 1)  # en USD B
         rows.append(row)
     return rows
@@ -363,12 +745,19 @@ def valuation_agent(state: AnalysisState) -> dict:
         wacc_pct=float(user_raw.get("wacc_pct", 9.0)),
         terminal_growth_pct=float(user_raw.get("terminal_growth_pct", 2.5)),
         projection_years=int(user_raw.get("projection_years", 10)),
+        stage1_years=user_raw.get("stage1_years"),
+        fade_years=user_raw.get("fade_years"),
         revenue_growth_yr1_pct=user_raw.get("revenue_growth_yr1_pct"),
         margin_assumption_pct=user_raw.get("margin_assumption_pct"),
     )
     wacc = assumptions.wacc_pct / 100
     terminal_growth = assumptions.terminal_growth_pct / 100
     years = assumptions.projection_years
+
+    # 3-stage split: resolved from user input with auto 50/50 fallback (ADR-029)
+    stage1_years, fade_years = _resolve_stages(
+        years, assumptions.stage1_years, assumptions.fade_years
+    )
 
     # --- 2. Extraer métricas del FinancialsReport ---
     base_fcf: Optional[float] = None
@@ -522,7 +911,8 @@ def valuation_agent(state: AnalysisState) -> dict:
     dcf_upside: Optional[float] = None
 
     if dcf_base is not None and dcf_base > 0:
-        equity_value = _two_stage_dcf(dcf_base, near_term_growth, terminal_growth, wacc, years)
+        equity_value = _three_stage_dcf(dcf_base, near_term_growth, terminal_growth, wacc,
+                                         stage1_years=stage1_years, fade_years=fade_years)
         dcf_value = MetricValue(
             value=round(equity_value),
             unit="USD",
@@ -543,9 +933,11 @@ def valuation_agent(state: AnalysisState) -> dict:
                     fcf=base_fcf, ebit=ebit)
 
     # --- 6. Reverse DCF — usa el mismo dcf_base (FCF o NOPAT proxy) ---
+    # Usa la misma estructura 3-stage para que forward y reverse sean comparables.
     reverse_growth: Optional[float] = None
     if dcf_base is not None and market_cap is not None:
-        reverse_growth = _reverse_dcf(dcf_base, market_cap, terminal_growth, wacc, years)
+        reverse_growth = _reverse_dcf(dcf_base, market_cap, terminal_growth, wacc, years,
+                                       stage1_years=stage1_years, fade_years=fade_years)
 
     # DCF spread note (Fix C / EC-16): si el forward DCF asume un growth >5pp
     # por encima del implied growth, el upside existe solo por assumptions que el
@@ -636,7 +1028,23 @@ def valuation_agent(state: AnalysisState) -> dict:
     # --- 8. Sensitivity table — usa dcf_base (FCF o NOPAT proxy según fallback EC-13) ---
     sensitivity: list[dict] = []
     if dcf_base is not None and dcf_base > 0:
-        sensitivity = _sensitivity_table(dcf_base, terminal_growth, years, wacc, near_term_growth)
+        sensitivity = _sensitivity_table(dcf_base, terminal_growth, years, wacc, near_term_growth,
+                                          stage1_years=stage1_years, fade_years=fade_years)
+
+    # --- 8b. EPV (Greenwald) — piso de valor sin crecimiento (ADR-029) ---
+    net_debt = (total_debt or 0.0) - (cash or 0.0)
+    ebit_series = financials.operating_income if financials is not None else []
+    epv_ent_mv, epv_ps_mv, epv_upside_pct, epv_source = _compute_epv(
+        ebit_series=ebit_series,
+        net_income_latest=net_income,
+        wacc=wacc,
+        net_debt=net_debt,
+        shares=shares,
+        market_cap=market_cap,
+    )
+
+    # --- 8c. WACC advisory (ADR-029) ---
+    suggested_wacc, wacc_breakdown = _compute_suggested_wacc(market_cap=market_cap)
 
     # --- 9. Magic Formula rank (MCE-18) ---
     # peer_valuations populated by peers_node; mf_rank=None there, computed here.
@@ -652,6 +1060,34 @@ def valuation_agent(state: AnalysisState) -> dict:
         subject_earnings_yield=earnings_yield,
         subject_roic=subject_roic_for_mf,
         peer_valuations=peer_valuations_raw,
+    )
+
+    # --- 9b. Convergence table (ADR-030) ---
+    # Peer EV/EBIT median para la clasificación relativa
+    peer_ev_ebit_values = [
+        pv.ev_ebit for pv in peer_valuations_raw
+        if pv.ev_ebit is not None and not pv.no_market_data and pv.ev_ebit > 0
+    ]
+    peer_ev_ebit_median: Optional[float] = None
+    if peer_ev_ebit_values:
+        sv = sorted(peer_ev_ebit_values)
+        n = len(sv)
+        peer_ev_ebit_median = sv[n // 2] if n % 2 == 1 else (sv[n // 2 - 1] + sv[n // 2]) / 2
+
+    # El historical_cagr para la comparación reverse vs historical usa near_term_growth
+    # excepto cuando el usuario lo ha sobreescrito (en ese caso el CAGR histórico viene de revenue_cagr)
+    historical_cagr_for_conv = (
+        near_term_growth if near_term_growth_source != "user_override" else revenue_cagr
+    )
+    methods_summary = _build_methods_summary(
+        dcf_per_share=dcf_per_share,
+        dcf_upside_pct=dcf_upside,
+        epv_per_share=epv_ps_mv,
+        epv_upside_pct=epv_upside_pct,
+        reverse_growth=reverse_growth,
+        historical_cagr=historical_cagr_for_conv,
+        ev_ebit=ev_ebit_mv,
+        peer_ev_ebit_median=peer_ev_ebit_median,
     )
 
     # --- 10. Construir el report ---
@@ -673,6 +1109,15 @@ def valuation_agent(state: AnalysisState) -> dict:
         dcf_reliability_note=dcf_reliability_note,
         near_term_growth_used_pct=near_term_growth,
         near_term_growth_source=near_term_growth_source,
+        stage1_years_used=stage1_years,
+        fade_years_used=fade_years,
+        epv_enterprise=epv_ent_mv,
+        epv_per_share=epv_ps_mv,
+        epv_upside_pct=epv_upside_pct,
+        epv_source=epv_source,
+        suggested_wacc_pct=suggested_wacc,
+        suggested_wacc_breakdown=wacc_breakdown,
+        valuation_methods_summary=methods_summary,
     )
 
     log.info(

@@ -2,7 +2,7 @@
 
 An agentic system for fundamental equity analysis, built on value investing principles. Given a US ticker, it runs a full multi-specialist analysis — from SEC filings to DCF valuation — and delivers a structured verdict with citations, a pre-mortem critique, and an archived report.
 
-> **Status:** Phase 1 + Phase 2 complete, with 9 post-production hardening rounds (Oleadas 1–4, MCE-18/22/23/24/25/26, EC-54, Tavily quota). The system has been validated against a range of company archetypes beyond the large-cap baseline: small caps, buyback-heavy compounders, stocks in sharp drawdown (with adaptive news coverage and ticker-collision-aware queries), asset-light businesses, companies with amended annual filings, foreign 20-F filers (detect-and-fail-loud), financial firms (detect-and-fail-loud), cyclicals in trough with negative FCF (NOPAT-based DCF fallback), and filers whose debt XBRL bypasses edgartools' curated balance sheet view (raw facts fallback). Qualitative analysis hardened with 4-tier insider activity classification, segment-aware risk analysis, quarterly data integration (8-K Item 2.02 press releases + 10-Q XBRL snapshots), thesis-break self-consistency validation, CAGR qualifiers for atypical periods, backlog/book-to-bill extraction for defense/industrials, and Tavily fallback for earnings call summaries. Peer SIC validation prevents cross-industry comparisons. Peer valuation multiples (EV/EBIT, FCF yield, Magic Formula rank). Near-term FCF growth fully transparent across 5 layers (schema + CLI + report + LLM context). 327 tests, all green. 28 ADRs documented. Next: Phase 2.5 (re-analysis delta for the same ticker) or Phase 3 (Canadian and European markets).
+> **Status:** Phase 1 + Phase 2 complete, with 9 post-production hardening rounds (Oleadas 1–4, MCE-18/22/23/24/25/26, EC-54, Tavily quota). The system has been validated against a range of company archetypes beyond the large-cap baseline: small caps, buyback-heavy compounders, stocks in sharp drawdown (with adaptive news coverage and ticker-collision-aware queries), asset-light businesses, companies with amended annual filings, foreign 20-F filers (detect-and-fail-loud), financial firms (detect-and-fail-loud), cyclicals in trough with negative FCF (NOPAT-based DCF fallback), and filers whose debt XBRL bypasses edgartools' curated balance sheet view (raw facts fallback). Qualitative analysis hardened with 4-tier insider activity classification, segment-aware risk analysis, quarterly data integration (8-K Item 2.02 press releases + 10-Q XBRL snapshots), thesis-break self-consistency validation, CAGR qualifiers for atypical periods, backlog/book-to-bill extraction for defense/industrials, and Tavily fallback for earnings call summaries. Peer SIC validation prevents cross-industry comparisons. Peer valuation multiples (EV/EBIT, FCF yield, Magic Formula rank). Near-term FCF growth fully transparent across 5 layers (schema + CLI + report + LLM context). 377 tests, all green. 30 ADRs documented. Next: Phase 2.5 (re-analysis delta for the same ticker) or Phase 3 (Canadian and European markets).
 
 ---
 
@@ -70,6 +70,9 @@ Saves the full report — verdict, per-share intrinsic value, upside/downside, c
 | **External API pre-flight check** | Before any analysis starts, `supervisor_node` checks the Tavily monthly quota via `/usage`. If fewer than 40 credits remain, the run aborts immediately with an actionable message — before consuming EDGAR, Polygon, or LLM resources. |
 | **Robust to XBRL variability** | Multiple concept fallbacks for OCF, capex, EBIT, buybacks, dividends, and ROIC denominator. Small caps and asset-light services that don't report the standard `OperatingIncomeLoss` or have negative book equity from buybacks are first-class citizens, not excluded silently. |
 | **Adaptive number formatting** | Single-source `fmt_usd()` formatter adapts unit (M/B/k) by magnitude — small caps with $40M FCF show as `$40M`, not `$0.0B`. |
+| **3-stage DCF with Damodaran fade** | Growth fades linearly from Stage 1 (`g1`) to terminal over Stage 2 rather than staying flat for all N years. Produces 35–40% lower terminal values for high-growth 10-year scenarios. `fade_years=0` degrades to the original 2-stage behavior. Default auto-split: 50/50 (10y → 5+5). |
+| **EPV as zero-growth anchor (Greenwald)** | `EPV_enterprise = NOPAT_normalized / WACC`, where NOPAT uses median EBIT over 5 years (cyclicality-robust). EPV_equity subtracts net debt before dividing by shares. If stock price < EPV_per_share, the BUY thesis holds with zero growth — the strongest possible margin-of-safety signal. |
+| **Valuation methods convergence** | Four methods (DCF, EPV, reverse DCF vs historical CAGR, EV/EBIT vs peer median) each emit a `cheap/fair/expensive` classification. The Value Expert synthesizes convergence in §6. Convergence count (e.g. "3/4 cheap") must appear explicitly — not buried in footnotes (Rule #21). |
 | **US-only scope (Phase 1–2)** | Supports US domestic filers (10-K, XBRL US GAAP). Foreign private issuers (20-F, IFRS ADRs) require Phase 3 adapters. |
 
 ---
@@ -224,9 +227,9 @@ due_dilligence_engine/
 │   ├── config.py        # pydantic-settings: all env vars in one place
 │   └── cli.py           # typer CLI: interactive checkpoints, Socratic questions
 ├── tests/
-│   └── fixtures/        # cached API responses for offline testing (327 tests, zero real API calls)
+│   └── fixtures/        # cached API responses for offline testing (377 tests, zero real API calls)
 ├── docs/
-│   ├── adr/             # Architecture Decision Records (ADR-001 … ADR-028)
+│   ├── adr/             # Architecture Decision Records (ADR-001 … ADR-030)
 │   ├── checklist-value-investing.md
 │   ├── mce-evolution.md # deferred work with verifiable triggers
 │   └── phase-2-strategic-review.md

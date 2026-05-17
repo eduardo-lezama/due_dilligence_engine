@@ -92,6 +92,11 @@ RULES — NON-NEGOTIABLE:
     (b) §5 Growth & Reinvestment MUST distinguish organic from inorganic revenue. If the acquisition closed DURING the most recent quarter reported (visible from the acquisition date vs Q1 press release date), the reported quarterly revenue growth includes an inorganic component. Flag this explicitly — do NOT present the blended growth rate as a pure organic signal. If the acquisition date and Q1 close date allow estimation of inorganic contribution, make the estimate.
     (c) §6 Valuation MUST caveat EV-based multiples (EV/EBIT, EV/FCF) as potentially understated. If cash was consumed and/or debt was raised to finance the deal, the true EV is higher than what the 10-K balance sheet implies. Note this uncertainty explicitly — EV multiples based on pre-acquisition data are directional only, not precise.
     (d) §9 Decision Frame MUST name the pending 10-Q (first quarterly filing post-acquisition) as the event that will resolve the balance sheet uncertainty and clarify organic growth rate.
+20. DCF GROWTH ASSUMPTION REFLEXION (§6): the context provides a "## DCF GROWTH ASSUMPTION" block with the near-term growth rate used and its source. In §6 you MUST:
+    (a) State the growth rate used and its source in one sentence.
+    (b) Assess whether it is credible given §5 growth analysis and the quarterly data — does historical FCF CAGR reflect a sustainable run-rate or a cyclical peak/trough?
+    (c) If the source is "GENERIC FALLBACK" (default_7pct), explicitly warn the reader that the DCF upside has no empirical basis and should be treated as purely illustrative. Do NOT present a DCF upside anchored on 7% generic as a solid investment thesis.
+    (d) If source is "revenue CAGR proxy", note the limitation: revenue growing ≠ FCF growing if margins are compressing. State whether this is expansionary or contractionary for FCF specifically.
 
 VERDICT RUBRIC:
 - BUY: moat confirmed + quality management + DCF upside >20% + no material 8-K red flags + conflicting signals resolved in favor of the bull case.
@@ -448,6 +453,60 @@ def _format_context(state: AnalysisState) -> str:
                 f"DCF assumptions: WACC={a.wacc_pct}%, terminal_growth={a.terminal_growth_pct}%, "
                 f"years={a.projection_years}"
             )
+
+        # Bloque DCF GROWTH ASSUMPTION (EC-54) — el parámetro más sensible del DCF debe
+        # ser evaluado explícitamente por el Value Expert en §6, no tomado como dato.
+        # El nivel de alerta varía según la fuente: user_override = informativo,
+        # default_7pct = ⚠️ CAUTION máximo (sin base empírica para esta empresa).
+        if valuation.near_term_growth_used_pct is not None:
+            g_pct = valuation.near_term_growth_used_pct * 100
+            src = valuation.near_term_growth_source or "unknown"
+
+            if src == "user_override":
+                growth_block = (
+                    f"Near-term FCF growth used: {g_pct:.1f}%\n"
+                    f"Source: user-specified override (not auto-calculated)\n"
+                    f"Assess in §6 whether this rate is consistent with §5 growth analysis."
+                )
+            elif src == "default_7pct":
+                growth_block = (
+                    f"Near-term FCF growth used: {g_pct:.1f}%\n"
+                    f"Source: GENERIC FALLBACK — no company-specific historical data available.\n"
+                    f"⚠️ CAUTION: The DCF is not anchored to any empirical signal for this company. "
+                    f"In §6 you MUST note this limitation explicitly and treat DCF upside as "
+                    f"illustrative only. Do NOT present a DCF upside anchored on 7% generic "
+                    f"as a solid investment thesis."
+                )
+            elif "rev_capped" in src:
+                n_y = src.split("_")[2].replace("y", "")
+                growth_block = (
+                    f"Near-term FCF growth used: {g_pct:.1f}%\n"
+                    f"Source: FCF CAGR ({n_y}y) capped by revenue CAGR — FCF was growing faster "
+                    f"than revenue (unsustainable long-term).\n"
+                    f"Assess in §6 whether the revenue growth ceiling is appropriate given "
+                    f"the business model and margin trajectory."
+                )
+            elif src == "revenue_cagr_fallback":
+                growth_block = (
+                    f"Near-term FCF growth used: {g_pct:.1f}%\n"
+                    f"Source: revenue CAGR proxy — FCF CAGR unavailable (reported FCF was "
+                    f"negative or insufficient periods).\n"
+                    f"⚠️ Less direct signal than FCF CAGR. In §6, assess whether the revenue "
+                    f"proxy overstates or understates the realistic FCF growth trajectory "
+                    f"(margin expansion vs compression matters here)."
+                )
+            else:  # fcf_cagr_Ny
+                n_y = src.replace("fcf_cagr_", "").replace("y", "")
+                growth_block = (
+                    f"Near-term FCF growth used: {g_pct:.1f}%\n"
+                    f"Source: historical FCF CAGR ({n_y} years of data).\n"
+                    f"Assess in §6 whether this historical rate is credible going forward "
+                    f"given competitive position, capacity for reinvestment, and quarterly trend."
+                )
+
+            lines.append(f"\n## DCF GROWTH ASSUMPTION (use in §6 — most sensitive DCF parameter)")
+            lines.append(growth_block)
+
         lines.append("")
 
     # --- Peer Relative Valuation context for §6 (MCE-18) ---

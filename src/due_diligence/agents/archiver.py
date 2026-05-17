@@ -110,12 +110,14 @@ def _render_markdown(state: AnalysisState) -> str:
     if valuation and not valuation.stub:
         lines += ["## Valuation Summary", ""]
 
-        # MCE-21: cuando hay contradicción DCF detectada, el warning sube a la cabecera
+        # MCE-21: cuando hay spread DCF detectado, el warning sube a la cabecera
         # de la sección Valuation antes de la tabla — el lector ve primero la advertencia,
         # no el "+79% upside" engañoso.
-        has_contradiction = (
+        # EC-54: la nota ahora siempre existe (contiene al menos el growth context),
+        # pero el reading guide y el reordenado de métricas solo se activan si hay spread.
+        has_contradiction = bool(
             valuation.dcf_reliability_note
-            and "contradiction" in valuation.dcf_reliability_note.lower()
+            and "spread note" in valuation.dcf_reliability_note.lower()
         )
         if has_contradiction:
             lines += [
@@ -206,13 +208,21 @@ def _render_markdown(state: AnalysisState) -> str:
             lines.append("")
         if valuation.assumptions:
             a = valuation.assumptions
+            # EC-54: incluir near_term_growth en el footnote — es el parámetro más sensible
+            # del DCF y debe aparecer junto a WACC y terminal growth para que el lector
+            # pueda auditar completamente el cálculo sin tener que buscar en el texto.
+            growth_str = ""
+            if valuation.near_term_growth_used_pct is not None:
+                g_pct = valuation.near_term_growth_used_pct * 100
+                src = valuation.near_term_growth_source or "auto"
+                growth_str = f", near-term growth={g_pct:.1f}% ({src})"
             lines.append(
-                f"*DCF assumptions: WACC={a.wacc_pct}%, terminal growth={a.terminal_growth_pct}%, "
-                f"{a.projection_years} years*"
+                f"*DCF assumptions: WACC={a.wacc_pct}%{growth_str}, "
+                f"terminal={a.terminal_growth_pct}%, {a.projection_years} years*"
             )
             lines.append("")
-        # Si la nota ya se mostró arriba (contradicción), no duplicarla. Si es de otro tipo
-        # (e.g. growth capped at 30% sin contradicción), mostrarla aquí.
+        # Mostrar reliability note si no se mostró ya arriba (spread → showed at top).
+        # Con EC-54, la nota existe siempre que se calculó DCF, no solo en error conditions.
         if valuation.dcf_reliability_note and not has_contradiction:
             lines += [f"> {valuation.dcf_reliability_note}", ""]
 

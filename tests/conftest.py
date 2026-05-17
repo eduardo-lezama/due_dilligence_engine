@@ -1,5 +1,6 @@
 import json
 import os
+import unittest.mock
 from pathlib import Path
 
 import pytest
@@ -34,3 +35,17 @@ def set_test_env():
     """Set required env vars for all tests so Settings() can instantiate."""
     os.environ.setdefault("ANTHROPIC_API_KEY", "sk-test-key")
     os.environ.setdefault("SEC_USER_AGENT", "Test User test@example.com")
+
+
+@pytest.fixture(autouse=True)
+def mock_tavily_quota_check():
+    """
+    Evita llamadas HTTP reales a Tavily /usage en todos los tests.
+
+    check_tavily_quota() hace un GET a api.tavily.com — sin este mock,
+    cualquier test que invoque supervisor_node con TAVILY_API_KEY configurada
+    haría una llamada de red real. Los tests que prueban el comportamiento de
+    quota (TavilyQuotaExceededError) sobreescriben este mock explícitamente.
+    """
+    with unittest.mock.patch("due_diligence.tools.tavily.check_tavily_quota"):
+        yield

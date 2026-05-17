@@ -730,3 +730,117 @@ def test_valuation_agent_returns_updated_peer_valuations_with_ranks():
     assert result["valuation"].magic_formula_rank == 1
     assert result["peer_valuations"][0].ticker == "PEER_A"
     assert result["peer_valuations"][0].mf_rank == 2
+
+
+# ---------------------------------------------------------------------------
+# Tests: near_term_growth transparency (EC-54)
+# ---------------------------------------------------------------------------
+
+def test_valuation_report_has_near_term_growth_fields():
+    """ValuationReport debe incluir near_term_growth_used_pct y near_term_growth_source."""
+    from due_diligence.schemas.reports import ValuationReport
+    r = ValuationReport(ticker="TEST", stub=False)
+    assert hasattr(r, "near_term_growth_used_pct")
+    assert hasattr(r, "near_term_growth_source")
+    assert r.near_term_growth_used_pct is None
+    assert r.near_term_growth_source is None
+
+
+def test_valuation_agent_source_user_override():
+    """Cuando el usuario provee growth, source='user_override'."""
+    state = {
+        "ticker": "TEST",
+        "checkpoint2_user_input": {"revenue_growth_yr1_pct": 15.0},
+    }
+    result = valuation_agent(state)
+    r = result["valuation"]
+    assert r.near_term_growth_source == "user_override"
+    assert r.near_term_growth_used_pct == pytest.approx(0.15)
+
+
+def test_valuation_agent_source_default_fallback():
+    """Sin FCF histórico ni revenue CAGR, source='default_7pct'."""
+    state = {"ticker": "TEST"}
+    result = valuation_agent(state)
+    r = result["valuation"]
+    assert r.near_term_growth_source == "default_7pct"
+    assert r.near_term_growth_used_pct == pytest.approx(0.07)
+
+
+def test_valuation_agent_source_fcf_cagr():
+    """Con FCF histórico positivo y FCF CAGR < revenue CAGR, source contiene 'fcf_cagr'."""
+    financials = _build_financials()
+    # FCF: $100M → $110M (CAGR ≈10%), revenue CAGR = 15% → no cap
+    financials.free_cash_flow = [
+        MetricValue(value=110_000_000, unit="USD", period="FY2025", source="calculated"),
+        MetricValue(value=100_000_000, unit="USD", period="FY2024", source="calculated"),
+    ]
+    state = {
+        "ticker": "FAKE",
+        "financials": financials,
+        "historical_cagr_5y": 0.15,
+    }
+    result = valuation_agent(state)
+    r = result["valuation"]
+    assert r.near_term_growth_source is not None
+    assert "fcf_cagr" in r.near_term_growth_source
+    assert "rev_capped" not in r.near_term_growth_source
+
+
+def test_valuation_agent_source_fcf_cagr_rev_capped():
+    """Cuando FCF CAGR > revenue CAGR, source contiene 'rev_capped'."""
+    financials = _build_financials()
+    # FCF: $20M → $40M (CAGR=100%), revenue CAGR=8% → cap aplicado
+    financials.free_cash_flow = [
+        MetricValue(value=40_000_000, unit="USD", period="FY2025", source="calculated"),
+        MetricValue(value=20_000_000, unit="USD", period="FY2024", source="calculated"),
+    ]
+    state = {
+        "ticker": "FAKE",
+        "financials": financials,
+        "historical_cagr_5y": 0.08,
+    }
+    result = valuation_agent(state)
+    r = result["valuation"]
+    assert r.near_term_growth_source is not None
+    assert "rev_capped" in r.near_term_growth_source
+
+
+def test_valuation_agent_reliability_note_always_present():
+    """dcf_reliability_note debe estar presente SIEMPRE (no solo en contradicción)."""
+    state = {
+        "ticker": "TEST",
+        "historical_cagr_5y": 0.08,
+    }
+    result = valuation_agent(state)
+    r = result["valuation"]
+    # Con revenue CAGR como fallback, la nota debe existir
+    assert r.dcf_reliability_note is not None
+    assert "8.0%" in r.dcf_reliability_note or "8%" in r.dcf_reliability_note
+
+
+def test_valuation_agent_reliability_note_default_has_strong_warning():
+    """El fallback 7% debe tener el warning más fuerte — 'generic fallback'."""
+    state = {"ticker": "TEST"}
+    result = valuation_agent(state)
+    r = result["valuation"]
+    assert r.dcf_reliability_note is not None
+    note_lower = r.dcf_reliability_note.lower()
+    assert "generic" in note_lower or "fallback" in note_lower
+    assert "7" in r.dcf_reliability_note
+
+
+def test_compute_near_term_growth_pure_function():
+    """_compute_near_term_growth es pure — testeable sin estado LangGraph."""
+    from due_diligence.agents.valuation import _compute_near_term_growth
+    growth, source = _compute_near_term_growth(None, None, None)
+    assert growth == pytest.approx(0.07)
+    assert source == "default_7pct"
+
+    growth2, source2 = _compute_near_term_growth(None, None, 12.0)
+    assert growth2 == pytest.approx(0.12)
+    assert source2 == "user_override"
+
+    growth3, source3 = _compute_near_term_growth(None, 0.09, None)
+    assert growth3 == pytest.approx(0.09)
+    assert source3 == "revenue_cagr_fallback"

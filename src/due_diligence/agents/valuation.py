@@ -166,6 +166,56 @@ def _normalized_fcf_proxy(ebit: float, net_income: Optional[float]) -> Optional[
     return ebit * (1 - tax_rate)
 
 
+def _compute_near_term_growth(
+    financials,  # Optional[FinancialsReport]
+    revenue_cagr: Optional[float],
+    user_override_pct: Optional[float],
+) -> tuple[float, str]:
+    """
+    Calcula near_term_growth y su fuente sin efectos secundarios.
+
+    Jerarquía:
+        1. user_override_pct — el usuario manda siempre
+        2. FCF CAGR (con cap al revenue_cagr si FCF > revenue) — señal más directa
+        3. revenue_cagr — proxy cuando FCF CAGR no disponible (FCF negativo/insuficiente)
+        4. 7% — fallback genérico anclado en PIB nominal US + prima small/mid cap
+
+    Returns:
+        (near_term_growth, source) con los caps [-15%, 30%] ya aplicados.
+        source values: "user_override" | "fcf_cagr_Ny" | "fcf_cagr_Ny_rev_capped" |
+                       "revenue_cagr_fallback" | "default_7pct"
+
+    Extraído de valuation_agent() como función pura para que el CLI pueda mostrar
+    el valor auto antes del prompt de override (EC-54, Task 3).
+    """
+    raw_cagr: Optional[float] = None
+
+    if user_override_pct is not None:
+        growth = user_override_pct / 100
+        source = "user_override"
+    elif financials is not None and financials.free_cash_flow:
+        raw_cagr = _fcf_cagr(financials.free_cash_flow)
+        n_periods = max(1, len(financials.free_cash_flow) - 1)  # periodos de diferencia
+
+        if raw_cagr is not None:
+            if revenue_cagr is not None and raw_cagr > revenue_cagr:
+                growth = revenue_cagr
+                source = f"fcf_cagr_{n_periods}y_rev_capped"
+            else:
+                growth = raw_cagr
+                source = f"fcf_cagr_{n_periods}y"
+        else:
+            # FCF negativo o insuficiente — caer al revenue CAGR o al default
+            growth = revenue_cagr if revenue_cagr is not None else 0.07
+            source = "revenue_cagr_fallback" if revenue_cagr is not None else "default_7pct"
+    else:
+        growth = revenue_cagr if revenue_cagr is not None else 0.07
+        source = "revenue_cagr_fallback" if revenue_cagr is not None else "default_7pct"
+
+    growth = max(_MIN_NEAR_TERM_GROWTH, min(_MAX_NEAR_TERM_GROWTH, growth))
+    return growth, source
+
+
 def _sensitivity_table(
     base_fcf: float,
     terminal_growth: float,
@@ -366,43 +416,74 @@ def valuation_agent(state: AnalysisState) -> dict:
     # FCF CAGR sobreestima el growth sostenible para small caps con FCF ruidoso.
     # El revenue CAGR actúa como techo natural: el FCF no puede crecer indefinidamente
     # más rápido que el revenue sin compresión de márgenes.
-    raw_cagr: Optional[float] = None
     revenue_cagr: Optional[float] = state.get("historical_cagr_5y")  # type: ignore[assignment]
-    if assumptions.revenue_growth_yr1_pct is not None:
-        near_term_growth = assumptions.revenue_growth_yr1_pct / 100
-    elif financials is not None and financials.free_cash_flow:
-        raw_cagr = _fcf_cagr(financials.free_cash_flow)
-        if raw_cagr is not None:
-            if revenue_cagr is not None and raw_cagr > revenue_cagr:
-                # FCF CAGR supera el revenue CAGR — usar revenue como techo defensivo
-                log.info(
-                    "valuation_fcf_cagr_capped_by_revenue",
-                    ticker=ticker,
-                    fcf_cagr=f"{raw_cagr:.1%}",
-                    revenue_cagr=f"{revenue_cagr:.1%}",
-                )
-                near_term_growth = revenue_cagr
-            else:
-                near_term_growth = raw_cagr
-        else:
-            near_term_growth = revenue_cagr if revenue_cagr is not None else 0.07
-    else:
-        near_term_growth = revenue_cagr if revenue_cagr is not None else 0.07
+    near_term_growth, near_term_growth_source = _compute_near_term_growth(
+        financials=financials,
+        revenue_cagr=revenue_cagr,
+        user_override_pct=assumptions.revenue_growth_yr1_pct,
+    )
 
-    # Limitar a rango razonable para evitar proyecciones absurdas.
-    # Guardar si se aplicó el cap — es señal de que el FCF histórico es anormal.
-    growth_was_capped = near_term_growth > _MAX_NEAR_TERM_GROWTH or near_term_growth < _MIN_NEAR_TERM_GROWTH
-    near_term_growth = max(_MIN_NEAR_TERM_GROWTH, min(_MAX_NEAR_TERM_GROWTH, near_term_growth))
+    # Detectar si se aplicaron caps (FCF_CAGR pre-cap puede calcularse desde el source)
+    raw_cagr: Optional[float] = (
+        _fcf_cagr(financials.free_cash_flow)
+        if financials is not None and financials.free_cash_flow else None
+    )
+    growth_was_capped = (
+        raw_cagr is not None
+        and (raw_cagr > _MAX_NEAR_TERM_GROWTH or raw_cagr < _MIN_NEAR_TERM_GROWTH)
+        and near_term_growth_source not in ("user_override", "revenue_cagr_fallback", "default_7pct")
+    )
 
-    # Construir nota de fiabilidad del DCF.
-    # Dos condiciones la activan (pueden combinarse):
-    #   (a) growth capeado al 30% — FCF en pico cíclico.
-    #   (b) forward DCF y reverse DCF contradicen en >5pp — upside es artefacto de
-    #       assumptions que el mercado no paga. El reverse DCF es más informativo.
+    if "rev_capped" in near_term_growth_source:
+        log.info(
+            "valuation_fcf_cagr_capped_by_revenue",
+            ticker=ticker,
+            fcf_cagr=f"{raw_cagr:.1%}" if raw_cagr is not None else "N/A",
+            revenue_cagr=f"{revenue_cagr:.1%}" if revenue_cagr is not None else "N/A",
+        )
+
+    # --- Reliability note — se construye SIEMPRE con contexto del growth usado (EC-54) ---
+    # El near_term_growth es el parámetro más sensible del DCF: mover de 8% a 15%
+    # cambia el equity value un 30-50%. El usuario y el Value Expert deben saber siempre
+    # qué valor se usó, de dónde viene, y cuán confiable es esa señal.
     dcf_reliability_note: Optional[str] = None
     note_parts: list[str] = []
 
-    if growth_was_capped and raw_cagr is not None and assumptions.revenue_growth_yr1_pct is None:
+    # Línea de contexto del growth — siempre en primer lugar, nivel de alerta según fuente
+    if near_term_growth_source == "user_override":
+        growth_context = (
+            f"Near-term FCF growth: {near_term_growth:.1%} (user-specified override)."
+        )
+    elif near_term_growth_source == "default_7pct":
+        growth_context = (
+            f"⚠️ Near-term FCF growth: {near_term_growth:.1%} (generic fallback — no company-specific "
+            f"historical data available). The DCF is not anchored to any empirical signal for this "
+            f"company. Treat DCF upside as purely illustrative."
+        )
+    elif "rev_capped" in near_term_growth_source:
+        n_y = near_term_growth_source.split("_")[2].replace("y", "")
+        growth_context = (
+            f"Near-term FCF growth: {near_term_growth:.1%} "
+            f"(FCF CAGR {n_y}y, capped by revenue CAGR "
+            f"{revenue_cagr:.1%} — FCF growing faster than revenue is unsustainable long-term)."
+            if revenue_cagr is not None else
+            f"Near-term FCF growth: {near_term_growth:.1%} "
+            f"(FCF CAGR {n_y}y, capped at {_MAX_NEAR_TERM_GROWTH:.0%})."
+        )
+    elif near_term_growth_source == "revenue_cagr_fallback":
+        growth_context = (
+            f"⚠️ Near-term FCF growth: {near_term_growth:.1%} (revenue CAGR proxy — FCF CAGR "
+            f"unavailable because reported FCF is negative or <2 periods). Less direct signal "
+            f"than FCF CAGR."
+        )
+    else:  # fcf_cagr_Ny
+        n_y = near_term_growth_source.split("_")[2].replace("y", "")
+        growth_context = (
+            f"Near-term FCF growth: {near_term_growth:.1%} (historical FCF CAGR, {n_y} years)."
+        )
+    note_parts.append(growth_context)
+
+    if growth_was_capped and assumptions.revenue_growth_yr1_pct is None:
         note_parts.append(
             f"⚠️ DCF growth capped at {_MAX_NEAR_TERM_GROWTH:.0%} "
             f"(raw FCF CAGR was {raw_cagr:.0%}). "
@@ -590,6 +671,8 @@ def valuation_agent(state: AnalysisState) -> dict:
         sensitivity_table=sensitivity,
         assumptions=assumptions,
         dcf_reliability_note=dcf_reliability_note,
+        near_term_growth_used_pct=near_term_growth,
+        near_term_growth_source=near_term_growth_source,
     )
 
     log.info(

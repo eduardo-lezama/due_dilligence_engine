@@ -41,6 +41,8 @@ Cada ADR sigue: Status · Context · Decision · Consequences · Alternatives.
 | [024](ADR-024-moat-calibration-rubric.md) | Moat calibration rubric — criterios estrictos para wide moat | Accepted | 2+ |
 | [025](ADR-025-quarterly-data-integration.md) | Quarterly data integration — 8-K Item 2.02 + 10-Q XBRL snapshot | Accepted | 2+ |
 | [026](ADR-026-thesis-break-validation.md) | Thesis-break self-consistency validation framework | Accepted | 2+ |
+| [027](ADR-027-near-term-growth-transparency.md) | Near-term growth transparency — 5-layer pattern para parámetros DCF críticos | Accepted | 2+ |
+| [028](ADR-028-external-api-preflight-quota-check.md) | External API pre-flight quota check (Tavily) | Accepted | 2+ |
 
 ## Cómo añadir un ADR
 1. Crear `ADR-NNN-slug.md` incrementando N.

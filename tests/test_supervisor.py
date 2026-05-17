@@ -7,11 +7,18 @@ Verifican:
 - Generación de run_id único.
 - Normalización del ticker a mayúsculas.
 - Error explícito cuando el ticker no existe en EDGAR (fail loud, ADR-005).
+- Tavily quota check: propagación de TavilyQuotaExceededError.
 
 Todos los tests mockean edgartools.Company — zero llamadas reales a EDGAR.
+El conftest.py auto-mockea check_tavily_quota() para evitar llamadas HTTP reales.
 """
 
 import pytest
+
+# Capturar la función real antes de que el autouse fixture del conftest la parchee.
+# El autouse reemplaza el atributo del módulo; esta referencia apunta al objeto
+# función original y no se ve afectada por el patch.
+from due_diligence.tools.tavily import check_tavily_quota as _real_check_tavily_quota
 
 
 def test_supervisor_resolves_cik(mocker):
@@ -131,3 +138,74 @@ def test_supervisor_no_10k_no_20f_distinct_message(mocker):
     # Mensaje distinto al de foreign filer — categoría diferente
     assert "private company" in error_msg or "delisted" in error_msg or "SPAC" in error_msg
     assert "foreign private issuer" not in error_msg  # NO confundir con foreign filer
+
+
+# Tests: Tavily quota check (EC — rate limit guard)
+
+def test_supervisor_propagates_tavily_quota_exceeded(mocker):
+    """
+    Si check_tavily_quota() lanza TavilyQuotaExceededError, supervisor_node la propaga
+    sin consumir EDGAR ni ninguna otra API. El conftest auto-mock es sobreescrito aquí.
+    """
+    from due_diligence.tools.tavily import TavilyQuotaExceededError
+
+    mocker.patch(
+        "due_diligence.tools.tavily.check_tavily_quota",
+        side_effect=TavilyQuotaExceededError("960/1000 credits used, 40 remaining"),
+    )
+    # Company NO debe ser llamado — la excepción ocurre antes
+    mock_company = mocker.patch("due_diligence.agents.supervisor.Company")
+
+    from due_diligence.agents.supervisor import supervisor_node
+
+    with pytest.raises(TavilyQuotaExceededError, match="960/1000"):
+        supervisor_node({"ticker": "AAPL"})
+
+    mock_company.assert_not_called()
+
+
+def test_supervisor_continues_when_quota_ok(mocker):
+    """
+    Cuando check_tavily_quota() retorna sin error, supervisor_node completa con normalidad.
+    El conftest ya provee este mock como no-op, pero este test lo hace explícito.
+    """
+    mocker.patch("due_diligence.tools.tavily.check_tavily_quota")  # no-op explícito
+
+    mock_company = mocker.MagicMock()
+    mock_company.cik = 320193
+    mock_latest = mocker.MagicMock()
+    mock_latest.period_of_report = "2024-09-28"
+    mock_company.get_filings.return_value.latest.return_value = mock_latest
+    mocker.patch("due_diligence.agents.supervisor.Company", return_value=mock_company)
+
+    from due_diligence.agents.supervisor import supervisor_node
+
+    result = supervisor_node({"ticker": "AAPL"})
+    assert result["cik"] == "0000320193"
+    assert result["ticker"] == "AAPL"
+
+
+def test_check_tavily_quota_raises_when_nearly_exhausted(mocker):
+    """
+    check_tavily_quota() lanza TavilyQuotaExceededError cuando credits_used >= limit - buffer.
+    Buffer default=40: con 960/1000 usados queda solo 40 → debe lanzar.
+
+    Usa _real_check_tavily_quota (capturada a nivel de módulo antes del autouse del conftest)
+    para acceder a la implementación real sin que el autouse mock interfiera.
+    """
+    import json
+    import due_diligence.config as config_module
+    from due_diligence.tools.tavily import TavilyQuotaExceededError
+
+    mock_resp = mocker.MagicMock()
+    mock_resp.__enter__ = mocker.MagicMock(return_value=mock_resp)
+    mock_resp.__exit__ = mocker.MagicMock(return_value=False)
+    mock_resp.read.return_value = json.dumps(
+        {"usage": {"credits_used": 960, "credits_limit": 1000}}
+    ).encode()
+    mocker.patch("due_diligence.tools.tavily.urllib.request.urlopen", return_value=mock_resp)
+    mocker.patch.object(config_module.settings, "tavily_api_key", "tvly-test-key")
+
+    # _real_check_tavily_quota apunta al objeto función original (capturado antes del autouse)
+    with pytest.raises(TavilyQuotaExceededError, match="960/1000"):
+        _real_check_tavily_quota(buffer=40)

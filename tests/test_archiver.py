@@ -374,3 +374,62 @@ def test_archiver_shows_mf_rank_in_aggregate_metrics():
 
     assert "Magic Formula rank" in markdown
     assert "#3 of 3" in markdown  # 2 peers with mf_rank set + 1 subject = 3 total
+
+
+# ---------------------------------------------------------------------------
+# Tests: near_term_growth en el footnote y reliability note (EC-54)
+# ---------------------------------------------------------------------------
+
+def test_archiver_dcf_footnote_includes_near_term_growth():
+    """El footnote de DCF assumptions debe incluir near_term_growth y su source."""
+    from due_diligence.agents.archiver import _render_markdown
+    from due_diligence.schemas.reports import ValuationReport, ValuationInput
+
+    state = {
+        "ticker": "TEST",
+        "valuation": ValuationReport(
+            ticker="TEST", stub=False,
+            near_term_growth_used_pct=0.123,
+            near_term_growth_source="fcf_cagr_3y",
+            assumptions=ValuationInput(checkpoint_id="c2", wacc_pct=9.0,
+                                       terminal_growth_pct=2.5, projection_years=10),
+        ),
+    }
+    md = _render_markdown(state)
+    assert "12.3%" in md
+    assert "fcf_cagr_3y" in md
+
+
+def test_archiver_reliability_note_always_shown_not_just_contradiction():
+    """La reliability note se muestra siempre, no solo cuando hay contradicción."""
+    from due_diligence.agents.archiver import _render_markdown
+    from due_diligence.schemas.reports import ValuationReport
+
+    state = {
+        "ticker": "TEST",
+        "valuation": ValuationReport(
+            ticker="TEST", stub=False,
+            dcf_reliability_note="Near-term FCF growth: 7.0% (generic fallback).",
+        ),
+    }
+    md = _render_markdown(state)
+    assert "Near-term FCF growth: 7.0%" in md
+
+
+def test_archiver_reading_guide_shown_for_spread_note():
+    """Reading guide aparece cuando la reliability note contiene 'spread note'."""
+    from due_diligence.agents.archiver import _render_markdown
+    from due_diligence.schemas.reports import ValuationReport
+
+    state = {
+        "ticker": "TEST",
+        "valuation": ValuationReport(
+            ticker="TEST", stub=False,
+            dcf_intrinsic_value=MetricValue(value=500e9, unit="USD", period="FY2025", source="calculated"),
+            dcf_upside_pct=45.0,
+            reverse_dcf_implied_growth=0.05,
+            dcf_reliability_note="Near-term FCF growth: 12.0% (fcf_cagr_2y). ⚠️ DCF spread note: ...",
+        ),
+    }
+    md = _render_markdown(state)
+    assert "Reading guide" in md

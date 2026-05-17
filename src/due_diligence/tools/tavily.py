@@ -7,6 +7,10 @@ Qué hace este módulo:
     y devuelve fragmentos limpios (título + URL + contenido) listos
     para inyectar como contexto en un prompt LLM.
 
+    También expone check_tavily_quota() para verificar el consumo mensual
+    antes de arrancar un análisis — evita consumir otras APIs si Tavily
+    está agotada (el usuario tiene una cuenta de backup en .env).
+
 Por qué Tavily (ADR-012):
     Tavily está diseñado para agentes LLM: devuelve texto limpio ya
     parseado (no HTML crudo), incluye URL para Citation, y es
@@ -23,7 +27,11 @@ Uso en tests:
     Ver tests/test_agents_1b.py para ejemplos.
 """
 
+import json
+import urllib.error
+import urllib.request
 from typing import Any
+
 import structlog
 
 from due_diligence.config import settings
@@ -34,6 +42,82 @@ log = structlog.get_logger()
 class TavilySearchError(Exception):
     """Excepción cuando Tavily falla o no está configurado."""
     pass
+
+
+class TavilyQuotaExceededError(Exception):
+    """Raised cuando el cuota mensual de Tavily está casi agotada (< buffer créditos)."""
+    pass
+
+
+def check_tavily_quota(buffer: int = 40) -> None:
+    """
+    Verifica que queden al menos `buffer` créditos en la cuenta de Tavily.
+
+    Llama al endpoint GET /usage de Tavily. Si credits_used >= credits_limit - buffer,
+    lanza TavilyQuotaExceededError para abortar el análisis antes de consumir
+    recursos en EDGAR, Polygon, LLM, etc.
+
+    Args:
+        buffer: Créditos mínimos que deben quedar disponibles (default 40).
+                Un análisis completo consume 9-14 créditos, así que buffer=40
+                garantiza 2-3 análisis más antes de agotar el límite real.
+
+    Raises:
+        TavilyQuotaExceededError: Si credits_used >= credits_limit - buffer.
+
+    No lanza excepción si:
+        - TAVILY_API_KEY no está configurada (Tavily se omitirá de todas formas).
+        - El endpoint /usage no responde o devuelve formato inesperado
+          (falla gracefully — el análisis continúa sin garantía de cuota).
+    """
+    if not settings.tavily_api_key:
+        return
+
+    try:
+        req = urllib.request.Request(
+            "https://api.tavily.com/usage",
+            headers={"Authorization": f"Bearer {settings.tavily_api_key}"},
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+
+        # El endpoint puede devolver {"usage": {...}} o campos en top-level
+        usage = data.get("usage", {})
+        credits_used = (
+            usage.get("credits_used") if isinstance(usage, dict)
+            else data.get("credits_used")
+        )
+        credits_limit = (
+            usage.get("credits_limit") if isinstance(usage, dict)
+            else data.get("credits_limit")
+        )
+
+        if credits_used is None or credits_limit is None:
+            log.warning("tavily_quota_unknown", response_keys=list(data.keys()))
+            return
+
+        remaining = credits_limit - credits_used
+        log.info(
+            "tavily_quota_check",
+            credits_used=credits_used,
+            credits_limit=credits_limit,
+            remaining=remaining,
+            buffer=buffer,
+        )
+
+        if credits_used >= credits_limit - buffer:
+            raise TavilyQuotaExceededError(
+                f"Tavily monthly quota nearly exhausted: "
+                f"{credits_used}/{credits_limit} credits used "
+                f"({remaining} remaining, buffer={buffer}). "
+                f"Switch TAVILY_API_KEY in .env to your backup account and restart."
+            )
+
+    except TavilyQuotaExceededError:
+        raise  # intencional — dejar que el caller la maneje
+    except Exception as e:
+        # Fallo de red o respuesta inesperada no aborta el análisis
+        log.warning("tavily_quota_check_failed", error=str(e))
 
 
 class TavilyAdapter:

@@ -198,7 +198,41 @@ def _ask_dcf_assumptions(state: dict) -> dict:
     wacc = _ask_float("  WACC % (e.g. 9.0)", 9.0)
     terminal = _ask_float("  Terminal growth % (e.g. 2.5)", 2.5)
     years = _ask_int("  Projection years (e.g. 10)", 10)
-    growth_input = typer.prompt("  Near-term FCF growth % [auto from history]", default="auto")
+
+    # EC-54: pre-computar el valor auto y mostrarlo ANTES del prompt de override.
+    # El usuario debe saber qué está overrideando antes de decidir si lo hace.
+    from due_diligence.agents.valuation import _compute_near_term_growth
+    auto_growth, auto_source = _compute_near_term_growth(
+        financials=state.get("financials"),
+        revenue_cagr=state.get("historical_cagr_5y"),
+        user_override_pct=None,
+    )
+    _SOURCE_LABELS = {
+        "default_7pct": "generic fallback (no historical data)",
+        "revenue_cagr_fallback": "revenue CAGR proxy (FCF unavailable)",
+    }
+    source_desc = _SOURCE_LABELS.get(auto_source, auto_source.replace("_", " "))
+    console.print(
+        f"\n[dim]  Auto near-term growth: [bold]{auto_growth:.1%}[/bold] ({source_desc})[/dim]"
+    )
+    console.print(
+        f"[dim]  Applied annually for {years} years (single-rate two-stage DCF).[/dim]"
+    )
+    if "rev_capped" in auto_source:
+        console.print(
+            "[yellow]  ⚠ FCF CAGR was capped by revenue CAGR — "
+            "FCF cannot sustainably grow faster than revenue.[/yellow]"
+        )
+    if auto_source == "default_7pct":
+        console.print(
+            "[red]  ⚠ No historical data — 7% is a generic estimate. "
+            "Consider providing your own estimate.[/red]"
+        )
+
+    growth_input = typer.prompt(
+        f"  Near-term FCF growth % override (Enter to accept {auto_growth:.1%})",
+        default="auto",
+    )
     growth: Optional[float] = None
     if growth_input.strip().lower() != "auto":
         try:
@@ -471,6 +505,8 @@ def analyze_cmd(
     from due_diligence.graph.graph import build_graph
     from due_diligence.llm.client import get_client
 
+    from due_diligence.tools.tavily import TavilyQuotaExceededError
+
     ticker = ticker.upper()
     # Iniciar timer y resetear acumulador de tokens/coste (ADR-021)
     t0 = time.time()
@@ -484,8 +520,13 @@ def analyze_cmd(
     console.print(f"\n[bold cyan]Due Diligence Analysis — {ticker}[/bold cyan]\n")
 
     # ── Phase 1a + 1b: supervisor → financials → specialists ──────────────
-    with console.status("[bold green]Running Phase 1a+1b (EDGAR + specialists)…"):
-        graph.invoke({"ticker": ticker}, config=config)
+    try:
+        with console.status("[bold green]Running Phase 1a+1b (EDGAR + specialists)…"):
+            graph.invoke({"ticker": ticker}, config=config)
+    except TavilyQuotaExceededError as e:
+        console.print("\n[bold red]Tavily quota exhausted — analysis aborted.[/bold red]")
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
 
     state = graph.get_state(config).values
 

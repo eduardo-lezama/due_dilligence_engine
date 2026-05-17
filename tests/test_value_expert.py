@@ -558,3 +558,64 @@ def test_value_expert_context_warns_about_excluded_peers():
     assert "NODATA" in context
     assert "excluded" in context.lower()
     assert "[WARNING]" in context
+
+
+# ---------------------------------------------------------------------------
+# Tests: DCF GROWTH ASSUMPTION block en _format_context (EC-54)
+# ---------------------------------------------------------------------------
+
+def test_format_context_includes_dcf_growth_assumption_block():
+    """_format_context emite bloque DCF GROWTH ASSUMPTION cuando near_term_growth disponible."""
+    from due_diligence.agents.value_expert import _format_context
+    from due_diligence.schemas.reports import ValuationReport
+
+    state = {
+        "ticker": "BBW",
+        "valuation": ValuationReport(
+            ticker="BBW", stub=False,
+            near_term_growth_used_pct=0.08,
+            near_term_growth_source="revenue_cagr_fallback",
+            dcf_upside_pct=15.0,
+        ),
+    }
+    context = _format_context(state)
+    assert "DCF GROWTH ASSUMPTION" in context
+    assert "8.0%" in context or "8%" in context
+    assert "revenue" in context.lower()
+
+
+def test_format_context_dcf_growth_default_has_caution_warning():
+    """Para default_7pct, el bloque debe incluir CAUTION."""
+    from due_diligence.agents.value_expert import _format_context
+    from due_diligence.schemas.reports import ValuationReport
+
+    state = {
+        "ticker": "NOHIST",
+        "valuation": ValuationReport(
+            ticker="NOHIST", stub=False,
+            near_term_growth_used_pct=0.07,
+            near_term_growth_source="default_7pct",
+        ),
+    }
+    context = _format_context(state)
+    assert "CAUTION" in context or "caution" in context.lower()
+    assert "7" in context
+
+
+def test_format_context_dcf_growth_absent_when_near_term_growth_none():
+    """Sin near_term_growth_used_pct, no se emite el bloque DCF GROWTH ASSUMPTION."""
+    from due_diligence.agents.value_expert import _format_context
+    from due_diligence.schemas.reports import ValuationReport
+
+    state = {
+        "ticker": "TEST",
+        "valuation": ValuationReport(ticker="TEST", stub=False),
+    }
+    context = _format_context(state)
+    assert "DCF GROWTH ASSUMPTION" not in context
+
+
+def test_system_prompt_requires_dcf_growth_reflexion():
+    """El system prompt debe exigir reflexión sobre el growth assumption en §6."""
+    from due_diligence.agents.value_expert import _SYSTEM_PROMPT
+    assert "DCF GROWTH ASSUMPTION" in _SYSTEM_PROMPT or "growth assumption" in _SYSTEM_PROMPT.lower()

@@ -54,13 +54,19 @@ def supervisor_node(state: AnalysisState) -> dict:
         y campos cross-cutting inicializados (citations, unverified_claims, cost_usd).
 
     Raises:
+        TavilyQuotaExceededError: Si Tavily tiene < buffer créditos restantes.
         ValueError: Si el ticker no existe en EDGAR.
         DataUnavailableError: Si el ticker existe pero es foreign filer (20-F),
             partnership con K-1, o cualquier otra categoría no soportada.
     """
     from due_diligence.tools.edgar import DataUnavailableError
+    from due_diligence.tools.tavily import check_tavily_quota
 
     ticker = state["ticker"].upper()  # normalizar: "aapl" → "AAPL"
+
+    # Pre-flight: verificar cuota Tavily antes de consumir cualquier otra API.
+    # Un análisis usa 9-14 créditos; si quedan <40 el usuario debe cambiar la key.
+    check_tavily_quota()
 
     # set_identity es obligatorio por la política de uso de EDGAR:
     # identifica quién hace las requests (nombre + email del sec_user_agent)

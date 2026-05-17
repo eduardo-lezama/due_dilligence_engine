@@ -165,6 +165,8 @@ class ValuationReport(BaseModel):
     sensitivity_table: list[dict] = Field(default_factory=list)  # Tabla de sensibilidad WACC × growth
     assumptions: Optional[ValuationInput] = None        # Assumptions usadas en el DCF
     dcf_reliability_note: Optional[str] = None          # Warning cuando el DCF puede ser poco fiable
+    near_term_growth_used_pct: Optional[float] = None   # Tasa de crecimiento FCF efectivamente usada en el DCF (e.g. 0.123 = 12.3%)
+    near_term_growth_source: Optional[str] = None       # Procedencia: "user_override" | "fcf_cagr_Ny" | "fcf_cagr_Ny_rev_capped" | "revenue_cagr_fallback" | "default_7pct"
 
 
 class ValueExpertReport(BaseModel):

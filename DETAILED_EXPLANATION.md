@@ -3562,3 +3562,130 @@ test_revenue_not_empty[prdo] PASSED
 
 *309 tests, verde.*
 
+---
+
+## EC-54 — Near-term growth transparency (2026-05-16)
+
+### El problema que resolvimos
+
+El `near_term_growth` es el parámetro más sensible del modelo DCF. Si lo mueves de 8% a 15%, el equity value resultante cambia un 30-50%. Sin embargo, era **completamente invisible** en el sistema:
+
+- Era una variable local en `valuation_agent()` — nunca se guardaba en ningún report
+- El CLI preguntaba `[auto from history]` sin mostrar qué produciría "auto" — el usuario no podía hacer un override informado
+- El archiver lo omitía del footnote de assumptions: `WACC=9%, terminal=2.5%, 10y` pero sin el near_term_growth
+- La `dcf_reliability_note` solo se construía en condiciones de error (growth capeado al 30%, spread DCF)
+- El Value Expert recibía el DCF calculado sin saber con qué tasa ni de dónde venía
+
+### La jerarquía de sources
+
+El sistema determina el near_term_growth siguiendo esta jerarquía:
+
+| Source | Cuando se usa | Nivel de confianza |
+|---|---|---|
+| `user_override` | El usuario introdujo un valor en el checkpoint | El usuario decide — sin warning |
+| `fcf_cagr_Ny` | FCF CAGR calculado sobre N años, sin cap | Alta — señal directa |
+| `fcf_cagr_Ny_rev_capped` | FCF CAGR capeado por revenue CAGR (FCF > revenue era insostenible) | Media — cap aplicado |
+| `revenue_cagr_fallback` | FCF CAGR no disponible (FCF negativo o <2 periodos) | Media-baja — señal de segunda mano |
+| `default_7pct` | Sin datos históricos — fallback genérico | Baja — sin base empírica |
+
+El 7% no es arbitrario: es GDP nominal US (~5%) + prima para empresas que pasan nuestros filtros value. Pero se marca explícitamente con ⚠️ para que el lector sepa que no hay ancla empírica.
+
+### `_compute_near_term_growth()` — función pura
+
+La lógica de cálculo se **extrajo de `valuation_agent()`** como función pura en `agents/valuation.py`:
+
+```python
+def _compute_near_term_growth(financials, revenue_cagr, user_override_pct) -> tuple[float, str]:
+    ...
+    return near_term_growth, source  # caps [-15%, 30%] ya aplicados
+```
+
+**Por qué función pura**: el CLI necesitaba pre-computar el valor auto antes del prompt de override. Si la lógica estaba dentro de `valuation_agent()`, habría que duplicarla en el CLI. Al extraerla como función pura, ambos la llaman — un solo lugar de verdad (DRY).
+
+### Los 5 cambios en 5 capas independientes
+
+**Capa 1 — Schema** (`schemas/reports.py`): 2 nuevos campos en `ValuationReport`:
+- `near_term_growth_used_pct: Optional[float]` — la tasa efectivamente usada (e.g. 0.123 = 12.3%)
+- `near_term_growth_source: Optional[str]` — el string que identifica la fuente
+
+**Capa 2 — Cálculo** (`agents/valuation.py`): la `dcf_reliability_note` ahora se construye **siempre** (no solo en error). La primera línea siempre es el contexto del growth: qué valor se usó, de dónde vino, con el nivel de alerta apropiado. Los campos se persisten en `ValuationReport`.
+
+**Capa 3 — CLI** (`cli.py`): antes del prompt de override, el sistema muestra:
+```
+Auto near-term growth: 12.3% (fcf_cagr_3y)
+Applied annually for 10 years (single-rate two-stage DCF).
+Near-term FCF growth % override (Enter to accept 12.3%):
+```
+Ahora puedes decidir si overridear con información real.
+
+**Capa 4 — Archiver** (`agents/archiver.py`): el footnote ahora incluye el growth:
+```
+*DCF assumptions: WACC=9.0%, near-term growth=12.3% (fcf_cagr_3y), terminal=2.5%, 10 years*
+```
+La reliability note se muestra siempre (antes: solo si había "contradicción"). Fix adicional: `has_contradiction` ahora busca "spread note" en lugar de "contradiction" (el texto del warning nunca contenía esa palabra).
+
+**Capa 5 — Value Expert** (`agents/value_expert.py`): un nuevo bloque `## DCF GROWTH ASSUMPTION` en `_format_context()` con el nivel de alerta según fuente. La Rule #20 obliga al LLM a declarar en §6 qué tasa usó, de dónde viene, y si es creíble dado el análisis de §5.
+
+### Qué no cambiamos (y por qué)
+
+La lógica de cálculo (`min(FCF_CAGR, revenue_CAGR)` con caps) es correcta para value investing y no se tocó. Solo añadimos **visibilidad** sobre lo que ya hacía el sistema.
+
+*324 tests, verde.*
+
+---
+
+## Tavily quota pre-flight check (2026-05-17)
+
+### El problema
+
+Tavily tiene un límite mensual (1000 créditos en el free tier). Cuando se agota, las búsquedas devuelven `[]` silenciosamente — el análisis continúa pero sin contexto web en Management ni en Competitive. El usuario descubre el problema al final, tras gastar ~3 minutos y costes de EDGAR, Polygon, Finnhub y LLM.
+
+Además, Eduardo tiene una segunda cuenta de Tavily con otra API key en `.env`. El flujo correcto cuando se agota es: swap manual de key y reiniciar. El sistema no facilitaba esto.
+
+### La solución
+
+**`check_tavily_quota(buffer=40)`** en `tools/tavily.py`:
+- Llama al endpoint `GET /usage` de Tavily (stdlib `urllib.request`, sin dependencias nuevas).
+- Si `credits_used >= credits_limit - 40` → lanza `TavilyQuotaExceededError`.
+- Buffer de 40: a 9-14 créditos por análisis, queda margen para 2-3 análisis antes del límite real. Evita que un análisis iniciado justo antes del check muera a mitad.
+- Si `TAVILY_API_KEY` no está configurada → no-op (Tavily ya se omite de todas formas).
+- Si `/usage` no responde → log warning + continuar. El check falla gracefully; la ausencia de garantía de cuota es mejor que abortar un análisis válido.
+
+**Placement en `supervisor_node`**: es la primera operación, antes de `set_identity()` y de cualquier llamada a EDGAR, Polygon o LLM. Si Tavily está agotada, el coste de abortar es cero.
+
+**CLI** captura `TavilyQuotaExceededError` con mensaje accionable:
+```
+Tavily quota exhausted — analysis aborted.
+Tavily monthly quota nearly exhausted: 960/1000 credits used (40 remaining, buffer=40).
+Switch TAVILY_API_KEY in .env to your backup account and restart.
+```
+
+### Patrón de tests con `autouse`
+
+`check_tavily_quota()` hace una llamada HTTP real. Sin mock, cualquier test que invoque `supervisor_node` con `TAVILY_API_KEY` configurada haría una llamada de red.
+
+Solución: fixture `autouse=True` en `conftest.py`:
+```python
+@pytest.fixture(autouse=True)
+def mock_tavily_quota_check():
+    with unittest.mock.patch("due_diligence.tools.tavily.check_tavily_quota"):
+        yield
+```
+
+Para testear la función real en `test_supervisor.py`, capturamos una referencia al objeto función a nivel de módulo, *antes* de que el autouse la parchee:
+```python
+from due_diligence.tools.tavily import check_tavily_quota as _real_check_tavily_quota
+```
+
+El autouse reemplaza el atributo del módulo, pero la referencia capturada al objeto función original no se ve afectada. Es una propiedad de Python: `from module import func` da una referencia al objeto, no un alias del atributo.
+
+### Consumo real de Tavily por análisis
+
+| Escenario | Créditos |
+|---|---|
+| Normal (transcripts Finnhub OK, sin drawdown) | 9 |
+| Sin transcripts (Tavily fallback) | 11 |
+| Drawdown detectado | 12 |
+| Worst case (sin transcripts + drawdown) | 14 |
+
+*327 tests, verde.*

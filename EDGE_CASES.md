@@ -400,3 +400,17 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
   > "⚠️ DCF computed on NORMALIZED NOPAT ($617M = EBIT × (1-tax)) because reported FCF was negative (-$535M in FY2025). This is appropriate for cyclical troughs or heavy reinvestment but ignores working capital and maintenance vs growth capex split — treat as directional, not point estimate."
 - **Limitación documentada**: sobreestima FCF sostenible para cyclicals en trough (cuando maintenance capex es alto). El note lo marca como "directional only" para que el lector lo trate apropiadamente.
 - **Commit**: `11985d3`
+
+### EC-54 — Near-term growth invisible: el parámetro más sensible del DCF no aparecía en ninguna capa del sistema
+
+- **Síntoma**: el report .md mostraba `WACC=9%, terminal=2.5%, 10y` pero omitía el near_term_growth. El CLI preguntaba `[auto from history]` sin mostrar qué produciría "auto". La `dcf_reliability_note` solo se construía en condiciones de error (growth capeado, spread DCF). El Value Expert recibía el DCF calculado sin saber con qué tasa de crecimiento ni de dónde vino.
+- **Causa raíz**: `near_term_growth` era variable local en `valuation_agent()`, nunca persistida en `ValuationReport`. La nota de fiabilidad era condicional — solo en error conditions — lo que la hacía invisible para el caso nominal (empresa con FCF histórico normal, sin cap, sin spread).
+- **Impacto**: para empresas con 7% fallback (sin historial de FCF positivo: turnarounds, startups, heavy reinvestment), el DCF se presentaba sin ninguna señal de que la tasa de crecimiento no tenía base empírica. Para empresas con revenue_cagr_fallback, el proxy era invisible.
+- **Fix — 5 capas independientes**:
+  1. **Schema**: 2 nuevos campos en `ValuationReport` — `near_term_growth_used_pct: Optional[float]` y `near_term_growth_source: Optional[str]` con 5 posibles valores (`user_override`, `fcf_cagr_Ny`, `fcf_cagr_Ny_rev_capped`, `revenue_cagr_fallback`, `default_7pct`).
+  2. **valuation.py**: extraído `_compute_near_term_growth()` como función pura (testeable + reutilizable desde CLI). `dcf_reliability_note` siempre construida con growth context como primera línea; nivel de alerta varía por fuente.
+  3. **cli.py**: pre-computa el valor auto antes del prompt de override y lo muestra al usuario. El usuario ahora sabe exactamente qué está overrideando antes de decidir.
+  4. **archiver.py**: footnote `*DCF assumptions: WACC=...%*` ahora incluye near-term growth y su source. Reliability note se muestra siempre (era condicional). `has_contradiction` corregido a buscar "spread note" en lugar de "contradiction".
+  5. **value_expert.py**: bloque `## DCF GROWTH ASSUMPTION` en `_format_context()` con nivel de alerta por fuente. Rule #20 obliga al Value Expert a declarar la tasa usada, su procedencia, y su credibilidad en §6.
+- **Aplicabilidad sistémica**: cualquier empresa. Especialmente crítico para small caps sin FCF positivo multi-año (fallback invisible), y para empresas donde FCF CAGR > revenue CAGR (cap silencioso).
+- **Commit**: pendiente

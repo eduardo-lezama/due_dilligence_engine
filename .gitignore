@@ -13,3 +13,20 @@ build/
 .ruff_cache/
 .claude/settings.json
 .claude/settings.local.json
+
+# AI-assisted-dev process artifacts — not part of the public project story
+CLAUDE.md
+src/due_diligence/CLAUDE.md
+src/due_diligence/agents/CLAUDE.md
+src/due_diligence/graph/CLAUDE.md
+src/due_diligence/llm/CLAUDE.md
+src/due_diligence/tools/CLAUDE.md
+tests/CLAUDE.md
+docs/mce-evolution.md
+docs/superpowers/
+
+# Internal study/planning docs — not curated for public reading
+AGENTIC_PATTERNS.md
+CONCISE_EXPLANATION.md
+DETAILED_EXPLANATION.md
+DESIGN_DOCUMENT.md

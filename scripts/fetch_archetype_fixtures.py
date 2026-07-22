@@ -15,14 +15,11 @@ Arquetipos:
 """
 
 import json
-import os
 import sys
 from pathlib import Path
 
 # Añadir src/ al path para importar due_diligence sin instalar el paquete
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-os.environ.setdefault("SEC_USER_AGENT", "Eduardo Lezama superheromurd@gmail.com")
 
 from due_diligence.tools.edgar import EdgarAdapter  # noqa: E402
 

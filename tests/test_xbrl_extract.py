@@ -368,3 +368,71 @@ def test_build_raw_emits_balance_history_per_fy_column():
                     "total_debt": 70.0, "short_term_debt": 0.0, "cash": 50.0,
                     "short_term_investments": 30.0, "current_liabilities": 55.0,
                     "operating_rou_asset": 8.0, "long_term_investments": None}
+
+
+
+# ── H1 integración (verificación en vivo, PRDO): concepto antiguo no puede "ganar" a años recientes ──
+def test_merge_annual_takes_first_concept_with_data_per_year_not_first_concept_overall():
+    """PRDO real: PaymentsToAcquirePropertyPlantAndEquipment solo tiene FY2016 en la vista curada y
+    el capex reciente está en PaymentsForCapitalImprovements (solo en facts). Antes ganaba el concepto
+    viejo y el FCF quedaba anclado a FY2016 (EC-90)."""
+    cf = make_df({"PaymentsToAcquirePropertyPlantAndEquipment": {"FY 2025": NaN, "FY 2024": NaN, "FY 2016": 4.1}})
+    facts = FakeFacts({("PaymentsForCapitalImprovements", "FY2025"): 8.6,
+                       ("PaymentsForCapitalImprovements", "FY2024"): 4.6})
+    out = xe.merge_annual(xe.CAPEX_CONCEPTS, (cf,), facts, ["FY2025", "FY2024", "FY2016"])
+    assert out == [
+        {"value": 8.6, "period": "FY2025", "source": "facts:PaymentsForCapitalImprovements"},
+        {"value": 4.6, "period": "FY2024", "source": "facts:PaymentsForCapitalImprovements"},
+        {"value": 4.1, "period": "FY2016", "source": "PaymentsToAcquirePropertyPlantAndEquipment"},
+    ]
+
+
+def test_merge_annual_prefers_curated_then_chain_order_then_facts():
+    inc = make_df({"Revenues": {"FY 2025": 100.0, "FY 2024": NaN},
+                   "RevenueFromContractWithCustomerExcludingAssessedTax": {"FY 2025": 99.0, "FY 2024": 90.0}})
+    out = xe.merge_annual(("RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues"), (inc,),
+                          FakeFacts(), ["FY2025", "FY2024"])
+    assert [(i["period"], i["value"], i["source"]) for i in out] == [
+        ("FY2025", 99.0, "RevenueFromContractWithCustomerExcludingAssessedTax"),
+        ("FY2024", 90.0, "RevenueFromContractWithCustomerExcludingAssessedTax")]
+
+
+def test_build_raw_capex_uses_recent_concept_from_facts():
+    inc, bs, cf = _min_frames()
+    cf.loc["PaymentsToAcquirePropertyPlantAndEquipment"] = ["capex", False] + [float("nan")] * (len(cf.columns) - 2)
+    facts = FakeFacts({("PaymentsForCapitalImprovements", "FY2025"): 3.0,
+                       ("PaymentsForCapitalImprovements", "FY2024"): 2.0})
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2025, 9, 27), inc_df=inc, bs_df=bs, cf_df=cf,
+                       facts=facts, shares_outstanding=10.0)
+    assert raw["annual"]["capex"][0] == {"value": 3.0, "period": "FY2025", "source": "facts:PaymentsForCapitalImprovements"}
+
+
+
+def test_build_raw_cash_flow_series_include_backfilled_revenue_years():
+    """BBW real: FY2025 falta en la vista curada pero existe en facts. El revenue se rellenaba
+    (backfill) pero la rejilla de etiquetas de OCF/capex se tomaba ANTES del relleno, así que
+    OCF/capex/FCF seguían sin FY2025 (EC-88 incompleto)."""
+    inc, bs, cf = _min_frames(("FY 2026", "FY 2024", "FY 2023"))
+    facts = FakeFacts({("Revenues", "FY2025"): 95.0,
+                       ("NetCashProvidedByUsedInOperatingActivities", "FY2025"): 28.0})
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2026, 1, 31), inc_df=inc, bs_df=bs, cf_df=cf,
+                       facts=facts, shares_outstanding=10.0)
+    assert [i["period"] for i in raw["annual"]["revenue"]] == ["FY2026", "FY2025", "FY2024", "FY2023"]
+    ocf = {i["period"]: i for i in raw["annual"]["operating_cash_flow"]}
+    assert ocf["FY2025"] == {"value": 28.0, "period": "FY2025",
+                             "source": "facts:NetCashProvidedByUsedInOperatingActivities"}
+
+
+
+def test_balance_history_covers_backfilled_years_from_facts():
+    """BBW real: balance_history no tenía FY2025 (solo recorría columnas curadas). Debe usar la
+    misma rejilla de años que las series de resultados, con fallback a facts (EC-88)."""
+    inc, bs, cf = _min_frames(("FY 2026", "FY 2024"))
+    facts = FakeFacts({("Revenues", "FY2025"): 95.0, ("Assets", "FY2025"): 480.0,
+                       ("StockholdersEquity", "FY2025"): 190.0,
+                       ("CashAndCashEquivalentsAtCarryingValue", "FY2025"): 40.0})
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2026, 1, 31), inc_df=inc, bs_df=bs, cf_df=cf,
+                       facts=facts, shares_outstanding=10.0)
+    hist = {h["period"]: h for h in raw["balance_history"]}
+    assert list(hist) == ["FY2026", "FY2025", "FY2024"]
+    assert hist["FY2025"]["total_assets"] == 480.0 and hist["FY2025"]["cash"] == 40.0

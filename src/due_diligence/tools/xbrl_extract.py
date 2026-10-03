@@ -221,23 +221,48 @@ def backfill_gaps(series: list[dict], facts: FactsLookup) -> list[dict]:
     return [by_year[y] for y in sorted(by_year, reverse=True)]
 
 
+def merge_annual(concepts: tuple[str, ...], dfs: tuple[pd.DataFrame, ...], facts: FactsLookup,
+                 labels: list[str], n: int = 10) -> list[dict]:
+    """Serie anual fusionando la cadena de conceptos AÑO A AÑO (EC-90).
+
+    Para cada etiqueta de `labels` (las del revenue: mismas fechas que el resto), toma el
+    PRIMER concepto de la cadena que tenga dato en ESE año: primero en las vistas curadas
+    (`dfs`, en orden), luego en los facts en bruto. Por qué: las empresas cambian de concepto
+    con el tiempo (PRDO pasó de PaymentsToAcquirePropertyPlantAndEquipment a
+    PaymentsForCapitalImprovements). La versión anterior escogía el primer concepto con ALGÚN
+    dato y se quedaba con él: el capex de PRDO quedaba anclado a FY2016 y el FCF también.
+    Cada punto lleva su `source` real (concepto curado o "facts:<concepto>").
+    """
+    out: list[dict] = []
+    for label in labels[:n]:
+        col = f"FY {fy_year(label)}"
+        hit: dict | None = None
+        for concept in concepts:                       # 1) vistas curadas, en orden de preferencia
+            for df in dfs:
+                row = _row(df, concept)
+                if row is not None and col in row.index and (v := _to_float(row.get(col))) is not None:
+                    hit = {"value": v, "period": label, "source": concept}
+                    break
+            if hit:
+                break
+        if hit is None:                                # 2) facts en bruto, mismo orden
+            for concept in concepts:
+                if (v := facts.annual_value(concept, label)) is not None:
+                    hit = {"value": v, "period": label, "source": f"facts:{concept}"}
+                    break
+        if hit is not None:
+            out.append(hit)
+    return out
+
+
 def extract_annual(concepts: tuple[str, ...], dfs: tuple[pd.DataFrame, ...], facts: FactsLookup,
                    labels: list[str], n: int = 10) -> list[dict]:
     """Serie anual para conceptos que la vista curada puede omitir (interest, SBC, D&A, shares).
 
-    1) primer DataFrame curado que la tenga (+ backfill de huecos);
-    2) si ninguno: facts en bruto para cada etiqueta de `labels` (las del revenue), de modo que
-       la serie comparte etiquetas con el resto y el cálculo de FCFF puede alinear por periodo.
+    Delegado en merge_annual (EC-90): fusión año a año curado → facts, con las etiquetas
+    del revenue para que el FCFF pueda alinear por periodo.
     """
-    for df in dfs:
-        if series := annual_series(df, concepts, n):
-            return backfill_gaps(series, facts)
-    for concept in concepts:
-        out = [{"value": v, "period": lb, "source": f"facts:{concept}"}
-               for lb in labels[:n] if (v := facts.annual_value(concept, lb)) is not None]
-        if out:
-            return out
-    return []
+    return merge_annual(concepts, dfs, facts, labels, n)
 
 
 _Q_XBRL = re.compile(r"^(\d{4}-\d{2}-\d{2}) \((Q[1-4])\)$")   # xbrl/statements.py:1111 — verificado en vivo
@@ -383,6 +408,8 @@ OCF_CONCEPTS = (
 CAPEX_CONCEPTS = (
     "PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsForCapitalExpenditures",
     "CapitalExpendituresIncurringNoCapitalLeases", "PurchaseOfPropertyPlantAndEquipment",
+    # EC-90 (PRDO, verificado en vivo): asset-light / educación reportan el capex así.
+    "PaymentsForCapitalImprovements", "PaymentsToAcquireProductiveAssets",
 )
 BUYBACK_CONCEPTS = ("PaymentsForRepurchaseOfCommonStock", "PaymentsForRepurchaseOfEquity")
 DIVIDEND_CONCEPTS = ("PaymentsOfDividendsCommonStock", "PaymentsOfDividends")
@@ -580,6 +607,9 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
 
     # Rejilla de etiquetas FY del revenue: extract_annual consulta raw facts en ESTOS años,
     # para que los inputs FCFF se puedan alinear por periodo con OCF/capex.
+    # EC-88/EC-90: la rejilla se toma DESPUÉS de rellenar huecos del revenue desde facts; si no,
+    # un año que solo existe en facts (BBW FY2025) aparecía en revenue pero no en OCF/capex/FCF.
+    revenue = fill(revenue)
     labels = [i["period"] for i in revenue]
     dfs = (inc_df, cf_df)
     if flags:
@@ -589,8 +619,11 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
     # Cada año usa las MISMAS reglas que el último (resolve_debt, caja solo-caja, STI aparte).
     val = lambda item: item["value"] if item else None  # noqa: E731
     history = []
-    for col in fy_columns(bs_df)[:10]:
-        p = col.replace(" ", "")
+    # EC-88: misma rejilla de años que las series de resultados (incluye años rellenados desde
+    # facts), no solo las columnas curadas del balance. point_value ya cae a facts por concepto.
+    balance_years = sorted({c.replace(" ", "") for c in fy_columns(bs_df)} | set(labels),
+                           key=fy_year, reverse=True)[:10]
+    for p in balance_years:
         g = lambda c, p=p: point_value(bs_df, c, p, facts)  # noqa: E731 — closure de periodo
         d = resolve_debt(g, p)
         history.append({
@@ -611,18 +644,18 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
         "source_filing": f"10-K {fy_label}",
         # Cada serie anual pasa por backfill_gaps (EC-88): huecos interiores desde raw facts.
         "annual": {
-            "revenue": fill(revenue),
+            "revenue": revenue,  # ya rellenado arriba (rejilla de etiquetas)
             "gross_profit": fill(annual_series(inc_df, ("GrossProfit",))),
             "operating_income": fill(compute_operating_income(inc_df)),
             "net_income": fill(annual_series(inc_df, ("NetIncomeLoss",))),
-            "operating_cash_flow": fill(annual_series(cf_df, OCF_CONCEPTS)),
-            "capex": fill(annual_series(cf_df, CAPEX_CONCEPTS)),
+            "operating_cash_flow": merge_annual(OCF_CONCEPTS, (cf_df,), facts, labels),  # EC-90: año a año
+            "capex": merge_annual(CAPEX_CONCEPTS, (cf_df,), facts, labels),  # EC-90: año a año
             # Para ROIC: impuesto + pretax permiten el tipo efectivo por año.
             "income_tax": fill(annual_series(inc_df, ("IncomeTaxExpenseBenefit",))),
             "pretax_income": fill(annual_series(inc_df, (PRETAX_CONCEPT,))),
             # Capital returns (ADR-023): negativos en XBRL; parse_financials toma magnitud.
-            "buybacks": fill(annual_series(cf_df, BUYBACK_CONCEPTS)),
-            "dividends": fill(annual_series(cf_df, DIVIDEND_CONCEPTS)),
+            "buybacks": merge_annual(BUYBACK_CONCEPTS, (cf_df,), facts, labels),  # EC-90: año a año
+            "dividends": merge_annual(DIVIDEND_CONCEPTS, (cf_df,), facts, labels),  # EC-90: año a año
             # --- Inputs FCFF (T8): misma rejilla de etiquetas que el revenue ---
             "interest_expense": extract_annual(INTEREST_EXPENSE, dfs, facts, labels),
             "interest_income": extract_annual(INTEREST_INCOME, dfs, facts, labels),

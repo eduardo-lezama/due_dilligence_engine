@@ -632,6 +632,15 @@ def test_valuation_agent_nopat_fallback_when_fcf_negative():
     financials.free_cash_flow = [
         MetricValue(value=-500_000_000, unit="USD", period="FY2025", source="calculated"),
     ]
+    # ADR-033: la base del DCF es el FCFF (derivado del OCF), no el FCF reportado → el escenario
+    # MOS se fuerza con OCF negativo (FCFF = −300M − capex < 0). Deuda/caja de escala MOS para que
+    # el bridge no herede los 90.7B de deuda de AAPL: net claims = 1.0B − 0.2B = 0.8B, muy por
+    # debajo del EV con NOPAT ≈ 800M × (1 − 18.2 %) ≈ 654M/año → equity > 0.
+    financials.operating_cash_flow = [
+        MetricValue(value=-300_000_000, unit="USD", period="FY2025", source="XBRL"),
+    ]
+    financials.total_debt = MetricValue(value=1_000_000_000, unit="USD", period="FY2025", source="XBRL")
+    financials.cash_and_equivalents = MetricValue(value=200_000_000, unit="USD", period="FY2025", source="XBRL")
     financials.operating_income = [
         MetricValue(value=800_000_000, unit="USD", period="FY2025", source="XBRL"),
     ]
@@ -1034,3 +1043,151 @@ def test_compute_near_term_growth_pure_function():
     growth3, source3 = _compute_near_term_growth(None, 0.09, None)
     assert growth3 == pytest.approx(0.09)
     assert source3 == "revenue_cagr_fallback"
+
+
+# ---------------------------------------------------------------------------
+# T12a — DCF sobre FCFF → EV → bridge → por acción (ADR-033)
+# Ejemplo A: OCF 260, capex 60, intereses 40, SBC 20, EBIT 300, deuda 500, caja 50,
+# 10M acciones, precio 150, WACC 9 %, g 0, t 25 % (sin datos de impuestos → default 0.25).
+# ---------------------------------------------------------------------------
+
+def _levered_financials():
+    from due_diligence.schemas.base import FinancialsReport
+    return FinancialsReport(
+        ticker="LEV", cik="0000000001", as_of_date="2025-12-31", source_filing="10-K FY2025",
+        revenue=[_mv(2_000e6)], gross_profit=[_mv(800e6)],
+        operating_income=[_mv(300e6)], net_income=[_mv(195e6)],
+        operating_cash_flow=[_mv(260e6)], capex=[_mv(60e6)], free_cash_flow=[_mv(200e6)],
+        interest_expense=[_mv(40e6)], sbc=[_mv(20e6)],              # ← campos de T8
+        total_assets=_mv(3_000e6), total_debt=_mv(500e6), cash_and_equivalents=_mv(50e6),
+        shares_outstanding=_mv(10e6, unit="shares"),
+    )
+
+
+def _levered_state():
+    return {
+        "ticker": "LEV", "financials": _levered_financials(),
+        "market": MarketReport(ticker="LEV", stub=False,
+            price_current=MetricValue(value=150.0, unit="USD", period="2026-10-01", source="test"),
+            market_cap=MetricValue(value=1_500e6, unit="USD", period="2026-10-01", source="test")),
+        "checkpoint2_user_input": {"wacc_pct": 9.0, "terminal_growth_pct": 0.0, "projection_years": 10,
+                                   "revenue_growth_yr1_pct": 0.0, "mid_year_convention": False,
+                                   "valuation_date": "2025-12-31"},   # = cierre fiscal → sin capitalización
+    }
+
+
+def test_fcff_dcf_subtracts_net_debt_example_a():
+    # Ejemplo A con valor terminal con reinversión (NOPAT 225, g=0 → TV = 225/0.09):
+    # explícito 210 × 6.417658 = 1 347.708; TV PV 2 500 × 0.4224108 = 1 056.027; EV 2 403.735
+    # equity = 2 403.735 − 450 = 1 953.735 → $195.37; upside 195.37/150 − 1 = +30.2 %
+    # (el método antiguo daba $222.22 sin bridge; el DCF sin reinversión terminal daría $188.33)
+    r = valuation_agent(_levered_state())["valuation"]
+    assert r.fcff_base.value == pytest.approx(210e6)
+    assert r.enterprise_value_dcf.value == pytest.approx(2_403.735e6, rel=1e-5)
+    assert r.equity_bridge.net_claims == pytest.approx(450e6)
+    assert r.dcf_intrinsic_per_share.value == pytest.approx(195.37, abs=0.01)
+    assert r.dcf_upside_pct == pytest.approx(30.2, abs=0.05)
+    assert r.tax_rate_used == pytest.approx(0.25)
+    assert r.valuation_basis.startswith("FCFF")
+    assert r.terminal_value_share == pytest.approx(1_056.027 / 2_403.735, rel=1e-4)
+    assert r.dcf_intrinsic_value.value == pytest.approx(1_953.735e6, rel=1e-5)   # equity tras el bridge
+    assert r.share_count_used == pytest.approx(10e6)
+    assert r.fcff_breakdown.after_tax_interest_addback == pytest.approx(30e6)
+
+
+def test_upside_none_when_price_missing():
+    st = _levered_state(); st["market"] = st["market"].model_copy(update={"price_current": None})
+    r = valuation_agent(st)["valuation"]
+    assert r.dcf_upside_pct is None and "price unavailable" in r.dcf_reliability_note
+
+
+def test_sti_subtracted_exactly_once_end_to_end():
+    """Bloqueante de la revisión adversarial: cash_and_equivalents (solo caja, T6) + STI aparte."""
+    fin = _levered_financials().model_copy(update={
+        "cash_and_equivalents": _mv(50e6),
+        "short_term_investments": _mv(30e6),
+    })
+    st = _levered_state(); st["financials"] = fin
+    r = valuation_agent(st)["valuation"]
+    assert r.equity_bridge.cash == pytest.approx(50e6)
+    assert r.equity_bridge.short_term_investments == pytest.approx(30e6)
+    assert r.equity_bridge.net_claims == pytest.approx(500e6 - 50e6 - 30e6)     # 420, no 390
+    assert r.market_enterprise_value.value == pytest.approx(1_500e6 + 420e6)
+
+
+def test_parse_financials_to_valuation_agent_sti_once_integration():
+    """Integración real parse_financials → valuation_agent con STI > 0 (fixture AAPL + STI 30B):
+    la caja del bridge es SOLO caja y la STI se resta una vez."""
+    import copy
+    from due_diligence.tools.edgar import EdgarAdapter
+    raw = copy.deepcopy(_FIXTURE)
+    raw["balance_sheet"]["short_term_investments"] = {"value": 30e9, "period": "FY2025"}
+    fin = EdgarAdapter.parse_financials(raw)
+    r = valuation_agent({"ticker": "AAPL", "financials": fin, "market": _build_market_report()})["valuation"]
+    b = r.equity_bridge
+    assert b.cash == pytest.approx(fin.cash_and_equivalents.value)          # 35.934B, sin STI dentro
+    assert b.short_term_investments == pytest.approx(30e9)
+    # net claims = deuda 90.678B − caja 35.934B − STI 30B = 24.744B
+    assert b.net_claims == pytest.approx(fin.total_debt.value - fin.cash_and_equivalents.value - 30e9)
+
+
+def test_valuation_agent_returns_error_report_instead_of_crashing_on_bad_rates():
+    st = _levered_state(); st["checkpoint2_user_input"].update({"wacc_pct": 3.0, "terminal_growth_pct": 2.5})
+    r = valuation_agent(st)["valuation"]
+    assert r.stub is True and r.error.startswith("ValuationInputError") and r.dcf_intrinsic_per_share is None
+
+
+def test_valuation_date_capitalization_from_fiscal_year_end():
+    # 10 meses (304 días: 2025-12-31 → 2026-10-31) desde el cierre: EV × 1.09^(304/365) ≈ ×1.0744 (revisión M5)
+    st = _levered_state(); st["checkpoint2_user_input"]["valuation_date"] = "2026-10-31"
+    r = valuation_agent(st)["valuation"]
+    assert r.enterprise_value_dcf.value == pytest.approx(2_403.735e6 * 1.09 ** (304 / 365), rel=1e-4)
+    assert "capitalized" in r.dcf_reliability_note
+
+
+def test_normalized_fcff_base_uses_median_margin_when_three_years():
+    fin = _levered_financials().model_copy(update={
+        "revenue": [_mv(2_000e6), _mv(1_800e6, "FY2024"), _mv(1_600e6, "FY2023")],
+        "operating_cash_flow": [_mv(260e6), _mv(200e6, "FY2024"), _mv(150e6, "FY2023")],
+        "capex": [_mv(60e6), _mv(50e6, "FY2024"), _mv(40e6, "FY2023")],
+        "interest_expense": [_mv(40e6), _mv(40e6, "FY2024"), _mv(40e6, "FY2023")],
+        "sbc": [_mv(20e6), _mv(18e6, "FY2024"), _mv(16e6, "FY2023")],
+    })
+    # FCFF por año: 260+30−60−20 = 210 (10.5 %), 200+30−50−18 = 162 (9.0 %), 150+30−40−16 = 124 (7.75 %)
+    # → mediana 9.0 % × 2 000 = 180
+    st = _levered_state(); st["financials"] = fin
+    r = valuation_agent(st)["valuation"]
+    assert r.fcff_base.value == pytest.approx(180e6)
+    assert "median FCFF margin (3y)" in r.fcff_base.source
+
+
+def test_loss_making_company_yields_no_dcf_with_note():
+    st = _levered_state()
+    st["financials"] = st["financials"].model_copy(update={
+        "operating_income": [_mv(-50e6)], "net_income": [_mv(-80e6)], "operating_cash_flow": [_mv(-10e6)]})
+    r = valuation_agent(st)["valuation"]
+    assert r.dcf_intrinsic_per_share is None and "no positive FCFF or NOPAT" in r.dcf_reliability_note
+
+
+def test_no_share_count_yields_none_per_share_with_note():
+    st = _levered_state()
+    st["financials"] = st["financials"].model_copy(update={"shares_outstanding": None})
+    st["market"] = st["market"].model_copy(update={"price_current": None, "market_cap": None})
+    r = valuation_agent(st)["valuation"]
+    assert r.dcf_intrinsic_per_share is None and "share count unavailable" in r.dcf_reliability_note
+
+
+def test_valuation_input_defaults_mid_year_false_when_absent():
+    st = _levered_state(); st["checkpoint2_user_input"].pop("mid_year_convention")
+    r = valuation_agent(st)["valuation"]
+    assert r.mid_year_convention_used is False
+
+
+def test_valuation_agent_default_wacc_is_suggested_real_wacc_with_market():
+    """Sin WACC del usuario y con market cap: default = suggest_wacc (no 9.0 fijo)."""
+    from due_diligence.agents.valuation import suggest_wacc
+    st = _levered_state(); st["checkpoint2_user_input"].pop("wacc_pct")
+    r = valuation_agent(st)["valuation"]
+    expected = round(suggest_wacc(st["financials"], 1_500e6).wacc * 100, 1)   # 7.8 (ver test_checkpoint_socratic)
+    assert r.assumptions.wacc_pct == expected == 7.8
+    assert r.wacc_breakdown is not None and r.suggested_wacc_pct == 7.8

@@ -37,3 +37,13 @@ El sistema hacía una mezcla: flujo apalancado (OCF − capex) descontado a un "
 **Checkpoint 2.** Un solo `CHECKPOINT2_DEFAULTS` para nodo, CLI y agente. El nodo construye el payload (`_build_checkpoint2_summary`) con el WACC real como default y su desglose; la CLI lo lee de `result["__interrupt__"][0].value` (LangGraph 1.1.8) en lugar de recalcular. El nodo también valida WACC − g ≥ 1 pp y vuelve a interrumpir con `error` si no: LangGraph empareja cada `interrupt()` de un nodo con su resume por orden, así que el bucle es seguro (test con grafo real).
 
 **Ejemplo.** AZO-like: Ke 9,2 %, cobertura 9,0× → Kd 4,8 %, E 60B / D 9B → WACC = 0,8696·9,2 % + 0,1304·3,6 % = 8,47 %.
+
+## T12a — DCF sobre FCFF → EV → bridge → por acción
+
+**Qué cambia.** El nodo `valuation_agent` deja de descontar FCF apalancado y lo trata como equity. Ahora: tipo canónico (Σtax/Σpretax alineado por periodo) → FCFF por año → base normalizada (mediana del margen FCFF de 3 años × ingresos del último; like-with-like con el EPV) → DCF 3-stage con valor terminal con reinversión → EV × (1+WACC)^(días desde el cierre/365) → bridge → acciones diluidas → upside frente al PRECIO.
+
+**Fail loud sin tumbar el grafo.** Cualquier `ValuationInputError` (WACC − g < 1 pp, signo de capex negativo...) se captura en el nodo y sale como `ValuationReport(stub=True, error=...)`: el archiver y la síntesis lo ven como hueco de datos visible.
+
+**Defaults.** Sin WACC del usuario se usa el WACC real sugerido (con market cap) o 9,0 (sin él). `mid_year_convention` llega cableado (False por defecto).
+
+**Ejemplo A.** FCFF 210, NOPAT 225, WACC 9 %, g 0: EV 2 403,7 − net claims 450 = 1 953,7 → $195,37 (+30,2 % vs 150).

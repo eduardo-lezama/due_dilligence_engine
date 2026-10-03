@@ -13,3 +13,9 @@ Formato: síntoma → causa raíz → fix → commit.
 - **Causa raíz:** `t = 1 − NI/EBIT` mete intereses y NCI en el impuesto; el FCF apalancado no restaba SBC ni intereses cobrados; `_ebit_median` filtraba `value > 0`.
 - **Fix:** `fcff_breakdown` (SBC como coste, interest income neto restado, principal de leasing financiero restado); tipo canónico `effective_tax_rate_multi` y `MARGINAL_TAX_RATE` para perpetuidades; `_ebit_median` incluye negativos y devuelve None si la mediana ≤ 0.
 - **Commit:** feat(h1-T10).
+
+## EC-72 — DCF descontaba FCF apalancado al WACC sin bridge
+- **Síntoma:** valor por acción del DCF +18 % en una empresa apalancada (ejemplo A: $222,22 vs $195,37 correcto) y −21 % en una con caja neta (ejemplo C: $24,79 vs $31,35); `_mv_val(financials.diluted_shares)` sobre una lista habría dado `AttributeError` en cada run.
+- **Causa raíz:** `FCF = OCF − capex` (ya neto de intereses) descontado a una tasa llamada WACC y presentado como equity sin restar deuda ni sumar caja/STI/LTI; acciones = portada sin dilución.
+- **Fix:** `valuation_agent` → FCFF normalizado (mediana del margen 3 años) → `dcf_components` con valor terminal con reinversión → EV capitalizado a la fecha de valoración → `equity_bridge` (deuda, NCI, preferentes, caja, STI, LTI + participaciones) → `resolve_share_count` (portada × diluidas/básicas) → upside por acción. `ValuationInputError` capturado → `ValuationReport(stub=True, error=...)`. Test de integración `parse_financials → valuation_agent` con STI > 0.
+- **Commit:** feat(h1-T12a).

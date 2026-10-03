@@ -129,7 +129,7 @@ def _build_critic_prompt(state: AnalysisState) -> str:
         if valuation.dcf_upside_pct is not None:
             lines.append(f"DCF upside: {valuation.dcf_upside_pct:+.1f}%")
         if valuation.ev_fcf_multiple is not None:
-            lines.append(f"EV/FCF: {valuation.ev_fcf_multiple.value:.1f}x")
+            lines.append(f"EV/FCFF: {valuation.ev_fcf_multiple.value:.1f}x")  # market EV / FCFF (ADR-033)
         lines.append("")
 
     # MCE-23: Detected flags — señales cuantitativas que el sistema ha precalculado

@@ -7,17 +7,19 @@ Qué hace este módulo:
     la hace Python, no el LLM. Zero hallucination numérica por diseño (ADR-005).
 
 Fuentes de datos:
-    - state["financials"] (FinancialsReport) → FCF base, EBIT, net income, debt, cash
+    - state["financials"] (FinancialsReport) → OCF, capex, intereses, SBC, EBIT, impuestos,
+      deuda, caja, STI/LTI, NCI, preferentes, acciones (inputs FCFF y bridge, T8)
     - state["market"] (MarketReport) → precio actual, market cap
-    - state["checkpoint2_user_input"] → WACC, terminal growth, proyección en años
+    - state["checkpoint2_user_input"] → WACC, terminal growth, proyección, mid-year, fecha
 
-Qué calcula:
-    1. DCF en dos etapas (near-term + terminal) → equity value total
-    2. DCF upside/downside vs market cap actual
-    3. Reverse DCF → growth implícito en el precio actual (búsqueda binaria)
-    4. Múltiplos: EV/EBIT, EV/FCF, P/E
-    5. Earnings yield (EBIT/EV) — primera componente de Magic Formula (Greenblatt)
-    6. Tabla de sensibilidad WACC × near-term growth (3×3)
+Qué calcula (plano enterprise, ADR-033 — la aritmética vive en valuation_math):
+    1. DCF 3-stage sobre FCFF a WACC real → EV → equity bridge → valor por acción
+    2. Upside por acción frente al PRECIO (nunca EV vs market cap)
+    3. Reverse DCF → growth implícito en el EV de mercado (misma función que el directo)
+    4. EPV (Greenwald) en el mismo bridge + growth premium
+    5. Múltiplos sobre market EV: EV/EBIT, EV/FCFF, P/E (equity de mercado / NI), earnings yield
+    6. Tabla de sensibilidad WACC × near-term growth (3×3) en USD/share
+    7. Convergencia de los 4 métodos (ADR-030, umbrales ADR-033)
 
 Por qué near-term growth se calcula desde FCF histórico y no desde revenue:
     Ya tenemos el FCF calculado en FinancialsReport. Proyectar FCF directamente

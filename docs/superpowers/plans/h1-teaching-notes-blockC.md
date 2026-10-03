@@ -65,3 +65,11 @@ El sistema hacía una mezcla: flujo apalancado (OCF − capex) descontado a un "
 **Comparar peras con peras.** El reverse DCF devuelve un g1 de stage 1 que luego hace fade hasta g. Un 8 % con 5 + 5 años equivale a ≈ 6,33 % medio a 10 años: eso es lo que se compara con la CAGR histórica.
 
 **Sensibilidad por acción.** Cada celda es WACC × g1 → EV (mismo modelo) → − net claims → / acciones; la celda central coincide con el valor por acción del informe ($195,37 en el ejemplo A), así el lector puede leer directamente "a 11 % de WACC vale X por acción".
+
+## T13 — El informe muestra el bridge
+
+**Qué ve ahora el lector.** El archiver añade "### Enterprise → Equity Bridge" (EV del DCF − deuda − NCI − preferentes + caja + STI + LTI = equity ÷ acciones diluidas = valor por acción, con los leases operativos como memo ASC 842), el pie con base FCFF, tipo, mid-year y % del valor que viene del terminal, la sensibilidad en USD/share ("n/m" en celdas inválidas, "USD B (legacy)" en reports viejos) y una sección "## Data quality flags". Si la valoración falló con un error tipado, se muestra el error.
+
+**Contexto del Value Expert.** Recibe el FCFF con componentes, el desglose del WACC, el bridge, la cuota del terminal (si > 75 %: "§6 must flag terminal-value dependence"), el growth premium del EPV con su lectura Greenwald y el bloque "## DATA QUALITY FLAGS (deterministic)". Todo upside es "vs price"; la regla 21(d) del prompt dice ahora "EPV per share > price".
+
+**CLI.** `_show_valuation` muestra EV (DCF), net claims, equity tras el bridge y valor por acción; si hay error, panel rojo.

@@ -1,6 +1,6 @@
 # ADR-033: FCFF a WACC real + puente EV → equity común a DCF, EPV y reverse DCF
 
-**Status**: Proposed
+**Status**: Accepted (2026-10-03, implemented in H1 Bloque C: T10–T13)
 **Date**: 2026-10-03
 **Deciders**: Eduardo (AI/Agentic Engineering Lead)
 **Tags**: `valuation`, `fcff`, `wacc`, `equity-bridge`, `damodaran`, `greenwald`, `koller`
@@ -81,3 +81,13 @@ flowchart LR
 
 - ADR-005 (zero hallucination numérica), ADR-029, ADR-030.
 - Plan: Horizonte 1 — Bloque C (T10–T13).
+
+## Implementation notes (H1 Bloque C)
+
+- `valuation_math.py` holds all pure arithmetic (FCFF, bridge, share count, 3-stage DCF with terminal reinvestment, Kd by synthetic rating, WACC, `describe_wacc`); `valuation.py` orchestrates. The canonical tax functions are re-exported from `tools.xbrl_extract`, never redefined.
+- The synthetic-rating spread table is the plan's table, marked in code "VERIFY against Damodaran ratings.htm (Jan 2026)" — it was not verified online at implementation time.
+- One capitalization factor `(1+WACC)^(days since fiscal year-end / 365)` is applied to the DCF EV, the EPV and (inverted) to the reverse-DCF target, so the three methods are dated consistently.
+- The sensitivity table runs the headline path (terminal reinvestment, capitalization, bridge, diluted shares): its centre cell equals the reported DCF value per share (example A: $195.37).
+- `ValuationReport(stub=True, error="ValuationInputError: ...")` is the fail-loud output when inputs are invalid; archiver, CLI and Value Expert context render it as "valuation not computed".
+- Single source of checkpoint-2 defaults: `checkpoint.CHECKPOINT2_DEFAULTS`; the CLI reads the `interrupt()` payload (`result["__interrupt__"][0].value`, LangGraph 1.1.8) and the node re-interrupts with `error` when WACC − g < 1 pp.
+- Known limitation: near-term growth (g1) is still derived from the levered FCF CAGR / revenue CAGR (ADR-022/027); an FCFF/NOPAT-based growth anchor is H3-4.

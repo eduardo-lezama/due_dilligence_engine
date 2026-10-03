@@ -340,6 +340,10 @@ def _ask_dcf_assumptions(payload: dict, state: dict) -> dict:
 
 def _show_valuation(state: dict) -> None:
     valuation = state.get("valuation")
+    if valuation is not None and valuation.stub and valuation.error:
+        # ValuationInputError capturado en el nodo (ADR-033 §6): visible, no un hueco mudo.
+        console.print(Panel(valuation.error, title="VALUATION NOT COMPUTED", border_style="red"))
+        return
     if not valuation or valuation.stub:
         return
 
@@ -347,17 +351,25 @@ def _show_valuation(state: dict) -> None:
     table.add_column("Metric", style="bold")
     table.add_column("Value", justify="right")
 
+    # Plano enterprise (ADR-033): EV del DCF → net claims → equity → por acción.
+    if valuation.enterprise_value_dcf:
+        table.add_row("Enterprise value (DCF)", _fmt_usd(valuation.enterprise_value_dcf.value))
+    if valuation.equity_bridge is not None:
+        table.add_row("Net claims (debt + NCI + pref − cash − STI − LTI)",
+                      _fmt_usd(valuation.equity_bridge.net_claims))
     if valuation.dcf_intrinsic_value:
-        table.add_row("DCF equity value", _fmt_usd(valuation.dcf_intrinsic_value.value))
+        table.add_row("DCF equity value (after bridge)", _fmt_usd(valuation.dcf_intrinsic_value.value))
+    if valuation.dcf_intrinsic_per_share:
+        table.add_row("Per share", f"${valuation.dcf_intrinsic_per_share.value:.2f}")
     if valuation.dcf_upside_pct is not None:
         color = "green" if valuation.dcf_upside_pct > 0 else "red"
-        table.add_row("DCF upside", f"[{color}]{valuation.dcf_upside_pct:+.1f}%[/{color}]")
+        table.add_row("DCF upside vs price", f"[{color}]{valuation.dcf_upside_pct:+.1f}%[/{color}]")
     if valuation.reverse_dcf_implied_growth is not None:
         table.add_row("Implied growth (reverse DCF)", f"{valuation.reverse_dcf_implied_growth:.1%}")
     if valuation.ev_ebit_multiple:
         table.add_row("EV/EBIT", f"{valuation.ev_ebit_multiple.value:.1f}x")
     if valuation.ev_fcf_multiple:
-        table.add_row("EV/FCF", f"{valuation.ev_fcf_multiple.value:.1f}x")
+        table.add_row("EV/FCFF", f"{valuation.ev_fcf_multiple.value:.1f}x")
     if valuation.pe_multiple:
         table.add_row("P/E", f"{valuation.pe_multiple.value:.1f}x")
     if valuation.earnings_yield_pct is not None:
@@ -453,9 +465,9 @@ def _show_verdict(state: dict) -> None:
                 mcap_str = ""
                 if valuation.dcf_upside_pct is not None:
                     color = "green" if valuation.dcf_upside_pct > 0 else "red"
-                    mcap_str = f"[{color}]{valuation.dcf_upside_pct:+.1f}% vs market cap[/{color}]"
+                    mcap_str = f"[{color}]{valuation.dcf_upside_pct:+.1f}% vs price[/{color}]"  # upside por acción (ADR-033)
                 ps_table.add_row(
-                    "DCF equity value (total)",
+                    "DCF equity value (after bridge)",
                     _fmt_usd(valuation.dcf_intrinsic_value.value),
                     mcap_str,
                 )
@@ -475,7 +487,7 @@ def _show_verdict(state: dict) -> None:
         if valuation.ev_ebit_multiple:
             mult_table.add_row("EV/EBIT", f"{valuation.ev_ebit_multiple.value:.1f}x")
         if valuation.ev_fcf_multiple:
-            mult_table.add_row("EV/FCF", f"{valuation.ev_fcf_multiple.value:.1f}x")
+            mult_table.add_row("EV/FCFF", f"{valuation.ev_fcf_multiple.value:.1f}x")
         if valuation.pe_multiple:
             mult_table.add_row("P/E", f"{valuation.pe_multiple.value:.1f}x")
         if valuation.earnings_yield_pct is not None:

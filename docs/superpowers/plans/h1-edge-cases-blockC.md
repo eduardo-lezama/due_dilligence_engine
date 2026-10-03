@@ -37,3 +37,10 @@ Formato: síntoma → causa raíz → fix → commit.
 - **Causa raíz:** `historical_cagr_for_conv = near_term_growth`; umbral EPV `< 0`; `_sensitivity_table` sobre `_three_stage_dcf` sin bridge ni acciones.
 - **Fix:** histórico = `historical_cagr_5y` (CAGR de ingresos); clasificación del reverse sobre la CAGR equivalente a 10 años del camino implícito (`_ten_year_equivalent_cagr`, `reverse_dcf_10y_equivalent`); banda EPV ±10 % simétrica; sensibilidad en USD/share por el mismo camino que el titular (reinversión terminal, capitalización, bridge), celdas inválidas `None`, `sensitivity_unit="USD/share"`; ADR-030 con la tabla de umbrales corregida.
 - **Commit:** feat(h1-T12c).
+
+## Conocidos — pendientes (Bloque C)
+- Inputs FCFF ausentes en los fixtures legacy (sin interest/SBC/interest income): el informe lo avisa (nota de reliability) pero el FCFF de esos runs es OCF − capex. Re-fetch de fixtures en T14.
+- g1 (near-term growth) sigue saliendo del CAGR del FCF apalancado / ingresos (ADR-022/027): con capex creciente puede dar g1 negativo (AZO −11 %) y arrastrar el DCF; ancla FCFF/NOPAT = H3-4.
+- Tabla de spreads del rating sintético sin verificar contra Damodaran ratings.htm (Jan 2026).
+- LTI puede incluir participaciones operativas; pensiones fuera del bridge (H3-6b); leases operativos no capitalizados (H3).
+- Kd con deuda contable como proxy del valor de mercado.

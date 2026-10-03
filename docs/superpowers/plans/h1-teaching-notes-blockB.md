@@ -57,3 +57,19 @@ flowchart LR
 **Relación con la arquitectura.** Refuerza ADR-005: los números deterministas solo son correctos si las operaciones entre series respetan el periodo. Arreglar el trimestral destapó que varios tests hacían una llamada real a EDGAR (enmascarada por el bug); `conftest.py` la bloquea ahora (zero real API calls).
 
 **Ejemplo.** `cagr_by_fiscal_years([FY2026: 529.8, FY2024: 486.1, FY2023: 467.9, FY2022: 411.5], max_years=5)` → `n = 4`, CAGR = (529.8/411.5)^(1/4) − 1 ≈ 6,5 % (antes exponente 1/3 → ≈ 8,8 %).
+
+---
+
+## T8 — FCFF y sus inputs (extracciones nuevas)
+
+**Concepto.** El FCFF (*free cash flow to the firm*) es la caja que genera el negocio para TODOS los financiadores (accionistas y acreedores), antes de pagarles. Se descuenta al WACC y da el *enterprise value*; el bridge EV→equity resta después la deuda neta. Es el marco único de valoración elegido para H1 (ADR-033).
+
+**Por qué hacen falta inputs nuevos.** Partiendo del OCF (US GAAP): (1) el OCF ya restó los intereses pagados → hay que sumarlos netos de impuestos (`interest_expense`); (2) incluye intereses cobrados sobre la caja, que el bridge ya suma como caja → se restan (`interest_income`); (3) la SBC es un coste real aunque no sea caja (Damodaran) → `sbc`; (4) el principal de leasings financieros es capex disfrazado → `finance_lease_principal_payments`. Para pasar del equity a "por acción" hace falta el recuento correcto: la media ponderada **diluida** (`diluted_shares`) y la **básica** (`basic_shares_weighted`) permiten escalar el recuento puntual de portada (`shares_outstanding × diluidas/básicas`) sin sobrecontar en empresas con recompras fuertes.
+
+**Cómo.** `extract_annual(concepts, dfs, facts, labels)`: primero la vista curada (+ relleno de huecos); si el concepto no está (la vista curada omite muchos de estos), raw facts en la MISMA rejilla de años que el revenue, para que todo se alinee por periodo. Los memos de balance (`operating_lease_liabilities`, `operating_rou_asset`, `equity_method_investments`, `minority_interest`, `preferred_stock`) se extraen pero NO entran en `total_debt`: el leasing operativo ya reduce OCF y EBIT, restarlo además en el bridge lo cobraría dos veces.
+
+**Signos.** Intereses, SBC, D&A y principal se guardan en magnitud (`_mv_list_abs`): el signo varía por filer y edgartools 5.5x devuelve los flujos con signo. Los intereses cobrados conservan su signo.
+
+**Relación con la arquitectura.** Todos los campos nuevos tienen default (`[]`/`None`), así los 51 fixtures y reports históricos siguen cargando; el Bloque C (T10–T13) es el consumidor. `income_tax`/`pretax_income` se exponen para el tipo impositivo canónico `effective_tax_rate_multi`.
+
+**Ejemplo.** Con la vista curada sin `InterestExpense` pero raw facts con FY2025=2.0 y FY2024=1.5, `extract_annual(INTEREST_EXPENSE, ...)` → `[{2.0, FY2025, "facts:InterestExpense"}, {1.5, FY2024, "facts:InterestExpense"}]`.

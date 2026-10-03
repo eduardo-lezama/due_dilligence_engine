@@ -190,6 +190,11 @@ class EdgarAdapter:
             return MetricValue(value=item["value"], unit=unit, period=item["period"],
                                source=item.get("source", "XBRL"))
 
+        def _mv_list_unit(items: list[dict], unit: str) -> list[MetricValue]:
+            """Como _mv_list pero con unidad explícita (p.ej. "shares" para medias ponderadas)."""
+            return [MetricValue(value=i["value"], unit=unit, period=i["period"],
+                                source=i.get("source", "XBRL")) for i in items]
+
         # Deuda total = LT + ST + leasing financiero (EC-80). Fixtures legacy sin
         # "finance_leases" cuentan 0. Los leasings OPERATIVOS no entran (ASC 842, memo en T8).
         lease = bs.get("finance_leases") or {"value": 0.0, "source": "absent"}  # legacy: sin clave → 0
@@ -291,6 +296,24 @@ class EdgarAdapter:
             short_term_investments=_mv_opt(sti_item),
             long_term_investments=_mv_opt(bs.get("long_term_investments")),
             data_quality_flags=list(raw.get("data_quality_flags", [])),
+            # --- FCFF inputs (T8). Fixtures legacy sin estas claves → [] / None. ---
+            # Magnitud (_mv_list_abs): el signo de intereses/SBC/D&A/principal varía por filer y
+            # por versión de edgartools (5.5x devuelve flujos de caja con signo); el FCFF los
+            # resta como costes ≥ 0. Intereses COBRADOS conservan su signo.
+            interest_expense=_mv_list_abs(annual.get("interest_expense", [])),
+            interest_income=_mv_list(annual.get("interest_income", [])),
+            sbc=_mv_list_abs(annual.get("sbc", [])),
+            depreciation_amortization=_mv_list_abs(annual.get("depreciation_amortization", [])),
+            diluted_shares=_mv_list_unit(annual.get("diluted_shares", []), "shares"),
+            basic_shares_weighted=_mv_opt((annual.get("basic_shares_weighted") or [None])[0], "shares"),
+            income_tax=_mv_list(annual.get("income_tax", [])),
+            pretax_income=_mv_list(annual.get("pretax_income", [])),
+            finance_lease_principal_payments=_mv_list_abs(annual.get("finance_lease_principal_payments", [])),
+            operating_lease_liabilities=_mv_opt(bs.get("operating_lease_liabilities")),
+            operating_rou_asset=_mv_opt(bs.get("operating_rou_asset")),
+            equity_method_investments=_mv_opt(bs.get("equity_method_investments")),
+            minority_interest=_mv_opt(bs.get("minority_interest")),
+            preferred_stock=_mv_opt(bs.get("preferred_stock")),
             shares_outstanding=(
                 # Construcción condicional (EC-34): NO crear MetricValue con value=None.
                 # Si XBRL no reporta shares (small caps con dual-class como CRD.A, ADRs),

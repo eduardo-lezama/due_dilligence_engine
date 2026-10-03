@@ -91,7 +91,24 @@ class FinancialsReport(BaseModel):
     data_quality_flags: list[str] = Field(default_factory=list)  # identidades contables rotas, fallbacks
 
     # Share data
-    shares_outstanding: Optional[MetricValue] = None
+    shares_outstanding: Optional[MetricValue] = None  # recuento puntual de portada (dei)
+
+    # --- FCFF inputs (Bloque C) — series anuales, index 0 = latest, mismas etiquetas FY que revenue ---
+    interest_expense: list[MetricValue] = Field(default_factory=list)  # magnitud (signo varía por filer)
+    interest_income: list[MetricValue] = Field(default_factory=list)   # restado neto de impuestos del FCFF
+    sbc: list[MetricValue] = Field(default_factory=list)                # ShareBasedCompensation (magnitud)
+    depreciation_amortization: list[MetricValue] = Field(default_factory=list)  # magnitud
+    diluted_shares: list[MetricValue] = Field(default_factory=list)     # MEDIA PONDERADA diluida, unit="shares"
+    basic_shares_weighted: Optional[MetricValue] = None                 # media ponderada básica (latest)
+    # --- Balance memo (point-in-time, latest) ---
+    operating_lease_liabilities: Optional[MetricValue] = None  # MEMO: no en total_debt (ASC 842)
+    operating_rou_asset: Optional[MetricValue] = None          # ROU operativo: se excluye del IC operativo (T9)
+    minority_interest: Optional[MetricValue] = None
+    preferred_stock: Optional[MetricValue] = None
+    # --- Tipo impositivo canónico (revisión adversarial): expuestos para effective_tax_rate_multi ---
+    income_tax: list[MetricValue] = Field(default_factory=list)
+    pretax_income: list[MetricValue] = Field(default_factory=list)
+    finance_lease_principal_payments: list[MetricValue] = Field(default_factory=list)  # capex equivalente (FCFF)
 
     # ROIC (Return on Invested Capital) — calculado de XBRL, no generado por LLM.
     # NOPAT = OperatingIncome × (1 − effective_tax_rate); IC = Equity + Debt − Cash.

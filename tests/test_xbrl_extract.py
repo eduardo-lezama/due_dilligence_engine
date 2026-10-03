@@ -299,3 +299,52 @@ def test_build_raw_backfills_interior_gap_in_annual_series():
                        cf_df=cf, facts=FakeFacts({("Revenues", "FY2024"): 95.0}), shares_outstanding=1.0)
     assert [(i["period"], i["source"]) for i in raw["annual"]["revenue"]] == [
         ("FY2025", "Revenues"), ("FY2024", "facts:Revenues"), ("FY2023", "Revenues")]
+
+
+# --------------------------------------------------------------------------- #
+# Task 8 — extracciones nuevas para FCFF (consumidas por el Bloque C)
+# --------------------------------------------------------------------------- #
+
+def test_extract_annual_prefers_curated_then_facts_on_revenue_labels():
+    inc = make_df({"Revenues": {"FY 2025": 100.0, "FY 2024": 90.0}})
+    cf = make_df({"ShareBasedCompensation": {"FY 2025": 5.0, "FY 2024": 4.0}})
+    facts = FakeFacts({("InterestExpense", "FY2025"): 2.0, ("InterestExpense", "FY2024"): 1.5})
+    labels = ["FY2025", "FY2024"]
+    assert xe.extract_annual(xe.SBC, (inc, cf), facts, labels)[0] == {
+        "value": 5.0, "period": "FY2025", "source": "ShareBasedCompensation"}
+    ie = xe.extract_annual(xe.INTEREST_EXPENSE, (inc, cf), facts, labels)
+    assert [(i["period"], i["source"]) for i in ie] == [("FY2025", "facts:InterestExpense"),
+                                                         ("FY2024", "facts:InterestExpense")]
+
+
+def test_build_raw_emits_fcff_inputs_and_memo_items():
+    inc, bs, cf = _min_frames()
+    inc.loc["WeightedAverageNumberOfDilutedSharesOutstanding"] = ["w", False, 10.4, 10.6]
+    inc.loc["WeightedAverageNumberOfSharesOutstandingBasic"] = ["w", False, 10.0, 10.2]
+    bs.loc["OperatingLeaseLiability"] = ["l", False, 30.0, 28.0]
+    raw = xe.build_raw(ticker="abc", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts({("InvestmentIncomeInterest", "FY2025"): 1.2}),
+                       shares_outstanding=10.0)
+    assert raw["annual"]["diluted_shares"][0]["value"] == 10.4
+    assert raw["annual"]["basic_shares_weighted"][0]["value"] == 10.0
+    assert raw["annual"]["interest_income"][0]["source"] == "facts:InvestmentIncomeInterest"
+    assert raw["balance_sheet"]["operating_lease_liabilities"]["value"] == 30.0
+
+
+def test_build_raw_operating_lease_sums_components_and_new_memo_items():
+    """Sin OperatingLeaseLiability total: noncurrent + current; ROU, participaciones, leasing principal."""
+    inc, bs, cf = _min_frames()
+    bs.loc["OperatingLeaseLiabilityNoncurrent"] = ["l", False, 25.0, 20.0]
+    bs.loc["OperatingLeaseLiabilityCurrent"] = ["l", False, 5.0, 4.0]
+    bs.loc["OperatingLeaseRightOfUseAsset"] = ["r", False, 29.0, 23.0]
+    bs.loc["EquityMethodInvestments"] = ["e", False, 7.0, 6.0]
+    cf.loc["FinanceLeasePrincipalPayments"] = ["f", False, 3.0, 2.0]
+    raw = xe.build_raw(ticker="abc", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+    b = raw["balance_sheet"]
+    assert b["operating_lease_liabilities"]["value"] == 30.0
+    assert b["operating_lease_liabilities"]["source"].startswith("derived:")
+    assert b["operating_rou_asset"]["value"] == 29.0
+    assert b["equity_method_investments"]["value"] == 7.0
+    assert b["minority_interest"] is None and b["preferred_stock"] is None
+    assert raw["annual"]["finance_lease_principal_payments"][0]["value"] == 3.0

@@ -221,6 +221,25 @@ def backfill_gaps(series: list[dict], facts: FactsLookup) -> list[dict]:
     return [by_year[y] for y in sorted(by_year, reverse=True)]
 
 
+def extract_annual(concepts: tuple[str, ...], dfs: tuple[pd.DataFrame, ...], facts: FactsLookup,
+                   labels: list[str], n: int = 10) -> list[dict]:
+    """Serie anual para conceptos que la vista curada puede omitir (interest, SBC, D&A, shares).
+
+    1) primer DataFrame curado que la tenga (+ backfill de huecos);
+    2) si ninguno: facts en bruto para cada etiqueta de `labels` (las del revenue), de modo que
+       la serie comparte etiquetas con el resto y el cálculo de FCFF puede alinear por periodo.
+    """
+    for df in dfs:
+        if series := annual_series(df, concepts, n):
+            return backfill_gaps(series, facts)
+    for concept in concepts:
+        out = [{"value": v, "period": lb, "source": f"facts:{concept}"}
+               for lb in labels[:n] if (v := facts.annual_value(concept, lb)) is not None]
+        if out:
+            return out
+    return []
+
+
 _Q_XBRL = re.compile(r"^(\d{4}-\d{2}-\d{2}) \((Q[1-4])\)$")   # xbrl/statements.py:1111 — verificado en vivo
 _Q_FACTS = re.compile(r"^(Q[1-4]) (\d{4})$")                  # enhanced_statement.py:1779
 
@@ -379,9 +398,29 @@ ST_BORROWINGS = ("ShortTermBorrowings", "CommercialPaper", "NotesPayableCurrent"
 FIN_LEASE_TOTAL = ("FinanceLeaseLiability",)
 # Inversiones financieras (EC-81): antes STI estaba hardcodeado a 0.
 STI = ("ShortTermInvestments", "MarketableSecuritiesCurrent", "AvailableForSaleSecuritiesDebtSecuritiesCurrent")
-LTI = ("LongTermInvestments", "MarketableSecuritiesNoncurrent", "AvailableForSaleSecuritiesDebtSecuritiesNoncurrent")
+# LTI (T8, revisión de método): valores negociables primero; LongTermInvestments puede mezclar
+# participaciones (equity method), que van aparte en EQUITY_METHOD con su propio campo.
+LTI = ("MarketableSecuritiesNoncurrent", "AvailableForSaleSecuritiesDebtSecuritiesNoncurrent", "LongTermInvestments")
 RESTRICTED_CASH = ("CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",)
 _TOL = 0.02  # 2 % tolerance for XBRL roundings
+
+# --- Inputs FCFF (T8, consumidos por el Bloque C) ---
+INTEREST_EXPENSE = ("InterestExpense", "InterestExpenseNonoperating", "InterestExpenseDebt", "InterestAndDebtExpense")
+INTEREST_INCOME = ("InvestmentIncomeInterest", "InterestIncomeOther",
+                   "InvestmentIncomeInterestAndDividend", "InterestAndDividendIncomeOperating")
+SBC = ("ShareBasedCompensation", "AllocatedShareBasedCompensationExpense")
+DA = ("DepreciationDepletionAndAmortization", "DepreciationAndAmortization",
+      "DepreciationAmortizationAndAccretionNet", "Depreciation")
+DILUTED_W = ("WeightedAverageNumberOfDilutedSharesOutstanding",)
+BASIC_W = ("WeightedAverageNumberOfSharesOutstandingBasic",)
+# Principal de leasing financiero: "capex equivalente" que el FCFF debe restar.
+FIN_LEASE_PRINCIPAL = ("FinanceLeasePrincipalPayments", "RepaymentsOfLongTermCapitalLeaseObligations")
+# --- Memo de balance (no entran en total_debt; el bridge decide qué hacer con cada uno) ---
+OP_LEASE_TOTAL = ("OperatingLeaseLiability",)          # ASC 842: memo, NO deuda
+OP_ROU_ASSET = ("OperatingLeaseRightOfUseAsset",)      # se excluye del IC operativo (T9)
+EQUITY_METHOD = ("EquityMethodInvestments",)            # cross-holdings (Damodaran: se suman)
+MINORITY = ("MinorityInterest",)
+PREFERRED = ("PreferredStockValue",)
 
 
 # --------------------------------------------------------------------------- #
@@ -532,6 +571,17 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
     debt = resolve_debt(get, fy_label)
     flags = debt["flags"] + balance_identity_flags(get, fy_label, ticker)
     cash = resolve_cash(get, fy_label, ticker)
+
+    # Leasing operativo (ASC 842): total si existe; si no, noncurrent + current. Memo, no deuda.
+    op_lease = get(OP_LEASE_TOTAL)
+    if op_lease is None and get(("OperatingLeaseLiabilityNoncurrent",)):
+        op_lease = _sum_items([get(("OperatingLeaseLiabilityNoncurrent",)),
+                               get(("OperatingLeaseLiabilityCurrent",))], fy_label)
+
+    # Rejilla de etiquetas FY del revenue: extract_annual consulta raw facts en ESTOS años,
+    # para que los inputs FCFF se puedan alinear por periodo con OCF/capex.
+    labels = [i["period"] for i in revenue]
+    dfs = (inc_df, cf_df)
     if flags:
         log.warning("balance_data_quality_flags", ticker=ticker, flags=flags)
 
@@ -552,6 +602,14 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
             # Capital returns (ADR-023): negativos en XBRL; parse_financials toma magnitud.
             "buybacks": fill(annual_series(cf_df, BUYBACK_CONCEPTS)),
             "dividends": fill(annual_series(cf_df, DIVIDEND_CONCEPTS)),
+            # --- Inputs FCFF (T8): misma rejilla de etiquetas que el revenue ---
+            "interest_expense": extract_annual(INTEREST_EXPENSE, dfs, facts, labels),
+            "interest_income": extract_annual(INTEREST_INCOME, dfs, facts, labels),
+            "sbc": extract_annual(SBC, (cf_df, inc_df), facts, labels),
+            "depreciation_amortization": extract_annual(DA, (cf_df, inc_df), facts, labels),
+            "diluted_shares": extract_annual(DILUTED_W, (inc_df,), facts, labels),
+            "basic_shares_weighted": extract_annual(BASIC_W, (inc_df,), facts, labels),
+            "finance_lease_principal_payments": extract_annual(FIN_LEASE_PRINCIPAL, (cf_df,), facts, labels),
         },
         "balance_sheet": {
             "total_assets": assets,
@@ -564,6 +622,12 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
             "long_term_investments": get(LTI),
             "current_liabilities": get(("LiabilitiesCurrent",)),
             "stockholders_equity": get(("StockholdersEquity",)),
+            # --- Memo (T8): visibles, pero NO dentro de total_debt ---
+            "operating_lease_liabilities": op_lease,
+            "operating_rou_asset": get(OP_ROU_ASSET),
+            "equity_method_investments": get(EQUITY_METHOD),
+            "minority_interest": get(MINORITY),
+            "preferred_stock": get(PREFERRED),
         },
         # Identidades contables rotas / inferencias: llegan al FinancialsReport y al report.
         "data_quality_flags": flags,

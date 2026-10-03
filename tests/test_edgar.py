@@ -104,6 +104,43 @@ def test_parse_financials_total_debt_includes_finance_leases_and_flags():
     assert rep.short_term_investments is None
 
 
+def test_parse_financials_fcff_fields_and_legacy_fixture(aapl_raw):
+    """Fixture legacy sin claves nuevas → campos vacíos/None; con claves → MetricValues con unidad correcta."""
+    from due_diligence.tools.edgar import EdgarAdapter
+    legacy = EdgarAdapter.parse_financials(aapl_raw)
+    assert legacy.sbc == [] and legacy.operating_lease_liabilities is None
+    assert legacy.income_tax[0].period == "FY2025"   # el fixture AAPL ya trae income_tax
+    raw = {**aapl_raw, "annual": {**aapl_raw["annual"],
+           "diluted_shares": [{"value": 15.0e9, "period": "FY2025", "source": "WeightedAverageNumberOfDilutedSharesOutstanding"}],
+           "basic_shares_weighted": [{"value": 14.9e9, "period": "FY2025", "source": "WeightedAverageNumberOfSharesOutstandingBasic"}]}}
+    r = EdgarAdapter.parse_financials(raw)
+    assert r.diluted_shares[0].unit == "shares" and r.basic_shares_weighted.value == 14.9e9
+
+
+def test_parse_financials_fcff_signs_normalized():
+    """Intereses, SBC, D&A y principal de leasing en MAGNITUD (el signo varía por filer y por
+    versión de edgartools); intereses cobrados con su signo."""
+    from due_diligence.tools.edgar import EdgarAdapter
+    raw = _min_raw()
+    item = lambda v, c: [{"value": v, "period": "FY2025", "source": c}]  # noqa: E731
+    raw["annual"] = {**raw["annual"],
+                     "interest_expense": item(-12.0, "InterestExpense"),
+                     "interest_income": item(3.0, "InvestmentIncomeInterest"),
+                     "sbc": item(-5.0, "ShareBasedCompensation"),
+                     "depreciation_amortization": item(-9.0, "DepreciationDepletionAndAmortization"),
+                     "finance_lease_principal_payments": item(-2.0, "FinanceLeasePrincipalPayments")}
+    raw["balance_sheet"] = {**raw["balance_sheet"],
+                            "operating_lease_liabilities": {"value": 30.0, "period": "FY2025", "source": "OperatingLeaseLiability"},
+                            "operating_rou_asset": {"value": 29.0, "period": "FY2025", "source": "OperatingLeaseRightOfUseAsset"},
+                            "minority_interest": None}
+    r = EdgarAdapter.parse_financials(raw)
+    assert r.interest_expense[0].value == 12.0 and r.interest_income[0].value == 3.0
+    assert r.sbc[0].value == 5.0 and r.depreciation_amortization[0].value == 9.0
+    assert r.finance_lease_principal_payments[0].value == 2.0
+    assert r.operating_lease_liabilities.value == 30.0 and r.operating_rou_asset.value == 29.0
+    assert r.minority_interest is None
+
+
 # ---------------------------------------------------------------------------
 # parse_quarterly_snapshot — pure function tests (no EDGAR call, no fixture file)
 # ---------------------------------------------------------------------------

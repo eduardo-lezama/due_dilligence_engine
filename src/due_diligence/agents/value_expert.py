@@ -53,6 +53,7 @@ from due_diligence.llm.client import get_client
 from due_diligence.schemas.reports import ValueExpertReport
 
 from due_diligence.utils.formatting import fmt_usd as _fmt_usd
+from due_diligence.utils.periods import align_by_period
 
 log = structlog.get_logger()
 
@@ -107,7 +108,7 @@ RULES — NON-NEGOTIABLE:
     (d) EPV is the zero-growth floor: if EPV > market cap (EPV upside > 0%), state explicitly that a BUY does NOT require growth assumptions to hold — the margin of safety exists in the static business alone. This is the highest-conviction BUY signal.
     (e) Never ignore the convergence count. A sentence like "DCF shows 35% upside" with no mention of EPV or reverse DCF is an incomplete §6.
 
-22. ROIC TREND LABEL AUTHORITY (§2/§5): the context provides a pre-computed 'ROIC trend interpretation' label: RISING, FALLING, or STABLE, derived directly from XBRL data. This label is AUTHORITATIVE — you MUST NOT use language that contradicts it:
+22. ROIC TREND & INCREMENTAL (§4+§5): the ROIC trend label and the incremental ROIC figure are computed deterministically; narrative MUST be consistent with both; if incremental ROIC is n/m, say so and do not infer reinvestment quality. The 'ROIC trend interpretation' label (RISING, FALLING, or STABLE) is AUTHORITATIVE — you MUST NOT use language that contradicts it:
     - RISING label → do NOT write "declining ROIC", "eroding ROIC", "deteriorating ROIC", "falling ROIC", or "moat is eroding due to ROIC decline". Even if the absolute ROIC level is still negative, a trend from -28% to +5% is an unambiguous improvement and MUST be described as such. Use language like "ROIC recovering toward positive territory" or "marginal returns improving."
     - FALLING label → do NOT describe ROIC as "improving", "recovering", or "strengthening".
     - STABLE label → use neutral language about ROIC.
@@ -131,7 +132,7 @@ OUTPUT SCHEMA:
   "moat_analysis": "<§2: integrate ROIC evidence with qualitative moat classification. If peer ROIC data is available in context, explicitly compare the subject's ROIC against peers — name the numbers. If they conflict with the moat label, adjudicate with reasoning.>",
   "management_assessment": "<§3: skin in the game (insider %) + capital allocation track record + earnings call Q&A tone if available. Quote one verbatim phrase from transcripts if available. MUST reconcile insider sale prices vs current market price when both are in context — name the gap explicitly. MUST classify insider buying by TOTAL DOLLAR MAGNITUDE per rule 11: token (<$50K) is cosmetic, NOT conviction. ABSENCE of CEO/CFO open-market buying during drawdown >30% is itself a negative signal.>",
   "financial_quality": "<§4: FCF conversion, balance sheet, margin trends, earnings quality. If 'Capital returned to shareholders' is in context, you MUST report it explicitly: how much was returned, what % of FCF, split between buybacks/dividends. Capital allocation is core to value investing thesis. If quarterly news data is more recent than 10-K, update conclusions accordingly (rule 13).>",
-  "growth_reinvestment": "<§5: reinvestment rate (capex/OCF — MUST report the precomputed value if available) + ROIC trend interpretation (incremental ROIC proxy — RISING means new capital earns above base, FALLING means value destruction). State whether the company is in invest/balanced/harvest mode AND whether marginal returns are positive or negative based on the ROIC trend. Integrate quarterly news data when more recent than 10-K (rule 13).>",
+  "growth_reinvestment": "<§5: reinvestment rate (capex/OCF — MUST report the precomputed value if available) + ROIC trend label + the precomputed incremental ROIC (ΔNOPAT/ΔIC; if n/m say so — rule 22). State whether the company is in invest/balanced/harvest mode AND whether marginal returns are positive or negative based on the incremental ROIC figure. Integrate quarterly news data when more recent than 10-K (rule 13).>",
   "valuation_section": "<§6: MUST contrast reverse-DCF implied growth vs historical 5y revenue CAGR. State the spread and what it implies about market expectations.>",
   "risks": "<§7: include any 8-K material events (especially Item 4.02) PLUS top risks from 10-K Item 1A. MUST cross-check news flow + insider activity + margin trends — if multiple signals point negative, name the value trap pattern explicitly. MUST analyze named risks PER SEGMENT when company is multi-segment (rule 12) — same tariff/regulatory/commodity risk often has opposite signs across segments. MUST integrate any quarterly news data more recent than the 10-K (Q1/Q2/Q3 metrics, guidance changes) and weigh them in the verdict, not just mention as factoids (rule 13).>",
   "psychological_lens": "<§8: why might this be mispriced? Contrarian thesis or consensus trap?>",
@@ -206,26 +207,40 @@ def _format_context(state: AnalysisState) -> str:
             # usa la serie completa, así que el display debe ser consistente.
             roic_str = ", ".join(f"{r.period}: {r.value:.1%}" for r in financials.roic_series[:5])
             lines.append(f"ROIC series: {roic_str}")
-            # Incremental ROIC proxy (Fix #3 + EC-32): tendencia + delta concreto en pp.
-            # Antes solo emitíamos interpretación cualitativa (RISING/FALLING). Auditoría
-            # externa pidió el número concreto: "marginal ROIC appears positive" sin valor
-            # no es accionable. Ahora computamos avg annual delta en percentage points.
+            # Tendencia del ROIC (Fix #3 + EC-32): label + delta concreto en pp. Desde T9 la
+            # tendencia ya NO se presenta como "ROIC marginal": el ROIC incremental real
+            # (ΔNOPAT/ΔIC) va en su propia línea, calculado en parse_financials (EC-85).
             if len(financials.roic_series) >= 2:
                 roic_latest = financials.roic_series[0].value
-                roic_oldest = financials.roic_series[-1].value
-                n_periods = len(financials.roic_series) - 1  # 4 años → 3 deltas
+                # Ventana de 5 años (T7): con periods=10 roic_series[-1] sería una tendencia a 10.
+                oldest_idx = min(4, len(financials.roic_series) - 1)
+                roic_oldest = financials.roic_series[oldest_idx].value
+                n_periods = oldest_idx  # 5 puntos → 4 deltas
                 avg_annual_delta_pp = (roic_latest - roic_oldest) / n_periods * 100  # en pp
                 if roic_latest > roic_oldest * 1.05:
-                    interp = f"RISING — marginal ROIC > average (avg ΔROIC: +{avg_annual_delta_pp:.1f}pp/year over {n_periods} years)"
+                    interp = f"RISING (avg ΔROIC: +{avg_annual_delta_pp:.1f}pp/year over {n_periods} years)"
                 elif roic_latest < roic_oldest * 0.95:
-                    interp = f"FALLING — marginal ROIC < average (avg ΔROIC: {avg_annual_delta_pp:.1f}pp/year over {n_periods} years)"
+                    interp = f"FALLING (avg ΔROIC: {avg_annual_delta_pp:.1f}pp/year over {n_periods} years)"
                 else:
-                    interp = f"STABLE — marginal ROIC ≈ average (avg ΔROIC: {avg_annual_delta_pp:+.1f}pp/year)"
+                    interp = f"STABLE (avg ΔROIC: {avg_annual_delta_pp:+.1f}pp/year)"
                 lines.append(f"ROIC trend interpretation (use in §5): {interp}")
+            # ROIC incremental real (regla 22): ΔNOPAT/ΔIC frente al ROIC medio de la misma ventana.
+            window = financials.roic_series[:5]
+            avg_roic = sum(r.value for r in window) / len(window)
+            if financials.incremental_roic is not None:
+                inc = financials.incremental_roic
+                lines.append(f"Incremental ROIC (ΔNOPAT/ΔIC, {inc.period}): {inc.value:.1%} "
+                             f"vs average ROIC {avg_roic:.1%}")
+            else:
+                lines.append("Incremental ROIC: n/m (ΔIC too small or balance history unavailable) "
+                             "— do not infer reinvestment quality")
         if financials.total_debt is not None:
             lines.append(f"Total Debt: {_fmt_usd(financials.total_debt.value)}")
         if financials.cash_and_equivalents is not None:
-            lines.append(f"Cash + STI: {_fmt_usd(financials.cash_and_equivalents.value)}")
+            # Desde H1 (EC-81) cash_and_equivalents es SOLO caja; STI en línea propia.
+            lines.append(f"Cash (ex-STI): {_fmt_usd(financials.cash_and_equivalents.value)}")
+        if financials.short_term_investments is not None:
+            lines.append(f"Short-term investments: {_fmt_usd(financials.short_term_investments.value)}")
 
         # Capital returns (ADR-023, EC-19) — central para tesis value investing.
         # MUST aparecer en §4 Financial Quality del Expert.
@@ -257,7 +272,8 @@ def _format_context(state: AnalysisState) -> str:
         if (financials.gross_profit and financials.revenue
                 and len(financials.gross_profit) >= 2 and len(financials.revenue) >= 2):
             margins = []
-            for gp, rev in zip(financials.gross_profit, financials.revenue):
+            # Alineado por periodo (EC-82): zip posicional mezclaba años si una serie tenía hueco.
+            for gp, rev in align_by_period(financials.gross_profit, financials.revenue):
                 if rev.value and rev.value > 0:
                     margins.append((gp.period, gp.value / rev.value))
             if len(margins) >= 2:

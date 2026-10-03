@@ -62,6 +62,182 @@ def test_parse_financials_cash_includes_short_term_investments(aapl_raw):
     assert report.cash_and_equivalents.value == pytest.approx(expected_cash)
 
 
+def _min_raw() -> dict:
+    """Raw mínimo válido: el fixture AAPL con el balance_sheet sustituido por uno explícito.
+
+    Helper de T6 (el plan lo referencia; no existía). Cada test lo muta a su gusto.
+    """
+    raw = json.loads(FIXTURE_PATH.read_text())
+    raw["balance_sheet"] = {
+        "total_assets": {"value": 1000.0, "period": "FY2025", "source": "Assets"},
+        "long_term_debt": {"value": 300.0, "period": "FY2025", "source": "LongTermDebtNoncurrent"},
+        "short_term_debt": {"value": 0.0, "period": "FY2025", "source": "absent"},
+        "cash_and_equivalents": {"value": 50.0, "period": "FY2025", "source": "CashAndCashEquivalentsAtCarryingValue"},
+        "short_term_investments": {"value": 0.0, "period": "FY2025", "source": "absent"},
+        "stockholders_equity": {"value": 500.0, "period": "FY2025", "source": "StockholdersEquity"},
+    }
+    return raw
+
+
+def test_parse_financials_cash_excludes_sti():
+    """Revisión adversarial (bloqueante): cash_and_equivalents = SOLO caja; STI en su campo.
+
+    Si STI siguiera sumada dentro de cash, el bridge EV→equity (T12) la restaría dos veces.
+    """
+    from due_diligence.tools.edgar import EdgarAdapter
+    raw = {**_min_raw(), "balance_sheet": {**_min_raw()["balance_sheet"],
+           "cash_and_equivalents": {"value": 100.0, "period": "FY2025", "source": "Cash"},
+           "short_term_investments": {"value": 40.0, "period": "FY2025", "source": "ShortTermInvestments"}}}
+    rep = EdgarAdapter.parse_financials(raw)
+    assert rep.cash_and_equivalents.value == 100.0 and rep.short_term_investments.value == 40.0
+
+
+def test_parse_financials_total_debt_includes_finance_leases_and_flags():
+    from due_diligence.tools.edgar import EdgarAdapter
+    raw = _min_raw()
+    raw["balance_sheet"]["finance_leases"] = {"value": 7.0, "period": "FY2025", "source": "FinanceLeaseLiability"}
+    raw["data_quality_flags"] = ["DebtCurrent < LongTermDebtCurrent (FY2025)"]
+    rep = EdgarAdapter.parse_financials(raw)
+    assert rep.total_debt.value == 307.0
+    assert rep.data_quality_flags == ["DebtCurrent < LongTermDebtCurrent (FY2025)"]
+    # STI con source "absent" → campo omitido (None), no un MetricValue(0) que parezca dato
+    assert rep.short_term_investments is None
+
+
+def test_parse_financials_fcff_fields_and_legacy_fixture(aapl_raw):
+    """Fixture legacy sin claves nuevas → campos vacíos/None; con claves → MetricValues con unidad correcta."""
+    from due_diligence.tools.edgar import EdgarAdapter
+    legacy = EdgarAdapter.parse_financials(aapl_raw)
+    assert legacy.sbc == [] and legacy.operating_lease_liabilities is None
+    assert legacy.income_tax[0].period == "FY2025"   # el fixture AAPL ya trae income_tax
+    raw = {**aapl_raw, "annual": {**aapl_raw["annual"],
+           "diluted_shares": [{"value": 15.0e9, "period": "FY2025", "source": "WeightedAverageNumberOfDilutedSharesOutstanding"}],
+           "basic_shares_weighted": [{"value": 14.9e9, "period": "FY2025", "source": "WeightedAverageNumberOfSharesOutstandingBasic"}]}}
+    r = EdgarAdapter.parse_financials(raw)
+    assert r.diluted_shares[0].unit == "shares" and r.basic_shares_weighted.value == 14.9e9
+
+
+def test_parse_financials_fcff_signs_normalized():
+    """Intereses, SBC, D&A y principal de leasing en MAGNITUD (el signo varía por filer y por
+    versión de edgartools); intereses cobrados con su signo."""
+    from due_diligence.tools.edgar import EdgarAdapter
+    raw = _min_raw()
+    item = lambda v, c: [{"value": v, "period": "FY2025", "source": c}]  # noqa: E731
+    raw["annual"] = {**raw["annual"],
+                     "interest_expense": item(-12.0, "InterestExpense"),
+                     "interest_income": item(3.0, "InvestmentIncomeInterest"),
+                     "sbc": item(-5.0, "ShareBasedCompensation"),
+                     "depreciation_amortization": item(-9.0, "DepreciationDepletionAndAmortization"),
+                     "finance_lease_principal_payments": item(-2.0, "FinanceLeasePrincipalPayments")}
+    raw["balance_sheet"] = {**raw["balance_sheet"],
+                            "operating_lease_liabilities": {"value": 30.0, "period": "FY2025", "source": "OperatingLeaseLiability"},
+                            "operating_rou_asset": {"value": 29.0, "period": "FY2025", "source": "OperatingLeaseRightOfUseAsset"},
+                            "minority_interest": None}
+    r = EdgarAdapter.parse_financials(raw)
+    assert r.interest_expense[0].value == 12.0 and r.interest_income[0].value == 3.0
+    assert r.sbc[0].value == 5.0 and r.depreciation_amortization[0].value == 9.0
+    assert r.finance_lease_principal_payments[0].value == 2.0
+    assert r.operating_lease_liabilities.value == 30.0 and r.operating_rou_asset.value == 29.0
+    assert r.minority_interest is None
+
+
+# ---------------------------------------------------------------------------
+# Task 9 — ROIC por año, IC por año, ROIC incremental, series de balance (EC-85)
+# ---------------------------------------------------------------------------
+
+def test_effective_tax_rate_per_year_rules():
+    from due_diligence.tools.edgar import effective_tax_rate
+    assert effective_tax_rate(21.0, 100.0) == 0.21
+    assert effective_tax_rate(80.0, 100.0) == 0.5        # clamp
+    assert effective_tax_rate(5.0, -10.0) == 0.25        # pretax <= 0 → default
+    assert effective_tax_rate(None, 100.0) == 0.25
+
+
+def test_invested_capital_operating_fallback_excludes_non_interest_bearing_and_rou():
+    from due_diligence.tools.edgar import invested_capital
+    # AZO-like: equity ≤ 0 → SIEMPRE operativo (regla explícita; antes primary 5130 > umbral 1358 y el
+    # test era aritméticamente imposible). Current liabilities 6000, of which 500 is debt; ROU 3000.
+    ic, method = invested_capital(equity=-3400.0, total_debt=8800.0, cash=270.0, total_assets=19355.0,
+                                  current_liabilities=6000.0, short_term_debt=500.0,
+                                  sti=0.0, lti=0.0, operating_rou_asset=3000.0)
+    assert ic == pytest.approx(19355.0 - 270.0 - 3000.0 - 5500.0)
+    assert method.startswith("operating")
+
+
+def test_invested_capital_primary_when_equity_positive():
+    from due_diligence.tools.edgar import invested_capital
+    assert invested_capital(equity=200.0, total_debt=100.0, cash=50.0, total_assets=500.0) == (250.0, "equity+debt-cash")
+
+
+def test_invested_capital_tiny_ic_is_not_meaningful():
+    from due_diligence.tools.edgar import invested_capital
+    # IC < 5 % de activos → None (ROIC "n/m"), evita ROIC > 200 % espurios en net-cash + equity negativo
+    assert invested_capital(equity=10.0, total_debt=0.0, cash=0.0, total_assets=1000.0) is None
+
+
+def _raw_with_history():
+    def s(vals):
+        return [{"value": v, "period": f"FY{y}", "source": "X"} for y, v in vals]
+    return {
+        "ticker": "T", "cik": "1", "as_of_date": "2025-12-31", "source_filing": "10-K FY2025",
+        "annual": {"revenue": s([(2025, 1000), (2024, 900), (2023, 800), (2022, 700)]),
+                   "gross_profit": [], "net_income": [], "capex": [], "operating_cash_flow": [],
+                   "operating_income": s([(2025, 200), (2024, 150), (2023, 120), (2022, 100)]),
+                   "income_tax": s([(2025, 40), (2024, 15)]), "pretax_income": s([(2025, 200), (2024, 150)])},
+        "balance_sheet": {"total_assets": {"value": 2000, "period": "FY2025"},
+                          "long_term_debt": {"value": 300, "period": "FY2025"},
+                          "short_term_debt": {"value": 0, "period": "FY2025"},
+                          "cash_and_equivalents": {"value": 100, "period": "FY2025"},
+                          "short_term_investments": {"value": 0, "period": "FY2025"},
+                          "stockholders_equity": {"value": 800, "period": "FY2025"}},
+        "balance_history": [
+            {"period": f"FY{y}", "total_assets": 2000.0, "stockholders_equity": eq, "total_debt": 300.0,
+             "short_term_debt": 0.0, "cash": 100.0, "short_term_investments": 0.0, "current_liabilities": None}
+            for y, eq in ((2025, 800.0), (2024, 700.0), (2023, 600.0), (2022, 500.0))],
+        "shares": {"shares_outstanding": {"value": 10.0, "period": "FY2025"}},
+    }
+
+
+def test_roic_series_uses_per_year_ic_and_tax():
+    from due_diligence.tools.edgar import EdgarAdapter
+    r = EdgarAdapter.parse_financials(_raw_with_history())
+    # FY2025: NOPAT = 200*(1-0.20)=160; IC = avg(1000, 900) = 950
+    assert r.roic_series[0].period == "FY2025"
+    assert r.roic_series[0].value == pytest.approx(160 / 950, abs=1e-4)
+    # FY2024: tax 0.10 → NOPAT 135; IC avg(900, 800)=850
+    assert r.roic_series[1].value == pytest.approx(135 / 850, abs=1e-4)
+    assert [m.period for m in r.equity_series] == ["FY2025", "FY2024", "FY2023", "FY2022"]
+    assert r.total_debt_series[0].value == 300.0 and r.cash_series[0].value == 100.0
+
+
+def test_incremental_roic_three_year_window():
+    from due_diligence.tools.edgar import EdgarAdapter
+    r = EdgarAdapter.parse_financials(_raw_with_history())
+    # NOPAT FY2025 = 160, FY2022 = 100*0.75 = 75 ; IC end 1000 vs 700 → 85/300
+    assert r.incremental_roic.value == pytest.approx(85 / 300, abs=1e-4)
+    assert r.incremental_roic.period == "FY2022→FY2025"
+
+
+def test_one_ic_method_for_whole_series_when_any_year_has_negative_equity():
+    """Revisión adversarial A4: si algún año tiene equity ≤ 0, TODA la serie usa IC operativo
+    (mezclar métodos entre años crearía saltos espurios en ROIC y en ΔIC)."""
+    from due_diligence.tools.edgar import EdgarAdapter
+    raw = _raw_with_history()
+    raw["balance_history"][3]["stockholders_equity"] = -50.0   # FY2022 negativo
+    r = EdgarAdapter.parse_financials(raw)
+    # Operativo sin LiabilitiesCurrent: 2000 − 100 = 1900 todos los años → FY2025 160/1900
+    assert r.roic_series[0].value == pytest.approx(160 / 1900, abs=1e-4)
+    assert r.invested_capital.source.startswith("operating")
+
+
+def test_legacy_fixture_keeps_latest_ic_roic(aapl_raw):
+    from due_diligence.tools.edgar import EdgarAdapter
+    legacy = {k: v for k, v in aapl_raw.items() if k != "balance_history"}
+    r = EdgarAdapter.parse_financials(legacy)
+    assert r.roic_series[0].source == "calculated-latest-ic"
+    assert r.equity_series == [] and r.incremental_roic is None
+
+
 # ---------------------------------------------------------------------------
 # parse_quarterly_snapshot — pure function tests (no EDGAR call, no fixture file)
 # ---------------------------------------------------------------------------
@@ -214,7 +390,8 @@ def test_parse_financials_invested_capital_fallback_for_buyback_heavy(aapl_raw):
     report = EdgarAdapter.parse_financials(raw_modified)
 
     assert report.invested_capital is not None
-    assert "fallback" in report.invested_capital.source
+    # T9: equity ≤ 0 → IC operativo (Assets − cash − STI − LTI − ROU [− NIBCL]); antes "fallback".
+    assert report.invested_capital.source.startswith("operating")
     # ROIC debe seguir calculándose con el fallback
     assert len(report.roic_series) >= 1
     assert report.roic_series[0].value > 0  # ROIC válido, no excluido
@@ -519,6 +696,7 @@ class TestDetect10b51Plan:
 # Tests: P1 — fetch_quarterly_snapshot staleness threshold 45 days (default)
 # ---------------------------------------------------------------------------
 
+@pytest.mark.real_quarterly_fetch
 class TestFetchQuarterlySnapshotThreshold:
     """
     P1: el threshold por defecto es 45 días (antes 90).
@@ -548,16 +726,37 @@ class TestFetchQuarterlySnapshotThreshold:
         from datetime import date, timedelta
         from due_diligence.tools.edgar import EdgarAdapter
 
-        # Mockear Company para que no llame a EDGAR real
+        # EC-84: el assert anterior (`get_filings.called or result is None`) era tautológico
+        # — pasaba siempre porque result era None por cualquier motivo. Ahora se exige que
+        # el fetch trimestral se intente de verdad y que, sin 10-Q, devuelva None.
         mock_company = mocker.MagicMock()
-        mock_company.get_filings.return_value = []  # No hay 10-Q → devuelve None
+        mock_company.get_quarterly_financials.return_value = None  # sin 10-Q
         mocker.patch("edgar.Company", return_value=mock_company)
         mocker.patch("edgar.set_identity")
-
         tenk_as_of = date.today() - timedelta(days=60)
         result = EdgarAdapter.fetch_quarterly_snapshot("AAPL", tenk_as_of=tenk_as_of)
-        # El fetch fue intentado (Company se llamó), aunque no haya 10-Q
-        assert mock_company.get_filings.called or result is None  # llegó a buscar
+        mock_company.get_quarterly_financials.assert_called_once_with()
+        assert result is None
+
+
+    def test_stale_10k_parses_real_xbrl_quarterly_format(self, mocker):
+        """EC-84: formato REAL del 10-Q verificado en vivo (concept como columna con prefijo,
+        columnas de periodo '2025-06-28 (Q3)' / '(YTD)'). El código viejo filtraba
+        c.startswith("Q") sobre el índice → snapshot siempre None."""
+        import pandas as pd
+        from datetime import date, timedelta
+        from due_diligence.tools.edgar import EdgarAdapter
+        df = pd.DataFrame({"concept": ["us-gaap_Revenues", "us-gaap_GrossProfit"],
+                           "label": ["Revenue", "GP"],
+                           "2025-06-28 (Q3)": [94.0e9, 44.0e9],
+                           "2025-06-28 (YTD)": [313.0e9, 145.0e9]})
+        company = mocker.MagicMock()
+        company.get_quarterly_financials.return_value.income_statement.return_value.to_dataframe.return_value = df
+        mocker.patch("edgar.Company", return_value=company)
+        mocker.patch("edgar.set_identity")
+        snap = EdgarAdapter.fetch_quarterly_snapshot("AAPL", tenk_as_of=date.today() - timedelta(days=60))
+        assert snap is not None and snap.revenue == 94.0e9 and snap.gross_profit == 44.0e9
+        assert snap.period == "2025-06-28 (Q3)"
 
 
 # ---------------------------------------------------------------------------

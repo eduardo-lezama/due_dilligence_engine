@@ -32,13 +32,57 @@ import structlog
 from due_diligence.config import settings
 from due_diligence.schemas.base import FinancialsReport, MetricValue
 from due_diligence.schemas.reports import QuarterlySnapshot
+# DataUnavailableError vive en la capa pura (xbrl_extract) y se re-exporta aquí para
+# mantener `from due_diligence.tools.edgar import DataUnavailableError` en todo el código.
+# effective_tax_rate es la definición CANÓNICA (xbrl_extract); se importa, no se redefine
+# (antes había una variable local homónima en parse_financials — revisión adversarial).
+from due_diligence.tools.xbrl_extract import (
+    REVENUE_CONCEPTS,
+    DataUnavailableError,
+    EdgarFactsLookup,
+    build_raw,
+    effective_tax_rate,
+    latest_quarter_column,
+    quarter_value,
+)
+from due_diligence.utils.periods import align_by_period, fiscal_year
 
 log = structlog.get_logger()
 
 
-class DataUnavailableError(Exception):
-    pass
+_IC_MIN_SHARE_OF_ASSETS = 0.05   # por debajo, el ROIC no es interpretable (n/m)
 
+
+def invested_capital(*, equity: float, total_debt: float, cash: float, total_assets: float,
+                     current_liabilities: float | None = None, short_term_debt: float = 0.0,
+                     sti: float = 0.0, lti: float = 0.0, operating_rou_asset: float = 0.0,
+                     force_operating: bool = False) -> tuple[float, str] | None:
+    """IC (ADR-023, EC-18, revisión adversarial A4).
+
+    Primaria (financiación): Equity + Debt − Cash − STI − LTI.
+    Operativa (Koller): Assets − Cash − STI − LTI − ROU operativo − NIBCL. El ROU operativo se excluye
+    porque el EBIT ya es neto del coste del arrendamiento (coherente con no restar el pasivo en el bridge).
+    Regla: equity ≤ 0 o force_operating → operativa SIEMPRE (un solo método por empresa en toda la
+    serie: mezclar métodos entre años crea saltos espurios en ROIC y en ΔIC).
+    IC < 5 % de activos → None (ROIC n/m).
+
+    Returns: (ic, método) o None si el IC no es interpretable.
+    """
+    non_op = cash + sti + lti
+    if current_liabilities is not None:
+        # NIBCL = pasivo corriente que no devenga intereses (proveedores, devengos...): lo
+        # financian los proveedores, no los inversores → se resta del capital invertido.
+        nibcl = max(current_liabilities - short_term_debt, 0.0)
+        operating = total_assets - non_op - operating_rou_asset - nibcl
+        op_method = "operating: assets-cash-STI-LTI-ROU-NIBCL"
+    else:
+        operating = total_assets - non_op - operating_rou_asset
+        op_method = "operating: assets-cash-STI-LTI-ROU (no LiabilitiesCurrent)"
+    primary = equity + total_debt - non_op
+    chosen, method = (operating, op_method) if (equity <= 0 or force_operating) else (primary, "equity+debt-cash")
+    if chosen <= 0 or (total_assets > 0 and chosen < _IC_MIN_SHARE_OF_ASSETS * total_assets):
+        return None
+    return chosen, method
 
 class EdgarAdapter:
     @staticmethod
@@ -46,13 +90,11 @@ class EdgarAdapter:
         """
         Live EDGAR fetch via edgartools 5.x API. Use parse_financials(fixture) in tests.
 
-        edgartools 5.x cambió de facts.us_gaap.Concept.to_dataframe() a
-        facts.income_statement() / balance_sheet() / cashflow_statement(),
-        que devuelven MultiPeriodStatement con columnas 'FY 2025', 'FY 2024', etc.
-        El formato del dict devuelto es idéntico al anterior para que parse_financials
-        no necesite cambios.
+        Solo hace red: descarga facts + los tres estados (MultiPeriodStatement con
+        columnas 'FY 2025', ...) y delega TODA la selección de conceptos/periodos en
+        xbrl_extract.build_raw (puro, testeado con DataFrames sintéticos). El dict
+        devuelto mantiene el contrato de parse_financials; cada valor lleva "source".
         """
-        import pandas as pd
         from edgar import Company, set_identity  # type: ignore[import]
 
         set_identity(settings.sec_user_agent)
@@ -87,352 +129,25 @@ class EdgarAdapter:
 
         facts = company.get_facts()
 
-        filings = company.get_filings(form="10-K")
-        latest_10k = filings.latest()
-        fy_end = str(latest_10k.period_of_report)
-        fy_label = f"FY{fy_end[:4]}"
+        # EC-27 aplicado también a números (EC-87): un 10-K/A suele traer solo Part III/IV
+        # y su period_of_report puede no ser el del último 10-K completo.
+        latest_10k = _get_latest_full_10k(company)
+        if latest_10k is None:
+            raise DataUnavailableError(f"{ticker}: no 10-K filings found")
+        period_end = date.fromisoformat(str(latest_10k.period_of_report))
 
-        # Obtener los tres estados financieros como DataFrames
-        # Índice = concepto XBRL, columnas = ['label', ..., 'FY 2025', 'FY 2024', ...]
-        inc_df = facts.income_statement().to_dataframe()
-        bs_df = facts.balance_sheet().to_dataframe()
-        cf_df = facts.cashflow_statement().to_dataframe()
+        # periods=10 (EC-79): el default de edgartools es 4 (entity_facts.py:1672) → el
+        # "CAGR 5y" era en realidad de 3 años. Índice = concepto, columnas 'FY 2025'...
+        inc_df = facts.income_statement(periods=10).to_dataframe()
+        bs_df = facts.balance_sheet(periods=10).to_dataframe()
+        cf_df = facts.cashflow_statement(periods=10).to_dataframe()
 
-        def _fy_cols(df: Any) -> list[str]:
-            """FY columns sorted descending: ['FY 2025', 'FY 2024', ...]."""
-            return sorted([c for c in df.columns if c.startswith("FY ")], reverse=True)
-
-        def _get_annual(df: Any, concept: str, n: int = 10) -> list[dict]:
-            """Extrae hasta n años de un concepto. Devuelve [] si no existe.
-
-            Si df.loc[concept] devuelve un DataFrame (concepto con filas duplicadas,
-            como ocurre en algunas empresas que usan el mismo concepto XBRL con
-            contextos distintos), tomamos la primera fila para evitar que pd.notna()
-            reciba una Series en lugar de un escalar.
-            """
-            if concept not in df.index:
-                return []
-            row = df.loc[concept]
-            # Protección contra duplicados: si hay varias filas con el mismo concepto
-            # (DataFrame en lugar de Series), usar la primera.
-            if row.ndim == 2:  # DataFrame con filas duplicadas (ndim=2), no Series (ndim=1)
-                row = row.iloc[0]
-            result = []
-            for col in _fy_cols(df)[:n]:
-                val = row.get(col)
-                try:
-                    if pd.notna(val):
-                        period = col.replace("FY ", "FY")
-                        result.append({"value": float(val), "period": period})
-                except (ValueError, TypeError):
-                    # val es una Series en contextos inesperados — skip
-                    pass
-            return result
-
-        def _subtract_aligned(a_list: list[dict], b_list: list[dict]) -> list[dict]:
-            """Resta b de a alineando por periodo. Solo emite periodos presentes en ambos.
-
-            Usado para derivar EBIT cuando no hay concepto directo `OperatingIncomeLoss`:
-            EBIT ≈ GrossProfit - SG&A, o EBIT ≈ Pretax - Interest.
-            """
-            b_by_period = {item["period"]: item["value"] for item in b_list}
-            return [
-                {"value": a["value"] - b_by_period[a["period"]], "period": a["period"]}
-                for a in a_list
-                if a["period"] in b_by_period
-            ]
-
-        def _compute_operating_income(inc_df: Any) -> list[dict]:
-            """Extrae operating income (EBIT) con fallbacks múltiples (EC-21).
-
-            Muchas small/mid caps no reportan `OperatingIncomeLoss` directamente —
-            su income statement es Revenue → COGS → GrossProfit → SG&A → PretaxIncome
-            → Tax → NetIncome. Sin EBIT, ROIC y EV/EBIT no se calculan, excluyendo
-            silenciosamente esa clase de empresas del análisis.
-
-            Cadena de fallbacks (por prevalencia):
-                1. `OperatingIncomeLoss`              — concepto estándar (AAPL, large caps)
-                2. `GrossProfit - SG&A`               — derivado para retailers/services (BBW)
-                3. `OperatingIncomeLoss` con suma de    — variante alternativa que algunas empresas
-                   `OperatingExpenses` y otros           usan; cubierto por la cadena
-                4. `Pretax - InterestExpenseNet`      — fallback para empresas con interest separado
-                5. `Pretax` (proxy)                   — última opción; sobreestima EBIT por interest
-            """
-            # Primary
-            op_inc = _get_annual(inc_df, "OperatingIncomeLoss")
-            if op_inc:
-                return op_inc
-
-            # Fallback 1: GrossProfit - SG&A (retailers/services con income statement simplificado)
-            gp = _get_annual(inc_df, "GrossProfit")
-            sga = _get_annual(inc_df, "SellingGeneralAndAdministrativeExpense")
-            if gp and sga:
-                derived = _subtract_aligned(gp, sga)
-                if derived:
-                    return derived
-
-            # Fallback 2: PretaxIncome - InterestExpenseNonoperatingNet
-            pretax = _get_annual(
-                inc_df,
-                "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
-            )
-            interest = _get_annual(inc_df, "InterestIncomeExpenseNonoperatingNet")
-            if pretax and interest:
-                # InterestIncomeExpenseNonoperatingNet: positivo = neto income; negativo = neto expense
-                # EBIT = Pretax - InterestIncomeNet (suma interest expense, resta interest income)
-                derived = _subtract_aligned(pretax, interest)
-                if derived:
-                    return derived
-
-            # Fallback 3: PretaxIncome solo (proxy — sobreestima EBIT por interest expense neto)
-            if pretax:
-                return pretax
-
-            return []
-
-        def _get_from_facts(concept: str, period: str) -> dict | None:
-            """Raw facts fallback bypassing edgartools' curated views (EC-37).
-
-            edgartools `balance_sheet().to_dataframe()` y `income_statement().to_dataframe()`
-            son vistas curadas — algunas empresas (MOS verificado en producción) tienen
-            conceptos us-gaap estándar en sus raw `_facts` pero excluidos del DataFrame
-            curado. Cuando los extractores normales fallan, este helper consulta directo
-            al raw fact con `facts.get_annual_fact()` usando el prefijo `us-gaap:`.
-
-            Valida que el fiscal_year del fact retornado coincida con el target
-            (get_annual_fact devuelve la última anual conocida — para conceptos
-            descontinuados puede ser stale).
-
-            Args:
-                concept: Concept name SIN prefijo (ej. "LongTermDebtAndCapitalLeaseObligations")
-                period: Target FY label (ej. "FY2025")
-
-            Returns:
-                {"value": float, "period": str} o None si no encontrado / año stale.
-            """
-            target_year = period.replace("FY", "")  # "FY2025" → "2025"
-            full_concept = f"us-gaap:{concept}"
-            try:
-                import warnings
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")  # silenciar "Unknown concept" warnings
-                    fact = facts.get_annual_fact(full_concept)
-            except Exception:
-                return None
-            if fact is None:
-                return None
-            # Validar fiscal year — get_annual_fact devuelve el último anual conocido,
-            # que puede ser stale (e.g. LongTermDebt FY2015 para una empresa que ahora
-            # usa LongTermDebtAndCapitalLeaseObligations).
-            if str(getattr(fact, "fiscal_year", "")) != target_year:
-                return None
-            value = getattr(fact, "numeric_value", None)
-            if value is None:
-                return None
-            return {"value": float(value), "period": period}
-
-        def _extract_balance_concept(
-            concepts: tuple[str, ...], period: str, kind: str
-        ) -> dict | None:
-            """Extrae un concepto del balance sheet con cadena de fallback (EC-37).
-
-            Estrategia en dos pasos:
-                1. Vista curada `bs_df` (rápido, funciona para la mayoría)
-                2. Raw facts via `_get_from_facts` (fallback para filers con XBRL atípico)
-
-            Loguea cuándo se usa el fallback — útil para diagnosticar empresas problemáticas.
-
-            Args:
-                concepts: Tupla de concepts a probar en orden de prevalencia.
-                period: Target FY label.
-                kind: Etiqueta para logging (e.g. "lt_debt", "st_debt").
-
-            Returns:
-                Primer match (dict) o None si ningún concept devuelve dato.
-            """
-            # Step 1: curated view
-            for c in concepts:
-                if c in bs_df.index:
-                    try:
-                        return _get_point(bs_df, c, period)
-                    except DataUnavailableError:
-                        pass
-            # Step 2: raw facts fallback
-            for c in concepts:
-                result = _get_from_facts(c, period)
-                if result is not None:
-                    log.info(
-                        "balance_raw_facts_fallback_used",
-                        concept=c, ticker=ticker, kind=kind,
-                    )
-                    return result
-            return None
-
-        def _get_point(df: Any, concept: str, period: str) -> dict:
-            """Extrae el valor más reciente de un concepto puntual (balance sheet)."""
-            if concept not in df.index:
-                raise DataUnavailableError(f"{ticker}: XBRL concept '{concept}' not found")
-            row = df.loc[concept]
-            if row.ndim == 2:  # DataFrame con duplicados — tomar la primera fila
-                row = row.iloc[0]
-            for col in _fy_cols(df):
-                val = row.get(col)
-                try:
-                    if pd.notna(val):
-                        return {"value": float(val), "period": period}
-                except (ValueError, TypeError):
-                    pass
-            raise DataUnavailableError(f"{ticker}: '{concept}' has no annual data")
-
-        # --- Income statement ---
-        # Cadena de fallback XBRL para revenue — distintas empresas usan distintos conceptos
-        # según su industry y cuándo adoptaron ASC 606 (EC-67: HRL usa SalesRevenueNet).
-        # La cadena quarterly (línea ~701) ya tenía más fallbacks; se iguala aquí.
-        revenue = (
-            _get_annual(inc_df, "RevenueFromContractWithCustomerExcludingAssessedTax")
-            or _get_annual(inc_df, "Revenues")
-            or _get_annual(inc_df, "SalesRevenueNet")                                    # legacy pre-ASC 606 (HRL, CPG)
-            or _get_annual(inc_df, "RevenueFromContractWithCustomerIncludingAssessedTax") # ASC 606 con IVA incluido
-            or _get_annual(inc_df, "SalesRevenueGoodsNet")                               # product-only (algunos CPG/retail)
-            or _get_annual(inc_df, "NetSales")                                           # algunos industriales/food
-        )
-        if not revenue:
-            raise DataUnavailableError(f"{ticker}: revenue concept not found in income statement")
-
-        # --- Balance sheet ---
-        # LongTermDebt: cadena de fallback de conceptos XBRL (EC-37).
-        # MOS (verificado en producción) usa `LongTermDebtAndCapitalLeaseObligations`
-        # que NO está en el bs_df curado de edgartools aunque SÍ está en raw _facts.
-        # _extract_balance_concept aplica fallback en 2 niveles: curated view → raw facts.
-        _LT_DEBT_CONCEPTS = (
-            "LongTermDebt",
-            "LongTermDebtNoncurrent",
-            "LongTermDebtAndCapitalLeaseObligations",
-            "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities",
-            "LongTermNotesPayable",
-        )
-        lt_debt = _extract_balance_concept(_LT_DEBT_CONCEPTS, fy_label, "lt_debt")
-        if lt_debt is None:
-            lt_debt = {"value": 0.0, "period": fy_label}
-
-        # ShortTermBorrowings + porción corriente de LTD (opcional — no todas las empresas).
-        # Sumar concepts mutually-exclusive en orden de relevancia. Para cada concept:
-        # primero curated view, luego raw facts fallback.
-        _ST_DEBT_CONCEPTS = (
-            "ShortTermBorrowings",
-            "LongTermDebtCurrent",
-            "LongTermDebtAndCapitalLeaseObligationsCurrent",
-            "NotesPayableCurrent",
-            "DebtCurrent",
-        )
-        st_debt_value = 0.0
-        for _st_concept in _ST_DEBT_CONCEPTS:
-            val = None
-            if _st_concept in bs_df.index:
-                try:
-                    val = _get_point(bs_df, _st_concept, fy_label)["value"]
-                except DataUnavailableError:
-                    pass
-            if val is None:
-                # Raw facts fallback (EC-37)
-                result = _get_from_facts(_st_concept, fy_label)
-                if result is not None:
-                    val = result["value"]
-                    log.info(
-                        "balance_raw_facts_fallback_used",
-                        concept=_st_concept, ticker=ticker, kind="st_debt_component",
-                    )
-            if val:
-                st_debt_value += val
-
-        # Cash and equivalents
-        cash = None
-        for _cash_concept in ("CashAndCashEquivalentsAtCarryingValue",
-                               "CashAndCashEquivalents", "Cash"):
-            if _cash_concept in bs_df.index:
-                try:
-                    cash = _get_point(bs_df, _cash_concept, fy_label)
-                    break
-                except DataUnavailableError:
-                    pass
-        if cash is None:
-            cash = {"value": 0.0, "period": fy_label}
-
-        # STI (marketable securities a corto plazo): no aparece en el BS normalizado
-        # de edgartools 5.x para todas las empresas — defaulta a 0
-        sti_value = 0.0
-
-        raw = {
-            "ticker": ticker.upper(),
-            "cik": str(company.cik).zfill(10),
-            "as_of_date": fy_end,
-            "source_filing": f"10-K {fy_label}",
-            "annual": {
-                "revenue": revenue,
-                "gross_profit": _get_annual(inc_df, "GrossProfit"),
-                "operating_income": _compute_operating_income(inc_df),
-                "net_income": _get_annual(inc_df, "NetIncomeLoss"),
-                # Operating cash flow — intentar múltiples conceptos XBRL en orden de prevalencia.
-                # Algunas empresas (educación, servicios, continuingOperations reporters)
-                # usan variantes distintas del concepto estándar.
-                "operating_cash_flow": (
-                    _get_annual(cf_df, "NetCashProvidedByUsedInOperatingActivities")
-                    or _get_annual(cf_df, "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations")
-                    or _get_annual(cf_df, "NetCashProvidedByOperatingActivities")
-                    or _get_annual(cf_df, "CashGeneratedFromOperatingActivities")
-                ),
-                # Capex — distintas empresas usan distintos conceptos.
-                # Empresas asset-light pueden no reportar capex como línea separada;
-                # en ese caso la lista queda vacía y FCF = OCF (aproximación válida).
-                "capex": (
-                    _get_annual(cf_df, "PaymentsToAcquirePropertyPlantAndEquipment")
-                    or _get_annual(cf_df, "PaymentsForCapitalExpenditures")
-                    or _get_annual(cf_df, "CapitalExpendituresIncurringNoCapitalLeases")
-                    or _get_annual(cf_df, "PurchaseOfPropertyPlantAndEquipment")
-                    or []  # asset-light con zero capex reportado: FCF ≈ OCF
-                ),
-                # Para ROIC: impuesto + pretax income permiten calcular effective_tax_rate
-                "income_tax": _get_annual(inc_df, "IncomeTaxExpenseBenefit"),
-                "pretax_income": _get_annual(
-                    inc_df,
-                    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
-                ),
-                # Capital returns (ADR-023, EC-19) — central para tesis de value investing.
-                # Ambos vienen del cash flow statement (Financing Activities). XBRL los reporta
-                # como negativos (salidas de caja); aquí los pasamos a positivos en _mv_list_abs.
-                "buybacks": (
-                    _get_annual(cf_df, "PaymentsForRepurchaseOfCommonStock")
-                    or _get_annual(cf_df, "PaymentsForRepurchaseOfEquity")
-                    or []
-                ),
-                "dividends": (
-                    _get_annual(cf_df, "PaymentsOfDividendsCommonStock")
-                    or _get_annual(cf_df, "PaymentsOfDividends")
-                    or []
-                ),
-            },
-            "balance_sheet": {
-                "total_assets": _get_point(bs_df, "Assets", fy_label),
-                "long_term_debt": lt_debt,
-                "short_term_debt": {"value": st_debt_value, "period": fy_label},
-                "cash_and_equivalents": cash,
-                "short_term_investments": {"value": sti_value, "period": fy_label},
-                # Para ROIC: equity es el componente que completa IC = Equity + Debt - Cash
-                "stockholders_equity": (
-                    _get_point(bs_df, "StockholdersEquity", fy_label)
-                    if "StockholdersEquity" in bs_df.index else None
-                ),
-            },
-            "shares": {
-                # facts.shares_outstanding: propiedad directa en edgartools 5.x
-                "shares_outstanding": {
-                    "value": float(facts.shares_outstanding) if facts.shares_outstanding is not None else None,
-                    "period": fy_label,
-                },
-            },
-        }
-
-        log.info("edgar_fetch_complete", ticker=ticker, fy=fy_label)
+        # Toda la lógica de selección vive en xbrl_extract (puro, testeable sin red).
+        raw = build_raw(ticker=ticker, cik=str(company.cik).zfill(10), period_end=period_end,
+                        inc_df=inc_df, bs_df=bs_df, cf_df=cf_df,
+                        facts=EdgarFactsLookup(facts),
+                        shares_outstanding=facts.shares_outstanding)
+        log.info("edgar_fetch_complete", ticker=ticker, fy=raw["source_filing"])
         return raw
 
     @staticmethod
@@ -440,15 +155,19 @@ class EdgarAdapter:
         """Pure function — transforms raw dict into validated FinancialsReport."""
         as_of = date.fromisoformat(raw["as_of_date"])
 
+        # Procedencia (T5): los raws nuevos traen "source" por valor (concepto XBRL,
+        # "facts:<c>" o "derived:..."); los fixtures viejos no → se cae al default "XBRL".
         def _mv_list(items: list[dict], source: str = "XBRL") -> list[MetricValue]:
             return [
-                MetricValue(value=i["value"], unit="USD", period=i["period"], source=source)
+                MetricValue(value=i["value"], unit="USD", period=i["period"],
+                            source=i.get("source", source))
                 for i in items
             ]
 
         def _mv(item: dict, source: str = "XBRL") -> MetricValue:
             return MetricValue(
-                value=item["value"], unit="USD", period=item["period"], source=source
+                value=item["value"], unit="USD", period=item["period"],
+                source=item.get("source", source),
             )
 
         annual = raw["annual"]
@@ -461,26 +180,25 @@ class EdgarAdapter:
             (salidas de caja en el cash flow) — los almacenamos como flujos
             de capital devuelto en magnitud absoluta para legibilidad."""
             return [
-                MetricValue(value=abs(i["value"]), unit="USD", period=i["period"], source=source)
+                MetricValue(value=abs(i["value"]), unit="USD", period=i["period"],
+                            source=i.get("source", source))
                 for i in items
             ]
 
         ocf_list = _mv_list(annual["operating_cash_flow"])
-        capex_list = _mv_list(annual["capex"])
+        # Capex en MAGNITUD (_mv_list_abs): edgartools 5.5x lo devuelve con signo y el FCFF
+        # del Bloque C exige capex ≥ 0. Fixtures viejos (positivos) no cambian.
+        capex_list = _mv_list_abs(annual["capex"])
         buybacks_list = _mv_list_abs(annual.get("buybacks", []))
         dividends_list = _mv_list_abs(annual.get("dividends", []))
 
         if ocf_list and capex_list:
-            # Caso normal: ambos disponibles — FCF = OCF - Capex
-            # zip trunca al más corto si difieren en longitud (periodos distintos)
+            # Alineado por periodo (EC-82): zip posicional cruzaba años cuando una
+            # serie tenía huecos. Periodos sin capex se omiten (no se inventa FCF).
             fcf_list = [
-                MetricValue(
-                    value=ocf.value - cap.value,
-                    unit="USD",
-                    period=ocf.period,
-                    source="calculated",
-                )
-                for ocf, cap in zip(ocf_list, capex_list)
+                MetricValue(value=o.value - abs(c.value), unit="USD", period=o.period,
+                            source="calculated")
+                for o, c in align_by_period(ocf_list, capex_list)
             ]
         elif ocf_list:
             # Capex no disponible en XBRL (empresas asset-light / servicios puros).
@@ -499,51 +217,70 @@ class EdgarAdapter:
         else:
             fcf_list = []
 
-        total_debt_value = bs["long_term_debt"]["value"] + bs["short_term_debt"]["value"]
-        cash_value = (
-            bs["cash_and_equivalents"]["value"] + bs["short_term_investments"]["value"]
-        )
+        def _mv_opt(item: dict | None, unit: str = "USD") -> MetricValue | None:
+            """MetricValue opcional — nunca construir con value=None (EC-34).
+
+            Un item con source "absent" es un 0.0 de relleno, no un dato: se omite (None).
+            """
+            if not item or item.get("value") is None or item.get("source") == "absent":
+                return None
+            return MetricValue(value=item["value"], unit=unit, period=item["period"],
+                               source=item.get("source", "XBRL"))
+
+        def _mv_list_unit(items: list[dict], unit: str) -> list[MetricValue]:
+            """Como _mv_list pero con unidad explícita (p.ej. "shares" para medias ponderadas)."""
+            return [MetricValue(value=i["value"], unit=unit, period=i["period"],
+                                source=i.get("source", "XBRL")) for i in items]
+
+        # Deuda total = LT + ST + leasing financiero (EC-80). Fixtures legacy sin
+        # "finance_leases" cuentan 0. Los leasings OPERATIVOS no entran (ASC 842, memo en T8).
+        lease = bs.get("finance_leases") or {"value": 0.0, "source": "absent"}  # legacy: sin clave → 0
+        total_debt_value = (bs["long_term_debt"]["value"] + bs["short_term_debt"]["value"]
+                            + lease["value"])
+        # EC-81 / revisión adversarial: cash_and_equivalents = SOLO caja. Las STI van en su propio
+        # campo y el bridge (T12) las resta UNA vez. Antes aquí se sumaban (cash + STI) y el
+        # consumidor no podía saberlo. Fixtures legacy: STI=0 → mismo valor que antes.
+        cash_value = bs["cash_and_equivalents"]["value"]
+        sti_item = bs.get("short_term_investments")
+        sti_value = sti_item["value"] if sti_item and sti_item.get("value") is not None else 0.0
         period = bs["total_assets"]["period"]
 
-        # --- ROIC calculation ---
-        # effective_tax_rate = IncomeTaxExpenseBenefit / PreTaxIncome (most recent year)
-        # Clamped to [0, 0.5] para evitar distorsiones por DTA/DTL o años con impuesto negativo.
-        income_tax_list = _mv_list(annual.get("income_tax", []))
-        pretax_list = _mv_list(annual.get("pretax_income", []))
-        effective_tax_rate = 0.25  # fallback estándar si faltan datos
-        if income_tax_list and pretax_list and pretax_list[0].value != 0:
-            t = income_tax_list[0].value / pretax_list[0].value
-            effective_tax_rate = max(0.0, min(t, 0.5))
+        # --- ROIC por año (T9, EC-85) ---
+        # Antes: NOPAT_t / IC_último con la tasa del último año para TODOS los años → la serie
+        # histórica mezclaba el capital de hoy con beneficios de hace años. Ahora:
+        # ROIC_t = NOPAT_t / media(IC_t, IC_{t-1}) con la tasa efectiva DEL AÑO t
+        # (effective_tax_rate canónica de xbrl_extract: clamp [0, 0.5], 0.25 si no calculable).
+        tax_by = {m.period: m.value for m in _mv_list(annual.get("income_tax", []))}
+        pretax_by = {m.period: m.value for m in _mv_list(annual.get("pretax_income", []))}
+        op_inc_list = _mv_list(annual["operating_income"])
+        nopat_by = {oi.period: oi.value * (1 - effective_tax_rate(tax_by.get(oi.period), pretax_by.get(oi.period)))
+                    for oi in op_inc_list}
 
-        # Invested Capital — fórmula con fallback (ADR-023, EC-18).
-        # Primaria: Equity + Debt − Cash (balance sheet view, capital aportado por financiadores).
-        # Fallback: Total Assets − Cash (operating asset view, robusto a buybacks agresivos).
-        #
-        # Por qué el fallback: empresas que devuelven mucho capital al accionista
-        # (Domino's, AutoZone, BBW post-buybacks) acaban con equity reducido o negativo
-        # por treasury stock acumulado. La fórmula primaria entonces da un IC
-        # cercano a cero → ROIC explota o no se calcula. Total Assets − Cash representa
-        # la base de activos operativos real, que persiste independiente del capital structure.
+        history = raw.get("balance_history") or []
+        # Un solo método de IC por empresa (revisión adversarial A4): si CUALQUIER año tiene
+        # equity ≤ 0, toda la serie (y el snapshot) usa el IC operativo. Mezclar métodos
+        # entre años crea saltos espurios en ROIC y en ΔIC.
+        force_operating = any((h.get("stockholders_equity") or 0.0) <= 0 for h in history)
+
         se_raw = bs.get("stockholders_equity")
         equity_value = se_raw["value"] if se_raw else 0.0
         total_assets_value = bs["total_assets"]["value"] if bs.get("total_assets") else 0.0
 
-        ic_primary = equity_value + total_debt_value - cash_value
-        ic_fallback = total_assets_value - cash_value if total_assets_value > 0 else 0.0
+        def _bs_value(key: str) -> float:
+            """Valor de un item opcional del balance (None/ausente → 0.0; solo para IC)."""
+            item = bs.get(key)
+            return item["value"] if item and item.get("value") is not None else 0.0
 
-        # Threshold: la primaria es "degenerada" si < 10% del operating capital.
-        # Esto detecta el patrón buyback-heavy donde equity queda artificialmente bajo.
-        threshold = 0.10 * ic_fallback if ic_fallback > 0 else 0.0
-
-        if ic_primary > threshold and ic_primary > 0:
-            ic_value = ic_primary
-            ic_method = "equity+debt-cash"
-        elif ic_fallback > 0:
-            ic_value = ic_fallback
-            ic_method = "total_assets-cash (fallback for low/negative book equity)"
-        else:
-            ic_value = 0.0
-            ic_method = None
+        # IC del último balance (snapshot) con la MISMA función que la serie (ADR-023, EC-18).
+        cl_item = bs.get("current_liabilities")
+        ic_res = invested_capital(
+            equity=equity_value, total_debt=total_debt_value, cash=cash_value, sti=sti_value,
+            lti=_bs_value("long_term_investments"), operating_rou_asset=_bs_value("operating_rou_asset"),
+            total_assets=total_assets_value,
+            current_liabilities=cl_item["value"] if cl_item and cl_item.get("value") is not None else None,
+            short_term_debt=bs["short_term_debt"]["value"], force_operating=force_operating,
+        )
+        ic_value, ic_method = ic_res if ic_res else (0.0, None)
 
         stockholders_equity_mv = (
             MetricValue(value=equity_value, unit="USD", period=period, source="XBRL")
@@ -554,18 +291,60 @@ class EdgarAdapter:
             if ic_value > 0 else None
         )
 
-        # ROIC series: NOPAT_year / IC_latest para cada año con operating_income
-        op_inc_list = _mv_list(annual["operating_income"])
+        # IC por año desde balance_history (raws nuevos). Años sin activos/caja se omiten.
+        ic_by: dict[str, float] = {}
+        for h in history:
+            if h.get("total_assets") is None or h.get("cash") is None:
+                continue
+            res = invested_capital(equity=h.get("stockholders_equity") or 0.0, total_debt=h["total_debt"],
+                                   cash=h["cash"], sti=h.get("short_term_investments") or 0.0,
+                                   lti=h.get("long_term_investments") or 0.0,
+                                   operating_rou_asset=h.get("operating_rou_asset") or 0.0,
+                                   total_assets=h["total_assets"], current_liabilities=h.get("current_liabilities"),
+                                   short_term_debt=h.get("short_term_debt") or 0.0,
+                                   force_operating=force_operating)   # un solo método para toda la serie
+            if res:
+                ic_by[h["period"]] = res[0]
+
         roic_series: list[MetricValue] = []
-        if ic_value > 0:
-            for oi in op_inc_list:
-                nopat = oi.value * (1.0 - effective_tax_rate)
-                roic_series.append(MetricValue(
-                    value=round(nopat / ic_value, 4),
-                    unit="ratio",
-                    period=oi.period,
-                    source="calculated",
-                ))
+        for oi in op_inc_list:
+            if ic_by:
+                ic_t = ic_by.get(oi.period)
+                if ic_t is None:
+                    continue
+                ic_prev = ic_by.get(f"FY{fiscal_year(oi.period) - 1}")
+                denom, src = ((ic_t + ic_prev) / 2, "calculated-avg-ic") if ic_prev else (ic_t, "calculated-end-ic")
+            elif ic_value > 0:  # legacy fixtures without balance_history (hasta el re-fetch de T14)
+                denom, src = ic_value, "calculated-latest-ic"
+            else:
+                continue
+            roic_series.append(MetricValue(value=round(nopat_by[oi.period] / denom, 4), unit="ratio",
+                                           period=oi.period, source=src))
+
+        # ROIC incremental (Mauboussin): ΔNOPAT/ΔIC entre el último año y el más antiguo
+        # dentro de 3 años fiscales. None si ΔIC ≤ 5 % del IC inicial (ruido, no reinversión).
+        incremental = None
+        if ic_by and op_inc_list:
+            end = op_inc_list[0].period
+            y_end = fiscal_year(end)
+            starts = sorted(p for p in ic_by if p in nopat_by and 0 < y_end - fiscal_year(p) <= 3)
+            if starts and end in ic_by:
+                start = starts[0]  # oldest within 3 years
+                d_ic = ic_by[end] - ic_by[start]
+                if d_ic > 0.05 * abs(ic_by[start]):
+                    incremental = MetricValue(value=round((nopat_by[end] - nopat_by[start]) / d_ic, 4),
+                                              unit="ratio", period=f"{start}→{end}", source="calculated")
+
+        def _hist_series(key_fn, unit: str = "USD") -> list[MetricValue]:
+            """Serie anual de balance desde balance_history (index 0 = latest, etiquetas FY)."""
+            return [MetricValue(value=v, unit=unit, period=h["period"], source="XBRL")
+                    for h in history if (v := key_fn(h)) is not None]
+
+        total_debt_series = _hist_series(lambda h: h.get("total_debt"))
+        # cash_series = caja + STI (liquidez financiera total del año; la caja sola es cash_and_equivalents)
+        cash_series = _hist_series(lambda h: None if h.get("cash") is None
+                                   else h["cash"] + (h.get("short_term_investments") or 0.0))
+        equity_series = _hist_series(lambda h: h.get("stockholders_equity"))
 
         return FinancialsReport(
             ticker=raw["ticker"],
@@ -585,8 +364,30 @@ class EdgarAdapter:
                 value=total_debt_value, unit="USD", period=period, source="XBRL"
             ),
             cash_and_equivalents=MetricValue(
-                value=cash_value, unit="USD", period=period, source="XBRL"
+                value=cash_value, unit="USD", period=period,
+                source=bs["cash_and_equivalents"].get("source", "XBRL"),
             ),
+            short_term_investments=_mv_opt(sti_item),
+            long_term_investments=_mv_opt(bs.get("long_term_investments")),
+            data_quality_flags=list(raw.get("data_quality_flags", [])),
+            # --- FCFF inputs (T8). Fixtures legacy sin estas claves → [] / None. ---
+            # Magnitud (_mv_list_abs): el signo de intereses/SBC/D&A/principal varía por filer y
+            # por versión de edgartools (5.5x devuelve flujos de caja con signo); el FCFF los
+            # resta como costes ≥ 0. Intereses COBRADOS conservan su signo.
+            interest_expense=_mv_list_abs(annual.get("interest_expense", [])),
+            interest_income=_mv_list(annual.get("interest_income", [])),
+            sbc=_mv_list_abs(annual.get("sbc", [])),
+            depreciation_amortization=_mv_list_abs(annual.get("depreciation_amortization", [])),
+            diluted_shares=_mv_list_unit(annual.get("diluted_shares", []), "shares"),
+            basic_shares_weighted=_mv_opt((annual.get("basic_shares_weighted") or [None])[0], "shares"),
+            income_tax=_mv_list(annual.get("income_tax", [])),
+            pretax_income=_mv_list(annual.get("pretax_income", [])),
+            finance_lease_principal_payments=_mv_list_abs(annual.get("finance_lease_principal_payments", [])),
+            operating_lease_liabilities=_mv_opt(bs.get("operating_lease_liabilities")),
+            operating_rou_asset=_mv_opt(bs.get("operating_rou_asset")),
+            equity_method_investments=_mv_opt(bs.get("equity_method_investments")),
+            minority_interest=_mv_opt(bs.get("minority_interest")),
+            preferred_stock=_mv_opt(bs.get("preferred_stock")),
             shares_outstanding=(
                 # Construcción condicional (EC-34): NO crear MetricValue con value=None.
                 # Si XBRL no reporta shares (small caps con dual-class como CRD.A, ADRs),
@@ -604,6 +405,10 @@ class EdgarAdapter:
             roic_series=roic_series,
             invested_capital=invested_capital_mv,
             stockholders_equity=stockholders_equity_mv,
+            incremental_roic=incremental,
+            total_debt_series=total_debt_series,
+            cash_series=cash_series,
+            equity_series=equity_series,
             source_filing=raw["source_filing"],
         )
 
@@ -678,48 +483,20 @@ class EdgarAdapter:
             log.warning("quarterly_snapshot_fetch_failed", ticker=ticker, error=str(e))
             return None
 
-        # Columnas trimestrales: 'Q1 2026', 'Q4 2025', etc. — tomar la más reciente
-        q_cols = sorted(
-            [c for c in inc_df.columns if c.startswith("Q")],
-            reverse=True,
-        )
-        if not q_cols:
+        # EC-84: el DataFrame XBRL del 10-Q tiene columnas '2026-06-27 (Q3)' / '(YTD)' y
+        # 'concept' como COLUMNA con prefijo (verificado en vivo). El código viejo filtraba
+        # c.startswith("Q") sobre el índice → siempre vacío → el snapshot nunca se producía.
+        latest_q = latest_quarter_column(list(inc_df.columns))
+        if latest_q is None:
             log.info("quarterly_snapshot_no_quarters", ticker=ticker)
-            return None
-
-        latest_q = q_cols[0]
-
-        def _get_val(df: Any, concepts: list[str]) -> float | None:
-            """Extrae valor del primer concepto que exista en el DataFrame."""
-            for concept in concepts:
-                if concept not in df.index:
-                    continue
-                row = df.loc[concept]
-                if row.ndim == 2:
-                    row = row.iloc[0]
-                val = row.get(latest_q)
-                if val is not None:
-                    import pandas as pd
-                    if pd.notna(val):
-                        return float(val)
             return None
 
         snapshot = {
             "period": latest_q,
-            "revenue": _get_val(inc_df, [
-                "RevenueFromContractWithCustomerExcludingAssessedTax",
-                "Revenues",
-                "SalesRevenueNet",                                     # legacy pre-ASC 606 (EC-67)
-                "RevenueFromContractWithCustomerIncludingAssessedTax",
-                "SalesRevenueGoodsNet",                                # product-only CPG/retail
-                "NetSales",                                            # algunos industriales/food
-            ]),
-            "operating_income": _get_val(inc_df, [
-                "OperatingIncomeLoss",
-            ]),
-            "gross_profit": _get_val(inc_df, [
-                "GrossProfit",
-            ]),
+            # Misma cadena de revenue que el anual (EC-67), una sola definición.
+            "revenue": quarter_value(inc_df, REVENUE_CONCEPTS, latest_q),
+            "operating_income": quarter_value(inc_df, ("OperatingIncomeLoss",), latest_q),
+            "gross_profit": quarter_value(inc_df, ("GrossProfit",), latest_q),
         }
 
         # Solo devolver si al menos revenue está presente
@@ -790,7 +567,7 @@ class EdgarManagementAdapter:
             log.warning("def14a_not_found", ticker=ticker)
             return ""
 
-        filing = filings.latest()
+        filing = filings.latest()  # patrón latest() aceptado: DEF 14A/A es excepcional (MCE-26, T5)
         log.info("def14a_fetch", ticker=ticker, period=str(filing.period_of_report))
 
         try:
@@ -1019,7 +796,7 @@ def _get_latest_full_10k(company):
             return f
     # Si todos son /A (caso extremo), devolver el más reciente — degraded mode.
     log.warning("only_10ka_amendments_found", count=len(list(filings)))
-    return filings.latest()
+    return filings.latest()  # patrón latest() aceptado: degraded mode, ya logueado arriba
 
 
 class EdgarFilingsAdapter:

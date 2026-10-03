@@ -116,7 +116,10 @@ def test_compute_revenue_cagr_5y_zero_oldest():
 
 
 def test_compute_revenue_cagr_5y_uses_max_5_years():
-    """Con 7 periodos usa solo los 5 más recientes (4 años de diferencia, n_years=4)."""
+    """Con 7 periodos usa una ventana de 5 AÑOS FISCALES reales (T7/EC-83: antes índice 4 = 4 años).
+
+    Decisión de producto de T7: el "CAGR 5y" pasa a ser de 5 años reales (FY2026 vs FY2021).
+    """
     from due_diligence.agents.financials import _compute_revenue_cagr_5y
 
     rev = [
@@ -131,8 +134,8 @@ def test_compute_revenue_cagr_5y_uses_max_5_years():
     result = _compute_revenue_cagr_5y(rev)
     assert result is not None
     cagr, years = result
-    assert years == 4
-    assert abs(cagr - ((200.0 / 120.0) ** (1 / 4) - 1)) < 0.001
+    assert years == 5
+    assert abs(cagr - ((200.0 / 100.0) ** (1 / 5) - 1)) < 0.001
 
 
 def test_compute_revenue_cagr_5y_short_series_reports_real_years():

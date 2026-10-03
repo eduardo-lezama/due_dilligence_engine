@@ -43,6 +43,7 @@ from due_diligence.schemas.base import Citation, FinancialsReport
 from due_diligence.schemas.reports import CompetitiveReport
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
 from due_diligence.utils.formatting import fmt_usd
+from due_diligence.utils.periods import align_by_period, cagr_by_fiscal_years
 
 log = structlog.get_logger()
 
@@ -132,8 +133,9 @@ def _format_financials_for_prompt(financials: FinancialsReport) -> str:
 
     # ROIC series — la evidencia más directa de moat estructural
     if financials.roic_series:
+        # Ventana de 5 años (T7): con periods=10 la serie completa serían 10 años.
         roic_str = ", ".join(
-            f"{mv.period}: {mv.value:.1%}" for mv in financials.roic_series
+            f"{mv.period}: {mv.value:.1%}" for mv in financials.roic_series[:5]
         )
         lines.append(f"ROIC series: {roic_str}")
 
@@ -142,7 +144,7 @@ def _format_financials_for_prompt(financials: FinancialsReport) -> str:
         gp_mv = financials.gross_profit
         rev_mv = financials.revenue
         margins = []
-        for gp, rev in zip(gp_mv, rev_mv):
+        for gp, rev in align_by_period(gp_mv, rev_mv):  # EC-82: mismo año, no misma posición
             if rev.value > 0:
                 margins.append(f"{gp.period}: {gp.value/rev.value:.1%}")
         if margins:
@@ -153,7 +155,7 @@ def _format_financials_for_prompt(financials: FinancialsReport) -> str:
         oi_mv = financials.operating_income
         rev_mv = financials.revenue
         op_margins = []
-        for oi, rev in zip(oi_mv, rev_mv):
+        for oi, rev in align_by_period(oi_mv, rev_mv):  # EC-82: mismo año, no misma posición
             if rev.value > 0:
                 op_margins.append(f"{oi.period}: {oi.value/rev.value:.1%}")
         if op_margins:
@@ -364,11 +366,11 @@ def _check_wide_moat_criteria(financials: FinancialsReport) -> list[str]:
                 )
 
     # Criterio 3: Revenue 3y CAGR ≥ 4%
-    if financials.revenue and len(financials.revenue) >= 4:
-        newest = financials.revenue[0].value
-        oldest_3y = financials.revenue[3].value  # 3 años atrás
-        if oldest_3y > 0:
-            cagr = (newest / oldest_3y) ** (1 / 3) - 1
+    # EC-83: ventana de 3 AÑOS FISCALES (no índice 3, que con huecos son 4+ años).
+    if financials.revenue and len(financials.revenue) >= 2:
+        r = cagr_by_fiscal_years(financials.revenue, max_years=3)
+        if r is not None and r[1] == 3:  # solo si hay un punto exactamente 3 años atrás
+            cagr = r[0]
             if cagr < 0.04:
                 fails.append(f"Revenue 3y CAGR {cagr:.1%} (<4% = no organic growth)")
 

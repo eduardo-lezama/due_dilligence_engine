@@ -36,6 +36,7 @@ from due_diligence.graph.state import AnalysisState
 from due_diligence.llm.client import get_client
 from due_diligence.schemas.reports import CriticReport
 from due_diligence.utils.formatting import fmt_usd
+from due_diligence.utils.periods import align_by_period
 
 log = structlog.get_logger()
 
@@ -103,7 +104,10 @@ def _build_critic_prompt(state: AnalysisState) -> str:
             fcf_trend = [f"{f.period}: {fmt_usd(f.value)}" for f in financials.free_cash_flow[:3]]
             lines.append(f"FCF trend: {', '.join(fcf_trend)}")
         if financials.total_debt is not None and financials.cash_and_equivalents is not None:
-            net_debt = financials.total_debt.value - financials.cash_and_equivalents.value
+            # net_debt = deuda − caja − STI (misma definición que el bridge EV→equity; desde H1
+            # cash_and_equivalents ya NO incluye STI, EC-81). T12b lo sustituye por net_claims.
+            sti = financials.short_term_investments.value if financials.short_term_investments else 0.0
+            net_debt = financials.total_debt.value - financials.cash_and_equivalents.value - sti
             lines.append(f"Net debt: {fmt_usd(net_debt)}")
         lines.append("")
 
@@ -186,7 +190,8 @@ def _detect_red_flags(state: AnalysisState) -> list[str]:
     if financials is not None and financials.gross_profit and financials.revenue:
         if len(financials.gross_profit) >= 3 and len(financials.revenue) >= 3:
             margins = []
-            for gp, rev in zip(financials.gross_profit, financials.revenue):
+            # Alineado por periodo (EC-82): zip posicional mezclaba años si una serie tenía hueco.
+            for gp, rev in align_by_period(financials.gross_profit, financials.revenue):
                 if rev.value > 0:
                     margins.append(gp.value / rev.value)
             # margins[0] = most recent; descendente = compresión

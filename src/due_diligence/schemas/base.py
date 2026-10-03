@@ -83,16 +83,43 @@ class FinancialsReport(BaseModel):
 
     # Balance sheet (point-in-time, most recent)
     total_assets: MetricValue
-    total_debt: MetricValue
-    cash_and_equivalents: MetricValue
+    total_debt: MetricValue  # LT + ST + leasing financiero, sin doble conteo (EC-80)
+    cash_and_equivalents: MetricValue  # SOLO caja (desde H1); STI va aparte (EC-81)
+    short_term_investments: Optional[MetricValue] = None  # NO incluido en cash_and_equivalents (desde H1)
+    long_term_investments: Optional[MetricValue] = None   # activo no operativo — el bridge EV→equity lo suma
+    equity_method_investments: Optional[MetricValue] = None  # participaciones: se suman en el bridge salvo flag (T8)
+    data_quality_flags: list[str] = Field(default_factory=list)  # identidades contables rotas, fallbacks
 
     # Share data
-    shares_outstanding: Optional[MetricValue] = None
+    shares_outstanding: Optional[MetricValue] = None  # recuento puntual de portada (dei)
+
+    # --- FCFF inputs (Bloque C) — series anuales, index 0 = latest, mismas etiquetas FY que revenue ---
+    interest_expense: list[MetricValue] = Field(default_factory=list)  # magnitud (signo varía por filer)
+    interest_income: list[MetricValue] = Field(default_factory=list)   # restado neto de impuestos del FCFF
+    sbc: list[MetricValue] = Field(default_factory=list)                # ShareBasedCompensation (magnitud)
+    depreciation_amortization: list[MetricValue] = Field(default_factory=list)  # magnitud
+    diluted_shares: list[MetricValue] = Field(default_factory=list)     # MEDIA PONDERADA diluida, unit="shares"
+    basic_shares_weighted: Optional[MetricValue] = None                 # media ponderada básica (latest)
+    # --- Balance memo (point-in-time, latest) ---
+    operating_lease_liabilities: Optional[MetricValue] = None  # MEMO: no en total_debt (ASC 842)
+    operating_rou_asset: Optional[MetricValue] = None          # ROU operativo: se excluye del IC operativo (T9)
+    minority_interest: Optional[MetricValue] = None
+    preferred_stock: Optional[MetricValue] = None
+    # --- Tipo impositivo canónico (revisión adversarial): expuestos para effective_tax_rate_multi ---
+    income_tax: list[MetricValue] = Field(default_factory=list)
+    pretax_income: list[MetricValue] = Field(default_factory=list)
+    finance_lease_principal_payments: list[MetricValue] = Field(default_factory=list)  # capex equivalente (FCFF)
 
     # ROIC (Return on Invested Capital) — calculado de XBRL, no generado por LLM.
-    # NOPAT = OperatingIncome × (1 − effective_tax_rate); IC = Equity + Debt − Cash.
-    # La serie usa el IC del año más reciente para todos los años (aproximación — ver edgar.py).
+    # ROIC_t = NOPAT_t / media(IC_t, IC_{t-1}) con la tasa efectiva del año t (T9, EC-85).
+    # source: "calculated-avg-ic" / "calculated-end-ic"; fixtures legacy sin balance_history →
+    # "calculated-latest-ic" (IC del último año para todos, aproximación previa).
     roic_series: list[MetricValue] = Field(default_factory=list)  # ROIC como ratio (ej: 0.87 = 87%)
+    incremental_roic: Optional[MetricValue] = None  # ΔNOPAT/ΔIC ≤3 años, period "FY2022→FY2025"; None = n/m
+    # Series de balance por año (mismas etiquetas FY, index 0 = latest). Las consume suggest_wacc (T11).
+    total_debt_series: list[MetricValue] = Field(default_factory=list)
+    cash_series: list[MetricValue] = Field(default_factory=list)   # caja + STI de cada año
+    equity_series: list[MetricValue] = Field(default_factory=list)
     invested_capital: Optional[MetricValue] = None   # IC más reciente en USD
     stockholders_equity: Optional[MetricValue] = None  # Book equity más reciente en USD
 

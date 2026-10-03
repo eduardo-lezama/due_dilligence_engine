@@ -21,34 +21,24 @@ import structlog
 
 from due_diligence.graph.state import AnalysisState
 from due_diligence.tools.edgar import EdgarAdapter
+from due_diligence.utils.periods import cagr_by_fiscal_years
 
 log = structlog.get_logger()
 
 
 def _compute_revenue_cagr_5y(revenue_series: list) -> tuple[float, int] | None:
     """
-    Calcula el CAGR de revenue al span disponible (máximo 5 años / 4 intervalos).
+    CAGR de revenue en una ventana de hasta 5 AÑOS FISCALES reales (EC-83).
 
-    La serie debe estar ordenada de más reciente (índice 0) a más antiguo.
-    Usa índice 0 como 'newest' y min(len-1, 4) como 'oldest'.
+    Antes: índice 0 vs índice min(len-1, 4), asumiendo índice i = i años atrás. Con
+    huecos (BBW sin FY2025) el exponente era erróneo; y con periods=4 el "5y" era de 3.
+    Ahora la distancia es la diferencia de años fiscales y la ventana se acota a 5
+    (con periods=10 la serie tiene hasta 10 años: sin tope sería un CAGR a 9 años).
 
-    Retorna (cagr, n_years) o None si datos insuficientes o inválidos.
-    El n_years real es importante: FSLR con 4 periodos devuelve n_years=3,
-    no 5 — el Expert debe saber si está citando un CAGR de 3 o de 5 años.
-
-    Retorna None si:
-    - Hay menos de 2 puntos
-    - El valor más antiguo o más reciente es <= 0
+    Retorna (cagr, n_years) o None si hay < 2 puntos o el inicio/fin es <= 0.
+    El n_years real importa: el Expert debe saber si cita un CAGR de 3 o de 5 años.
     """
-    if len(revenue_series) < 2:
-        return None
-    newest = revenue_series[0].value
-    oldest_idx = min(len(revenue_series) - 1, 4)
-    oldest = revenue_series[oldest_idx].value
-    if oldest <= 0 or newest <= 0:
-        return None
-    n = oldest_idx  # número real de años entre newest y oldest
-    return (newest / oldest) ** (1 / n) - 1, n
+    return cagr_by_fiscal_years(revenue_series, max_years=5)
 
 
 def financials_node(state: AnalysisState) -> dict:

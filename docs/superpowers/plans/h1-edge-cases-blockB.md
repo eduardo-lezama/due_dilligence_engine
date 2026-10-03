@@ -43,6 +43,36 @@ lo fusiona). El hash de commit es el de la rama `h1-blockB`.
 - **Nota:** `valuation.py` y `peers.py` siguen usando cash-only en su EV hasta T12 (comportamiento idéntico al previo porque la STI era siempre 0); anotado inline.
 - **Commit:** `feat(h1-T6)`.
 
+### EC-82 — FCF emparejaba OCF y capex de años distintos (T7)
+
+- **Síntoma:** con una serie con hueco (BBW: capex con FY2025 y OCF sin él, o viceversa), `FCF[FY2024] = OCF[FY2024] − capex[FY2025]`; márgenes brutos/operativos de Value Expert, Critic y Competitive con el mismo problema.
+- **Causa raíz:** `zip(ocf_list, capex_list)` empareja por POSICIÓN; asume que ambas series tienen exactamente los mismos años en el mismo orden.
+- **Fix:** `utils/periods.align_by_period` (empareja por etiqueta FY, omite periodos sin par) en `parse_financials` (FCF), `value_expert` y `critic` (margen bruto), `competitive` (márgenes bruto y operativo). Capex con `abs()` / `_mv_list_abs` (edgartools 5.5x lo devuelve con signo). Test `test_align_by_period_never_pairs_different_years`, `test_margins_aligned_by_period_not_position`.
+- **Commit:** `feat(h1-T7)`.
+
+### EC-83 — CAGR por distancia de índice, no por años fiscales (T7)
+
+- **Síntoma:** BBW (falta FY2025): revenue `[FY2026, FY2024, FY2023, FY2022]` → el índice 3 se trataba como 3 años cuando son 4 → CAGR sobrestimado. Mismo patrón en el FCF CAGR (`valuation._fcf_cagr_with_window`) y en el criterio "Revenue 3y CAGR" de Competitive (`revenue[3]`).
+- **Causa raíz:** exponente `1/índice` en lugar de `1/(año_reciente − año_antiguo)`.
+- **Fix:** `utils/periods.cagr_by_fiscal_years(series, max_years, scan_for_positive_start)`; `financials._compute_revenue_cagr_5y` → ventana de 5 años fiscales reales (decisión de producto: antes era un "5y" de como mucho 4 intervalos); `_fcf_cagr_with_window` → `max_years=5` + scan EC-60; Competitive → ventana de 3 años fiscales exactos. Ventanas de consumidores fijadas por test (`tests/test_series_windows.py`): `rev_median` `[:5]`, tendencia ROIC del Value Expert `roic_series[min(4, len-1)]`, ROIC de Competitive `[:5]`, `_ebit_median` `[:5]`.
+- **Commit:** `feat(h1-T7)`.
+
+### EC-84 — El snapshot trimestral nunca se producía + test tautológico (T7; test en T5)
+
+- **Síntoma:** `quarterly_snapshot` siempre ausente; log `quarterly_snapshot_no_quarters` en todos los runs; el contexto del Value Expert nunca tuvo datos del 10-Q aunque el 10-K tuviera > 45 días.
+- **Causa raíz:** `get_quarterly_financials()` devuelve el XBRL del 10-Q, cuyo DataFrame tiene `concept` como **columna** con prefijo (`us-gaap_Revenues`) y columnas de periodo `"2026-06-27 (Q3)"`/`"(YTD)"` (verificado en vivo). El código filtraba `c.startswith("Q")` y buscaba conceptos en el índice → siempre vacío. Secundario: orden por string (`'Q4 2025' > 'Q1 2026'`). El test `test_stale_10k_beyond_45_days_triggers_fetch` afirmaba `get_filings.called or result is None` → pasaba siempre.
+- **Fix:** `xbrl_extract.latest_quarter_column` (ordena por fecha, ignora YTD, acepta ambos formatos) + `quarter_value` (normaliza `concept` columna→índice sin prefijo, excluye filas dimensionales); revenue con la misma cadena que el anual (`REVENUE_CONCEPTS`). Test con el formato real; test tautológico reescrito (`assert_called_once_with()` + `result is None`).
+- **Efecto colateral detectado:** los tests que corrían `financials_node` con `fetch_raw` mockeado hacían una llamada REAL a EDGAR para el trimestral (antes acababa en `None` sin que se notara). Ahora devolvía datos vivos → `conftest.py` añade un autouse que mockea `fetch_quarterly_snapshot` salvo en tests marcados `@pytest.mark.real_quarterly_fetch`.
+- **Commit:** `feat(h1-T7)`.
+
+### EC-88 — Huecos de años en series anuales (BBW sin FY2025) (T7)
+
+- **Síntoma:** series anuales con años interiores ausentes (BBW FY2025) aunque el dato existe en companyfacts.
+- **Causa raíz:** el validador fiscal_year/period_end de edgartools (`enhanced_statement.py:1548`) o el umbral de < 5 facts descartan la columna del año en la vista curada.
+- **Fix:** `xbrl_extract.backfill_gaps(series, facts)`: rellena solo años INTERIORES desde raw facts del mismo concepto emparejando por `period_end` (`EdgarFactsLookup`), con `source = "facts:<concepto>"`; no extrapola ni toca series derivadas. `build_raw` lo aplica a cada serie anual.
+- **Pendiente conocido:** restatements — el backfill toma el filing más reciente y puede mezclar años re-expresados con no re-expresados.
+- **Commit:** `feat(h1-T7)`.
+
 ### Nota para `src/due_diligence/tools/CLAUDE.md` (gitignored → aplicar en la sesión principal)
 
 Añadir bajo "Rules":

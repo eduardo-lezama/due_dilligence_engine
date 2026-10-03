@@ -41,3 +41,19 @@ flowchart LR
 **Relación con la arquitectura.** Invariante 5 (tools fallan loud): la caja ausente ya no es un 0 silencioso. La STI deja de ir dentro de `cash_and_equivalents`: un único significado por campo evita que el bridge EV→equity del Bloque C reste la STI dos veces. Las `data_quality_flags` viajan en el `FinancialsReport` para que la síntesis las muestre (T13).
 
 **Ejemplo.** `resolve_debt` con `{LongTermDebt: 100, DebtCurrent: 15, CommercialPaper: 5}` → LT = 100 − (15 − 5) = 90, ST = 15, total 105 (antes 115), flag `"current LTD inferred from DebtCurrent (FY2025)"`.
+
+---
+
+## T7 — Índice vs año fiscal; por qué el snapshot trimestral nunca funcionó
+
+**Concepto.** Una serie anual es un conjunto de pares (año fiscal, valor). La *posición* en la lista es un detalle de almacenamiento; el *año* es el dato. Todo cálculo que combine dos series (FCF = OCF − capex, margen = GP / revenue) o mida una distancia temporal (CAGR) debe usar el año, no la posición.
+
+**Por qué.** BBW no tiene FY2025 en la vista curada de edgartools. Su revenue es `[FY2026, FY2024, FY2023, FY2022]`. El código viejo calculaba el "CAGR" con `revenue[3]` y exponente `1/3`, pero entre FY2026 y FY2022 hay 4 años: CAGR sobrestimado. Y `zip(ocf, capex)` emparejaba OCF de un año con capex de otro en cuanto una serie tenía un hueco que la otra no.
+
+**Cómo.** `utils/periods.py`: `align_by_period(a, b)` empareja por etiqueta; `cagr_by_fiscal_years(series, max_years, scan_for_positive_start)` usa la diferencia real de años y acota la ventana. Con `periods=10` (T5) las series tienen hasta 10 años, así que cada consumidor fija su ventana explícitamente (5 años) y `tests/test_series_windows.py` lo comprueba con una serie sintética de 10 años. `backfill_gaps` rellena los huecos interiores desde raw facts.
+
+**El snapshot trimestral.** El 10-Q de AAPL vía `get_quarterly_financials()` devuelve un DataFrame con `concept` como *columna* (`us-gaap_Revenues`) y columnas de periodo `"2026-06-27 (Q3)"`. El código buscaba columnas que empezaran por `"Q"` → ninguna → `None` siempre. El test que debía protegerlo afirmaba `get_filings.called or result is None`: como `result` era siempre `None`, el test pasaba siempre. **Lección:** un test cuya aserción es verdadera tanto si el código funciona como si no, no es un test (regla de `tests/CLAUDE.md`). Se sustituyó por uno con el formato real verificado en vivo.
+
+**Relación con la arquitectura.** Refuerza ADR-005: los números deterministas solo son correctos si las operaciones entre series respetan el periodo. Arreglar el trimestral destapó que varios tests hacían una llamada real a EDGAR (enmascarada por el bug); `conftest.py` la bloquea ahora (zero real API calls).
+
+**Ejemplo.** `cagr_by_fiscal_years([FY2026: 529.8, FY2024: 486.1, FY2023: 467.9, FY2022: 411.5], max_years=5)` → `n = 4`, CAGR = (529.8/411.5)^(1/4) − 1 ≈ 6,5 % (antes exponente 1/3 → ≈ 8,8 %).

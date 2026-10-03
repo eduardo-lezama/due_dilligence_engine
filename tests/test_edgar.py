@@ -561,6 +561,7 @@ class TestDetect10b51Plan:
 # Tests: P1 — fetch_quarterly_snapshot staleness threshold 45 days (default)
 # ---------------------------------------------------------------------------
 
+@pytest.mark.real_quarterly_fetch
 class TestFetchQuarterlySnapshotThreshold:
     """
     P1: el threshold por defecto es 45 días (antes 90).
@@ -601,6 +602,26 @@ class TestFetchQuarterlySnapshotThreshold:
         result = EdgarAdapter.fetch_quarterly_snapshot("AAPL", tenk_as_of=tenk_as_of)
         mock_company.get_quarterly_financials.assert_called_once_with()
         assert result is None
+
+
+    def test_stale_10k_parses_real_xbrl_quarterly_format(self, mocker):
+        """EC-84: formato REAL del 10-Q verificado en vivo (concept como columna con prefijo,
+        columnas de periodo '2025-06-28 (Q3)' / '(YTD)'). El código viejo filtraba
+        c.startswith("Q") sobre el índice → snapshot siempre None."""
+        import pandas as pd
+        from datetime import date, timedelta
+        from due_diligence.tools.edgar import EdgarAdapter
+        df = pd.DataFrame({"concept": ["us-gaap_Revenues", "us-gaap_GrossProfit"],
+                           "label": ["Revenue", "GP"],
+                           "2025-06-28 (Q3)": [94.0e9, 44.0e9],
+                           "2025-06-28 (YTD)": [313.0e9, 145.0e9]})
+        company = mocker.MagicMock()
+        company.get_quarterly_financials.return_value.income_statement.return_value.to_dataframe.return_value = df
+        mocker.patch("edgar.Company", return_value=company)
+        mocker.patch("edgar.set_identity")
+        snap = EdgarAdapter.fetch_quarterly_snapshot("AAPL", tenk_as_of=date.today() - timedelta(days=60))
+        assert snap is not None and snap.revenue == 94.0e9 and snap.gross_profit == 44.0e9
+        assert snap.period == "2025-06-28 (Q3)"
 
 
 # ---------------------------------------------------------------------------

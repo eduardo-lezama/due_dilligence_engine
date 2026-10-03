@@ -35,10 +35,14 @@ from due_diligence.schemas.reports import QuarterlySnapshot
 # DataUnavailableError vive en la capa pura (xbrl_extract) y se re-exporta aquí para
 # mantener `from due_diligence.tools.edgar import DataUnavailableError` en todo el código.
 from due_diligence.tools.xbrl_extract import (
+    REVENUE_CONCEPTS,
     DataUnavailableError,
     EdgarFactsLookup,
     build_raw,
+    latest_quarter_column,
+    quarter_value,
 )
+from due_diligence.utils.periods import align_by_period
 
 log = structlog.get_logger()
 
@@ -145,21 +149,19 @@ class EdgarAdapter:
             ]
 
         ocf_list = _mv_list(annual["operating_cash_flow"])
-        capex_list = _mv_list(annual["capex"])
+        # Capex en MAGNITUD (_mv_list_abs): edgartools 5.5x lo devuelve con signo y el FCFF
+        # del Bloque C exige capex ≥ 0. Fixtures viejos (positivos) no cambian.
+        capex_list = _mv_list_abs(annual["capex"])
         buybacks_list = _mv_list_abs(annual.get("buybacks", []))
         dividends_list = _mv_list_abs(annual.get("dividends", []))
 
         if ocf_list and capex_list:
-            # Caso normal: ambos disponibles — FCF = OCF - Capex
-            # zip trunca al más corto si difieren en longitud (periodos distintos)
+            # Alineado por periodo (EC-82): zip posicional cruzaba años cuando una
+            # serie tenía huecos. Periodos sin capex se omiten (no se inventa FCF).
             fcf_list = [
-                MetricValue(
-                    value=ocf.value - cap.value,
-                    unit="USD",
-                    period=ocf.period,
-                    source="calculated",
-                )
-                for ocf, cap in zip(ocf_list, capex_list)
+                MetricValue(value=o.value - abs(c.value), unit="USD", period=o.period,
+                            source="calculated")
+                for o, c in align_by_period(ocf_list, capex_list)
             ]
         elif ocf_list:
             # Capex no disponible en XBRL (empresas asset-light / servicios puros).
@@ -380,48 +382,20 @@ class EdgarAdapter:
             log.warning("quarterly_snapshot_fetch_failed", ticker=ticker, error=str(e))
             return None
 
-        # Columnas trimestrales: 'Q1 2026', 'Q4 2025', etc. — tomar la más reciente
-        q_cols = sorted(
-            [c for c in inc_df.columns if c.startswith("Q")],
-            reverse=True,
-        )
-        if not q_cols:
+        # EC-84: el DataFrame XBRL del 10-Q tiene columnas '2026-06-27 (Q3)' / '(YTD)' y
+        # 'concept' como COLUMNA con prefijo (verificado en vivo). El código viejo filtraba
+        # c.startswith("Q") sobre el índice → siempre vacío → el snapshot nunca se producía.
+        latest_q = latest_quarter_column(list(inc_df.columns))
+        if latest_q is None:
             log.info("quarterly_snapshot_no_quarters", ticker=ticker)
-            return None
-
-        latest_q = q_cols[0]
-
-        def _get_val(df: Any, concepts: list[str]) -> float | None:
-            """Extrae valor del primer concepto que exista en el DataFrame."""
-            for concept in concepts:
-                if concept not in df.index:
-                    continue
-                row = df.loc[concept]
-                if row.ndim == 2:
-                    row = row.iloc[0]
-                val = row.get(latest_q)
-                if val is not None:
-                    import pandas as pd
-                    if pd.notna(val):
-                        return float(val)
             return None
 
         snapshot = {
             "period": latest_q,
-            "revenue": _get_val(inc_df, [
-                "RevenueFromContractWithCustomerExcludingAssessedTax",
-                "Revenues",
-                "SalesRevenueNet",                                     # legacy pre-ASC 606 (EC-67)
-                "RevenueFromContractWithCustomerIncludingAssessedTax",
-                "SalesRevenueGoodsNet",                                # product-only CPG/retail
-                "NetSales",                                            # algunos industriales/food
-            ]),
-            "operating_income": _get_val(inc_df, [
-                "OperatingIncomeLoss",
-            ]),
-            "gross_profit": _get_val(inc_df, [
-                "GrossProfit",
-            ]),
+            # Misma cadena de revenue que el anual (EC-67), una sola definición.
+            "revenue": quarter_value(inc_df, REVENUE_CONCEPTS, latest_q),
+            "operating_income": quarter_value(inc_df, ("OperatingIncomeLoss",), latest_q),
+            "gross_profit": quarter_value(inc_df, ("GrossProfit",), latest_q),
         }
 
         # Solo devolver si al menos revenue está presente

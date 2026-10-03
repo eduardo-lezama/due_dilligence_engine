@@ -36,6 +36,7 @@ from due_diligence.graph.state import AnalysisState
 from due_diligence.llm.client import get_client
 from due_diligence.schemas.reports import CriticReport
 from due_diligence.utils.formatting import fmt_usd
+from due_diligence.utils.periods import align_by_period
 
 log = structlog.get_logger()
 
@@ -189,7 +190,8 @@ def _detect_red_flags(state: AnalysisState) -> list[str]:
     if financials is not None and financials.gross_profit and financials.revenue:
         if len(financials.gross_profit) >= 3 and len(financials.revenue) >= 3:
             margins = []
-            for gp, rev in zip(financials.gross_profit, financials.revenue):
+            # Alineado por periodo (EC-82): zip posicional mezclaba años si una serie tenía hueco.
+            for gp, rev in align_by_period(financials.gross_profit, financials.revenue):
                 if rev.value > 0:
                     margins.append(gp.value / rev.value)
             # margins[0] = most recent; descendente = compresión

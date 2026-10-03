@@ -195,6 +195,72 @@ def point_value(df: pd.DataFrame, concepts: tuple[str, ...], period: str,
 
 
 # --------------------------------------------------------------------------- #
+# Huecos de años (EC-88) y columnas trimestrales (EC-84) — T7
+# --------------------------------------------------------------------------- #
+
+def backfill_gaps(series: list[dict], facts: FactsLookup) -> list[dict]:
+    """Rellena años INTERIORES ausentes desde raw facts del mismo concepto.
+
+    Caso real: BBW FY2025, que edgartools descarta en su validador fiscal_year/period_end
+    (enhanced_statement.py:1548). No extrapola fuera del rango observado y no toca
+    series derivadas ("derived:...") ni ya rellenadas ("facts:..."): no son conceptos
+    consultables uno a uno.
+    """
+    if len(series) < 2:
+        return series
+    concept = series[0]["source"]
+    if ":" in concept:          # "facts:X" / "derived:..." no son conceptos consultables → no rellenar
+        return series
+    by_year = {fy_year(i["period"]): i for i in series}
+    hi, lo = max(by_year), min(by_year)
+    for y in range(hi - 1, lo, -1):
+        if y not in by_year:
+            v = facts.annual_value(concept, f"FY{y}")
+            if v is not None:
+                by_year[y] = {"value": v, "period": f"FY{y}", "source": f"facts:{concept}"}
+    return [by_year[y] for y in sorted(by_year, reverse=True)]
+
+
+_Q_XBRL = re.compile(r"^(\d{4}-\d{2}-\d{2}) \((Q[1-4])\)$")   # xbrl/statements.py:1111 — verificado en vivo
+_Q_FACTS = re.compile(r"^(Q[1-4]) (\d{4})$")                  # enhanced_statement.py:1779
+
+
+def latest_quarter_column(columns: list[Any]) -> str | None:
+    """Columna trimestral más reciente por FECHA (no por string; 'Q4 2025' > 'Q1 2026'
+    alfabéticamente). Ignora YTD/FY. Acepta ambos formatos de edgartools:
+    '2025-06-28 (Q3)' (XBRL del 10-Q) y 'Q3 2025' (EntityFacts)."""
+    keyed: list[tuple[date, str]] = []
+    for c in columns:
+        if not isinstance(c, str):
+            continue
+        if m := _Q_XBRL.match(c):
+            keyed.append((date.fromisoformat(m.group(1)), c))
+        elif m := _Q_FACTS.match(c):
+            # Aproximación: fin del trimestre natural (Qn → mes 3n) — solo para ordenar.
+            keyed.append((date(int(m.group(2)), int(m.group(1)[1]) * 3, 1), c))
+    return max(keyed)[1] if keyed else None
+
+
+def quarter_value(df: pd.DataFrame, concepts: tuple[str, ...], col: str) -> float | None:
+    """Valor de un concepto en la columna dada.
+
+    El DataFrame XBRL del 10-Q tiene 'concept' como COLUMNA con prefijo
+    ('us-gaap_Revenues'); se normaliza a índice sin prefijo. Las filas dimensionales
+    (segmentos) se excluyen: solo totales.
+    """
+    if "concept" in df.columns:
+        if "dimension" in df.columns:                    # verificado en vivo: columna existe
+            df = df[~df["dimension"].fillna(False).astype(bool)]
+        keys = df["concept"].astype(str).str.split("_", n=1).str[-1]
+        df = df.set_index(keys)
+    for c in concepts:
+        row = _row(df, c)
+        if row is not None and (v := _to_float(row.get(col))) is not None:
+            return v
+    return None
+
+
+# --------------------------------------------------------------------------- #
 # Derivados del income statement
 # --------------------------------------------------------------------------- #
 
@@ -453,6 +519,8 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
     if not revenue:
         raise DataUnavailableError(f"{ticker}: revenue concept not found in income statement")
 
+    fill = lambda series: backfill_gaps(series, facts)  # noqa: E731 — closure sobre facts
+
     # Closure de periodo: todos los puntos del balance se leen del MISMO fy_label.
     get = lambda concepts: point_value(bs_df, concepts, fy_label, facts)  # noqa: E731
 
@@ -470,19 +538,20 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
     return {
         "ticker": ticker.upper(), "cik": cik, "as_of_date": period_end.isoformat(),
         "source_filing": f"10-K {fy_label}",
+        # Cada serie anual pasa por backfill_gaps (EC-88): huecos interiores desde raw facts.
         "annual": {
-            "revenue": revenue,
-            "gross_profit": annual_series(inc_df, ("GrossProfit",)),
-            "operating_income": compute_operating_income(inc_df),
-            "net_income": annual_series(inc_df, ("NetIncomeLoss",)),
-            "operating_cash_flow": annual_series(cf_df, OCF_CONCEPTS),
-            "capex": annual_series(cf_df, CAPEX_CONCEPTS),
+            "revenue": fill(revenue),
+            "gross_profit": fill(annual_series(inc_df, ("GrossProfit",))),
+            "operating_income": fill(compute_operating_income(inc_df)),
+            "net_income": fill(annual_series(inc_df, ("NetIncomeLoss",))),
+            "operating_cash_flow": fill(annual_series(cf_df, OCF_CONCEPTS)),
+            "capex": fill(annual_series(cf_df, CAPEX_CONCEPTS)),
             # Para ROIC: impuesto + pretax permiten el tipo efectivo por año.
-            "income_tax": annual_series(inc_df, ("IncomeTaxExpenseBenefit",)),
-            "pretax_income": annual_series(inc_df, (PRETAX_CONCEPT,)),
+            "income_tax": fill(annual_series(inc_df, ("IncomeTaxExpenseBenefit",))),
+            "pretax_income": fill(annual_series(inc_df, (PRETAX_CONCEPT,))),
             # Capital returns (ADR-023): negativos en XBRL; parse_financials toma magnitud.
-            "buybacks": annual_series(cf_df, BUYBACK_CONCEPTS),
-            "dividends": annual_series(cf_df, DIVIDEND_CONCEPTS),
+            "buybacks": fill(annual_series(cf_df, BUYBACK_CONCEPTS)),
+            "dividends": fill(annual_series(cf_df, DIVIDEND_CONCEPTS)),
         },
         "balance_sheet": {
             "total_assets": assets,

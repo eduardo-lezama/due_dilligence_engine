@@ -49,3 +49,32 @@ def mock_tavily_quota_check():
     """
     with unittest.mock.patch("due_diligence.tools.tavily.check_tavily_quota"):
         yield
+
+
+def pytest_configure(config):
+    """Registra el marker que permite a un test ejercitar fetch_quarterly_snapshot real."""
+    config.addinivalue_line(
+        "markers",
+        "real_quarterly_fetch: no mockear EdgarAdapter.fetch_quarterly_snapshot (el test mockea edgar.Company)",
+    )
+
+
+@pytest.fixture(autouse=True)
+def no_live_quarterly_snapshot(request):
+    """
+    Evita llamadas de red reales a EDGAR desde financials_node (EC-84, T7).
+
+    Hasta T7 el snapshot trimestral nunca se producía (bug de formato), así que los
+    tests que corrían financials_node con fetch_raw mockeado hacían una llamada real
+    a EDGAR que acababa en None sin que nadie lo notara. Con el snapshot arreglado esa
+    llamada devolvería datos vivos → tests no deterministas. Los tests que prueban
+    fetch_quarterly_snapshot en sí (mockeando edgar.Company) se marcan con
+    @pytest.mark.real_quarterly_fetch.
+    """
+    if request.node.get_closest_marker("real_quarterly_fetch"):
+        yield
+        return
+    with unittest.mock.patch(
+        "due_diligence.tools.edgar.EdgarAdapter.fetch_quarterly_snapshot", return_value=None
+    ):
+        yield

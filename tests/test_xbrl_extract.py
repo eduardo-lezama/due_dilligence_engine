@@ -254,3 +254,48 @@ def test_build_raw_missing_cash_fails_loud():
     with pytest.raises(xe.DataUnavailableError, match="cash"):
         xe.build_raw(ticker="x", cik="1", period_end=date(2025, 9, 27), inc_df=inc, bs_df=bs,
                      cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+
+
+# --------------------------------------------------------------------------- #
+# Task 7 — huecos de años y snapshot trimestral real
+# --------------------------------------------------------------------------- #
+
+def test_backfill_gaps_fills_interior_year_from_facts_with_provenance():
+    s = [{"value": 529.8, "period": "FY2026", "source": "Revenues"},
+         {"value": 467.9, "period": "FY2024", "source": "Revenues"}]
+    out = xe.backfill_gaps(s, FakeFacts({("Revenues", "FY2025"): 496.0}))
+    assert [i["period"] for i in out] == ["FY2026", "FY2025", "FY2024"]
+    assert out[1]["source"] == "facts:Revenues"
+
+
+def test_backfill_gaps_never_extrapolates_or_touches_derived_series():
+    facts = FakeFacts({("Revenues", "FY2027"): 1.0, ("Revenues", "FY2023"): 1.0})
+    s = [{"value": 2.0, "period": "FY2026", "source": "Revenues"},
+         {"value": 1.5, "period": "FY2024", "source": "Revenues"}]
+    assert [i["period"] for i in xe.backfill_gaps(s, facts)] == ["FY2026", "FY2024"]
+    derived = [{"value": 2.0, "period": "FY2026", "source": "derived:GrossProfit-SGA"},
+               {"value": 1.5, "period": "FY2024", "source": "derived:GrossProfit-SGA"}]
+    assert xe.backfill_gaps(derived, facts) == derived
+
+
+def test_latest_quarter_column_parses_xbrl_and_facts_formats():
+    cols = ["concept", "label", "2025-03-29 (Q2)", "2025-06-28 (Q3)", "2025-06-28 (YTD)"]
+    assert xe.latest_quarter_column(cols) == "2025-06-28 (Q3)"
+    assert xe.latest_quarter_column(["Q4 2025", "Q1 2026"]) == "Q1 2026"  # bug string-sort
+
+
+def test_quarter_value_reads_concept_column_with_prefix():
+    df = pd.DataFrame({"concept": ["us-gaap_Revenues", "us-gaap_OperatingIncomeLoss"],
+                       "label": ["Revenue", "OpInc"], "2025-06-28 (Q3)": [94.0, 28.0]})
+    assert xe.quarter_value(df, ("Revenues",), "2025-06-28 (Q3)") == 94.0
+
+
+def test_build_raw_backfills_interior_gap_in_annual_series():
+    """BBW-like: la vista curada omite FY2024; build_raw lo rellena desde raw facts (EC-88)."""
+    cols = ("FY 2025", "FY 2024", "FY 2023")
+    inc, bs, cf = _min_frames(cols)
+    inc.loc["Revenues", "FY 2024"] = NaN
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts({("Revenues", "FY2024"): 95.0}), shares_outstanding=1.0)
+    assert [(i["period"], i["source"]) for i in raw["annual"]["revenue"]] == [
+        ("FY2025", "Revenues"), ("FY2024", "facts:Revenues"), ("FY2023", "Revenues")]

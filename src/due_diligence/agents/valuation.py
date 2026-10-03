@@ -40,6 +40,7 @@ import structlog
 from due_diligence.graph.state import AnalysisState
 from due_diligence.schemas.base import MetricValue
 from due_diligence.schemas.reports import ValuationInput, ValuationReport, PeerValuation
+from due_diligence.utils.periods import cagr_by_fiscal_years
 
 log = structlog.get_logger()
 
@@ -67,18 +68,11 @@ def _fcf_cagr_with_window(fcf_series: list[MetricValue]) -> tuple[Optional[float
         (cagr, n_periods_used) — CAGR como fracción y períodos reales usados.
         (None, 0) si no existe ninguna ventana válida (newest negativo, o solo 1 punto).
     """
-    if len(fcf_series) < 2:
-        return None, 0
-    newest = fcf_series[0].value
-    if newest is None or newest <= 0:
-        return None, 0
-    # Escanear desde más antiguo (i = len-1) hacia adelante buscando punto de inicio positivo
-    for i in range(len(fcf_series) - 1, 0, -1):
-        oldest = fcf_series[i].value
-        if oldest is not None and oldest > 0:
-            cagr = (newest / oldest) ** (1 / i) - 1
-            return cagr, i
-    return None, 0
+    # EC-83: distancia en AÑOS FISCALES (no índices) y ventana máxima de 5 años.
+    # max_years=5 es obligatorio: con periods=10 (EC-79) la serie tiene hasta 10 años y
+    # sin tope el growth de stage 1 pasaría a un CAGR de 9 años en todos los tickers.
+    r = cagr_by_fiscal_years(fcf_series, max_years=5, scan_for_positive_start=True)
+    return r if r else (None, 0)
 
 
 def _fcf_cagr(fcf_series: list[MetricValue]) -> Optional[float]:
@@ -996,7 +990,8 @@ def valuation_agent(state: AnalysisState) -> dict:
         and len(financials.revenue) >= 3
         and assumptions.revenue_growth_yr1_pct is None  # no si el usuario ya overrideó
     ):
-        rev_values = [r.value for r in financials.revenue if r.value and r.value > 0]
+        # Ventana de 5 años (T7): con periods=10 la mediana de 10 años cambiaría el aviso en silencio.
+        rev_values = [r.value for r in financials.revenue[:5] if r.value and r.value > 0]
         if len(rev_values) >= 3:
             rev_median = sorted(rev_values)[len(rev_values) // 2]
             rev_latest = rev_values[0]

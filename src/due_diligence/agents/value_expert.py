@@ -53,6 +53,7 @@ from due_diligence.llm.client import get_client
 from due_diligence.schemas.reports import ValueExpertReport
 
 from due_diligence.utils.formatting import fmt_usd as _fmt_usd
+from due_diligence.utils.periods import align_by_period
 
 log = structlog.get_logger()
 
@@ -212,8 +213,10 @@ def _format_context(state: AnalysisState) -> str:
             # no es accionable. Ahora computamos avg annual delta en percentage points.
             if len(financials.roic_series) >= 2:
                 roic_latest = financials.roic_series[0].value
-                roic_oldest = financials.roic_series[-1].value
-                n_periods = len(financials.roic_series) - 1  # 4 años → 3 deltas
+                # Ventana de 5 años (T7): con periods=10 roic_series[-1] sería una tendencia a 10.
+                oldest_idx = min(4, len(financials.roic_series) - 1)
+                roic_oldest = financials.roic_series[oldest_idx].value
+                n_periods = oldest_idx  # 5 puntos → 4 deltas
                 avg_annual_delta_pp = (roic_latest - roic_oldest) / n_periods * 100  # en pp
                 if roic_latest > roic_oldest * 1.05:
                     interp = f"RISING — marginal ROIC > average (avg ΔROIC: +{avg_annual_delta_pp:.1f}pp/year over {n_periods} years)"
@@ -260,7 +263,8 @@ def _format_context(state: AnalysisState) -> str:
         if (financials.gross_profit and financials.revenue
                 and len(financials.gross_profit) >= 2 and len(financials.revenue) >= 2):
             margins = []
-            for gp, rev in zip(financials.gross_profit, financials.revenue):
+            # Alineado por periodo (EC-82): zip posicional mezclaba años si una serie tenía hueco.
+            for gp, rev in align_by_period(financials.gross_profit, financials.revenue):
                 if rev.value and rev.value > 0:
                     margins.append((gp.period, gp.value / rev.value))
             if len(margins) >= 2:

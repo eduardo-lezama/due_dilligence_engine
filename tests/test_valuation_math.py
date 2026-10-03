@@ -178,3 +178,50 @@ def test_mid_year_factor():
     end = dcf_components(100e6, 0.0, 0.0, 0.09, stage1_years=1)
     mid = dcf_components(100e6, 0.0, 0.0, 0.09, stage1_years=1, mid_year=True)
     assert mid.enterprise_value == pytest.approx(end.enterprise_value * 1.09 ** 0.5)
+
+
+# --- WACC real y Kd por rating sintético (T11) ---
+from due_diligence.agents.valuation_math import compute_wacc, describe_wacc, estimate_pre_tax_cost_of_debt  # noqa: E402
+
+
+def test_compute_wacc_hand_example():
+    # 0.75×9.2% + 0.25×6.0%×0.75 = 6.9% + 1.125% = 8.025%
+    w = compute_wacc(0.092, 0.06, 0.25, equity_value=1_500e6, debt_value=500e6)
+    assert w.wacc == pytest.approx(0.08025)
+    assert w.equity_weight == pytest.approx(0.75)
+    assert w.after_tax_cost_of_debt == pytest.approx(0.045)
+
+
+def test_compute_wacc_no_debt_equals_ke():
+    assert compute_wacc(0.107, 0.062, 0.25, 1e9, 0.0).wacc == pytest.approx(0.107)
+
+
+def test_compute_wacc_non_positive_equity_fails_loud():
+    with pytest.raises(ValuationInputError):
+        compute_wacc(0.09, 0.06, 0.25, equity_value=0.0, debt_value=1e9)
+
+
+def test_cost_of_debt_synthetic_rating_from_coverage():
+    # Rating sintético (Damodaran): cobertura EBIT/intereses → spread sobre Rf. 3 825/425 = 9.0× → 0.6 %
+    kd, src = estimate_pre_tax_cost_of_debt(ebit=3.825e9, interest_expense=0.425e9)
+    assert kd == pytest.approx(0.042 + 0.006) and "coverage 9.0x" in src
+
+
+def test_cost_of_debt_low_coverage_high_spread_and_fallbacks():
+    # 100/100 = 1.0× → tramo [0.80, 1.25) "CCC" → 8.0 %. (El plan usaba 100/80 = 1.25×, que cae
+    # justo en el suelo del tramo CCC+ = 6.5 % de su propia tabla: dato del test corregido, tabla intacta.)
+    kd, _ = estimate_pre_tax_cost_of_debt(ebit=100e6, interest_expense=100e6)
+    assert kd == pytest.approx(0.042 + 0.08)
+    kd, _ = estimate_pre_tax_cost_of_debt(ebit=100e6, interest_expense=80e6)       # 1.25× → CCC+ 6.5 %
+    assert kd == pytest.approx(0.042 + 0.065)
+    kd, src = estimate_pre_tax_cost_of_debt(ebit=None, interest_expense=None)     # sin datos → Rf + 2 pp
+    assert kd == pytest.approx(0.062) and "fallback" in src
+    kd, src = estimate_pre_tax_cost_of_debt(ebit=-50e6, interest_expense=10e6)    # EBIT ≤ 0 → peor tramo
+    assert kd == pytest.approx(0.042 + 0.17) and "coverage <0.2x" in src
+
+
+def test_describe_wacc_is_human_readable():
+    # Ke 9.2 % × 75 % + Kd 6.0 % × (1−25 %) × 25 % = 8.0 %
+    s = describe_wacc(compute_wacc(0.092, 0.06, 0.25, 1_500e6, 500e6,
+                                   cost_of_equity_source="CAPM", cost_of_debt_source="synthetic A+"))
+    assert "Ke 9.2%" in s and "× 75%" in s and "Kd 6.0%" in s and "(1−25%)" in s and "= 8.0%" in s

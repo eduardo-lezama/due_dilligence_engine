@@ -163,9 +163,65 @@ def _render_socratic_questions(state: dict) -> dict:
     return answers
 
 
-def _ask_dcf_assumptions(state: dict) -> dict:
-    """Muestra el hint de valoración y recoge los assumptions DCF del usuario."""
+def _pending_interrupt_payload(result, graph=None, config=None) -> Optional[dict]:
+    """
+    Payload del interrupt() pendiente tras graph.invoke(), o None si el grafo terminó.
+
+    LangGraph 1.1.8 (verificado en pregel/main.py, `invoke` con stream_mode="values"): si el
+    run se pausa, el dict devuelto lleva la clave "__interrupt__" con una lista de
+    `Interrupt(value=..., id=...)`. Fallback: `graph.get_state(config).interrupts` (StateSnapshot).
+    Antes la CLI ignoraba este payload y recalculaba sus propios defaults (WACC 9,0 fijo).
+    """
+    ints = result.get("__interrupt__") if isinstance(result, dict) else None
+    if not ints and graph is not None:
+        ints = getattr(graph.get_state(config), "interrupts", None)
+    if not ints:
+        return None
+    value = getattr(ints[0], "value", None)
+    return value if isinstance(value, dict) else None
+
+
+def _ask_float(label: str, default: float) -> float:
+    """Pregunta un float; entrada inválida → vuelve a preguntar (antes caía al default en silencio)."""
+    while True:
+        raw = typer.prompt(label, default=f"{default:.1f}")
+        try:
+            return float(raw)
+        except ValueError:
+            console.print(f"[red]'{raw}' is not a number[/red]")
+
+
+def _ask_wacc_and_terminal(default_wacc: float, default_g: float = 2.5) -> tuple[float, float]:
+    """Pregunta WACC y g terminal hasta que validate_dcf_rates acepte (fail loud, EC-76)."""
+    from due_diligence.agents.valuation_math import ValuationInputError, validate_dcf_rates
+
+    while True:
+        w = _ask_float("  WACC (%)", default_wacc)
+        g = _ask_float("  Terminal growth (%)", default_g)
+        try:
+            validate_dcf_rates(w / 100, g / 100)
+            return w, g
+        except ValuationInputError as e:
+            console.print(f"[red]{e}[/red]")
+
+
+def _ask_dcf_assumptions(payload: dict, state: dict) -> dict:
+    """
+    Muestra el hint de valoración y recoge los assumptions DCF del usuario.
+
+    `payload` es el valor del interrupt() de checkpoint 2 (`_build_checkpoint2_summary`):
+    trae el WACC real sugerido y su desglose (ADR-033) y los defaults únicos
+    (CHECKPOINT2_DEFAULTS). `state` se usa solo para el contexto visual y el growth auto.
+    """
+    from due_diligence.agents.checkpoint import CHECKPOINT2_DEFAULTS
+
     console.print("\n[bold yellow]-- Checkpoint 2: DCF Assumptions --[/bold yellow]\n")
+    payload = payload or {}
+    defaults = {**CHECKPOINT2_DEFAULTS, **(payload.get("defaults") or {})}
+    context = payload.get("context") or {}
+    if payload.get("error"):
+        # El nodo rechazó el resume anterior (WACC − g < 1pp): mostrarlo en rojo y re-preguntar.
+        console.print(f"[bold red]{payload['error']}[/bold red]")
 
     # Mostrar contexto disponible
     financials = state.get("financials")
@@ -183,15 +239,6 @@ def _ask_dcf_assumptions(state: dict) -> dict:
         console.print(f"  Latest ROIC:   [cyan]{r.value:.1%}[/cyan] ({r.period})")
     console.print()
 
-    # Recoger inputs con defaults
-    def _ask_float(prompt: str, default: float) -> float:
-        val = typer.prompt(prompt, default=str(default))
-        try:
-            return float(val)
-        except ValueError:
-            console.print(f"[yellow]Invalid input, using default {default}[/yellow]")
-            return default
-
     def _ask_int(prompt: str, default: int) -> int:
         val = typer.prompt(prompt, default=str(default))
         try:
@@ -199,23 +246,19 @@ def _ask_dcf_assumptions(state: dict) -> dict:
         except ValueError:
             return default
 
-    # WACC advisory antes del prompt (ADR-029)
-    market_cap_val: Optional[float] = None
-    market = state.get("market")
-    if market and market.market_cap:
-        market_cap_val = market.market_cap.value
-    from due_diligence.agents.valuation import _compute_suggested_wacc, _compute_near_term_growth, _resolve_stages
-    sugg_wacc, wacc_breakdown = _compute_suggested_wacc(market_cap=market_cap_val)
+    # WACC real sugerido (ADR-033) — viene del payload del checkpoint, no se recalcula aquí.
+    from due_diligence.agents.valuation import _compute_near_term_growth, _resolve_stages
+    default_wacc = float(defaults["wacc_pct"])
     console.print(
-        f"\n[dim]  Suggested WACC: [bold]{sugg_wacc:.1f}%[/bold] ({wacc_breakdown})[/dim]"
+        f"\n[dim]  Suggested WACC (real, Ke + Kd): [bold]{default_wacc:.1f}%[/bold] "
+        f"— {context.get('wacc_breakdown', 'breakdown unavailable')}[/dim]"
     )
     console.print(
         "[dim]  Note: β=1.0 is a simplification — override manually if you have a better estimate.[/dim]"
     )
 
-    wacc = _ask_float("  WACC % (e.g. 9.0)", 9.0)
-    terminal = _ask_float("  Terminal growth % (e.g. 2.5)", 2.5)
-    years = _ask_int("  Projection years (e.g. 10)", 10)
+    wacc, terminal = _ask_wacc_and_terminal(default_wacc, float(defaults["terminal_growth_pct"]))
+    years = _ask_int("  Projection years (e.g. 10)", int(defaults["projection_years"]))
 
     # 3-stage split: mostrar el split automático y permitir override (ADR-029)
     auto_s1, auto_fd = _resolve_stages(years, None, None)
@@ -282,6 +325,8 @@ def _ask_dcf_assumptions(state: dict) -> dict:
         "wacc_pct": wacc,
         "terminal_growth_pct": terminal,
         "projection_years": years,
+        # Default único (False en H1, ADR-033 §7); se envía explícito para que el report lo refleje.
+        "mid_year_convention": bool(defaults["mid_year_convention"]),
     }
     if stage1_override is not None:
         result["stage1_years"] = stage1_override
@@ -697,12 +742,14 @@ def analyze_cmd(
     # NOTE: Command(resume={}) no funciona en LangGraph — dict vacío es falsy
     # y LangGraph no procesa el resume. Usar un valor truthy explícito.
     with console.status("[bold green]Passing checkpoint 1 + fetching peer data…"):
-        graph.invoke(
+        cp1_result = graph.invoke(
             Command(resume={"proceed": True, "peers": peers_raw, "answers": socratic_answers}),
             config=config,
         )
 
     state = graph.get_state(config).values
+    # Payload del interrupt de checkpoint 2: WACC real sugerido + defaults únicos (ADR-033).
+    cp2_payload = _pending_interrupt_payload(cp1_result, graph, config) or {}
 
     # ── Checkpoint 2 — CAGR anchor + assumptions DCF ──────────────────────
     # Mostrar CAGR histórico antes de pedir WACC/growth (ADR-018).
@@ -719,13 +766,19 @@ def analyze_cmd(
     else:
         growth_justification = ""
 
-    assumptions = _ask_dcf_assumptions(state)
-    if growth_justification:
-        assumptions["growth_justification"] = growth_justification
-
     # ── Reanudar: checkpoint2 → valuation → expert → critic → archiver ────
-    with console.status("[bold green]Running valuation + expert + critic + archiver…"):
-        graph.invoke(Command(resume=assumptions), config=config)
+    # Bucle: si checkpoint2_node rechaza el resume (WACC − g < 1pp) vuelve a interrumpir con
+    # "error" en el payload; la CLI ya valida antes, así que normalmente es una sola vuelta.
+    while True:
+        assumptions = _ask_dcf_assumptions(cp2_payload, state)
+        if growth_justification:
+            assumptions["growth_justification"] = growth_justification
+        with console.status("[bold green]Running valuation + expert + critic + archiver…"):
+            cp2_result = graph.invoke(Command(resume=assumptions), config=config)
+        pending = _pending_interrupt_payload(cp2_result, graph, config)
+        if not pending or pending.get("phase") != "checkpoint2":
+            break
+        cp2_payload = pending
 
     state = graph.get_state(config).values
 

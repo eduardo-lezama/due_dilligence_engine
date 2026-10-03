@@ -21,7 +21,8 @@ __all__ = [
     "ValuationInputError", "RF_PCT", "ERP_PCT", "BETA_DEFAULT", "MARGINAL_TAX_RATE",
     "effective_tax_rate", "effective_tax_rate_multi", "validate_dcf_rates",
     "fcff_breakdown", "compute_fcff", "net_claims", "equity_bridge", "per_share",
-    "resolve_share_count", "dcf_components",
+    "resolve_share_count", "dcf_components", "estimate_pre_tax_cost_of_debt", "compute_wacc",
+    "describe_wacc",
 ]
 
 
@@ -214,4 +215,82 @@ def dcf_components(
         pv_explicit=pv_explicit * factor, pv_terminal=pv_terminal * factor, enterprise_value=total,
         terminal_value_share=(pv_terminal * factor / total) if total != 0 else None, mid_year=mid_year,
         terminal_reinvestment_modeled=nopat_base is not None,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# WACC real (T11): wE·Ke + wD·Kd·(1−t), con Kd por rating sintético
+# --------------------------------------------------------------------------- #
+
+# Rating sintético (Damodaran, tabla "large firms"): cobertura EBIT/intereses → spread sobre Rf.
+# Determinista, simple y refleja el coste MARGINAL de la deuda (un cupón histórico bajo, emitido
+# con tipos al 1 %, no sirve para descontar flujos futuros).
+# VERIFY against Damodaran ratings.htm (Jan 2026) — pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ratings.htm.
+# Valores tomados del plan H1 sin verificación online (no hay red en la implementación); actualizar
+# spreads y fecha cuando se revise. Cada fila: (cobertura mínima, spread, rating).
+_SYNTHETIC_RATING_TABLE: tuple[tuple[float, float, str], ...] = (
+    (8.50, 0.006, "AAA/AA"), (6.50, 0.008, "A+"), (5.50, 0.010, "A"), (4.25, 0.011, "A-"),
+    (3.00, 0.013, "BBB"), (2.50, 0.017, "BB+"), (2.25, 0.023, "BB"), (2.00, 0.030, "B+"),
+    (1.75, 0.040, "B"), (1.50, 0.050, "B-"), (1.25, 0.065, "CCC+"), (0.80, 0.080, "CCC"),
+    (0.65, 0.100, "CC"), (0.20, 0.130, "C"), (float("-inf"), 0.170, "D"),
+)
+
+
+def estimate_pre_tax_cost_of_debt(
+    *, ebit: Optional[float], interest_expense: Optional[float], rf: float = RF_PCT / 100,
+) -> tuple[float, str]:
+    """Kd = Rf + spread(rating sintético por cobertura de intereses). Fallback Rf + 2pp si faltan datos.
+
+    Sustituye a 'intereses / deuda media' (cupón histórico, no marginal; necesitaba clamps ad hoc).
+    Devuelve (kd_fracción, etiqueta de fuente legible para el informe).
+    """
+    if ebit is None or interest_expense is None:
+        return rf + _DEFAULT_CREDIT_SPREAD, f"fallback Rf+{_DEFAULT_CREDIT_SPREAD:.0%} (EBIT or interest unavailable)"
+    if interest_expense <= 0:
+        # Sin intereses el peso de la deuda será ~0: el Kd elegido apenas afecta al WACC.
+        return rf + _DEFAULT_CREDIT_SPREAD, "no interest expense (weight ≈ 0 — irrelevant)"
+    coverage = ebit / interest_expense
+    for floor, spread, rating in _SYNTHETIC_RATING_TABLE:
+        if coverage >= floor:
+            label = f"coverage {coverage:.1f}x" if coverage >= 0.2 else "coverage <0.2x"
+            return rf + spread, f"synthetic rating {rating} ({label}) → Rf+{spread:.1%}"
+    return rf + 0.17, "synthetic rating D"   # inalcanzable (última fila = -inf); defensa explícita
+
+
+def compute_wacc(
+    cost_of_equity: float, pre_tax_cost_of_debt: float, tax_rate: float,
+    equity_value: Optional[float], debt_value: float, *,
+    cost_of_equity_source: str = "", cost_of_debt_source: str = "",
+) -> WaccBreakdown:
+    """
+    WACC = E/(D+E)·Ke + D/(D+E)·Kd·(1−t). E = equity de MERCADO (nunca el book equity: AZO es
+    negativo). D = deuda contable como proxy del valor de mercado (sin arrendamientos operativos,
+    coherente con ASC 842 y el bridge). Fail loud si E ≤ 0 o D < 0.
+    """
+    if equity_value is None or equity_value <= 0:
+        raise ValuationInputError(f"Market equity must be > 0 for WACC weights (got {equity_value}).")
+    if debt_value < 0:
+        raise ValuationInputError(f"debt_value must be ≥ 0 (got {debt_value}).")
+    total = equity_value + debt_value
+    we, wd = equity_value / total, debt_value / total
+    kd_at = pre_tax_cost_of_debt * (1 - tax_rate)   # escudo fiscal: los intereses deducen
+    return WaccBreakdown(
+        cost_of_equity=cost_of_equity, cost_of_equity_source=cost_of_equity_source,
+        pre_tax_cost_of_debt=pre_tax_cost_of_debt, cost_of_debt_source=cost_of_debt_source,
+        tax_rate=tax_rate, after_tax_cost_of_debt=kd_at, equity_weight=we, debt_weight=wd,
+        wacc=we * cost_of_equity + wd * kd_at,
+    )
+
+
+def describe_wacc(w: WaccBreakdown) -> str:
+    """Desglose legible del WACC para checkpoint 2, CLI, archiver y Value Expert (una sola redacción).
+
+    Ej.: "Ke 9.2% (CAPM ...) × 87% + Kd 4.8% (synthetic rating A+ ...) × (1−25%) × 13% = 8.5%".
+    """
+    ke_src = f" ({w.cost_of_equity_source})" if w.cost_of_equity_source else ""
+    kd_src = f" ({w.cost_of_debt_source})" if w.cost_of_debt_source else ""
+    return (
+        f"Ke {w.cost_of_equity:.1%}{ke_src} × {w.equity_weight:.0%} + "
+        f"Kd {w.pre_tax_cost_of_debt:.1%}{kd_src} × (1−{w.tax_rate:.0%}) × {w.debt_weight:.0%} "
+        f"= {w.wacc:.1%}"
     )

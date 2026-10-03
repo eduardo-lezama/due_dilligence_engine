@@ -48,7 +48,9 @@ from due_diligence.agents.valuation_math import (
     MARGINAL_TAX_RATE,
     RF_PCT,
     ValuationInputError,
+    compute_wacc,
     dcf_components,
+    estimate_pre_tax_cost_of_debt,
 )
 
 log = structlog.get_logger()
@@ -429,12 +431,17 @@ def _compute_suggested_wacc(
     rf_pct: float = _RF_PCT,
     erp_pct: float = _ERP_PCT,
     beta: float = _BETA_DEFAULT,
+    size_premium: bool = False,
 ) -> tuple[float, str]:
     """
-    WACC advisory por CAPM simplificado (ADR-029).
+    Devuelve el **coste de equity** CAPM (nombre histórico: antes se presentaba como "WACC").
 
-    Fórmula: WACC = Rf + β × ERP + size_premium
+    Fórmula: Ke = Rf + β × ERP (+ size_premium solo si `size_premium=True`)
     Con β=1 (simplificación — sin cálculo de beta específico por empresa).
+    El WACC real (con deuda) lo calcula `suggest_wacc` (ADR-033).
+
+    Prima de tamaño OFF por defecto (revisión adversarial): Damodaran la rechaza y con β por
+    industria (H3-5) se contaría dos veces. Se sigue mostrando en el desglose para que sea visible.
 
     size_premium por market cap bucket (Damodaran 2024):
     >$10B (large cap):   0%
@@ -457,11 +464,35 @@ def _compute_suggested_wacc(
     else:
         size_label, size_prem = "micro cap", 3.0
 
-    suggested = rf_pct + beta * erp_pct + size_prem
+    applied_prem = size_prem if size_premium else 0.0
+    suggested = rf_pct + beta * erp_pct + applied_prem
     breakdown = (
         f"Rf={rf_pct}% + β={beta}×ERP={erp_pct}% + size_premium={size_prem}% ({size_label})"
+        + ("" if size_premium else " — OFF, not applied")
     )
     return round(suggested, 1), breakdown
+
+
+def suggest_wacc(financials, market_cap: Optional[float], *, size_premium: bool = False):
+    """
+    WACC real sugerido (ADR-033) → Optional[WaccBreakdown].
+
+    Ke CAPM (ADR-029, prima de tamaño OFF por defecto) + Kd por rating sintético (cobertura
+    EBIT/intereses del último ejercicio) + escudo fiscal al tipo MARGINAL + pesos a mercado
+    (E = market cap; D = deuda contable del último año, proxy del valor de mercado).
+    None sin market cap: no hay pesos de mercado y no se inventan (el llamador cae a 9,0 %).
+    """
+    if market_cap is None or market_cap <= 0 or financials is None:
+        return None
+    ke_pct, ke_src = _compute_suggested_wacc(market_cap, size_premium=size_premium)  # histórico: devuelve Ke
+    ebit = financials.operating_income[0].value if financials.operating_income else None
+    interest = financials.interest_expense[0].value if financials.interest_expense else None
+    # Serie por año (T9) primero; el punto del balance como fallback; sin deuda → 0 (peso 0).
+    debt_latest = (financials.total_debt_series[0].value if financials.total_debt_series
+                   else (financials.total_debt.value if financials.total_debt else 0.0))
+    kd, kd_src = estimate_pre_tax_cost_of_debt(ebit=ebit, interest_expense=interest)
+    return compute_wacc(ke_pct / 100, kd, MARGINAL_TAX_RATE, market_cap, max(debt_latest, 0.0),
+                        cost_of_equity_source=f"CAPM: {ke_src}", cost_of_debt_source=kd_src)
 
 
 def _classify_dcf_upside(upside_pct: Optional[float]) -> str:

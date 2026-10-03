@@ -21,3 +21,19 @@ El sistema hacía una mezcla: flujo apalancado (OCF − capex) descontado a un "
 **Fail loud.** WACC − g < 1 pp → `ValuationInputError`. Antes se recortaba en silencio.
 
 **Ejemplo concreto (A).** OCF 260, capex 60, intereses 40, SBC 20, t 25 % → FCFF 210. A 9 % y g 0 con reinversión terminal: EV 2 403,7; menos deuda neta 450 → equity 1 953,7 → $195,37 por acción frente a $222,22 del método antiguo.
+
+## T11 — WACC real frente a coste de equity
+
+**Concepto.** El "WACC sugerido" antiguo era Rf + β·ERP (+ prima de tamaño): un **coste de equity** (Ke). El WACC real pondera el coste de cada proveedor de capital por su peso a valor de mercado: `WACC = E/(D+E)·Ke + D/(D+E)·Kd·(1−t)`.
+
+**Por qué importa.** Descontar FCFF (flujo para todos) a Ke (rendimiento exigido solo por el accionista) infravalora las empresas apalancadas: la deuda es más barata y además deduce impuestos (escudo fiscal).
+
+**Cómo funciona.**
+- **E** = market cap (nunca el book equity: AZO lo tiene negativo). **D** = deuda contable del último año (proxy del valor de mercado; sin leases operativos, coherente con el bridge).
+- **Kd por rating sintético** (Damodaran): cobertura EBIT/intereses → rating → spread sobre Rf. Refleja el coste MARGINAL de endeudarse hoy, no el cupón histórico. Tabla marcada "verify against Damodaran ratings.htm (Jan 2026)".
+- **t marginal 25 %** para el escudo fiscal (perpetuidad).
+- **Prima de tamaño visible pero OFF**: Damodaran la rechaza; con β por industria (H3) se contaría dos veces.
+
+**Checkpoint 2.** Un solo `CHECKPOINT2_DEFAULTS` para nodo, CLI y agente. El nodo construye el payload (`_build_checkpoint2_summary`) con el WACC real como default y su desglose; la CLI lo lee de `result["__interrupt__"][0].value` (LangGraph 1.1.8) en lugar de recalcular. El nodo también valida WACC − g ≥ 1 pp y vuelve a interrumpir con `error` si no: LangGraph empareja cada `interrupt()` de un nodo con su resume por orden, así que el bucle es seguro (test con grafo real).
+
+**Ejemplo.** AZO-like: Ke 9,2 %, cobertura 9,0× → Kd 4,8 %, E 60B / D 9B → WACC = 0,8696·9,2 % + 0,1304·3,6 % = 8,47 %.

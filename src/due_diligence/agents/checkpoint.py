@@ -35,6 +35,18 @@ from due_diligence.graph.state import AnalysisState
 
 log = structlog.get_logger()
 
+# Única fuente de defaults del checkpoint 2 (revisión adversarial: estaban triplicados en
+# checkpoint.py, cli.py y valuation.py). La consumen el nodo, la CLI y valuation_agent.
+#   - wacc_pct: SOLO fallback cuando no hay market cap; con market cap el default es el
+#     WACC real de suggest_wacc (ADR-033).
+#   - mid_year_convention: False en H1 por comparabilidad con los reports históricos (ADR-033 §7).
+CHECKPOINT2_DEFAULTS: dict = {
+    "wacc_pct": 9.0,
+    "terminal_growth_pct": 2.5,
+    "projection_years": 10,
+    "mid_year_convention": False,
+}
+
 
 def _build_socratic_questions(state: AnalysisState) -> list[str]:
     """
@@ -156,30 +168,24 @@ def checkpoint1_node(state: AnalysisState) -> dict:
     }
 
 
-def checkpoint2_node(state: AnalysisState) -> dict:
+def _build_checkpoint2_summary(state: AnalysisState) -> dict:
     """
-    Checkpoint HITL entre los especialistas y el valuation_agent.
+    Payload puro del interrupt de checkpoint 2 (sin efectos: testeable sin grafo).
 
-    Muestra el contexto disponible (FCF, precio, market cap) y pide al usuario
-    los assumptions del DCF: WACC, near-term growth, años de proyección.
-
-    El usuario reanuda con un dict como:
-        {"wacc_pct": 9.0, "terminal_growth_pct": 2.5, "projection_years": 10,
-         "revenue_growth_yr1_pct": 12.0}
-
-    Si reanuda con {} o None, el valuation_agent usa defaults internos.
-
-    Returns:
-        dict con checkpoint2_user_input — leído por valuation_agent para DCF.
+    Contiene el contexto que ve el usuario (FCF, precio, market cap, ROIC, CAGR histórico) y,
+    desde ADR-033, el **WACC real sugerido** con su desglose (Ke + Kd·(1−t) a pesos de mercado)
+    como default del prompt. Antes la CLI mostraba el Ke como "Suggested WACC" y usaba 9,0 fijo.
     """
+    # Import diferido: valuation importa CHECKPOINT2_DEFAULTS de este módulo → evitar el ciclo.
+    from due_diligence.agents.valuation import suggest_wacc
+    from due_diligence.agents.valuation_math import describe_wacc
+
     ticker = state["ticker"]
-    log.info("checkpoint2_interrupt", ticker=ticker)
-
-    # Extraer hints de contexto para mostrar al usuario antes del DCF.
     # Solo mostramos los campos disponibles — el agente de mercado puede estar degradado.
     financials = state.get("financials")  # type: ignore[typeddict-item]
     market = state.get("market")         # type: ignore[typeddict-item]
 
+    # /1e9 de estos hints: pendiente de T14 (formatter común); no forma parte del Bloque C.
     fcf_hint = None
     if financials is not None and financials.free_cash_flow:
         fcf = financials.free_cash_flow[0]
@@ -189,9 +195,8 @@ def checkpoint2_node(state: AnalysisState) -> dict:
     if market is not None and market.price_current is not None:
         price_hint = f"${market.price_current.value:.2f}"
 
-    market_cap_hint = None
-    if market is not None and market.market_cap is not None:
-        market_cap_hint = f"${market.market_cap.value / 1e9:.0f}B"
+    market_cap = market.market_cap.value if (market is not None and market.market_cap is not None) else None
+    market_cap_hint = f"${market_cap / 1e9:.0f}B" if market_cap is not None else None
 
     roic_hint = None
     if financials is not None and financials.roic_series:
@@ -200,7 +205,15 @@ def checkpoint2_node(state: AnalysisState) -> dict:
     # CAGR histórico como anchor para las asunciones de growth (ADR-018 + ADR-019)
     cagr_5y = state.get("historical_cagr_5y")  # type: ignore[typeddict-item]
 
-    summary: dict = {
+    # WACC real sugerido (ADR-033). Sin market cap no hay pesos de mercado → fallback explícito.
+    w = suggest_wacc(financials, market_cap)
+    wacc_default = round(w.wacc * 100, 1) if w is not None else CHECKPOINT2_DEFAULTS["wacc_pct"]
+    wacc_breakdown = (
+        describe_wacc(w) if w is not None
+        else f"unavailable (no market cap) — fallback {CHECKPOINT2_DEFAULTS['wacc_pct']}%"
+    )
+
+    return {
         "phase": "checkpoint2",
         "ticker": ticker,
         "message": (
@@ -214,15 +227,69 @@ def checkpoint2_node(state: AnalysisState) -> dict:
             "latest_roic": roic_hint,
             # Anchor histórico: el usuario puede comparar su growth propuesto vs historia
             "historical_revenue_cagr_5y": f"{cagr_5y:.1%}" if cagr_5y is not None else "unavailable",
+            "wacc_breakdown": wacc_breakdown,
         },
         "defaults": {
-            "wacc_pct": 9.0,
-            "terminal_growth_pct": 2.5,
-            "projection_years": 10,
+            **CHECKPOINT2_DEFAULTS,
+            "wacc_pct": wacc_default,
             "revenue_growth_yr1_pct": "auto (historical FCF CAGR or 7%)",
         },
     }
 
-    user_input = interrupt(summary)
+
+def _validate_resume(user_input) -> str | None:
+    """Valida WACC/g del resume con validate_dcf_rates. Devuelve el mensaje de error o None.
+
+    Solo valida lo que el usuario ha dado: si no da WACC, valuation_agent usará el sugerido
+    (que se valida allí); si no da g, se usa el default único de CHECKPOINT2_DEFAULTS.
+    """
+    from due_diligence.agents.valuation_math import ValuationInputError, validate_dcf_rates
+
+    if not isinstance(user_input, dict) or "wacc_pct" not in user_input:
+        return None
+    try:
+        wacc = float(user_input["wacc_pct"]) / 100
+        g = float(user_input.get("terminal_growth_pct", CHECKPOINT2_DEFAULTS["terminal_growth_pct"])) / 100
+        validate_dcf_rates(wacc, g)
+    except ValuationInputError as e:
+        return f"ValuationInputError: {e}"
+    except (TypeError, ValueError) as e:
+        return f"ValuationInputError: non-numeric WACC/terminal growth ({e})"
+    return None
+
+
+def checkpoint2_node(state: AnalysisState) -> dict:
+    """
+    Checkpoint HITL entre los especialistas y el valuation_agent.
+
+    Muestra el contexto disponible (FCF, precio, market cap, WACC real sugerido) y pide al
+    usuario los assumptions del DCF: WACC, near-term growth, años de proyección.
+
+    El usuario reanuda con un dict como:
+        {"wacc_pct": 9.0, "terminal_growth_pct": 2.5, "projection_years": 10,
+         "revenue_growth_yr1_pct": 12.0}
+
+    Validación en el NODO (no solo en la CLI): si WACC − g < 1pp vuelve a llamar a
+    interrupt() con "error" en el payload. LangGraph empareja cada interrupt() del nodo con
+    su resume por orden, así que el bucle es seguro: cada vuelta pausa el grafo de nuevo.
+    Así un caller programático o la futura web tampoco pueden colar WACC ≤ g (EC-76).
+
+    Si reanuda con {} o None, el valuation_agent usa defaults (CHECKPOINT2_DEFAULTS + WACC sugerido).
+
+    Returns:
+        dict con checkpoint2_user_input — leído por valuation_agent para DCF.
+    """
+    ticker = state["ticker"]
+    log.info("checkpoint2_interrupt", ticker=ticker)
+
+    summary = _build_checkpoint2_summary(state)
+    payload = summary
+    while True:
+        user_input = interrupt(payload)
+        error = _validate_resume(user_input)
+        if error is None:
+            break
+        log.warning("checkpoint2_invalid_resume", ticker=ticker, error=error)
+        payload = {**summary, "error": error}
 
     return {"checkpoint2_user_input": user_input if user_input is not None else {}}

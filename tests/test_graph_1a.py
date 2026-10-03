@@ -51,6 +51,9 @@ def test_graph_1a_end_to_end(mocker):
         "due_diligence.agents.financials.EdgarAdapter.fetch_raw",
         return_value=FIXTURE,
     )
+    # El grafo continúa al fan-out de especialistas hasta checkpoint1: sin estos mocks
+    # el test hacía llamadas reales a OpenAI, Finnhub y EDGAR (H1, tests/CLAUDE.md).
+    _mock_specialists(mocker)
 
     from langgraph.checkpoint.memory import MemorySaver
     from due_diligence.graph.graph import build_graph
@@ -72,26 +75,12 @@ def test_graph_1a_end_to_end(mocker):
     assert result["financials"].revenue[0].value == pytest.approx(416_161_000_000)
 
 
-def test_graph_1b_state_has_specialist_fields(mocker):
+def _mock_specialists(mocker):
     """
-    Con Phase 1b cableada, el estado contiene los 4 reports de los especialistas.
-
-    Este test reemplaza el test de Phase 1a que verificaba que esos campos NO existían.
-    Ahora que el fan-out está implementado, verificamos que SÍ se populan.
-    Los agentes externos están mockeados — zero llamadas a EDGAR.
+    Mockea los 4 especialistas del fan-out (I/O + LLM) para que el grafo llegue a
+    checkpoint1 sin ninguna llamada de red (tests/CLAUDE.md). Compartido por los tests
+    de grafo de este archivo; antes el end-to-end hacía llamadas reales a OpenAI/Finnhub/EDGAR.
     """
-    mock_company = mocker.MagicMock()
-    mock_company.cik = 320193
-    mock_latest = mocker.MagicMock()
-    mock_latest.period_of_report = "2025-09-27"
-    mock_company.get_filings.return_value.latest.return_value = mock_latest
-    mocker.patch("due_diligence.agents.supervisor.Company", return_value=mock_company)
-    mocker.patch(
-        "due_diligence.agents.financials.EdgarAdapter.fetch_raw",
-        return_value=FIXTURE,
-    )
-
-    # Mock los 4 especialistas para que el fan-out complete
     mocker.patch("due_diligence.agents.management.EdgarManagementAdapter.fetch_def14a_text", return_value="")
     mocker.patch("due_diligence.agents.management.EdgarManagementAdapter.fetch_form4_transactions", return_value=[])
     mocker.patch("due_diligence.agents.management.EdgarManagementAdapter.fetch_10k_item10", return_value="")
@@ -111,11 +100,36 @@ def test_graph_1b_state_has_specialist_fields(mocker):
                  return_value={"price_current": None, "price_52w_high": None, "price_52w_low": None,
                                "market_cap": None, "company_name": None, "as_of_date": None})
     mocker.patch("due_diligence.agents.market.FinnhubAdapter.fetch_company_news", return_value=[])
+    mocker.patch("due_diligence.agents.market.FinnhubAdapter.fetch_quarterly_earnings", return_value=[])
+    mocker.patch("due_diligence.agents.market.EdgarEventsAdapter.fetch_8k_events", return_value=[])
+    mocker.patch("due_diligence.agents.market.EdgarEventsAdapter.fetch_earnings_press_release", return_value=None)
+    mocker.patch("due_diligence.agents.market.TavilyAdapter.search", return_value=[])
 
     mocker.patch("due_diligence.agents.competitive.TavilyAdapter.search", return_value=[])
     mock_comp = mocker.MagicMock()
     mock_comp.complete.return_value = '{"moat_classification":"none","moat_sources":[],"citations":[]}'
     mocker.patch("due_diligence.agents.competitive.get_client", return_value=mock_comp)
+
+
+def test_graph_1b_state_has_specialist_fields(mocker):
+    """
+    Con Phase 1b cableada, el estado contiene los 4 reports de los especialistas.
+
+    Este test reemplaza el test de Phase 1a que verificaba que esos campos NO existían.
+    Ahora que el fan-out está implementado, verificamos que SÍ se populan.
+    Los agentes externos están mockeados — zero llamadas a EDGAR.
+    """
+    mock_company = mocker.MagicMock()
+    mock_company.cik = 320193
+    mock_latest = mocker.MagicMock()
+    mock_latest.period_of_report = "2025-09-27"
+    mock_company.get_filings.return_value.latest.return_value = mock_latest
+    mocker.patch("due_diligence.agents.supervisor.Company", return_value=mock_company)
+    mocker.patch(
+        "due_diligence.agents.financials.EdgarAdapter.fetch_raw",
+        return_value=FIXTURE,
+    )
+    _mock_specialists(mocker)
 
     from langgraph.checkpoint.memory import MemorySaver
     from due_diligence.graph.graph import build_graph

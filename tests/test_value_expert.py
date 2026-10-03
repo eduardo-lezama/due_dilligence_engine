@@ -436,9 +436,11 @@ def test_format_context_includes_quarterly_snapshot():
     assert "$250" in context
 
 
-def test_thesis_break_detects_margin_decline_contradiction():
+def test_thesis_break_detects_margin_decline_contradiction(mocker):
     """Si decision_frame dice 'thesis breaks if margin decline' y §4 ya dice margin decline → warning."""
     from due_diligence.agents.value_expert import _thesis_break_self_check
+    # El validador LLM (ADR-031) se mockea: antes este test hacía una llamada real a OpenAI.
+    mocker.patch("due_diligence.agents.value_expert._validate_thesis_break_with_llm", return_value=True)
 
     report = ValueExpertReport(
         ticker="MRCY", stub=False,
@@ -481,9 +483,11 @@ def test_thesis_break_no_crash_on_empty_sections():
     assert "THESIS-BREAK SELF-CHECK WARNING" not in (checked.decision_frame or "")
 
 
-def test_thesis_break_detects_guidance_cut():
+def test_thesis_break_detects_guidance_cut(mocker):
     """Guidance cut en thesis-breaker ya descrito en risks → warning."""
     from due_diligence.agents.value_expert import _thesis_break_self_check
+    # El validador LLM (ADR-031) se mockea: antes este test hacía una llamada real a OpenAI.
+    mocker.patch("due_diligence.agents.value_expert._validate_thesis_break_with_llm", return_value=True)
 
     report = ValueExpertReport(
         ticker="XYZ", stub=False,

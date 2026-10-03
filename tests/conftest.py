@@ -3,9 +3,41 @@ import os
 import unittest.mock
 from pathlib import Path
 
-import pytest
+# Settings() exige SEC_USER_AGENT al IMPORTAR due_diligence.config, antes de que corra
+# cualquier fixture. Sin esto la suite dependía de que existiera un .env real (H1).
+os.environ.setdefault("SEC_USER_AGENT", "Test User test@example.com")
+
+import pytest  # noqa: E402
 
 _FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+def _network_disabled(*_args, **_kwargs):
+    raise RuntimeError(
+        "Real LLM/web client constructed during tests — mock get_client() or inject a fake "
+        "(tests/CLAUDE.md: zero real API calls)."
+    )
+
+
+@pytest.fixture(autouse=True)
+def block_real_network_clients():
+    """
+    Impide construir clientes reales de OpenAI, Anthropic y Tavily en cualquier test (H1).
+
+    Antes de H1, varios tests hacían llamadas de red reales cuando había un .env con claves
+    (y fallaban sin él). Un test que necesite el constructor real lo parchea él mismo
+    (p.ej. tests/test_llm_client.py), lo que sobrescribe este bloqueo dentro de su ámbito.
+    """
+    with unittest.mock.patch("openai.OpenAI", _network_disabled), \
+            unittest.mock.patch("anthropic.Anthropic", _network_disabled), \
+            unittest.mock.patch("tavily.TavilyClient", _network_disabled):
+        # El singleton de get_client() puede haber cacheado un cliente SDK real de un test
+        # anterior: lo vaciamos para que el bloqueo aplique también a él.
+        from due_diligence.llm import client as _llm_client
+        if _llm_client._client is not None:
+            _llm_client._client._openai = None
+            _llm_client._client._anthropic = None
+        yield
 
 # Los 4 arquetipos de MCE-25. Cada test que use `archetype_raw` corre 4 veces.
 # Añadir un ticker aquí + su fixture JSON es suficiente para incorporar un arquetipo nuevo.

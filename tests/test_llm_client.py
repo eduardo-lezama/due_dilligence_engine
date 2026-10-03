@@ -9,7 +9,7 @@ def test_complete_uses_anthropic_by_default(monkeypatch):
     monkeypatch.setattr(cfg_mod.settings, "anthropic_api_key", "sk-test")
 
     mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="mocked answer")]
+    mock_response.content = [MagicMock(type="text", text="mocked answer")]  # forma real del SDK: los bloques llevan type
 
     with patch("anthropic.Anthropic") as mock_anthropic_cls:
         mock_client = MagicMock()

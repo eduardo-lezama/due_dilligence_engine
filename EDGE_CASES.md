@@ -527,3 +527,20 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Audit MCE-26**: `RevenueFromContractWithCustomerExcludingAssessedTax` aparece en exactamente 2 sitios de `src/` — ambos corregidos en este fix.
 - **Aplicabilidad sistémica**: cualquier empresa CPG, food & beverage, o industrial que adoptó XBRL antes de ASC 606 (2018) puede usar `SalesRevenueNet` o `NetSales`. Sin este fix, el sistema rechazaba un conjunto amplio de empresas del universo value (consumer staples, food & beverage son sectores canónicos de Buffett/Munger).
 - **Commit**: pendiente
+
+---
+
+## H1 — Integridad (2026-10, plan `docs/superpowers/plans/2026-10-03-horizonte1-integridad.md`)
+
+### EC-71 — Fallback de proveedor ante cualquier excepción, coste de Claude no contabilizado y temperature rechazada
+- **Síntoma**: `complete()` caía a OpenAI ante cualquier `Exception` de Anthropic, incluidos bugs propios; `_complete_anthropic` no registraba el uso; `_MODEL_PRICING` no tenía modelos Claude (coste ≈ 0); `RunStats` no decía qué modelo había respondido. Además, los modelos Claude actuales (Opus 4.7+, Sonnet 5.5, Fable) devuelven 400 si se envía `temperature`, y con thinking activo `content[0]` no es texto.
+- **Causa raíz**: wrapper diseñado para un único caso feliz; sin errores tipados (`LLMError` nunca se lanzaba).
+- **Fix**: `llm/errors.py` con jerarquía tipada; `LLMClient.structured()` con fallback solo ante `LLMProviderError(fallback_eligible=True)`; `_record_usage` único (incluye Claude); precios Claude con resolución por prefijo (exacto primero); `RunStats.calls_by_model` + `LLMClient.last_model_used`; `temperature` solo a familias que la aceptan; texto del primer bloque `type == "text"`. Ver ADR-032.
+- **Commit**: H1 Task 1
+
+### EC-89 — Tests con llamadas de red reales ocultas por el `.env` local
+- **Síntoma**: en un checkout sin `.env` fallaban 4 tests; con `.env` pasaban haciendo llamadas reales a OpenAI (end-to-end de grafo, validador de thesis-break) y a Finnhub/EDGAR (agente de mercado). La suite tampoco arrancaba sin `.env` porque `Settings()` exige `SEC_USER_AGENT` al importar.
+- **Causa raíz**: mocks incompletos del fan-out de especialistas y del validador ADR-031; `set_test_env` corría después de importar `due_diligence.config`.
+- **Fix**: `tests/conftest.py` fija `SEC_USER_AGENT` a nivel de módulo y añade el fixture autouse `block_real_network_clients` (constructores de `openai.OpenAI`, `anthropic.Anthropic` y `tavily.TavilyClient` lanzan error); helper `_mock_specialists` en `tests/test_graph_1a.py`; validador mockeado en los tests de thesis-break.
+- **Commit**: H1 Task 1
+

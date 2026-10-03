@@ -12,3 +12,35 @@ lo fusiona). El hash de commit es el de la rama `h1-blockA`.
 - **Causa raíz:** (1) `complete()` devolvía texto libre y cada agente recortaba el JSON con `find("{")`/`rfind("}")` + `json.loads` dentro de un `except Exception` que nunca propagaba; (2) el report no tenía forma de expresar "corrió y falló" (solo `stub`); (3) `complete()` hacía fallback de proveedor ante cualquier excepción, incluidas truncaciones.
 - **Fix:** `LLMClient.structured()` con structured outputs nativos y errores tipados (`llm/errors.py`, T1); schemas de salida estrictos en `schemas/llm_outputs.py` (T2a); cada agente captura `LLMError` y devuelve `stub=True, error="<Clase>: msg"` (T2b filings, T2c management/competitive/critic, T2d Value Expert sin VERDICT y con un único reintento solo ante `LLMSchemaError`); archiver nombra el report `-INCOMPLETE.md` y lista los fallos; CLI muestra panel rojo "ANALYSIS INCOMPLETE" (T2e). ADR-032.
 - **Commit:** `feat(h1-T2b)` (filings) … `feat(h1-T2e)` en la rama `h1-blockA`.
+
+### EC-69 — Citas nunca validadas y números del LLM presentados como dato (T3a–T3c)
+
+- **Síntoma:** el invariante 2 (CLAUDE.md) y ADR-005 decían que toda cita se validaba por substring-match contra el filing; en el código no existía ningún validador. Las citas llegaban al report y al contexto del Value Expert tal como las emitía el LLM (incluidas paráfrasis y excerpts inventados). Además `insider_ownership_pct`, `ceo_tenure_years`, `form4_transactions_12m` y `backlog_usd` los generaba el LLM y se presentaban como datos ("Insider ownership (DEF 14A)"), y `insider_transaction_pattern` —texto libre del LLM— se etiquetaba "(Form 4)" (origen del caso KBR CEO/CFO).
+- **Causa raíz:** la validación post-hoc se diseñó en Fase 0 (ADR-005) pero nunca se implementó; los agentes construían `Citation` directamente desde el JSON del LLM, y los schemas permitían al LLM rellenar campos numéricos sin evidencia.
+- **Fix:** `validation/citations.py` (T3a): substring normalizado (NFKC, comillas/guiones tipográficos, minúsculas, espacios) o `rapidfuzz.partial_ratio ≥ 90`; todos los números del excerpt deben estar en la ventana alineada; excerpt < 20 caracteres → rechazado; corpus vacío → todas rechazadas con nota. Rechazadas: `verified=False`, `confidence=0`, `verification_note`. `gate_llm_value`: un número del LLM solo se conserva si su cita se verifica Y contiene el número (a escala ×1/×1e3/×1e6/×1e9). T3b: validación dentro de cada nodo con el corpus local; `form4_transactions_12m = len(form4_transactions)` (determinista); ownership y tenure solo contra fuentes primarias (DEF 14A, 10-K Item 10, Form 4), nunca Tavily/transcripts; `source_url` normalizado a la etiqueta real del corpus. T3c: el contexto del Expert y la sección "Sources & Citations" solo muestran citas verificadas; las rechazadas van a "## Unverified citations (excluded from synthesis)"; narrativa LLM etiquetada "(LLM summary, unverified)".
+- **Pendiente (H2):** validación semántica claim↔excerpt (un excerpt real puede no sostener el claim, p.ej. CEO vs CFO).
+- **Commit:** `feat(h1-T3a)` … `feat(h1-T3c)` en la rama `h1-blockA`.
+
+---
+
+## Propuestas de texto para archivos gitignored (ruling R3 — los aplica la sesión principal)
+
+Los archivos siguientes están en `.gitignore` y no existen en la worktree; el plan pide editarlos en T3a.
+
+**`CLAUDE.md` raíz, invariante 2** — sustituir "Validación post-hoc por substring-match contra el filing cacheado." por:
+
+> Validación post-hoc en `validation/citations.py`: substring normalizado o `rapidfuzz.partial_ratio ≥ 90` contra el texto fuente que vio el LLM, y todos los números del excerpt presentes en la ventana alineada. Los números que emite el LLM solo se conservan con cita verificada contra fuente primaria (DEF 14A, 10-K, Form 4) que contenga el número; si no, `None`.
+
+**`AGENTIC_PATTERNS.md` §11, sección "El flujo" y "Por qué funciona"** — sustituir el pseudocódigo `excerpt in document_text` por:
+
+> 1. El agente construye un corpus local `{etiqueta: texto}` con exactamente lo que envió al LLM (no entra en el estado).
+> 2. `validate_citations(citations, corpus)`: normaliza (NFKC, comillas/guiones ASCII, minúsculas, espacios); substring exacto → ventana = excerpt; si no, `partial_ratio_alignment` ≥ 90 → ventana = tramo alineado del corpus; si no, rechazo.
+> 3. Todos los números del excerpt deben aparecer en esa ventana (un "100,000" inventado no se justifica con un "100,000" de otra página).
+> 4. Rechazo → `verified=False`, `confidence=0`, `verification_note`; se muestra aparte en el report ("Unverified citations") y nunca entra en el contexto del Value Expert.
+> 5. Números del LLM: `gate_llm_value(value, cita, corpus, numeric=True)` → solo si la cita se verifica y contiene el número (×1/×1e3/×1e6/×1e9).
+>
+> Límite conocido: demuestra que el texto citado existe, no que el claim se siga del excerpt (H2).
+
+**`src/due_diligence/agents/CLAUDE.md`, regla "Every Citation must pass substring-match validation..."** — sustituir por:
+
+> Every Citation must pass `validation.citations.validate_citations` inside the node (corpus = the exact source text sent to the LLM). Numeric fields emitted by the LLM go through `gate_llm_value` against primary sources only; counts that can be computed (Form 4) are computed, never asked to the LLM. LLM calls use `get_client().structured(Schema, ...)`; on `LLMError` return `Report(stub=True, error=error_label(e))` (ADR-032).

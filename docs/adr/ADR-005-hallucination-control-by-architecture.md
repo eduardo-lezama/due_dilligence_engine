@@ -57,3 +57,7 @@ Tool-calls y LLM-calls viven en **lanes distintas** dentro del grafo, nunca se m
 ## Alternatives considered
 - **Self-critique reflexion loops**: rechazado por eficacia marginal y coste alto.
 - **LLM-extracted con post-validation**: rechazado — si el extract puede ser wrong, el validation también puede serlo. Primary source → tool → reasoning es la única cadena robusta.
+
+## Nota de corrección (H1, 2026-10)
+
+La validación post-hoc de citas descrita en *Decision* no se implementó hasta H1 (2026-10). Entre Fase 0 y H1 las citas se mostraban sin verificar y varias cifras generadas por el LLM llegaban a la síntesis como datos (EC-69). Implementación: `validation/citations.py` (substring normalizado o `rapidfuzz.partial_ratio ≥ 90`, y todos los números del excerpt presentes en la ventana alineada del texto fuente). Los números que emite el LLM siguen la jerarquía determinista > cita verificada contra fuente primaria > descarte (ADR-032). Pendiente H2: validación semántica claim↔excerpt.

@@ -82,3 +82,20 @@ Formato: concepto → por qué → cómo → relación con la arquitectura → e
 **Relación con la arquitectura.** ADR-032 pasa a Accepted. ADR-009: el VERDICT es obligatorio cuando hay síntesis; cuando no la hay, el sistema lo dice en cada capa. ADR-021: la contabilidad de coste ahora incluye el modelo real.
 
 **Ejemplo.** Estado con `synthesis=ValueExpertReport(stub=True, error="LLMTruncatedError: x")` → archivo `2026-10-03-TST-INCOMPLETE.md`, fila `status='incomplete'`, `verdict=NULL`, y en la CLI: "No VERDICT was produced. Do not act on this report."
+
+---
+
+## T3a — Validación de citas (`validation/citations.py`)
+
+**Concepto.** Una cita es una promesa: "esta frase está en el documento". Validarla es comprobar la promesa contra el texto que el LLM realmente leyó.
+
+**Por qué.** ADR-005 lo prometía desde Fase 0, pero no existía ningún validador (EC-69). Un substring exacto es demasiado estricto (los LLM cambian comillas, espacios, "per share" ↔ "a share") y un fuzzy puro es demasiado laxo con los números: "100,000 shares" casa al 97 % con "10,000 shares".
+
+**Cómo.** Dos filtros encadenados:
+1. *Existencia del texto:* normalizar (NFKC, tipografía → ASCII, minúsculas, espacios); substring exacto o `rapidfuzz.fuzz.partial_ratio_alignment ≥ 90`, que además devuelve **dónde** casa (`dest_start`, `dest_end`).
+2. *Números en la ventana:* todos los números del excerpt deben aparecer en ese tramo alineado del corpus, no en cualquier parte del documento.
+Excerpts de menos de 20 caracteres se rechazan (con 6 caracteres partial_ratio encuentra coincidencias triviales). Corpus vacío → todo rechazado con nota explícita. `gate_llm_value` aplica la regla a números del LLM: solo sobreviven con cita verificada que contenga el número a alguna escala (los 10-K escriben "(in millions) $1,270").
+
+**Relación con la arquitectura.** Implementa por fin el invariante 2 y ADR-005 (nota de corrección añadida). Es determinista y sin red: los agentes lo llaman dentro del nodo, tras `structured()` (T3b).
+
+**Ejemplo.** Corpus "the CEO purchased 10,000 shares at $25.50 per share": la cita "...purchased 100,000 shares..." casa por fuzzy, pero `100000` no está en la ventana → `verified=False`, nota `numbers not in source window: ['100000']`.

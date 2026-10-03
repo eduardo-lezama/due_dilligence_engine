@@ -99,3 +99,22 @@ Excerpts de menos de 20 caracteres se rechazan (con 6 caracteres partial_ratio e
 **Relación con la arquitectura.** Implementa por fin el invariante 2 y ADR-005 (nota de corrección añadida). Es determinista y sin red: los agentes lo llaman dentro del nodo, tras `structured()` (T3b).
 
 **Ejemplo.** Corpus "the CEO purchased 10,000 shares at $25.50 per share": la cita "...purchased 100,000 shares..." casa por fuzzy, pero `100000` no está en la ventana → `verified=False`, nota `numbers not in source window: ['100000']`.
+
+---
+
+## T3b — Números del LLM: calcular, citar o descartar
+
+**Concepto.** Jerarquía para cualquier cifra que aparezca en el análisis: (1) si se puede **calcular** a partir de datos descargados, se calcula; (2) si solo la puede extraer el LLM de un texto, debe venir con una **cita verificada contra fuente primaria** que contenga esa cifra; (3) si no, se **descarta** (`None`).
+
+**Por qué.** El LLM devolvía `form4_transactions_12m`, `insider_ownership_pct`, `ceo_tenure_years` y `backlog_usd` sin evidencia, y se presentaban como datos (EC-69). Peor: un % de propiedad sacado de un artículo web podía acabar etiquetado "DEF 14A".
+
+**Cómo.**
+- Cada nodo construye su corpus local con el texto exacto enviado al LLM: filings `{10-K Item 1, 1A, 7}`; management `{DEF 14A, 10-K Item 10, Form 4, 8-K 5.02, Web (Tavily), Transcripts}`; competitive `{Financial data, Web (Tavily)}`.
+- `management._build_report(out, ticker, corpus, form4_count)`: `form4_count = len(form4_transactions)`; ownership y tenure pasan por `gate_llm_value` contra el **sub-corpus primario** (DEF 14A, 10-K Item 10, Form 4); tenure exige además un año `(19|20)\d{2}` en el excerpt.
+- `filings._build_report(out, ticker, corpus)`: `backlog_usd` solo con `backlog_citation` verificada que contenga la cifra.
+- Citas de texto libre: `validate_and_relabel` las valida contra todo el corpus y cambia `source_url` a la etiqueta real donde se encontró ("Web (Tavily)"), no a la que dijo el LLM. Las no verificadas se conservan, marcadas.
+- Log `<agent>_citations_validated(verified, unverified)`; el total verificado va a la columna SQLite `n_verified_citations` (T2e).
+
+**Relación con la arquitectura.** ADR-005 (zero hallucination numérica), ADR-011 (primary-source-first), ADR-032 decisión 7.
+
+**Ejemplo.** DEF 14A: "...as a group beneficially own 12.5% of outstanding shares." LLM dice 12.5 con esa cita → se conserva. LLM dice 30.0 con la misma cita → `None` ("value not present in excerpt"). LLM dice 12.5 citando un blog → `None`: el blog no es fuente primaria.

@@ -147,12 +147,14 @@ def test_management_agent_populates_fields(mocker, minimal_state, llm_response_v
     result = management_agent(minimal_state)
     report: ManagementReport = result["mgmt"]
 
-    assert report.insider_ownership_pct == 0.08
-    assert report.ceo_tenure_years == 13.0
+    # Sin cita verificada contra fuente primaria, los números del LLM se descartan (EC-69).
+    assert report.insider_ownership_pct is None
+    assert report.ceo_tenure_years is None
     # Determinista desde H1: len(form4_transactions), no lo que diga el LLM (ADR-005).
     assert report.form4_transactions_12m == 1
+    # La cita no aparece en las fuentes mockeadas ("Proxy text") → se conserva, sin verificar.
     assert len(report.citations) == 1
-    assert report.citations[0].confidence == 0.95
+    assert report.citations[0].verified is False and report.citations[0].confidence == 0.0
 
 
 def test_management_agent_calls_edgar_and_tavily(mocker, minimal_state, llm_response_valid):
@@ -327,7 +329,8 @@ def test_filings_agent_populates_fields(mocker, minimal_state, filings_llm_respo
     )
     mocker.patch(
         "due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_mda",
-        return_value="MDA text",
+        # Contiene el excerpt literal de la cita del fixture → la cita se verifica (T3b).
+        return_value="Net sales for Services were $96.2 billion, representing an increase of 13% compared to 2023.",
     )
     mock_client = mocker.MagicMock()
     mock_client.structured.return_value = filings_llm_response_valid
@@ -341,6 +344,7 @@ def test_filings_agent_populates_fields(mocker, minimal_state, filings_llm_respo
     assert report.risk_factors_summary is not None
     assert report.mda_highlights is not None
     assert len(report.citations) == 1
+    assert report.citations[0].verified is True
     assert report.citations[0].confidence == 0.95
 
 
@@ -924,11 +928,14 @@ def test_competitive_agent_moat_clamp_downgrades_when_buyback_heavy(mocker, comp
 
 
 def test_competitive_agent_citations_populated(mocker, competitive_state):
-    """Las citations se construyen correctamente."""
+    """Las citations se validan contra los datos financieros enviados al LLM: "ROIC series
+    FY2025: 87.4%" coincide (fuzzy) con la línea "ROIC series: FY2025: 87.4%, ..." del
+    fixture AAPL → verified=True y source_url normalizado a la etiqueta real (EC-69)."""
     _mock_competitive(mocker)
     result = competitive_agent(competitive_state)
     assert len(result["competitive"].citations) == 1
-    assert result["competitive"].citations[0].confidence == 0.95
+    c = result["competitive"].citations[0]
+    assert c.verified is True and c.confidence == 0.95 and c.source_url == "Financial data"
 
 
 def test_competitive_agent_calls_tavily(mocker, competitive_state):
@@ -1109,3 +1116,97 @@ class TestThesisBreakSelfCheck:
         result = _thesis_break_self_check(report, context="")
 
         assert "THESIS-BREAK SELF-CHECK WARNING" in (result.decision_frame or "")
+
+
+# ---------------------------------------------------------------------------
+# Tests: validación de citas en los nodos y gating de números (H1-T3b, EC-69)
+# ---------------------------------------------------------------------------
+from due_diligence.agents.filings import _build_report as build_filings  # noqa: E402
+from due_diligence.agents.management import _build_report as build_mgmt  # noqa: E402
+
+DEF14A = "All directors and executive officers as a group beneficially own 12.5% of outstanding shares."
+
+
+def _cout(excerpt, source="DEF 14A"):
+    return CitationOut(claim="c", source_url=source, excerpt=excerpt, confidence=0.9,
+                       gaap_vs_nongaap_flag=None)
+
+
+def test_form4_count_is_deterministic():
+    rep = build_mgmt(_mgmt_out(), "TST", {"DEF 14A": DEF14A}, form4_count=7)
+    assert rep.form4_transactions_12m == 7
+
+
+def test_insider_pct_kept_only_with_verified_matching_citation():
+    ok = build_mgmt(_mgmt_out(insider_ownership_pct=12.5,
+                              insider_ownership_citation=_cout(DEF14A)), "TST", {"DEF 14A": DEF14A}, 0)
+    assert ok.insider_ownership_pct == 12.5
+    assert any(c.verified and "12.5%" in c.excerpt for c in ok.citations)
+    no_cit = build_mgmt(_mgmt_out(insider_ownership_pct=12.5), "TST", {"DEF 14A": DEF14A}, 0)
+    assert no_cit.insider_ownership_pct is None
+    mismatch = build_mgmt(_mgmt_out(insider_ownership_pct=30.0,
+                                    insider_ownership_citation=_cout(DEF14A)), "TST", {"DEF 14A": DEF14A}, 0)
+    assert mismatch.insider_ownership_pct is None
+
+
+def test_numeric_gate_rejects_web_only_support():
+    """Un % de propiedad sacado de la web no puede quedar 'verificado' (fuentes primarias, ADR-011)."""
+    web = "Analysts estimate insiders hold about 12.5% of the company's outstanding stock."
+    rep = build_mgmt(_mgmt_out(insider_ownership_pct=12.5, insider_ownership_citation=_cout(web, "Tavily")),
+                     "TST", {"DEF 14A": DEF14A, "Web (Tavily)": web}, 0)
+    assert rep.insider_ownership_pct is None
+    assert all(not c.verified for c in rep.citations if "Analysts estimate" in c.excerpt)
+
+
+def test_ceo_tenure_requires_year_in_verified_excerpt():
+    item10 = "Jane Doe has served as our Chief Executive Officer since 2015 and as a director since 2012."
+    ok = build_mgmt(_mgmt_out(ceo_tenure_years=11.0, ceo_tenure_citation=_cout(item10, "10-K Item 10")),
+                    "TST", {"10-K Item 10": item10}, 0)
+    assert ok.ceo_tenure_years == 11.0
+    no_year = "Jane Doe has served as our Chief Executive Officer for many years now."
+    bad = build_mgmt(_mgmt_out(ceo_tenure_years=11.0, ceo_tenure_citation=_cout(no_year, "10-K Item 10")),
+                     "TST", {"10-K Item 10": no_year}, 0)
+    assert bad.ceo_tenure_years is None
+
+
+def test_unverified_citations_marked_not_dropped():
+    rep = build_mgmt(_mgmt_out(citations=[_cout("the CEO has been buying aggressively all year")]),
+                     "TST", {"DEF 14A": DEF14A}, 0)
+    assert len(rep.citations) == 1 and rep.citations[0].verified is False
+
+
+def test_verified_text_citation_source_normalized_to_corpus_label():
+    web = "The board added two independent directors with deep retail operating experience in 2024."
+    rep = build_mgmt(_mgmt_out(citations=[_cout(web, "https://some-blog.example/post")]),
+                     "TST", {"DEF 14A": DEF14A, "Web (Tavily)": web}, 0)
+    assert rep.citations[0].verified is True and rep.citations[0].source_url == "Web (Tavily)"
+
+
+def test_empty_corpus_marks_all_unverified_with_note():
+    rep = build_mgmt(_mgmt_out(citations=[_cout("the CEO owns 12.5% of shares outstanding")]), "TST", {}, 0)
+    assert all(not c.verified and "empty corpus" in c.verification_note for c in rep.citations)
+
+
+def test_backlog_dropped_without_verified_citation():
+    rep = build_filings(_filings_out(backlog_usd=1.27e9, backlog_citation=None), "TST",
+                        {"10-K Item 7": "Backlog was $1.27 billion at year end."})
+    assert rep.backlog_usd is None
+
+
+def test_backlog_kept_with_verified_citation():
+    mda = "Backlog was $1.27 billion at year end, up 12% year over year."
+    rep = build_filings(_filings_out(backlog_usd=1.27e9,
+                                     backlog_citation=_cout("Backlog was $1.27 billion at year end", "10-K Item 7")),
+                        "TST", {"10-K Item 7": mda})
+    assert rep.backlog_usd == 1.27e9
+    assert any(c.verified and "1.27 billion" in c.excerpt for c in rep.citations)
+
+
+def test_competitive_citations_validated_against_financials_and_web(mocker, competitive_state):
+    from due_diligence.agents.competitive import _format_financials_for_prompt
+    fin_line = _format_financials_for_prompt(competitive_state["financials"]).splitlines()[1]
+    _mock_competitive(mocker, CompetitiveLLMOutput(moat_classification="narrow", moat_sources=["brand"],
+                                                   citations=[_cout(fin_line, "Financial data"),
+                                                              _cout("invented claim about pricing power everywhere")]))
+    rep = competitive_agent(competitive_state)["competitive"]
+    assert [c.verified for c in rep.citations] == [True, False]

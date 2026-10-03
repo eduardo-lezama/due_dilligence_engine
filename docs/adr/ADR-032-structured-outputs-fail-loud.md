@@ -60,8 +60,23 @@ con un 400, y con thinking siempre activo el primer bloque de la respuesta puede
      falta Filings o Management; "Models used" en el pie del report y en el bloque Performance.
    - SQLite: columnas `status`, `models_used`, `n_verified_citations`, `methodology_version="H1"`
      (migración idempotente `ALTER TABLE ... ADD COLUMN`; filas antiguas `NULL` = pre-H1).
-7. *(Task 3)* Validación de citas dentro del nodo; números del LLM: determinista > cita
-   verificada > descarte.
+7. *(Task 3)* **Validación de citas dentro del nodo; números del LLM: determinista > cita
+   verificada > descarte.**
+   - `validation/citations.py`: substring normalizado o `rapidfuzz.partial_ratio ≥ 90`, y todos
+     los números del excerpt en la ventana alineada del corpus; excerpt < 20 caracteres o corpus
+     vacío → rechazo. Rechazo = `verified=False`, `confidence=0`, `verification_note`.
+   - El corpus es local al nodo (el texto exacto enviado al LLM, por fuente) y se descarta: no
+     entra en el estado checkpointeado. `citations`/`unverified_claims`/`cost_usd` de
+     `graph/state.py` siguen sin uso (pueden retirarse aparte, MCE-30).
+   - Números: `form4_transactions_12m = len(transacciones)` (determinista; sale del schema LLM);
+     `insider_ownership_pct` y `ceo_tenure_years` solo con cita verificada contra fuentes
+     primarias (DEF 14A, 10-K Item 10, Form 4) que contenga el número / el año de nombramiento;
+     `backlog_usd` solo con `backlog_citation` verificada con la cifra (`gate_llm_value`).
+     Tavily y transcripts sirven para citas de texto, que se re-etiquetan con la fuente real
+     (`validate_and_relabel`), nunca para verificar un número.
+   - Consumidores: el contexto del Value Expert y "Sources & Citations" solo usan citas
+     verificadas; las rechazadas se listan aparte ("Unverified citations (excluded from
+     synthesis)"); la narrativa libre del LLM se etiqueta "(LLM summary, unverified)".
 
 ## Consequences
 

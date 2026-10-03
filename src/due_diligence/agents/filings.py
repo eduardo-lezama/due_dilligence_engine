@@ -39,6 +39,7 @@ from due_diligence.llm.errors import LLMError
 from due_diligence.schemas.llm_outputs import FilingsLLMOutput
 from due_diligence.schemas.reports import FilingsRAGReport
 from due_diligence.tools.edgar import EdgarFilingsAdapter
+from due_diligence.validation.citations import count_verified, gate_llm_value, validate_and_relabel
 
 log = structlog.get_logger()
 
@@ -134,24 +135,28 @@ If NONE of questions 10-14 apply, explicitly state "No governance red flags foun
 """
 
 
-def _build_report(out: FilingsLLMOutput, ticker: str) -> FilingsRAGReport:
-    """Convierte la salida validada del LLM en el report de dominio.
+def _build_report(out: FilingsLLMOutput, ticker: str, corpus: dict[str, str]) -> FilingsRAGReport:
+    """Convierte la salida validada del LLM en el report de dominio, con citas verificadas.
 
     `out` ya cumple el schema (structured outputs): aquí no hay parseo, solo mapeo
-    y reglas de negocio. Las citas se convierten a Citation con verified=False; la
-    validación contra el texto fuente llega en T3b.
+    y reglas de negocio (EC-69):
+    - citas validadas contra el corpus del 10-K (todo él es fuente primaria);
+    - `backlog_usd` solo si `backlog_citation` se verifica y contiene la cifra.
     """
+    backlog, backlog_cit = gate_llm_value(out.backlog_usd, out.backlog_citation, corpus, numeric=True)
+    citations = validate_and_relabel([c.to_citation() for c in out.citations], corpus)
+    citations += [c for c in (backlog_cit,) if c is not None]
     return FilingsRAGReport(
         ticker=ticker, stub=False,
         business_description=out.business_description,
         risk_factors_summary=out.risk_factors_summary,
         mda_highlights=out.mda_highlights,
-        backlog_usd=out.backlog_usd,          # T3b lo condiciona a una cita verificada
+        backlog_usd=backlog,                  # None salvo cita verificada con la cifra
         revenue_guidance=out.revenue_guidance,
         geographic_revenue_breakdown=out.geographic_revenue_breakdown,
         key_regulatory_events=out.key_regulatory_events,
         governance_red_flags=out.governance_red_flags,
-        citations=[c.to_citation() for c in out.citations],
+        citations=citations,
     )
 
 
@@ -196,7 +201,12 @@ def filings_agent(state: AnalysisState) -> dict:
         return {"filings": FilingsRAGReport(ticker=ticker, stub=True, error=error_label(e))}
 
     # --- 3. Salida tipada → report de dominio ---
-    report = _build_report(out, ticker)
+    # Corpus = las tres secciones del 10-K tal como se enviaron al LLM (local al nodo).
+    corpus = {"10-K Item 1": business_text or "", "10-K Item 1A": risk_factors_text or "",
+              "10-K Item 7": mda_text or ""}
+    report = _build_report(out, ticker, corpus)
+    n_ok, n_bad = count_verified(report.citations)
+    log.info("filings_citations_validated", ticker=ticker, verified=n_ok, unverified=n_bad)
     # Modelo que realmente respondió (puede ser el fallback de otro proveedor).
     report = report.model_copy(update={"model_used": model_used(client)})
 

@@ -44,6 +44,7 @@ from due_diligence.schemas.llm_outputs import CompetitiveLLMOutput
 from due_diligence.schemas.reports import CompetitiveReport
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
 from due_diligence.utils.formatting import fmt_usd
+from due_diligence.validation.citations import count_verified, validate_and_relabel
 from due_diligence.utils.periods import align_by_period, cagr_by_fiscal_years
 
 log = structlog.get_logger()
@@ -195,18 +196,20 @@ Answer each question using ONLY the sources above:
 5. How does the gross/operating margin compare to typical industry levels?"""
 
 
-def _build_report(out: CompetitiveLLMOutput, ticker: str) -> CompetitiveReport:
+def _build_report(out: CompetitiveLLMOutput, ticker: str, corpus: dict[str, str]) -> CompetitiveReport:
     """Convierte la salida validada del LLM en el report de dominio.
 
     El Literal["wide","narrow","none"] del schema sustituye la validación manual del
     moat. peer_roic_comparison queda vacío: lo rellena peers_node después (ADR-015).
+    Las citas se validan contra `corpus` ({"Financial data", "Web (Tavily)"}, EC-69).
     """
+    cits = validate_and_relabel([c.to_citation() for c in out.citations], corpus)
     return CompetitiveReport(
         ticker=ticker, stub=False,
         moat_classification=out.moat_classification,
         moat_sources=list(out.moat_sources),
         peer_roic_comparison=[],
-        citations=[c.to_citation() for c in out.citations],
+        citations=cits,
     )
 
 
@@ -260,7 +263,10 @@ def competitive_agent(state: AnalysisState) -> dict:
         return {"competitive": CompetitiveReport(ticker=ticker, stub=True, error=error_label(e))}
 
     # --- 4. Salida tipada → report de dominio ---
-    report = _build_report(out, ticker)
+    corpus = {"Financial data": financials_text or "", "Web (Tavily)": tavily_text or ""}
+    report = _build_report(out, ticker, corpus)
+    n_ok, n_bad = count_verified(report.citations)
+    log.info("competitive_citations_validated", ticker=ticker, verified=n_ok, unverified=n_bad)
     report = report.model_copy(update={"model_used": model_used(client)})
 
     # --- 5. Moat calibration clamp (Fix #1 / EC-28 / ADR-024) ---

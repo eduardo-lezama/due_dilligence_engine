@@ -143,3 +143,26 @@ def gate_llm_value(value: Any, cit_out, corpus: dict[str, str], *,
         return None, cit.model_copy(update={"verified": False, "confidence": 0.0,
                                             "verification_note": "value not present in excerpt"})
     return value, cit
+
+
+def validate_and_relabel(citations: list[Citation], corpus: dict[str, str]) -> list[Citation]:
+    """validate_citations + `source_url` de las verificadas = etiqueta REAL del corpus.
+
+    La etiqueta que pone el LLM ("DEF 14A", una URL de blog...) no es fiable: si el
+    excerpt se encontró en el texto de Tavily, la cita debe decir "Web (Tavily)" y no
+    aparentar ser una fuente primaria. Las no verificadas conservan la etiqueta del LLM.
+    """
+    out = []
+    for c in validate_citations(citations, corpus):
+        if c.verified:
+            label = source_label_for(c, corpus)
+            if label is not None:
+                c = c.model_copy(update={"source_url": label})
+        out.append(c)
+    return out
+
+
+def count_verified(citations: list[Citation]) -> tuple[int, int]:
+    """(verificadas, no verificadas) — para el log `<agent>_citations_validated`."""
+    ok = sum(1 for c in citations if c.verified)
+    return ok, len(citations) - ok

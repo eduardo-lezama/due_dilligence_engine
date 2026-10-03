@@ -29,6 +29,8 @@ Por qué imports al nivel de módulo:
 
 from __future__ import annotations
 
+import re
+
 import structlog
 
 from due_diligence.config import settings
@@ -41,6 +43,7 @@ from due_diligence.schemas.reports import ManagementReport
 from due_diligence.tools.edgar import EdgarEventsAdapter, EdgarManagementAdapter, format_form4_for_prompt
 from due_diligence.tools.finnhub import FinnhubAdapter
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
+from due_diligence.validation.citations import count_verified, gate_llm_value, validate_and_relabel
 
 log = structlog.get_logger()
 
@@ -203,24 +206,44 @@ Answer each question using ONLY the sources above:
 5. Is the board independent? Any red flags in governance, related-party transactions, or entrenchment?"""
 
 
-def _build_report(out: ManagementLLMOutput, ticker: str,
-                  form4_count: int | None = None) -> ManagementReport:
-    """Convierte la salida validada del LLM en el report de dominio.
+# Fuentes PRIMARIAS (ADR-011): las únicas contra las que se puede verificar un número
+# del LLM. Tavily y transcripts sirven para citas de texto, nunca para "verificar" un %.
+_PRIMARY_SOURCES = ("DEF 14A", "10-K Item 10", "Form 4")
+# Un excerpt que respalda la antigüedad del CEO debe contener el año de nombramiento.
+_YEAR_RE = re.compile(r"\b(19|20)\d{2}\b")
 
-    `form4_count` es el número de transacciones Form 4 descargadas: dato determinista
-    que ya no se pide al LLM (ADR-005). T3b añade la validación de citas y el gating de
-    los campos numéricos (ownership, tenure).
+
+def _build_report(out: ManagementLLMOutput, ticker: str, corpus: dict[str, str],
+                  form4_count: int | None) -> ManagementReport:
+    """Valida citas, condiciona los campos numéricos y pone el conteo Form 4 determinista.
+
+    - `corpus`: {etiqueta: texto} con exactamente lo que se envió al LLM (local al nodo).
+    - `insider_ownership_pct` y `ceo_tenure_years` solo sobreviven con cita verificada
+      contra fuentes primarias (y, para el %, con el número dentro del excerpt; para la
+      antigüedad, con un año en el excerpt). Si no → None (EC-69, ADR-005).
+    - `form4_transactions_12m` = len(transacciones descargadas): nunca lo dice el LLM.
+    - Citas de texto libre: se validan contra TODO el corpus y su source_url pasa a la
+      etiqueta real donde se encontraron. Las no verificadas se conservan marcadas.
     """
+    primary = {k: v for k, v in corpus.items() if k in _PRIMARY_SOURCES}
+    pct, pct_cit = gate_llm_value(out.insider_ownership_pct, out.insider_ownership_citation,
+                                  primary, numeric=True)
+    tenure, ten_cit = gate_llm_value(out.ceo_tenure_years, out.ceo_tenure_citation,
+                                     primary, numeric=False)
+    if ten_cit is not None and ten_cit.verified and not _YEAR_RE.search(ten_cit.excerpt):
+        tenure = None
+        ten_cit = ten_cit.model_copy(update={"verified": False, "confidence": 0.0,
+                                             "verification_note": "no appointment year in excerpt"})
+    citations = validate_and_relabel([c.to_citation() for c in out.citations], corpus)
+    citations += [c for c in (pct_cit, ten_cit) if c is not None]
     return ManagementReport(
         ticker=ticker, stub=False,
-        insider_ownership_pct=out.insider_ownership_pct,
-        founder_ceo=out.founder_ceo,
-        ceo_tenure_years=out.ceo_tenure_years,
-        form4_transactions_12m=form4_count,
+        insider_ownership_pct=pct, founder_ceo=out.founder_ceo, ceo_tenure_years=tenure,
+        form4_transactions_12m=form4_count,   # determinista: len(fetch_form4_transactions)
         insider_transaction_pattern=out.insider_transaction_pattern,
         compensation_structure_notes=out.compensation_structure_notes,
         capital_allocation_summary=out.capital_allocation_summary,
-        citations=[c.to_citation() for c in out.citations],
+        citations=citations,
     )
 
 
@@ -318,8 +341,20 @@ def management_agent(state: AnalysisState) -> dict:
         log.error("management_agent_llm_failed", ticker=ticker, error_type=type(e).__name__, error=str(e))
         return {"mgmt": ManagementReport(ticker=ticker, stub=True, error=error_label(e))}
 
-    # --- 4. Salida tipada → report de dominio ---
-    report = _build_report(out, ticker, form4_count=len(form4_transactions))
+    # --- 4. Salida tipada → report de dominio, con citas validadas (T3b, EC-69) ---
+    # Corpus = el texto fuente exacto enviado al LLM, por fuente. Local al nodo: no
+    # entra en el estado checkpointeado.
+    corpus = {
+        "DEF 14A": def14a_text or "",
+        "10-K Item 10": item10_text or "",
+        "Form 4": form4_text or "",
+        "8-K 5.02": leadership_events_text or "",
+        "Web (Tavily)": tavily_text or "",
+        "Transcripts": transcripts_text or "",
+    }
+    report = _build_report(out, ticker, corpus, form4_count=len(form4_transactions))
+    n_ok, n_bad = count_verified(report.citations)
+    log.info("management_citations_validated", ticker=ticker, verified=n_ok, unverified=n_bad)
     report = report.model_copy(update={"model_used": model_used(client)})
 
     log.info(

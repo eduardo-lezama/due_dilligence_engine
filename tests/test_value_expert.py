@@ -658,3 +658,48 @@ def test_context_labels_llm_narrative_as_unverified():
     assert "Form 4 transactions (Form 4, deterministic):" in ctx and "Jane Doe (CEO) | BUY" in ctx
     assert "Capital allocation (LLM summary): Buybacks" in ctx
     assert "MDA highlights (LLM summary): Revenue up." in ctx
+
+
+# ---------------------------------------------------------------------------
+# Tests: governance red flags llegan a la síntesis (H1-T4a, EC-70)
+# ---------------------------------------------------------------------------
+RF = "Active SEC investigation disclosed in Item 1A; material weakness in ICFR."
+
+
+def _gov_state(**filings_over):
+    from due_diligence.schemas.reports import FilingsRAGReport, ManagementReport
+    f = dict(ticker="TST", stub=False, governance_red_flags=RF)
+    f.update(filings_over)
+    return {"ticker": "TST", "filings": FilingsRAGReport(**f),
+            "mgmt": ManagementReport(ticker="TST", stub=False)}
+
+
+def test_value_expert_has_governance_block():
+    ctx = _format_context(_gov_state())
+    assert "## GOVERNANCE RED FLAGS (from 10-K)" in ctx and RF in ctx
+
+
+def test_system_prompt_has_rule_23_governance():
+    from due_diligence.agents.value_expert import _SYSTEM_PROMPT
+    assert "23. GOVERNANCE RED FLAGS" in _SYSTEM_PROMPT
+
+
+def test_confidence_capped_by_verified_governance_flag():
+    r = _to_report(_ve_out(verdict_confidence=0.9, suggested_sizing_pct=9.0,
+                           risks="Active SEC investigation and a material weakness in ICFR."),
+                   "TST", _gov_state(active_sec_investigation=True))
+    assert r.verdict_confidence == pytest.approx(0.6) and r.suggested_sizing_pct == pytest.approx(6.0)
+    r2 = _to_report(_ve_out(verdict_confidence=0.9), "TST", _gov_state(material_weakness=True))
+    assert r2.verdict_confidence == pytest.approx(0.6)
+    r3 = _to_report(_ve_out(verdict_confidence=0.9), "TST", _gov_state())   # sin flags verificados
+    assert r3.verdict_confidence == pytest.approx(0.9)
+
+
+def test_risks_caveat_when_governance_flag_omitted():
+    r = _to_report(_ve_out(risks="Competition and FX."), "TST",
+                   _gov_state(active_sec_investigation=True, material_weakness=True))
+    assert "§7 omits governance flag: active SEC investigation" in r.risks
+    assert "§7 omits governance flag: material weakness" in r.risks
+    ok = _to_report(_ve_out(risks="An active SEC investigation and a Material Weakness are disclosed."),
+                    "TST", _gov_state(active_sec_investigation=True, material_weakness=True))
+    assert "omits governance flag" not in ok.risks

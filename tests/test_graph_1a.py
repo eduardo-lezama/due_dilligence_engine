@@ -102,7 +102,8 @@ def _mock_specialists(mocker):
         business_description=None, risk_factors_summary=None, mda_highlights=None,
         backlog_usd=None, backlog_citation=None, revenue_guidance=None,
         geographic_revenue_breakdown=None, key_regulatory_events=None,
-        governance_red_flags=None, citations=[])
+        governance_red_flags=None, active_sec_investigation=None, material_weakness=None,
+        governance_citation=None, citations=[])
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_filings)
 
     mocker.patch("due_diligence.agents.market.PolygonAdapter.fetch_market_data",

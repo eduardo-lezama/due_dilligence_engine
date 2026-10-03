@@ -135,3 +135,20 @@ Excerpts de menos de 20 caracteres se rechazan (con 6 caracteres partial_ratio e
 **Relación con la arquitectura.** Invariante 2 ("claim sin cita válida → excluido de síntesis") cumplido en el consumidor, no solo en el productor. ADR-014 (trail de auditoría) intacto: nada se borra.
 
 **Ejemplo.** Management con una cita verificada ("CEO bought 5,000 shares at $10.00") y una rechazada ("CEO is selling everything", fuzzy=40): el Expert solo ve la primera; el report muestra la segunda en la sección de no verificadas con el motivo.
+
+---
+
+## T4a — Un dato extraído que nadie consume no existe (governance red flags)
+
+**Concepto.** Extraer un dato tiene coste (tokens, latencia, complejidad); si ningún consumidor lo lee, ese coste no compra nada y además da una falsa sensación de cobertura ("el sistema detecta material weaknesses").
+
+**Por qué.** EC-66 añadió `governance_red_flags` al Filings agent, pero el Value Expert, el Critic y el report lo ignoraban (EC-70). Y las reglas que sí lo mencionaban vivían solo en el prompt, que el LLM puede desobedecer — justo lo que la auditoría §7 marca como "lo que NO hacer".
+
+**Cómo.**
+- Consumo: bloque `## GOVERNANCE RED FLAGS (from 10-K)` en el contexto del Expert (separado de "Key risks" para que no se diluya) y en el prompt del Critic; sección `## Governance Red Flags (10-K)` en el report. Etiqueta "(from 10-K)" y no "(from filings)": el agente solo lee Items 1/1A/7.
+- Regla 23 en el prompt: §7 lista cada flag, §3 evalúa la confianza en el management, §9 dice si es thesis-breaker.
+- **Determinista:** el LLM de filings emite `active_sec_investigation`, `material_weakness` y `governance_citation`; un `True` solo sobrevive si la cita se verifica contra el 10-K. Con alguno verificado, `_to_report` topa `verdict_confidence` a 0.6 (y el sizing se re-clampa). Si §7 no nombra el flag, se añade "⚠️ §7 omits governance flag: ..." (no se re-genera; H2 decidirá).
+
+**Relación con la arquitectura.** Invariante 5/ADR-005: las reglas críticas se imponen en código, el prompt solo explica. ADR-014: la etiqueta de fuente no exagera.
+
+**Ejemplo.** Filings con `active_sec_investigation=True` y cita "we received a subpoena from the SEC Division of Enforcement..." verificada → el Expert devuelve 0.9 de confianza y el report sale con 0.6; si el LLM dice `True` sin cita → el flag queda `None` y no hay tope.

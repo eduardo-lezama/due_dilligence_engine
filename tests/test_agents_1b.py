@@ -247,7 +247,9 @@ def _filings_out(**over) -> FilingsLLMOutput:
     base = dict(business_description="Makes widgets.", risk_factors_summary="Customer concentration.",
                 mda_highlights="Revenue up 5%.", backlog_usd=None, backlog_citation=None,
                 revenue_guidance=None, geographic_revenue_breakdown=None,
-                key_regulatory_events=None, governance_red_flags=None, citations=[])
+                key_regulatory_events=None, governance_red_flags=None,
+                active_sec_investigation=None, material_weakness=None, governance_citation=None,
+                citations=[])
     base.update(over)
     return FilingsLLMOutput(**base)
 
@@ -1210,3 +1212,33 @@ def test_competitive_citations_validated_against_financials_and_web(mocker, comp
                                                               _cout("invented claim about pricing power everywhere")]))
     rep = competitive_agent(competitive_state)["competitive"]
     assert [c.verified for c in rep.citations] == [True, False]
+
+
+# ---------------------------------------------------------------------------
+# Tests: governance flags deterministas con cita verificada (H1-T4a, EC-70)
+# ---------------------------------------------------------------------------
+GOV_1A = ("In March 2026 we received a subpoena from the SEC Division of Enforcement in connection "
+          "with an investigation of our revenue recognition practices. We also identified a material "
+          "weakness in our internal control over financial reporting.")
+
+
+def test_governance_flag_without_citation_is_dropped():
+    rep = build_filings(_filings_out(active_sec_investigation=True, material_weakness=True,
+                                     governance_citation=None), "TST", {"10-K Item 1A": GOV_1A})
+    assert rep.active_sec_investigation is None and rep.material_weakness is None
+
+
+def test_governance_flag_with_verified_citation_kept():
+    cit = _cout("we received a subpoena from the SEC Division of Enforcement in connection with an "
+                "investigation of our revenue recognition practices", "10-K Item 1A")
+    rep = build_filings(_filings_out(active_sec_investigation=True, material_weakness=False,
+                                     governance_citation=cit), "TST", {"10-K Item 1A": GOV_1A})
+    assert rep.active_sec_investigation is True and rep.material_weakness is False
+    assert any(c.verified and "subpoena" in c.excerpt for c in rep.citations)
+
+
+def test_governance_flag_with_invented_citation_is_dropped():
+    cit = _cout("The SEC has opened a formal investigation into the CEO's trading activity", "10-K Item 1A")
+    rep = build_filings(_filings_out(active_sec_investigation=True, governance_citation=cit),
+                        "TST", {"10-K Item 1A": GOV_1A})
+    assert rep.active_sec_investigation is None

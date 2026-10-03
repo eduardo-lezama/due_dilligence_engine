@@ -385,6 +385,15 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
             if filings.key_regulatory_events:
                 lines += [f"**Regulatory events:** {filings.key_regulatory_events}", ""]
 
+    # --- Governance red flags (EC-70): sección propia, no diluida en "Key Operational Data" ---
+    if filings and not filings.stub and filings.governance_red_flags:
+        lines += ["## Governance Red Flags (10-K)", "", filings.governance_red_flags, ""]
+        verified_flags = [name for name, on in (("Active SEC investigation", filings.active_sec_investigation),
+                                                ("Material weakness in ICFR", filings.material_weakness)) if on]
+        if verified_flags:
+            lines += [f"**Citation-verified flags:** {', '.join(verified_flags)} "
+                      f"(verdict confidence capped at 60%)", ""]
+
     # --- Expert analysis: 9 sections ---
     if synthesis and not synthesis.stub:
         lines += ["## Value Expert Analysis", ""]

@@ -122,7 +122,8 @@ def _make_filings_response():
         mda_highlights="Revenue grew 2% YoY.",
         backlog_usd=None, backlog_citation=None, revenue_guidance=None,
         geographic_revenue_breakdown=None, key_regulatory_events=None,
-        governance_red_flags=None, citations=[],
+        governance_red_flags=None, active_sec_investigation=None, material_weakness=None,
+        governance_citation=None, citations=[],
     )
 
 

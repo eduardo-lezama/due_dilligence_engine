@@ -116,6 +116,13 @@ def _build_critic_prompt(state: AnalysisState) -> str:
         lines.append(filings.risk_factors_summary)
         lines.append("")
 
+    # EC-70: governance_red_flags se extraía (EC-66) pero nadie lo consumía. Para el
+    # Critic es munición directa (investigación SEC, material weakness, restatement).
+    if filings is not None and not filings.stub and filings.governance_red_flags:
+        lines.append("## GOVERNANCE RED FLAGS (from 10-K)")
+        lines.append(filings.governance_red_flags)
+        lines.append("")
+
     valuation = state.get("valuation")  # type: ignore[typeddict-item]
     if valuation is not None and not valuation.stub:
         lines.append("## VALUATION DATA")

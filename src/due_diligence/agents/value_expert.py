@@ -121,6 +121,7 @@ RULES — NON-NEGOTIABLE:
     - FALLING label → do NOT describe ROIC as "improving", "recovering", or "strengthening".
     - STABLE label → use neutral language about ROIC.
     Critical distinction: absolute ROIC level (negative = poor quality capital allocation) vs ROIC direction (RISING = marginal capital is earning improving returns). A company going from -28% to +5% ROIC is at a potential inflection point — not in erosion. Describing RISING trend as "eroding moat" is a category error that produces incorrect verdicts with high spurious confidence.
+23. GOVERNANCE RED FLAGS (§3+§7+§9): when context contains a '## GOVERNANCE RED FLAGS' block, §7 MUST list each flag explicitly, §3 MUST assess its implication for management trust, and §9 MUST state whether any flag is a thesis-breaker.
 
 VERDICT RUBRIC:
 - BUY: moat confirmed + quality management + DCF upside >20% + no material 8-K red flags + conflicting signals resolved in favor of the bull case.
@@ -154,6 +155,17 @@ SECTION GUIDANCE (content of each field — the format is enforced by the schema
 # Tope determinista de confianza cuando falta evidencia esencial (ADR-032, revisión
 # funcional H1). Igual que el clamp de sizing: el prompt no basta, se impone en código.
 CONFIDENCE_CAP_DATA_GAPS = 0.6
+# Tope por governance verificado (T4a, regla de dominio confirmada por Eduardo — R1):
+# una investigación SEC activa o una material weakness en ICFR con cita verificada
+# impiden una convicción alta, diga lo que diga el LLM.
+CONFIDENCE_CAP_GOVERNANCE = 0.6
+# Palabras que §7 (risks) debe contener para cada flag verificado (check determinista
+# de la regla 23; no se re-genera, solo se añade un caveat visible — H2 decide más).
+_GOVERNANCE_FLAG_TERMS = {
+    "active SEC investigation": ("sec investigation", "sec inquiry", "sec subpoena", "sec enforcement",
+                                 "securities and exchange commission"),
+    "material weakness": ("material weakness",),
+}
 # Especialistas sin los que el VERDICT no puede tener convicción alta: §1/§7 (filings)
 # y §3 (management) no se pueden reconstruir desde los números.
 _ESSENTIAL_SPECIALISTS = (("filings", "Filings"), ("mgmt", "Management"))
@@ -404,6 +416,19 @@ def _format_context(state: AnalysisState) -> str:
             lines.append(f"Contracted backlog: {_fmt_usd(filings.backlog_usd)}")
         if filings.revenue_guidance:
             lines.append(f"Management guidance: {filings.revenue_guidance}")
+        lines.append("")
+
+    # EC-66 extraía governance_red_flags pero nadie lo consumía (EC-70). Bloque propio,
+    # separado de "Key risks", para que el LLM no lo diluya entre riesgos genéricos (regla 23).
+    # Etiqueta "(from 10-K)": filings_agent solo lee Items 1/1A/7; exagerar la fuente
+    # contradiría ADR-014.
+    if filings is not None and not filings.stub and filings.governance_red_flags:
+        lines += ["## GOVERNANCE RED FLAGS (from 10-K)", filings.governance_red_flags]
+        verified_flags = [name for name, on in (("active SEC investigation", filings.active_sec_investigation),
+                                                ("material weakness in ICFR", filings.material_weakness)) if on]
+        if verified_flags:
+            lines.append(f"Citation-verified flags: {', '.join(verified_flags)} "
+                         f"(confidence is capped at {CONFIDENCE_CAP_GOVERNANCE:.0%} deterministically).")
         lines.append("")
 
     # --- Market ---
@@ -760,6 +785,7 @@ def _to_report(out: ValueExpertLLMOutput, ticker: str,
     """
     verdict = out.verdict if out.verdict in ("BUY", "HOLD", "SELL") else "HOLD"
     confidence = max(0.0, min(1.0, out.verdict_confidence))
+    risks = out.risks
     if state is not None:
         missing = _missing_essentials(state)
         if missing and confidence > CONFIDENCE_CAP_DATA_GAPS:
@@ -767,6 +793,13 @@ def _to_report(out: ValueExpertLLMOutput, ticker: str,
                      original_confidence=confidence, capped_to=CONFIDENCE_CAP_DATA_GAPS,
                      missing=missing)
             confidence = CONFIDENCE_CAP_DATA_GAPS
+        gov_flags = _verified_governance_flags(state)
+        if gov_flags and confidence > CONFIDENCE_CAP_GOVERNANCE:
+            log.info("value_expert_confidence_capped_governance", ticker=ticker,
+                     original_confidence=confidence, capped_to=CONFIDENCE_CAP_GOVERNANCE,
+                     flags=gov_flags)
+            confidence = CONFIDENCE_CAP_GOVERNANCE
+        risks = _check_rule23_risks(risks, gov_flags, ticker)
     sizing = max(0.0, min(20.0, out.suggested_sizing_pct))
     # Sizing discipline post-hoc clamp (Fix D / EC-24): aunque el prompt instruye
     # "max sizing ≤ confidence × 10", el LLM puede ignorarlo; aquí se impone en código.
@@ -780,10 +813,39 @@ def _to_report(out: ValueExpertLLMOutput, ticker: str,
         business_understanding=out.business_understanding, moat_analysis=out.moat_analysis,
         management_assessment=out.management_assessment, financial_quality=out.financial_quality,
         growth_reinvestment=out.growth_reinvestment, valuation_section=out.valuation_section,
-        risks=out.risks, psychological_lens=out.psychological_lens, decision_frame=out.decision_frame,
+        risks=risks, psychological_lens=out.psychological_lens, decision_frame=out.decision_frame,
         verdict=verdict, verdict_confidence=confidence, suggested_sizing_pct=sizing,
         verdict_rationale=out.verdict_rationale,
     )
+
+
+def _verified_governance_flags(state: AnalysisState) -> list[str]:
+    """Flags de governance con cita verificada en el report de filings (T4a)."""
+    filings = state.get("filings")  # type: ignore[typeddict-item]
+    if filings is None or filings.stub:
+        return []
+    flags = []
+    if filings.active_sec_investigation:
+        flags.append("active SEC investigation")
+    if filings.material_weakness:
+        flags.append("material weakness")
+    return flags
+
+
+def _check_rule23_risks(risks: str | None, flags: list[str], ticker: str) -> str | None:
+    """Check determinista de la regla 23: §7 debe nombrar cada flag verificado.
+
+    Si falta alguno se añade un caveat visible a §7 (no se re-genera la síntesis).
+    """
+    if not flags:
+        return risks
+    text = (risks or "").lower()
+    missing = [f for f in flags if not any(t in text for t in _GOVERNANCE_FLAG_TERMS[f])]
+    if not missing:
+        return risks
+    log.warning("value_expert_rule23_flag_omitted", ticker=ticker, missing=missing)
+    caveats = "\n".join(f"⚠️ §7 omits governance flag: {f}" for f in missing)
+    return f"{risks}\n\n{caveats}" if risks else caveats
 
 
 def _failed_synthesis(ticker: str, e: LLMError) -> ValueExpertReport:

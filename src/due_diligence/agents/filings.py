@@ -74,6 +74,9 @@ FIELD GUIDANCE:
 - geographic_revenue_breakdown: revenue split by geography if disclosed (e.g. 'China: 85%, US: 8%, Other: 7%'), else null.
 - key_regulatory_events: SPECIFIC external government actions with dates/entities, else null.
 - governance_red_flags: CRITICAL INTERNAL governance failures (see rule above), else null.
+- active_sec_investigation: true if the text discloses an ACTIVE SEC investigation, subpoena or formal inquiry targeting this company; false if the text was checked and none is disclosed; null if undeterminable.
+- material_weakness: true if the text discloses a material weakness in internal control over financial reporting; false/null otherwise.
+- governance_citation: REQUIRED whenever active_sec_investigation or material_weakness is true — the exact verbatim sentence from the 10-K disclosing it. Without a verifiable citation both flags are discarded.
 """
 
 
@@ -144,8 +147,16 @@ def _build_report(out: FilingsLLMOutput, ticker: str, corpus: dict[str, str]) ->
     - `backlog_usd` solo si `backlog_citation` se verifica y contiene la cifra.
     """
     backlog, backlog_cit = gate_llm_value(out.backlog_usd, out.backlog_citation, corpus, numeric=True)
+    # Governance flags (T4a, EC-70): un True solo sobrevive con cita verificada, porque
+    # dispara un tope de confianza determinista en el Value Expert. False se conserva
+    # (no activa nada); un True sin evidencia pasa a None (no determinado).
+    gov_flagged = bool(out.active_sec_investigation or out.material_weakness)
+    _, gov_cit = gate_llm_value(True if gov_flagged else None, out.governance_citation, corpus, numeric=False)
+    gov_ok = gov_cit is not None and gov_cit.verified
+    sec_flag = out.active_sec_investigation if (out.active_sec_investigation is not True or gov_ok) else None
+    mw_flag = out.material_weakness if (out.material_weakness is not True or gov_ok) else None
     citations = validate_and_relabel([c.to_citation() for c in out.citations], corpus)
-    citations += [c for c in (backlog_cit,) if c is not None]
+    citations += [c for c in (backlog_cit, gov_cit) if c is not None]
     return FilingsRAGReport(
         ticker=ticker, stub=False,
         business_description=out.business_description,
@@ -156,6 +167,8 @@ def _build_report(out: FilingsLLMOutput, ticker: str, corpus: dict[str, str]) ->
         geographic_revenue_breakdown=out.geographic_revenue_breakdown,
         key_regulatory_events=out.key_regulatory_events,
         governance_red_flags=out.governance_red_flags,
+        active_sec_investigation=sec_flag,
+        material_weakness=mw_flag,
         citations=citations,
     )
 

@@ -49,6 +49,11 @@ class FilingsLLMOutput(_Strict):
     geographic_revenue_breakdown: str | None
     key_regulatory_events: str | None
     governance_red_flags: str | None
+    # Flags booleanos (T4a, EC-70): alimentan un tope de confianza DETERMINISTA en el
+    # Value Expert. Solo cuentan si governance_citation se verifica contra el 10-K.
+    active_sec_investigation: bool | None
+    material_weakness: bool | None
+    governance_citation: CitationOut | None
     citations: list[CitationOut]
 
 

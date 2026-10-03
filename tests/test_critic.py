@@ -305,3 +305,12 @@ def test_build_prompt_includes_implied_growth():
     }
     prompt = _build_critic_prompt(state)
     assert "15.0%" in prompt or "15%" in prompt
+
+
+def test_critic_prompt_has_governance_block():
+    """EC-70: governance_red_flags también llega al Critic como munición (H1-T4a)."""
+    from due_diligence.schemas.reports import FilingsRAGReport
+    rf = "Active SEC investigation disclosed in Item 1A; material weakness in ICFR."
+    prompt = _build_critic_prompt({"ticker": "TST",
+                                   "filings": FilingsRAGReport(ticker="TST", stub=False, governance_red_flags=rf)})
+    assert "## GOVERNANCE RED FLAGS (from 10-K)" in prompt and rf in prompt

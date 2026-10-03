@@ -21,6 +21,13 @@ lo fusiona). El hash de commit es el de la rama `h1-blockA`.
 - **Pendiente (H2):** validación semántica claim↔excerpt (un excerpt real puede no sostener el claim, p.ej. CEO vs CFO).
 - **Commit:** `feat(h1-T3a)` … `feat(h1-T3c)` en la rama `h1-blockA`.
 
+### EC-70 — Datos extraídos que nunca llegaban a la síntesis (T4a–T4c)
+
+- **Síntoma:** `governance_red_flags` (EC-66: investigaciones SEC, material weaknesses, restatements, class actions) se extraía del 10-K pero ningún consumidor lo leía: ni el Value Expert, ni el Critic, ni el report. Las respuestas socráticas del checkpoint 1 (`answers`) no llegaban al Expert, y `growth_justification` (checkpoint 2) solo aparecía si existía `historical_cagr_5y`, mezclada con la evidencia en el bloque HISTORICAL CONTEXT.
+- **Causa raíz:** sin contrato productor→consumidor: un campo nuevo en un report no obliga a nadie a consumirlo, y ningún test lo detectaba. Las reglas de prompt (23/24) no tenían check determinista.
+- **Fix:** T4a — bloque `## GOVERNANCE RED FLAGS (from 10-K)` en el contexto del Expert y en el prompt del Critic, sección `## Governance Red Flags (10-K)` en el report, regla 23 en el prompt; `FilingsLLMOutput.active_sec_investigation`/`material_weakness` + `governance_citation`: los flags `True` solo sobreviven con cita verificada y activan un tope determinista `verdict_confidence ≤ 0.6` (R1, confirmado por Eduardo); check post-output: si §7 no nombra un flag verificado → caveat "⚠️ §7 omits governance flag". T4b — `_format_investor_hypotheses`: bloque `## INVESTOR'S OWN HYPOTHESES (evaluate critically, do not adopt)` al final del contexto con respuestas no vacías y `growth_justification` (aunque no haya CAGR); regla 24 + check determinista de etiquetas SUPPORTED/CONTRADICTED/UNTESTABLE en §8. T4c — guard test `tests/test_schema_consumers.py`: todo campo de los reports especialistas y de `FinancialsReport`/`CriticReport` tiene consumidor (value_expert, critic, archiver, cli) o una excusa documentada en `_ALLOWLIST`.
+- **Commit:** `feat(h1-T4a)` … `feat(h1-T4c)` en la rama `h1-blockA`.
+
 ---
 
 ## Propuestas de texto para archivos gitignored (ruling R3 — los aplica la sesión principal)

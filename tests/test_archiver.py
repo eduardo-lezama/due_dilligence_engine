@@ -456,3 +456,12 @@ def test_archiver_lists_unverified_separately():
     # Las no verificadas NO aparecen en la sección principal
     main = md.split("## Unverified citations")[0]
     assert "selling everything" not in main
+
+
+def test_archiver_renders_governance_section():
+    """EC-70: sección propia antes de "Value Expert Analysis" (H1-T4a)."""
+    from due_diligence.schemas.reports import FilingsRAGReport
+    rf = "Active SEC investigation disclosed in Item 1A; material weakness in ICFR."
+    md = _render_markdown({"ticker": "TST", "filings": FilingsRAGReport(ticker="TST", stub=False,
+                                                                       governance_red_flags=rf)})
+    assert "## Governance Red Flags (10-K)" in md and rf in md

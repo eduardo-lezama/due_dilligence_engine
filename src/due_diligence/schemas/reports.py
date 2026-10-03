@@ -77,6 +77,10 @@ class FilingsRAGReport(LLMAgentReport):
     # Separado de key_regulatory_events (que cubre acciones de gobierno externas como BIS/OFAC).
     # Cubre: SEC investigations activas, material weaknesses, class actions, restatements.
     governance_red_flags: Optional[str] = None      # SEC investigation, material weakness, class action, restatement — null si ninguno encontrado
+    # H1-T4a (EC-70): flags verificados con cita del 10-K. True solo si governance_citation
+    # se verificó; None = no determinado. El Value Expert topa la confianza a 0.6 si alguno es True.
+    active_sec_investigation: Optional[bool] = None  # Investigación SEC activa contra la empresa
+    material_weakness: Optional[bool] = None         # Material weakness en ICFR declarada
     citations: list[Citation] = Field(default_factory=list)
 
 

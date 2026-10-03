@@ -541,7 +541,7 @@ def _format_context(state: AnalysisState) -> str:
                 lines.append("## POST-10-K ACQUISITION DETECTED")
                 lines.append(
                     "⚠️ One or more Item 1.01 8-K filings contain M&A activity AFTER the 10-K "
-                    "balance sheet date. Per Rule 18: (a) §4 balance sheet data is STALE, "
+                    "balance sheet date. Per Rule 19: (a) §4 balance sheet data is STALE, "
                     "(b) §5 quarterly revenue growth may include inorganic contribution, "
                     "(c) §6 EV multiples are directional only — true EV may be materially higher."
                 )

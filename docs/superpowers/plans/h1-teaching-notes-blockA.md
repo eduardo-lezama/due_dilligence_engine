@@ -166,3 +166,17 @@ Excerpts de menos de 20 caracteres se rechazan (con 6 caracteres partial_ratio e
 **Relación con la arquitectura.** ADR-018 (checkpoints socráticos) ahora sí cierra el circuito hasta la síntesis. Riesgo documentado: al final del contexto, el sesgo de recencia puede darle más peso; solo el harness de evals de H2-1 lo puede medir contra la línea base congelada en T0b.
 
 **Ejemplo.** cp1 `{"q1": {"question": "Is the moat durable?", "answer": "Yes, switching costs are huge"}, "q2": {..., "answer": ""}}` + cp2 `growth_justification="AI tailwind"` → dos hipótesis en el bloque (q2 vacía se omite); si §8 dice solo "Market is too pessimistic." aparece el caveat.
+
+---
+
+## T4c — Tests de contrato productor→consumidor
+
+**Concepto.** Un *contract test* entre módulos comprueba una propiedad estructural del sistema, no un comportamiento: aquí, "todo campo que un productor publica lo lee algún consumidor, o hay una razón escrita para que no".
+
+**Por qué.** EC-70 (`governance_red_flags` sin consumidor durante meses) no lo podía detectar ningún test unitario: cada pieza funcionaba; lo que faltaba era la conexión. Además se encontró una referencia rota en el propio prompt ("Per Rule 18" donde la regla POST-10-K ACQUISITION es la 19).
+
+**Cómo.** `tests/test_schema_consumers.py` concatena el código fuente de `value_expert`, `critic`, `archiver` y `cli` y busca `.campo` para cada campo de `FilingsRAGReport`, `ManagementReport`, `CompetitiveReport`, `FinancialsReport` y `CriticReport`. Lo que no aparece debe estar en `_ALLOWLIST` con un motivo (p.ej. los insumos FCFF de T8 que consumirá el bloque C; `ValuationReport` se añade tras su merge). Un segundo test fija la numeración de la regla 19.
+
+**Relación con la arquitectura.** Complementa MCE-26 (grep sistemático tras un fix) con un guard automático: el próximo campo huérfano rompe la suite en lugar de esperar a una auditoría.
+
+**Ejemplo.** Si mañana se añade `FilingsRAGReport.auditor_change: bool` y nadie lo lee, el test falla con "FilingsRAGReport: campos sin consumidor ['auditor_change']".

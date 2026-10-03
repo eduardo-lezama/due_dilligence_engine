@@ -92,6 +92,30 @@ def _show_financials_table(financials) -> None:
     console.print(table)
 
 
+def _show_failures(state: dict) -> None:
+    """Panel rojo con los agentes que fallaron (fail loud también en la UI, ADR-032).
+
+    Usa archiver.collect_failures: un solo criterio de "fallo" para report y CLI.
+    Se llama en checkpoint 1 (antes de "Proceed?") y antes del VERDICT final.
+    """
+    from due_diligence.agents.archiver import collect_failures
+    failures = collect_failures(state)
+    if not failures:
+        return
+    body = "\n".join(f"[bold]{label}[/bold]: {err}" for label, err in failures)
+    if any(label == "Value Expert" for label, _ in failures):
+        body += "\n\n[bold red]No VERDICT was produced. Do not act on this report.[/bold red]"
+    console.print(Panel(body, title="ANALYSIS INCOMPLETE", border_style="red"))
+
+
+def _models_line(run_stats) -> str:
+    """'Models: gpt-4.1 ×3, gpt-5.4-mini ×2' desde RunStats.calls_by_model ('' si vacío)."""
+    calls = getattr(run_stats, "calls_by_model", None) or {}
+    if not calls:
+        return ""
+    return "Models: " + ", ".join(f"{m} ×{n}" for m, n in sorted(calls.items()))
+
+
 def _show_checkpoint1_summary(state: dict) -> None:
     """Muestra el resumen de los 4 especialistas en checkpoint1."""
     console.print("\n[bold yellow]-- Checkpoint 1: Specialist Results --[/bold yellow]\n")
@@ -668,6 +692,9 @@ def analyze_cmd(
 
     # Mostrar resumen de especialistas en checkpoint1
     _show_checkpoint1_summary(state)
+    # "degraded" sin motivo no basta: el usuario ve qué agente falló y por qué
+    # antes de decidir si continuar (ADR-032).
+    _show_failures(state)
 
     # Preguntar si continuar
     if not typer.confirm("\nProceed to valuation?", default=True):
@@ -733,6 +760,7 @@ def analyze_cmd(
     console.print("\n[bold cyan]-- Analysis Complete --[/bold cyan]\n")
     _show_valuation(state)
     console.print()
+    _show_failures(state)
     _show_verdict(state)
     _show_peer_comparison(state)
     _show_critic(state)
@@ -750,20 +778,23 @@ def analyze_cmd(
         f"({run_stats.tokens_in:,} in + {run_stats.tokens_out:,} out tokens, "
         f"{run_stats.calls} LLM calls)[/dim]"
     )
+    models_line = _models_line(run_stats)
+    if models_line:
+        console.print(f"[dim]{models_line}[/dim]")
 
     # Persistir en SQLite y appender al markdown
     from datetime import date
-    verdict_label = "PENDING"
-    synthesis = state.get("synthesis")
-    if synthesis and hasattr(synthesis, "verdict") and synthesis.verdict in ("BUY", "HOLD", "SELL"):
-        verdict_label = synthesis.verdict
-    report_file = Path(settings.reports_dir).resolve() / f"{date.today().isoformat()}-{ticker}-{verdict_label}.md"
+    from due_diligence.agents.archiver import report_filename
+    # Mismo nombre que escribió el archiver (un solo sitio decide BUY/HOLD/SELL/INCOMPLETE).
+    report_file = Path(settings.reports_dir).resolve() / report_filename(
+        date.today().isoformat(), ticker, state.get("synthesis"))
     if run_id:
         try:
-            from due_diligence.agents.archiver import update_performance_metrics
+            from due_diligence.agents.archiver import _format_models_used, update_performance_metrics
             update_performance_metrics(
                 settings.db_path, run_id, latency_ms, cost_eur,
                 run_stats.tokens_in, run_stats.tokens_out,
+                models_used=_format_models_used(run_stats) or None,
             )
         except Exception as e:
             log.warning("performance_update_failed", error=str(e))
@@ -777,6 +808,7 @@ def analyze_cmd(
                 f"| Cost | {cost_eur:.4f}€ (${run_stats.cost_usd:.4f} USD) |\n"
                 f"| Tokens | {run_stats.tokens_in:,} in / {run_stats.tokens_out:,} out |\n"
                 f"| LLM calls | {run_stats.calls} |\n"
+                f"| Models | {_models_line(run_stats).removeprefix('Models: ') or 'n/a'} |\n"
             )
             with open(report_file, "a", encoding="utf-8") as f:
                 f.write(perf_block)

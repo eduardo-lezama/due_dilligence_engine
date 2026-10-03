@@ -146,10 +146,10 @@ def test_archiver_degraded_minimal_state(mocker, tmp_path):
     result = archiver_node({"ticker": "MSFT"})
     assert result == {}
 
-    # Stub state sin VERDICT → filename usa "PENDING" como placeholder
+    # Stub state sin VERDICT → filename usa "INCOMPLETE" (antes PENDING; ADR-032)
     md_files = list((tmp_path / "reports").glob("*-MSFT-*.md"))
     assert len(md_files) == 1
-    assert "PENDING" in md_files[0].name
+    assert "INCOMPLETE" in md_files[0].name
 
 
 def test_archiver_multiple_runs_insert_multiple_rows(mocker, tmp_path):

@@ -63,3 +63,22 @@ Formato: concepto → por qué → cómo → relación con la arquitectura → e
 **Relación con la arquitectura.** ADR-009 (VERDICT obligatorio cuando `stub=False` — ahora también: nunca VERDICT cuando `stub=True`), ADR-031, ADR-032.
 
 **Ejemplo.** `structured.side_effect = [LLMSchemaError("bad"), _ve_out()]` → 2 llamadas y `verdict="BUY"`; `side_effect = LLMTruncatedError("t")` → 1 llamada, `stub=True`, `verdict is None`.
+
+---
+
+## T2e — Visibilidad del fallo de punta a punta (archiver, CLI, SQLite, contexto del Expert)
+
+**Concepto.** Que un agente devuelva `error` no sirve de nada si ninguna capa lo enseña. "Fail loud" tiene que llegar hasta el archivo, la base de datos, la terminal y el propio razonamiento del Expert.
+
+**Por qué.** Antes un run sin VERDICT se archivaba como `-PENDING.md` con `| **VERDICT** | **N/A** |` y nada más; la CLI mostraba "degraded" en checkpoint 1 sin motivo; SQLite no distinguía runs completos de incompletos ni sabía qué modelo respondió. La métrica de éxito de H1 ("% de runs incompletos", "citas verificadas por run") no era medible.
+
+**Cómo.**
+- `archiver.report_filename(today, ticker, synthesis)` → `...-INCOMPLETE.md` sin VERDICT. Un solo sitio: la CLI lo reutiliza para encontrar el archivo (antes duplicaba la lógica con `"PENDING"`). La variable local pasa a `fname` para no sombrear la función.
+- `collect_failures(state)` lee `.error` de todos los reports (`getattr`: también financials/valuation cuando lo tengan) → sección "## Analysis incomplete" tras el header, panel rojo `ANALYSIS INCOMPLETE` en la CLI (checkpoint 1 y antes del VERDICT) y bloque `## DATA GAPS` al principio del contexto del Expert.
+- `_to_report(out, ticker, state)`: si falta Filings o Management (ausente, stub o con error) → `verdict_confidence ≤ 0.6`, y el clamp de sizing (≤ confidence×10) se aplica **después** para seguir siendo cierto.
+- SQLite: `status`, `models_used`, `n_verified_citations`, `methodology_version="H1"` con migración idempotente (`ALTER TABLE ... ADD COLUMN` dentro de `try/except OperationalError`). `_insert_row` acepta llamadores antiguos (columnas H1 → NULL).
+- "Models used" en el pie del markdown (`RunStats.calls_by_model`) y línea "Models: gpt-4.1 ×3, ..." en el bloque Performance.
+
+**Relación con la arquitectura.** ADR-032 pasa a Accepted. ADR-009: el VERDICT es obligatorio cuando hay síntesis; cuando no la hay, el sistema lo dice en cada capa. ADR-021: la contabilidad de coste ahora incluye el modelo real.
+
+**Ejemplo.** Estado con `synthesis=ValueExpertReport(stub=True, error="LLMTruncatedError: x")` → archivo `2026-10-03-TST-INCOMPLETE.md`, fila `status='incomplete'`, `verdict=NULL`, y en la CLI: "No VERDICT was produced. Do not act on this report."

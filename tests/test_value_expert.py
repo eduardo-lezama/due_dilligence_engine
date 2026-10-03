@@ -59,6 +59,14 @@ _VALID_LLM_RESPONSE = ValueExpertLLMOutput(**{
 })
 
 
+def _ok_state(ticker: str = "AAPL") -> dict:
+    """Estado con Filings y Management presentes: sin ellos la confianza se topa a 0.6 (DATA GAPS)."""
+    from due_diligence.schemas.reports import FilingsRAGReport, ManagementReport
+    return {"ticker": ticker,
+            "filings": FilingsRAGReport(ticker=ticker, stub=False),
+            "mgmt": ManagementReport(ticker=ticker, stub=False)}
+
+
 def _mock_expert(mocker, response=_VALID_LLM_RESPONSE):
     mock_client = mocker.MagicMock()
     mock_client.structured.return_value = response
@@ -72,19 +80,19 @@ def _mock_expert(mocker, response=_VALID_LLM_RESPONSE):
 
 def test_value_expert_returns_synthesis_key(mocker):
     _mock_expert(mocker)
-    result = value_expert_agent({"ticker": "AAPL"})
+    result = value_expert_agent(_ok_state())
     assert "synthesis" in result
 
 
 def test_value_expert_stub_false(mocker):
     _mock_expert(mocker)
-    result = value_expert_agent({"ticker": "AAPL"})
+    result = value_expert_agent(_ok_state())
     assert result["synthesis"].stub is False
 
 
 def test_value_expert_verdict_populated(mocker):
     _mock_expert(mocker)
-    report: ValueExpertReport = value_expert_agent({"ticker": "AAPL"})["synthesis"]
+    report: ValueExpertReport = value_expert_agent(_ok_state())["synthesis"]
     assert report.verdict == "BUY"
     assert report.verdict_confidence == pytest.approx(0.72)
     assert report.suggested_sizing_pct == pytest.approx(7.0)
@@ -92,7 +100,7 @@ def test_value_expert_verdict_populated(mocker):
 
 def test_value_expert_all_sections_populated(mocker):
     _mock_expert(mocker)
-    report = value_expert_agent({"ticker": "AAPL"})["synthesis"]
+    report = value_expert_agent(_ok_state())["synthesis"]
     assert report.business_understanding is not None
     assert report.moat_analysis is not None
     assert report.management_assessment is not None
@@ -108,7 +116,7 @@ def test_value_expert_uses_expert_model(mocker):
     """El agente debe llamar al LLM con openai_expert_model, no el fallback general."""
     from due_diligence.config import settings
     mock_client = _mock_expert(mocker)
-    value_expert_agent({"ticker": "AAPL"})
+    value_expert_agent(_ok_state())
     call_kwargs = mock_client.structured.call_args
     assert call_kwargs.kwargs.get("model") == settings.openai_expert_model
     assert call_kwargs.args[0] is ValueExpertLLMOutput
@@ -117,7 +125,7 @@ def test_value_expert_uses_expert_model(mocker):
 def test_value_expert_degraded_minimal_state(mocker):
     """Con solo ticker, el agente produce un report sin fallar."""
     _mock_expert(mocker)
-    result = value_expert_agent({"ticker": "AAPL"})
+    result = value_expert_agent(_ok_state())
     assert isinstance(result["synthesis"], ValueExpertReport)
     assert result["synthesis"].stub is False
 
@@ -129,7 +137,7 @@ def test_value_expert_degraded_minimal_state(mocker):
 def test_value_expert_truncation_produces_no_verdict(mocker):
     client = _patch(mocker)
     client.structured.side_effect = LLMTruncatedError("trunc")
-    s = value_expert_agent({"ticker": "TST"})["synthesis"]
+    s = value_expert_agent(_ok_state("TST"))["synthesis"]
     assert s.stub is True and s.verdict is None and s.error.startswith("LLMTruncatedError")
     assert client.structured.call_count == 1          # la truncación NO se reintenta
 
@@ -137,14 +145,14 @@ def test_value_expert_truncation_produces_no_verdict(mocker):
 def test_value_expert_retries_once_on_schema_error(mocker):
     client = _patch(mocker)
     client.structured.side_effect = [LLMSchemaError("bad"), _ve_out()]
-    s = value_expert_agent({"ticker": "TST"})["synthesis"]
+    s = value_expert_agent(_ok_state("TST"))["synthesis"]
     assert s.stub is False and s.verdict == "BUY" and client.structured.call_count == 2
 
 
 def test_value_expert_schema_error_twice_fails_loud(mocker):
     client = _patch(mocker)
     client.structured.side_effect = [LLMSchemaError("bad"), LLMSchemaError("bad again")]
-    s = value_expert_agent({"ticker": "TST"})["synthesis"]
+    s = value_expert_agent(_ok_state("TST"))["synthesis"]
     assert s.stub is True and s.verdict is None and client.structured.call_count == 2
 
 
@@ -152,7 +160,7 @@ def test_value_expert_records_model_used(mocker):
     client = _patch(mocker)
     client.structured.return_value = _ve_out()
     client.last_model_used = "gpt-5.4-mini"
-    assert value_expert_agent({"ticker": "TST"})["synthesis"].model_used == "gpt-5.4-mini"
+    assert value_expert_agent(_ok_state("TST"))["synthesis"].model_used == "gpt-5.4-mini"
 
 
 def test_sizing_clamp_preserved():

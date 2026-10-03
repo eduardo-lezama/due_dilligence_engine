@@ -53,6 +53,7 @@ import structlog
 
 from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
+from due_diligence.agents.archiver import collect_failures
 from due_diligence.agents.llm_support import error_label, model_used
 from due_diligence.llm.client import get_client
 from due_diligence.llm.errors import LLMError, LLMSchemaError
@@ -150,6 +151,47 @@ SECTION GUIDANCE (content of each field — the format is enforced by the schema
 """
 
 
+# Tope determinista de confianza cuando falta evidencia esencial (ADR-032, revisión
+# funcional H1). Igual que el clamp de sizing: el prompt no basta, se impone en código.
+CONFIDENCE_CAP_DATA_GAPS = 0.6
+# Especialistas sin los que el VERDICT no puede tener convicción alta: §1/§7 (filings)
+# y §3 (management) no se pueden reconstruir desde los números.
+_ESSENTIAL_SPECIALISTS = (("filings", "Filings"), ("mgmt", "Management"))
+
+
+def _missing_essentials(state: AnalysisState) -> list[str]:
+    """Etiquetas de los especialistas esenciales ausentes, stub o fallidos."""
+    missing = []
+    for key, label in _ESSENTIAL_SPECIALISTS:
+        rep = state.get(key)  # type: ignore[literal-required]
+        if rep is None or getattr(rep, "stub", True):
+            missing.append(label)
+    return missing
+
+
+def _data_gaps(state: AnalysisState) -> list[tuple[str, str]]:
+    """(agente, motivo) de cada hueco: fallos explícitos + esenciales ausentes sin error."""
+    gaps = list(collect_failures(state))
+    failed = {label for label, _ in gaps}
+    for label in _missing_essentials(state):
+        if label not in failed:
+            gaps.append((label, "report not available"))
+    return gaps
+
+
+def _format_data_gaps(state: AnalysisState) -> list[str]:
+    """Bloque DATA GAPS al principio del contexto: el Expert sabe qué le falta antes de leer."""
+    gaps = _data_gaps(state)
+    if not gaps:
+        return []
+    lines = ["## DATA GAPS (specialists that failed or are missing — their evidence is ABSENT)"]
+    lines += [f"- {label}: {err}" for label, err in gaps]
+    lines.append("Do not infer the content of missing sections. State explicitly in the affected "
+                 f"sections that evidence is missing. Confidence is capped at {CONFIDENCE_CAP_DATA_GAPS:.0%} "
+                 "when Filings or Management are missing.")
+    return lines + [""]
+
+
 def _format_context(state: AnalysisState) -> str:
     """
     Serializa todos los reports disponibles en el estado como contexto para el LLM.
@@ -159,6 +201,9 @@ def _format_context(state: AnalysisState) -> str:
     """
     ticker = state["ticker"]
     lines = [f"# Investment Analysis Context: {ticker}\n"]
+
+    # --- Data gaps (ADR-032): lo primero que ve el Expert ---
+    lines += _format_data_gaps(state)
 
     # --- Financials ---
     financials = state.get("financials")  # type: ignore[typeddict-item]
@@ -696,16 +741,25 @@ def _format_context(state: AnalysisState) -> str:
     return "\n".join(lines)
 
 
-def _to_report(out: ValueExpertLLMOutput, ticker: str) -> ValueExpertReport:
+def _to_report(out: ValueExpertLLMOutput, ticker: str,
+               state: AnalysisState | None = None) -> ValueExpertReport:
     """Post-validación de negocio sobre la salida ya tipada (ADR-032).
 
     El Literal del schema ya garantiza BUY/HOLD/SELL; la normalización se mantiene
     como defensa en profundidad. Clamps deterministas: confidence [0,1], sizing [0,20]
-    y sizing ≤ confidence×10 (Fix D / EC-24). Los topes de confianza por huecos de
-    datos y por governance se aplican en value_expert_agent, que conoce el estado.
+    y sizing ≤ confidence×10 (Fix D / EC-24). Con `state`, además, topes de confianza
+    deterministas: ≤ 0.6 si falta Filings o Management (DATA GAPS). El sizing se clampa
+    DESPUÉS de los topes para que sizing ≤ confidence×10 siga siendo cierto.
     """
     verdict = out.verdict if out.verdict in ("BUY", "HOLD", "SELL") else "HOLD"
     confidence = max(0.0, min(1.0, out.verdict_confidence))
+    if state is not None:
+        missing = _missing_essentials(state)
+        if missing and confidence > CONFIDENCE_CAP_DATA_GAPS:
+            log.info("value_expert_confidence_capped_data_gaps", ticker=ticker,
+                     original_confidence=confidence, capped_to=CONFIDENCE_CAP_DATA_GAPS,
+                     missing=missing)
+            confidence = CONFIDENCE_CAP_DATA_GAPS
     sizing = max(0.0, min(20.0, out.suggested_sizing_pct))
     # Sizing discipline post-hoc clamp (Fix D / EC-24): aunque el prompt instruye
     # "max sizing ≤ confidence × 10", el LLM puede ignorarlo; aquí se impone en código.
@@ -947,7 +1001,7 @@ def value_expert_agent(state: AnalysisState) -> dict:
         except LLMError as e:
             return {"synthesis": _failed_synthesis(ticker, e)}
 
-    report = _to_report(out, ticker)
+    report = _to_report(out, ticker, state)
     report = report.model_copy(update={"model_used": model_used(client)})
 
     # --- Thesis-break self-check (EC-45) — defense-in-depth ---

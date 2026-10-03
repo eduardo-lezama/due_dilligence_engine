@@ -78,3 +78,42 @@ def test_financials_report_stub():
     assert report.ticker == "AAPL"
     assert len(report.revenue) == 2
     assert report.free_cash_flow[0].value == pytest.approx(108_807e6)
+
+
+# ─────────────── H1-T2a: contrato LLM vs contrato de dominio (ADR-032) ───────────────
+from openai.lib._pydantic import to_strict_json_schema  # noqa: E402
+
+from due_diligence.schemas import llm_outputs as lo  # noqa: E402
+from due_diligence.schemas.base import Citation  # noqa: E402
+from due_diligence.schemas.reports import (  # noqa: E402
+    CompetitiveReport,
+    CriticReport,
+    FilingsRAGReport,
+    ManagementReport,
+    ValueExpertReport,
+)
+
+_LLM_SCHEMAS = [lo.FilingsLLMOutput, lo.ManagementLLMOutput, lo.CompetitiveLLMOutput,
+                lo.CriticLLMOutput, lo.ValueExpertLLMOutput, lo.ThesisBreakCheck]
+
+
+@pytest.mark.parametrize("schema", _LLM_SCHEMAS)
+def test_llm_output_schemas_are_strict_compatible(schema):
+    js = to_strict_json_schema(schema)
+    assert js["additionalProperties"] is False
+    assert set(js["required"]) == set(js["properties"])
+    assert all(f.is_required() for f in schema.model_fields.values())
+
+
+@pytest.mark.parametrize("report", [FilingsRAGReport, ManagementReport, CompetitiveReport,
+                                    ValueExpertReport, CriticReport])
+def test_reports_have_error_field_default_none(report):
+    r = report(ticker="X")
+    assert r.error is None and r.model_used is None and r.stub is True
+
+
+def test_citation_out_clamps_confidence_on_conversion():
+    c = lo.CitationOut(claim="c", source_url="10-K", excerpt="e", confidence=1.4,
+                       gaap_vs_nongaap_flag=None).to_citation()
+    assert isinstance(c, Citation) and c.confidence == 1.0
+    assert c.verified is False and c.verification_note is None

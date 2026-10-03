@@ -12,7 +12,8 @@ Flujo del nodo:
     2. Formatear ROIC series y márgenes como contexto cuantitativo
     3. Búsqueda Tavily con 4 queries sobre competitive landscape
     4. Prompt con datos financieros + contexto web + preguntas §2
-    5. LLM clasifica moat y devuelve JSON → CompetitiveReport(stub=False)
+    5. LLMClient.structured(CompetitiveLLMOutput) → CompetitiveReport(stub=False);
+       si el LLM falla → CompetitiveReport(stub=True, error=...) (fail loud, ADR-032)
     6. Return {"competitive": report} → LangGraph merge en AnalysisState
 
 Por qué consume financials del estado (no fetchea EDGAR):
@@ -32,17 +33,18 @@ Por qué imports al nivel de módulo:
 
 from __future__ import annotations
 
-import json
-from typing import Any
-
 import structlog
 
 from due_diligence.graph.state import AnalysisState
+from due_diligence.agents.llm_support import error_label, model_used
 from due_diligence.llm.client import get_client
-from due_diligence.schemas.base import Citation, FinancialsReport
+from due_diligence.llm.errors import LLMError
+from due_diligence.schemas.base import FinancialsReport
+from due_diligence.schemas.llm_outputs import CompetitiveLLMOutput
 from due_diligence.schemas.reports import CompetitiveReport
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
 from due_diligence.utils.formatting import fmt_usd
+from due_diligence.validation.citations import count_verified, validate_and_relabel
 from due_diligence.utils.periods import align_by_period, cagr_by_fiscal_years
 
 log = structlog.get_logger()
@@ -69,7 +71,9 @@ RULES:
 - Base every claim ONLY on the provided context. Never invent facts or numbers.
 - For numerical claims, cite the specific financial data provided.
 - For qualitative claims, cite the web research source and excerpt.
-- Return ONLY valid JSON matching the schema below. No markdown outside JSON.
+- Citation excerpts are verified automatically against the sources: copy them VERBATIM
+  (for financial data, copy the exact line from SOURCE 1). Paraphrased excerpts are discarded.
+- The output format is enforced by the response schema (moat_classification, moat_sources, citations).
 
 MOAT CLASSIFICATION RUBRIC — APPLY STRICTLY (ADR-024):
 
@@ -88,7 +92,7 @@ WIDE moat — requires ALL of:
    - Regulatory barrier (license, patent, government contract moat)
    - Efficient scale (small market, 1-2 dominant players, structural barrier to entry)
 
-If you classify as WIDE, you MUST list specific evidence for each of the 4 criteria in moat_analysis.
+If you classify as WIDE, you MUST provide one citation per criterion (4 citations minimum) with the specific evidence.
 If any criterion fails or evidence is absent, downgrade to NARROW.
 
 NARROW moat — ROIC > WACC sustained + at least one structural advantage above (real but vulnerable).
@@ -103,23 +107,8 @@ MOAT SOURCES (use only applicable):
 "brand", "switching_costs", "network_effects", "cost_advantage",
 "efficient_scale", "intangibles", "regulatory"
 
-OUTPUT SCHEMA:
-{
-  "moat_classification": "wide" | "narrow" | "none",
-  "moat_sources": ["<source1>", "<source2>"],
-  "moat_analysis": "<string — 3-4 sentences on the nature and durability of the moat>",
-  "widening_or_eroding": "<string — 2-3 sentences: is the moat widening or eroding? Evidence?>",
-  "disruption_assessment": "<string — 2-3 sentences on credible disruption threats>",
-  "citations": [
-    {
-      "claim": "<exact claim being cited>",
-      "source_url": "<URL or 'Financial data: ROIC series' or 'Financial data: margins'>",
-      "excerpt": "<verbatim excerpt or financial data point supporting the claim>",
-      "confidence": <0.0 to 1.0>,
-      "gaap_vs_nongaap_flag": null
-    }
-  ]
-}"""
+Use the citations to document the evidence for: the moat type, the ROIC evidence, whether the
+moat is widening or eroding, and credible disruption threats (checklist §2.1-§2.6)."""
 
 
 def _format_financials_for_prompt(financials: FinancialsReport) -> str:
@@ -204,61 +193,24 @@ Answer each question using ONLY the sources above:
 2. What is the ROIC evidence? Does sustained high ROIC vs industry confirm the moat?
 3. Is the moat widening or eroding? What are the specific signals?
 4. What credible disruption threats exist? Is the company the disruptor or the disrupted?
-5. How does the gross/operating margin compare to typical industry levels?
-
-Return valid JSON only."""
+5. How does the gross/operating margin compare to typical industry levels?"""
 
 
-def _parse_llm_response(response_text: str, ticker: str) -> CompetitiveReport:
+def _build_report(out: CompetitiveLLMOutput, ticker: str, corpus: dict[str, str]) -> CompetitiveReport:
+    """Convierte la salida validada del LLM en el report de dominio.
+
+    El Literal["wide","narrow","none"] del schema sustituye la validación manual del
+    moat. peer_roic_comparison queda vacío: lo rellena peers_node después (ADR-015).
+    Las citas se validan contra `corpus` ({"Financial data", "Web (Tavily)"}, EC-69).
     """
-    Parsea la respuesta JSON del LLM en un CompetitiveReport validado.
-
-    peer_roic_comparison queda vacío (Phase 1b) — se llena en Phase 1c
-    cuando se implementa el peer XBRL fetch.
-    """
-    try:
-        start = response_text.find("{")
-        end = response_text.rfind("}") + 1
-        if start == -1 or end == 0:
-            raise ValueError("No JSON object found in LLM response")
-
-        data: dict[str, Any] = json.loads(response_text[start:end])
-
-        citations = []
-        for c in data.get("citations", []):
-            try:
-                citations.append(Citation(
-                    claim=c.get("claim", ""),
-                    source_url=c.get("source_url", ""),
-                    excerpt=c.get("excerpt", ""),
-                    confidence=float(c.get("confidence", 0.5)),
-                    gaap_vs_nongaap_flag=c.get("gaap_vs_nongaap_flag"),
-                ))
-            except Exception as e:
-                log.debug("competitive_citation_parse_failed", ticker=ticker, error=str(e))
-
-        # Validar moat_classification contra valores permitidos
-        moat_raw = data.get("moat_classification", "none")
-        moat = moat_raw if moat_raw in ("wide", "narrow", "none") else "none"
-
-        # peer_roic_comparison se inyecta después del parse desde state["peer_financials"] (ADR-015)
-        return CompetitiveReport(
-            ticker=ticker,
-            stub=False,
-            moat_classification=moat,
-            moat_sources=data.get("moat_sources", []),
-            peer_roic_comparison=[],
-            citations=citations,
-        )
-
-    except Exception as e:
-        log.error(
-            "competitive_llm_parse_failed",
-            ticker=ticker,
-            error=str(e),
-            response=response_text[:200],
-        )
-        return CompetitiveReport(ticker=ticker, stub=False)
+    cits = validate_and_relabel([c.to_citation() for c in out.citations], corpus)
+    return CompetitiveReport(
+        ticker=ticker, stub=False,
+        moat_classification=out.moat_classification,
+        moat_sources=list(out.moat_sources),
+        peer_roic_comparison=[],
+        citations=cits,
+    )
 
 
 def competitive_agent(state: AnalysisState) -> dict:
@@ -297,14 +249,25 @@ def competitive_agent(state: AnalysisState) -> dict:
     )
 
     log.info("competitive_agent_llm_call", ticker=ticker)
-    response_text = get_client().complete(
-        messages=[{"role": "user", "content": user_prompt}],
-        system=_SYSTEM_PROMPT,
-        max_tokens=2048,
-    )
+    client = get_client()
+    try:
+        out = client.structured(
+            CompetitiveLLMOutput,
+            messages=[{"role": "user", "content": user_prompt}],
+            system=_SYSTEM_PROMPT,
+            max_tokens=4096,   # antes 2048: margen para las citas de evidencia por criterio
+        )
+    except LLMError as e:
+        # Fail loud (ADR-032, EC-68): antes un parse fallido devolvía stub=False con moat=None.
+        log.error("competitive_agent_llm_failed", ticker=ticker, error_type=type(e).__name__, error=str(e))
+        return {"competitive": CompetitiveReport(ticker=ticker, stub=True, error=error_label(e))}
 
-    # --- 4. Parsear respuesta ---
-    report = _parse_llm_response(response_text, ticker)
+    # --- 4. Salida tipada → report de dominio ---
+    corpus = {"Financial data": financials_text or "", "Web (Tavily)": tavily_text or ""}
+    report = _build_report(out, ticker, corpus)
+    n_ok, n_bad = count_verified(report.citations)
+    log.info("competitive_citations_validated", ticker=ticker, verified=n_ok, unverified=n_bad)
+    report = report.model_copy(update={"model_used": model_used(client)})
 
     # --- 5. Moat calibration clamp (Fix #1 / EC-28 / ADR-024) ---
     # Defensa en profundidad: si el LLM clasifica "wide" pero los criterios cuantitativos

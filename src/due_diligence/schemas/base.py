@@ -3,7 +3,7 @@ Schemas base — modelos Pydantic para datos fundamentales del sistema.
 
 Qué hace este módulo:
     Define los modelos Pydantic base que se usan en todo el proyecto:
-    - Citation: cita validada con substring-match en fuentes
+    - Citation: cita con excerpt de la fuente; verified=True solo tras validation/citations.py
     - Claim: afirmación que puede estar verificada o no
     - MetricValue: valor numérico con metadata (periodo, fuente, unidad)
     - FinancialsReport: reporte financiero completo de EDGAR
@@ -25,12 +25,23 @@ from pydantic import BaseModel, Field
 
 
 class Citation(BaseModel):
-    """Cita validada con substring-match en una fuente."""
+    """Cita de un claim cualitativo con su excerpt de la fuente (invariante 2, ADR-005).
+
+    Nace con verified=False. Solo validation/citations.py la marca verified=True cuando
+    el excerpt aparece en el texto fuente que vio el LLM (substring normalizado o
+    rapidfuzz.partial_ratio ≥ 90) y todos sus números están en la ventana alineada.
+    Las no verificadas llevan confidence=0 y verification_note, y no entran en la síntesis.
+    """
     claim: str  # Texto del claim que se cita
     source_url: str  # URL de la fuente (10-K, 10-Q, etc.)
     excerpt: str  # Fragmento exacto de la fuente que contiene el claim
     confidence: float = Field(..., ge=0.0, le=1.0)  # 0.0-1.0: confianza del match
     gaap_vs_nongaap_flag: Optional[str] = None  # "GAAP", "Non-GAAP", or None
+    # H1 (ADR-005 implementado, ADR-032): una cita nace verified=False. Solo
+    # validation/citations.py la marca verified=True tras encontrar el excerpt en el
+    # texto fuente real. Las no verificadas llevan confidence=0 y el motivo aquí.
+    verified: bool = False                   # True solo tras validation/citations.py
+    verification_note: Optional[str] = None  # Motivo de rechazo cuando verified=False
 
 
 class Claim(BaseModel):

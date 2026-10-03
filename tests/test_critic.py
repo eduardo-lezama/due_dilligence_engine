@@ -3,20 +3,21 @@ Tests para critic_agent.
 
 Qué se testea:
     - critic_agent(): nodo LangGraph completo con LLM mockeado.
-    - _parse_response(): parsing JSON, weaknesses como lista, fallback en error.
+    - structured() + fail loud (ADR-032): LLMError → stub=True + error; sin síntesis → skip.
     - _build_critic_prompt(): incluye VERDICT del expert y datos de riesgo.
     - Degraded mode: corre con estado mínimo sin fallar.
     - Modelo: usa openai_expert_model igual que el value_expert.
 """
 
-import json
 import pytest
 
-from due_diligence.agents.critic import critic_agent, _parse_response, _build_critic_prompt
-from due_diligence.schemas.reports import CriticReport
+from due_diligence.agents.critic import critic_agent, _build_critic_prompt
+from due_diligence.llm.errors import LLMProviderError
+from due_diligence.schemas.llm_outputs import CriticLLMOutput
+from due_diligence.schemas.reports import CriticReport, ValueExpertReport
 
 
-_VALID_LLM_RESPONSE = json.dumps({
+_VALID_LLM_RESPONSE = CriticLLMOutput(**{
     "weaknesses": [
         "Apple's iPhone revenue (50% of total) has shown flat growth for 3 consecutive years, making the bull case dependent on Services continuing to grow at 13%+ — which requires the installed base to keep expanding.",
         "Regulatory risk is more acute than the bull case acknowledges: EU DMA forces sideloading by 2025 and US DOJ antitrust case targets App Store commissions directly — both threaten the high-margin Services segment.",
@@ -27,9 +28,23 @@ _VALID_LLM_RESPONSE = json.dumps({
 })
 
 
+def _critic_state(**extra) -> dict:
+    """Estado mínimo con síntesis válida: sin ella el Critic se salta (ADR-032)."""
+    st = {"ticker": "AAPL",
+          "synthesis": ValueExpertReport(ticker="AAPL", stub=False, verdict="BUY",
+                                         verdict_confidence=0.7, suggested_sizing_pct=5.0)}
+    st.update(extra)
+    return st
+
+
+@pytest.fixture
+def critic_state():
+    return _critic_state()
+
+
 def _mock_critic(mocker, response=_VALID_LLM_RESPONSE):
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = response
+    mock_client.structured.return_value = response
     mocker.patch("due_diligence.agents.critic.get_client", return_value=mock_client)
     return mock_client
 
@@ -40,33 +55,33 @@ def _mock_critic(mocker, response=_VALID_LLM_RESPONSE):
 
 def test_critic_returns_critique_key(mocker):
     _mock_critic(mocker)
-    result = critic_agent({"ticker": "AAPL"})
+    result = critic_agent(_critic_state())
     assert "critique" in result
 
 
 def test_critic_stub_false(mocker):
     _mock_critic(mocker)
-    result = critic_agent({"ticker": "AAPL"})
+    result = critic_agent(_critic_state())
     assert result["critique"].stub is False
 
 
 def test_critic_weaknesses_populated(mocker):
     _mock_critic(mocker)
-    report: CriticReport = critic_agent({"ticker": "AAPL"})["critique"]
+    report: CriticReport = critic_agent(_critic_state())["critique"]
     assert len(report.weaknesses) == 3
     assert all(isinstance(w, str) and len(w) > 0 for w in report.weaknesses)
 
 
 def test_critic_contra_thesis_populated(mocker):
     _mock_critic(mocker)
-    report = critic_agent({"ticker": "AAPL"})["critique"]
+    report = critic_agent(_critic_state())["critique"]
     assert report.contra_thesis is not None
     assert len(report.contra_thesis) > 10
 
 
 def test_critic_pre_mortem_populated(mocker):
     _mock_critic(mocker)
-    report = critic_agent({"ticker": "AAPL"})["critique"]
+    report = critic_agent(_critic_state())["critique"]
     assert report.pre_mortem_scenario is not None
 
 
@@ -74,8 +89,8 @@ def test_critic_uses_expert_model(mocker):
     """El critic usa openai_expert_model — mismo que el value_expert."""
     from due_diligence.config import settings
     mock_client = _mock_critic(mocker)
-    critic_agent({"ticker": "AAPL"})
-    call_kwargs = mock_client.complete.call_args
+    critic_agent(_critic_state())
+    call_kwargs = mock_client.structured.call_args
     assert call_kwargs.kwargs.get("model") == settings.openai_expert_model
 
 
@@ -93,59 +108,53 @@ def test_critic_includes_verdict_in_prompt(mocker):
     }
     critic_agent(state)
 
-    call_kwargs = mock_client.complete.call_args
+    call_kwargs = mock_client.structured.call_args
     user_prompt = call_kwargs.kwargs["messages"][0]["content"]
     assert "BUY" in user_prompt
 
 
 def test_critic_degraded_minimal_state(mocker):
-    """Con solo ticker, el agente produce un CriticReport sin fallar."""
+    """Con solo ticker + síntesis (sin financials/valuation), produce un CriticReport sin fallar."""
     _mock_critic(mocker)
-    result = critic_agent({"ticker": "AAPL"})
+    result = critic_agent(_critic_state())
     assert isinstance(result["critique"], CriticReport)
     assert result["critique"].stub is False
 
 
 # ---------------------------------------------------------------------------
-# Tests: _parse_response
+# Tests: structured() + fail loud (H1-T2c, ADR-032, EC-68)
 # ---------------------------------------------------------------------------
 
-def test_parse_valid_response():
-    report = _parse_response(_VALID_LLM_RESPONSE, "AAPL")
-    assert report.stub is False
-    assert len(report.weaknesses) == 3
-    assert report.contra_thesis is not None
-    assert report.pre_mortem_scenario is not None
+def test_critic_structured_ok(mocker, critic_state):
+    client = mocker.MagicMock()
+    client.structured.return_value = CriticLLMOutput(weaknesses=["w1"], contra_thesis="ct",
+                                                     pre_mortem_scenario="pm")
+    mocker.patch("due_diligence.agents.critic.get_client", return_value=client)
+    rep = critic_agent(critic_state)["critique"]
+    assert rep.stub is False and rep.weaknesses == ["w1"] and rep.error is None
+    assert client.structured.call_args.args[0] is CriticLLMOutput
 
 
-def test_parse_weaknesses_always_list():
-    """weaknesses debe ser siempre una lista, incluso si el LLM devuelve otra cosa."""
-    raw = json.dumps({"weaknesses": "not a list", "contra_thesis": "test"})
-    report = _parse_response(raw, "TEST")
-    assert isinstance(report.weaknesses, list)
-    assert report.weaknesses == []
+def test_critic_fails_loud(mocker, critic_state):
+    client = mocker.MagicMock()
+    client.structured.side_effect = LLMProviderError("down", provider="openai", fallback_eligible=True)
+    mocker.patch("due_diligence.agents.critic.get_client", return_value=client)
+    rep = critic_agent(critic_state)["critique"]
+    assert rep.stub is True and rep.error.startswith("LLMProviderError") and rep.contra_thesis is None
 
 
-def test_parse_json_with_surrounding_text():
-    raw = "Analysis:\n" + _VALID_LLM_RESPONSE + "\nDone."
-    report = _parse_response(raw, "AAPL")
-    assert len(report.weaknesses) == 3
+def test_critic_skips_when_synthesis_is_stub(mocker):
+    client = _mock_critic(mocker)
+    st = {"ticker": "AAPL", "synthesis": ValueExpertReport(ticker="AAPL", stub=True, error="LLMTruncatedError: x")}
+    rep = critic_agent(st)["critique"]
+    assert rep.stub is True and rep.error == "skipped: synthesis unavailable"
+    client.structured.assert_not_called()
 
 
-def test_parse_invalid_json_returns_fallback():
-    report = _parse_response("I cannot critique this.", "ERR")
-    assert isinstance(report, CriticReport)
-    assert report.stub is False
-    assert report.weaknesses == []
-    assert report.contra_thesis is not None  # contiene el texto crudo
-
-
-def test_parse_empty_weaknesses_allowed():
-    """Lista vacía es válida — el critic puede no encontrar debilidades significativas."""
-    raw = json.dumps({"weaknesses": [], "contra_thesis": "No major weaknesses found."})
-    report = _parse_response(raw, "TEST")
-    assert report.weaknesses == []
-    assert report.contra_thesis == "No major weaknesses found."
+def test_critic_drops_blank_weaknesses(mocker, critic_state):
+    _mock_critic(mocker, CriticLLMOutput(weaknesses=["real", " ", ""], contra_thesis=None,
+                                         pre_mortem_scenario=None))
+    assert critic_agent(critic_state)["critique"].weaknesses == ["real"]
 
 
 # ---------------------------------------------------------------------------
@@ -247,15 +256,15 @@ def test_critic_prompt_includes_detected_flags(mocker):
     """El prompt del critic incluye la sección DETECTED FLAGS cuando hay flags."""
     from due_diligence.schemas.reports import ValuationReport
     mock_client = _mock_critic(mocker)
-    state = {
-        "ticker": "FAKE",
-        "valuation": ValuationReport(
+    state = _critic_state(
+        ticker="FAKE",
+        valuation=ValuationReport(
             ticker="FAKE", stub=False,
             dcf_reliability_note="⚠️ DCF spread note: forward vs reverse diverge.",
         ),
-    }
+    )
     critic_agent(state)
-    user_prompt = mock_client.complete.call_args.kwargs["messages"][0]["content"]
+    user_prompt = mock_client.structured.call_args.kwargs["messages"][0]["content"]
     assert "DETECTED FLAGS" in user_prompt
     assert "spread" in user_prompt.lower()
 
@@ -296,3 +305,12 @@ def test_build_prompt_includes_implied_growth():
     }
     prompt = _build_critic_prompt(state)
     assert "15.0%" in prompt or "15%" in prompt
+
+
+def test_critic_prompt_has_governance_block():
+    """EC-70: governance_red_flags también llega al Critic como munición (H1-T4a)."""
+    from due_diligence.schemas.reports import FilingsRAGReport
+    rf = "Active SEC investigation disclosed in Item 1A; material weakness in ICFR."
+    prompt = _build_critic_prompt({"ticker": "TST",
+                                   "filings": FilingsRAGReport(ticker="TST", stub=False, governance_red_flags=rf)})
+    assert "## GOVERNANCE RED FLAGS (from 10-K)" in prompt and rf in prompt

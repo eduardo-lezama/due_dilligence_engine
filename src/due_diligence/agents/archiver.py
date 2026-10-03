@@ -16,7 +16,11 @@ Posición en el grafo:
     critic_agent → archiver_node → END
 
 El archiver siempre escribe aunque algunos campos estén vacíos (degraded mode).
-Un análisis parcial persistido es mejor que no persistir nada.
+Un análisis parcial persistido es mejor que no persistir nada — pero DEBE decir que
+es parcial (ADR-032, EC-68): sin VERDICT el archivo se llama -INCOMPLETE.md, la
+sección "## Analysis incomplete" lista los agentes que fallaron y SQLite guarda
+status='incomplete'. `report_filename` y `collect_failures` son el único sitio donde
+se decide eso; la CLI los reutiliza.
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ import structlog
 
 from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
+from due_diligence.llm.client import get_client
 from due_diligence.utils.formatting import fmt_usd as _fmt_usd
 
 log = structlog.get_logger()
@@ -49,7 +54,11 @@ CREATE TABLE IF NOT EXISTS analyses (
     latency_ms      REAL,
     cost_eur        REAL,
     tokens_in       INTEGER,
-    tokens_out      INTEGER
+    tokens_out      INTEGER,
+    status          TEXT,
+    models_used     TEXT,
+    n_verified_citations INTEGER,
+    methodology_version TEXT
 )
 """
 
@@ -59,19 +68,87 @@ _MIGRATION_SQLS = [
     "ALTER TABLE analyses ADD COLUMN cost_eur REAL",
     "ALTER TABLE analyses ADD COLUMN tokens_in INTEGER",
     "ALTER TABLE analyses ADD COLUMN tokens_out INTEGER",
+    # H1 (ADR-032): hacen medible la métrica de éxito del plan. Filas antiguas → NULL
+    # (= pre-H1, metodología previa a FCFF y sin validación de citas).
+    "ALTER TABLE analyses ADD COLUMN status TEXT",               # 'complete' | 'incomplete'
+    "ALTER TABLE analyses ADD COLUMN models_used TEXT",          # "gpt-4.1: 3, gpt-5.4-mini: 2"
+    "ALTER TABLE analyses ADD COLUMN n_verified_citations INTEGER",
+    "ALTER TABLE analyses ADD COLUMN methodology_version TEXT",  # "H1"
 ]
+
+# Versión de metodología que se graba en cada fila nueva (comparabilidad histórica).
+METHODOLOGY_VERSION = "H1"
+
+# Agentes cuyo report puede llevar `error` (fail loud, ADR-032). financials y valuation
+# ganan `error` en H1 (T6 DataUnavailableError / T12a ValuationInputError); getattr
+# tolera reports que aún no tengan el campo.
+_FAILABLE_AGENTS = [("financials", "Financials"), ("mgmt", "Management"), ("filings", "Filings"),
+                    ("competitive", "Competitive"), ("valuation", "Valuation"),
+                    ("synthesis", "Value Expert"), ("critique", "Critic")]
+
+
+def report_filename(today: str, ticker: str, synthesis) -> str:
+    """Nombre canónico del report. Lo usan archiver_node y la CLI (un solo sitio).
+
+    Sin VERDICT válido → INCOMPLETE (antes PENDING). Si el grafo llegó al archiver el
+    run terminó; si no hay VERDICT, está incompleto, no "pendiente" (ADR-032).
+    """
+    verdict = synthesis.verdict if synthesis is not None and not synthesis.stub else None
+    label = verdict if verdict in ("BUY", "HOLD", "SELL") else "INCOMPLETE"
+    return f"{today}-{ticker}-{label}.md"
+
+
+def collect_failures(state) -> list[tuple[str, str]]:
+    """(agente, error) de cada report con `error`. También lo usan la CLI y el Value Expert."""
+    out = []
+    for key, label in _FAILABLE_AGENTS:
+        rep = state.get(key)
+        err = getattr(rep, "error", None) if rep is not None else None
+        if err:
+            out.append((label, err))
+    return out
+
+
+def _render_failures(state) -> list[str]:
+    """Sección visible justo después del header: qué falló y por qué."""
+    failures = collect_failures(state)
+    if not failures:
+        return []
+    lines = ["## Analysis incomplete", "",
+             "The following agents failed; their sections are absent from this report:", ""]
+    lines += [f"- **{label}**: `{err}`" for label, err in failures]
+    return lines + [""]
+
+
+def _format_models_used(run_stats) -> str:
+    """'gpt-4.1: 3, gpt-5.4-mini: 2' desde RunStats.calls_by_model ('' si no hay llamadas)."""
+    calls = getattr(run_stats, "calls_by_model", None) or {}
+    return ", ".join(f"{m}: {n}" for m, n in sorted(calls.items()))
+
+
+def _count_verified_citations(state) -> int:
+    """Nº de citas verificadas (validation/citations.py) entre los especialistas LLM."""
+    total = 0
+    for key in ("mgmt", "filings", "competitive"):
+        rep = state.get(key)
+        for c in (getattr(rep, "citations", None) or []):
+            if getattr(c, "verified", False):
+                total += 1
+    return total
 
 
 # ---------------------------------------------------------------------------
 # Markdown renderer
 # ---------------------------------------------------------------------------
 
-def _render_markdown(state: AnalysisState) -> str:
+def _render_markdown(state: AnalysisState, run_stats=None) -> str:
     """
     Serializa el estado completo en un report markdown estructurado.
 
-    Secciones: header → financials → valuation → expert analysis (9 §) → critic → footer.
-    Los campos None se omiten silenciosamente para no contaminar el report.
+    Secciones: header → (analysis incomplete) → valuation → expert analysis (9 §) →
+    critic → citations → footer (con "Models used" si se pasa `run_stats`).
+    Los campos None se omiten para no contaminar el report; los FALLOS no se omiten
+    (sección "Analysis incomplete", ADR-032).
     """
     ticker = state["ticker"]
     as_of = state.get("as_of_date", "N/A")  # type: ignore[typeddict-item]
@@ -82,7 +159,8 @@ def _render_markdown(state: AnalysisState) -> str:
 
     # --- Header ---
     synthesis = state.get("synthesis")      # type: ignore[typeddict-item]
-    verdict = synthesis.verdict if synthesis and not synthesis.stub else "N/A"
+    # Sin síntesis válida → INCOMPLETE (no "N/A"): el lector debe ver que falta el VERDICT.
+    verdict = (synthesis.verdict if synthesis and not synthesis.stub else None) or "INCOMPLETE"
     confidence = synthesis.verdict_confidence if synthesis and not synthesis.stub else None
     sizing = synthesis.suggested_sizing_pct if synthesis and not synthesis.stub else None
 
@@ -104,6 +182,9 @@ def _render_markdown(state: AnalysisState) -> str:
     lines.append("")
     if synthesis and not synthesis.stub and synthesis.verdict_rationale:
         lines += [f"> {synthesis.verdict_rationale}", ""]
+
+    # --- Fallos visibles (ADR-032, EC-68) ---
+    lines += _render_failures(state)
 
     # --- Valuation summary table ---
     valuation = state.get("valuation")      # type: ignore[typeddict-item]
@@ -304,6 +385,15 @@ def _render_markdown(state: AnalysisState) -> str:
             if filings.key_regulatory_events:
                 lines += [f"**Regulatory events:** {filings.key_regulatory_events}", ""]
 
+    # --- Governance red flags (EC-70): sección propia, no diluida en "Key Operational Data" ---
+    if filings and not filings.stub and filings.governance_red_flags:
+        lines += ["## Governance Red Flags (10-K)", "", filings.governance_red_flags, ""]
+        verified_flags = [name for name, on in (("Active SEC investigation", filings.active_sec_investigation),
+                                                ("Material weakness in ICFR", filings.material_weakness)) if on]
+        if verified_flags:
+            lines += [f"**Citation-verified flags:** {', '.join(verified_flags)} "
+                      f"(verdict confidence capped at 60%)", ""]
+
     # --- Expert analysis: 9 sections ---
     if synthesis and not synthesis.stub:
         lines += ["## Value Expert Analysis", ""]
@@ -419,6 +509,10 @@ def _render_markdown(state: AnalysisState) -> str:
         "---",
         f"*Generated by due-diligence system · {today} · run_id: {run_id}*",
     ]
+    # Modelo(s) que realmente respondieron (con fallback pueden diferir del configurado).
+    models = _format_models_used(run_stats) if run_stats is not None else ""
+    if models:
+        lines += ["", f"*Models used: {models}*"]
 
     return "\n".join(lines)
 
@@ -516,32 +610,48 @@ def _render_peer_relative_valuation(state: AnalysisState) -> list[str]:
 
 def _render_citations_section(state: AnalysisState) -> list[str]:
     """
-    Agrupa todas las citas de los agentes LLM por agente y las renderiza.
+    Agrupa las citas de los agentes LLM por agente: verificadas y no verificadas aparte.
 
-    Cada cita muestra: claim, excerpt verbatim, confidence y URL clickable.
-    Solo incluye agentes con citas reales (stub=False y citations no vacío).
-    Referencia ADR-014: auditoría del trail de claims cualitativos.
+    - "## Sources & Citations": solo citas verified=True (validation/citations.py) con
+      claim, excerpt verbatim, confidence y fuente.
+    - "## Unverified citations (excluded from synthesis)": las rechazadas, con el motivo
+      (verification_note). Se muestran para auditoría, pero no decidieron nada (EC-69).
+    Referencia ADR-014 (trail de auditoría) y ADR-005 (invariante 2).
     """
-    groups: list[tuple[str, list]] = []
+    verified_groups: list[tuple[str, list]] = []
+    unverified: list[tuple[str, object]] = []
     for field, label in [
         ("mgmt", "Management"),
         ("filings", "Filings (10-K)"),
         ("competitive", "Competitive & Moat"),
     ]:
         rep = state.get(field)  # type: ignore[literal-required]
-        if rep is not None and not rep.stub and getattr(rep, "citations", None):
-            groups.append((label, rep.citations))
-    if not groups:
-        return []
-    lines: list[str] = ["## Sources & Citations", ""]
-    for label, cits in groups:
-        lines.append(f"### {label}")
-        lines.append("")
-        for c in cits:
-            conf = f"{c.confidence:.0%}"
-            lines.append(f"- **{c.claim}** (confidence: {conf})")
+        if rep is None or rep.stub or not getattr(rep, "citations", None):
+            continue
+        ok = [c for c in rep.citations if c.verified]
+        if ok:
+            verified_groups.append((label, ok))
+        unverified += [(label, c) for c in rep.citations if not c.verified]
+
+    lines: list[str] = []
+    if verified_groups:
+        lines += ["## Sources & Citations", ""]
+        for label, cits in verified_groups:
+            lines.append(f"### {label}")
+            lines.append("")
+            for c in cits:
+                conf = f"{c.confidence:.0%}"
+                lines.append(f"- **{c.claim}** (confidence: {conf})")
+                lines.append(f"  > {c.excerpt}")
+                lines.append(f"  Source: [{c.source_url}]({c.source_url})")
+                lines.append("")
+    if unverified:
+        lines += ["## Unverified citations (excluded from synthesis)", "",
+                  "These citations could not be found in the source text the model saw. "
+                  "They are listed for audit only and did not inform the verdict.", ""]
+        for label, c in unverified:
+            lines.append(f"- **{c.claim}** — _{c.verification_note or 'not verified'}_ ({label}, claimed source: {c.source_url})")
             lines.append(f"  > {c.excerpt}")
-            lines.append(f"  Source: [{c.source_url}]({c.source_url})")
             lines.append("")
     return lines
 
@@ -571,17 +681,23 @@ def update_performance_metrics(
     cost_eur: float,
     tokens_in: int,
     tokens_out: int,
+    models_used: str | None = None,
 ) -> None:
     """
     Actualiza las métricas de performance en la fila ya insertada por archiver_node.
     Llamada desde CLI después de que el análisis completa (ADR-021).
+
+    `models_used` (opcional) refresca la columna con el RunStats final del CLI; si es
+    None se conserva lo que grabó el archiver.
     """
     sql = """
     UPDATE analyses
     SET latency_ms=:latency_ms, cost_eur=:cost_eur,
-        tokens_in=:tokens_in, tokens_out=:tokens_out
+        tokens_in=:tokens_in, tokens_out=:tokens_out,
+        models_used=COALESCE(:models_used, models_used)
     WHERE run_id=:run_id
     """
+    _ensure_db(db_path)  # garantiza las columnas H1 aunque la DB sea antigua
     with sqlite3.connect(db_path) as conn:
         conn.execute(sql, {
             "run_id": run_id,
@@ -589,21 +705,28 @@ def update_performance_metrics(
             "cost_eur": round(cost_eur, 6),
             "tokens_in": tokens_in,
             "tokens_out": tokens_out,
+            "models_used": models_used,
         })
         conn.commit()
 
 
 def _insert_row(db_path: str, row: dict) -> None:
+    """Inserta una fila en `analyses`. Las columnas H1 (status, models_used, ...) son opcionales."""
     sql = """
     INSERT INTO analyses
         (ticker, run_id, as_of_date, analysis_date, verdict, verdict_confidence,
-         suggested_sizing_pct, dcf_upside_pct, moat_classification, report_path)
+         suggested_sizing_pct, dcf_upside_pct, moat_classification, report_path,
+         status, models_used, n_verified_citations, methodology_version)
     VALUES
         (:ticker, :run_id, :as_of_date, :analysis_date, :verdict, :verdict_confidence,
-         :suggested_sizing_pct, :dcf_upside_pct, :moat_classification, :report_path)
+         :suggested_sizing_pct, :dcf_upside_pct, :moat_classification, :report_path,
+         :status, :models_used, :n_verified_citations, :methodology_version)
     """
+    # Columnas H1 opcionales para llamadores antiguos: ausentes → NULL (no inventar status).
+    h1_defaults = {"status": None, "models_used": None, "n_verified_citations": None,
+                   "methodology_version": None}
     with sqlite3.connect(db_path) as conn:
-        conn.execute(sql, row)
+        conn.execute(sql, {**h1_defaults, **row})
         conn.commit()
 
 
@@ -637,17 +760,25 @@ def archiver_node(state: AnalysisState) -> dict:
     dcf_upside = valuation.dcf_upside_pct if valuation and not valuation.stub else None
     moat = competitive.moat_classification if competitive and not competitive.stub else None
 
+    # El archiver es el último nodo: todas las llamadas LLM del run ya se hicieron.
+    # Si leer las métricas falla, el report se escribe igual (sin pie de modelos).
+    try:
+        run_stats = get_client().get_run_stats()
+    except Exception as e:  # noqa: BLE001 — el archivado nunca bloquea el pipeline
+        log.warning("archiver_run_stats_unavailable", error=str(e))
+        run_stats = None
+
     # --- Render markdown ---
-    report_md = _render_markdown(state)
+    report_md = _render_markdown(state, run_stats=run_stats)
 
     # --- Escribir markdown ---
     # Formato: <DATE>-<TICKER>-<VERDICT>.md (ordenable cronológicamente + filtrable por verdict).
-    # Si el análisis no produjo VERDICT (stub o parse error), usar "PENDING" como placeholder.
+    # Sin VERDICT → -INCOMPLETE.md (report_filename, ADR-032). La variable local se llama
+    # `fname` para no sombrear la función report_filename (UnboundLocalError).
     reports_dir = Path(settings.reports_dir)
     reports_dir.mkdir(parents=True, exist_ok=True)
-    verdict_label = verdict if verdict in ("BUY", "HOLD", "SELL") else "PENDING"
-    report_filename = f"{today}-{ticker}-{verdict_label}.md"
-    report_path = reports_dir / report_filename
+    fname = report_filename(today, ticker, synthesis)
+    report_path = reports_dir / fname
 
     try:
         report_path.write_text(report_md, encoding="utf-8")
@@ -668,6 +799,10 @@ def archiver_node(state: AnalysisState) -> dict:
         "dcf_upside_pct": dcf_upside,
         "moat_classification": moat,
         "report_path": str(report_path),
+        "status": "complete" if verdict in ("BUY", "HOLD", "SELL") else "incomplete",
+        "models_used": (_format_models_used(run_stats) or None) if run_stats is not None else None,
+        "n_verified_citations": _count_verified_citations(state),
+        "methodology_version": METHODOLOGY_VERSION,
     }
     try:
         _ensure_db(settings.db_path)

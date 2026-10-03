@@ -13,7 +13,8 @@ Flujo del nodo:
     3. Fetch 10-K Item 10 (bios directivos) via EdgarManagementAdapter
     4. Búsqueda web con 4 queries dirigidas via TavilyAdapter
     5. Prompt con todo el contexto + preguntas exactas del §3
-    6. LLM interpreta y devuelve JSON → ManagementReport(stub=False)
+    6. LLMClient.structured(ManagementLLMOutput) → _build_report → ManagementReport(stub=False);
+       si el LLM falla → ManagementReport(stub=True, error=...) (fail loud, ADR-032/EC-68)
     7. Return {"mgmt": report} → LangGraph hace merge en AnalysisState
 
 Por qué el LLM no genera números:
@@ -28,19 +29,21 @@ Por qué imports al nivel de módulo:
 
 from __future__ import annotations
 
-import json
-from typing import Any
+import re
 
 import structlog
 
 from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
+from due_diligence.agents.llm_support import error_label, model_used
 from due_diligence.llm.client import get_client
-from due_diligence.schemas.base import Citation
+from due_diligence.llm.errors import LLMError
+from due_diligence.schemas.llm_outputs import ManagementLLMOutput
 from due_diligence.schemas.reports import ManagementReport
 from due_diligence.tools.edgar import EdgarEventsAdapter, EdgarManagementAdapter, format_form4_for_prompt
 from due_diligence.tools.finnhub import FinnhubAdapter
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
+from due_diligence.validation.citations import count_verified, gate_llm_value, validate_and_relabel
 
 log = structlog.get_logger()
 
@@ -65,7 +68,7 @@ _TAVILY_QUERY_TEMPLATES: list[tuple[str, str | None]] = [
 ]
 
 # Prompt del sistema: instruye al LLM a actuar como analista value
-# y a devolver JSON estructurado con citations explícitas.
+# con citations explícitas. El formato lo impone ManagementLLMOutput (ADR-032).
 _SYSTEM_PROMPT = """You are a value investing analyst specializing in management quality assessment.
 Analyze the provided context and answer the checklist questions below.
 
@@ -84,27 +87,19 @@ RULES:
   * SOURCE 6 (5.02 8-K events) for recent leadership transitions (CEO/CFO/COO departures and appointments).
 - When citing earnings call transcripts (SOURCE 5), set source_url to "Finnhub transcript <id>" and copy the speaker's verbatim sentence into `excerpt`.
 - If information is not available in the context, say "Not available in provided sources."
-- Return ONLY valid JSON matching the schema below. No markdown, no explanation outside JSON.
+- Citation excerpts are verified automatically against the sources: copy them VERBATIM. Paraphrased excerpts are discarded.
 
-OUTPUT SCHEMA:
-{
-  "insider_ownership_pct": <float or null — total % of shares owned by all insiders combined>,
-  "founder_ceo": <true/false/null — is the current CEO the company founder?>,
-  "ceo_tenure_years": <float or null — years current CEO has been in role>,
-  "form4_transactions_12m": <int — total transaction count>,
-  "insider_transaction_pattern": "<string — WHO is buying vs selling (name the CEO and largest holders), NET direction (net buyer or net seller overall), and what signal this gives. E.g.: 'CEO David Wang net seller: sold 55K shares in March 2026, no open-market purchases in 12m. Board member X net buyer. Overall insider sentiment: neutral to slightly negative.' If no clear pattern, say so.>",
-  "compensation_structure_notes": "<string — 2-3 sentences on compensation alignment with shareholders>",
-  "capital_allocation_summary": "<string — 2-3 sentences on M&A discipline, buybacks, dividends, reinvestment quality>",
-  "citations": [
-    {
-      "claim": "<exact claim being cited>",
-      "source_url": "<URL or document name>",
-      "excerpt": "<verbatim excerpt from source supporting the claim>",
-      "confidence": <0.0 to 1.0>,
-      "gaap_vs_nongaap_flag": null
-    }
-  ]
-}"""
+FIELD GUIDANCE (the output format is enforced by the response schema):
+- insider_ownership_pct: total % of shares owned by all insiders combined (directors + executive officers as a group), as stated in SOURCE 1 (DEF 14A) or SOURCE 3; null if not stated.
+- insider_ownership_citation: REQUIRED whenever insider_ownership_pct is not null — the exact DEF 14A / 10-K sentence or table row that states the percentage. Without a verifiable citation the number is discarded.
+- founder_ceo: true/false/null — is the CURRENT CEO the company founder?
+- ceo_tenure_years: years the current CEO has been in role; null if not determinable.
+- ceo_tenure_citation: REQUIRED whenever ceo_tenure_years is not null — the exact sentence stating when the CEO was appointed (it must contain the year).
+- Do NOT count Form 4 transactions: the count is computed deterministically from SOURCE 2.
+- insider_transaction_pattern: WHO is buying vs selling (name the CEO and largest holders), NET direction (net buyer or net seller overall), and what signal this gives. E.g.: 'CEO David Wang net seller: sold 55K shares in March 2026, no open-market purchases in 12m. Board member X net buyer. Overall insider sentiment: neutral to slightly negative.' If no clear pattern, say so.
+- compensation_structure_notes: 2-3 sentences on compensation alignment with shareholders (fixed vs variable, LTI metrics — ROIC-linked vs TSR-only vs revenue-only, clawbacks).
+- capital_allocation_summary: 2-3 sentences on M&A discipline, buybacks, dividends, reinvestment quality.
+"""
 
 
 def _format_transcripts(transcripts: list[dict]) -> str:
@@ -208,63 +203,48 @@ Answer each question using ONLY the sources above:
 2. Does management have skin in the game? What is the insider ownership %? What does Form 4 activity show?
 3. How is management compensated? Is it aligned with shareholders (long-term equity, ROIC targets) or with short-term adjusted metrics?
 4. Capital allocation track record: M&A discipline, buybacks at reasonable prices, dividends, reinvestment quality.
-5. Is the board independent? Any red flags in governance, related-party transactions, or entrenchment?
-
-Return valid JSON only."""
+5. Is the board independent? Any red flags in governance, related-party transactions, or entrenchment?"""
 
 
-def _parse_llm_response(response_text: str, ticker: str) -> ManagementReport:
+# Fuentes PRIMARIAS (ADR-011): las únicas contra las que se puede verificar un número
+# del LLM. Tavily y transcripts sirven para citas de texto, nunca para "verificar" un %.
+_PRIMARY_SOURCES = ("DEF 14A", "10-K Item 10", "Form 4")
+# Un excerpt que respalda la antigüedad del CEO debe contener el año de nombramiento.
+_YEAR_RE = re.compile(r"\b(19|20)\d{2}\b")
+
+
+def _build_report(out: ManagementLLMOutput, ticker: str, corpus: dict[str, str],
+                  form4_count: int | None) -> ManagementReport:
+    """Valida citas, condiciona los campos numéricos y pone el conteo Form 4 determinista.
+
+    - `corpus`: {etiqueta: texto} con exactamente lo que se envió al LLM (local al nodo).
+    - `insider_ownership_pct` y `ceo_tenure_years` solo sobreviven con cita verificada
+      contra fuentes primarias (y, para el %, con el número dentro del excerpt; para la
+      antigüedad, con un año en el excerpt). Si no → None (EC-69, ADR-005).
+    - `form4_transactions_12m` = len(transacciones descargadas): nunca lo dice el LLM.
+    - Citas de texto libre: se validan contra TODO el corpus y su source_url pasa a la
+      etiqueta real donde se encontraron. Las no verificadas se conservan marcadas.
     """
-    Parsea la respuesta JSON del LLM en un ManagementReport validado.
-
-    Si el JSON es inválido o incompleto, devuelve un ManagementReport parcial
-    con stub=False pero campos opcionales en None. Nunca falla silenciosamente
-    — siempre loguea el error con el texto que causó el problema.
-    """
-    try:
-        # Extraer JSON del texto — el LLM a veces añade texto antes/después
-        start = response_text.find("{")
-        end = response_text.rfind("}") + 1
-        if start == -1 or end == 0:
-            raise ValueError("No JSON object found in LLM response")
-
-        data: dict[str, Any] = json.loads(response_text[start:end])
-
-        # Construir citations validadas desde los dicts del LLM
-        citations = []
-        for c in data.get("citations", []):
-            try:
-                citations.append(Citation(
-                    claim=c.get("claim", ""),
-                    source_url=c.get("source_url", ""),
-                    excerpt=c.get("excerpt", ""),
-                    confidence=float(c.get("confidence", 0.5)),
-                    gaap_vs_nongaap_flag=c.get("gaap_vs_nongaap_flag"),
-                ))
-            except Exception as e:
-                log.debug("citation_parse_failed", ticker=ticker, error=str(e))
-
-        return ManagementReport(
-            ticker=ticker,
-            stub=False,
-            insider_ownership_pct=data.get("insider_ownership_pct"),
-            founder_ceo=data.get("founder_ceo"),
-            ceo_tenure_years=data.get("ceo_tenure_years"),
-            form4_transactions_12m=data.get("form4_transactions_12m"),
-            insider_transaction_pattern=data.get("insider_transaction_pattern"),
-            compensation_structure_notes=data.get("compensation_structure_notes"),
-            capital_allocation_summary=data.get("capital_allocation_summary"),
-            citations=citations,
-        )
-
-    except Exception as e:
-        log.error("management_llm_parse_failed", ticker=ticker, error=str(e), response=response_text[:200])
-        # Fallback: devolver reporte parcial con el texto crudo como nota
-        return ManagementReport(
-            ticker=ticker,
-            stub=False,
-            compensation_structure_notes=f"[Parse error] Raw LLM response: {response_text[:500]}",
-        )
+    primary = {k: v for k, v in corpus.items() if k in _PRIMARY_SOURCES}
+    pct, pct_cit = gate_llm_value(out.insider_ownership_pct, out.insider_ownership_citation,
+                                  primary, numeric=True)
+    tenure, ten_cit = gate_llm_value(out.ceo_tenure_years, out.ceo_tenure_citation,
+                                     primary, numeric=False)
+    if ten_cit is not None and ten_cit.verified and not _YEAR_RE.search(ten_cit.excerpt):
+        tenure = None
+        ten_cit = ten_cit.model_copy(update={"verified": False, "confidence": 0.0,
+                                             "verification_note": "no appointment year in excerpt"})
+    citations = validate_and_relabel([c.to_citation() for c in out.citations], corpus)
+    citations += [c for c in (pct_cit, ten_cit) if c is not None]
+    return ManagementReport(
+        ticker=ticker, stub=False,
+        insider_ownership_pct=pct, founder_ceo=out.founder_ceo, ceo_tenure_years=tenure,
+        form4_transactions_12m=form4_count,   # determinista: len(fetch_form4_transactions)
+        insider_transaction_pattern=out.insider_transaction_pattern,
+        compensation_structure_notes=out.compensation_structure_notes,
+        capital_allocation_summary=out.capital_allocation_summary,
+        citations=citations,
+    )
 
 
 def management_agent(state: AnalysisState) -> dict:
@@ -348,14 +328,36 @@ def management_agent(state: AnalysisState) -> dict:
     )
 
     log.info("management_agent_llm_call", ticker=ticker)
-    response_text = get_client().complete(
-        messages=[{"role": "user", "content": user_prompt}],
-        system=_SYSTEM_PROMPT,
-        max_tokens=2048,
-    )
+    client = get_client()
+    try:
+        out = client.structured(
+            ManagementLLMOutput,
+            messages=[{"role": "user", "content": user_prompt}],
+            system=_SYSTEM_PROMPT,
+            max_tokens=4096,   # antes 2048: con strict + citas por campo numérico hace falta margen
+        )
+    except LLMError as e:
+        # Fail loud (ADR-032, EC-68): stub=True + error; el resto del grafo ve el hueco.
+        log.error("management_agent_llm_failed", ticker=ticker, error_type=type(e).__name__, error=str(e))
+        return {"mgmt": ManagementReport(ticker=ticker, stub=True, error=error_label(e))}
 
-    # --- 4. Parsear respuesta del LLM en ManagementReport ---
-    report = _parse_llm_response(response_text, ticker)
+    # --- 4. Salida tipada → report de dominio, con citas validadas (T3b, EC-69) ---
+    # Corpus = el texto fuente exacto enviado al LLM, por fuente. Local al nodo: no
+    # entra en el estado checkpointeado.
+    corpus = {
+        "DEF 14A": def14a_text or "",
+        "10-K Item 10": item10_text or "",
+        "Form 4": form4_text or "",
+        "8-K 5.02": leadership_events_text or "",
+        "Web (Tavily)": tavily_text or "",
+        "Transcripts": transcripts_text or "",
+    }
+    report = _build_report(out, ticker, corpus, form4_count=len(form4_transactions))
+    # Evidencia Form 4 determinista para el Expert (T3c): la tabla tal cual, sin LLM.
+    report = report.model_copy(update={"form4_summary": form4_text})
+    n_ok, n_bad = count_verified(report.citations)
+    log.info("management_citations_validated", ticker=ticker, verified=n_ok, unverified=n_bad)
+    report = report.model_copy(update={"model_used": model_used(client)})
 
     log.info(
         "management_agent_complete",

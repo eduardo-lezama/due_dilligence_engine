@@ -12,8 +12,10 @@ Flujo del nodo:
     2. Fetch 10-K Item 1A (Risk Factors) via EdgarFilingsAdapter
     3. Fetch 10-K Item 7 (MD&A) via EdgarFilingsAdapter
     4. Prompt con las tres secciones + preguntas exactas de §1 y §7
-    5. LLM interpreta y devuelve JSON → FilingsRAGReport(stub=False)
-    6. Return {"filings": report} → LangGraph hace merge en AnalysisState
+    5. LLMClient.structured(FilingsLLMOutput) → salida tipada y validada (ADR-032)
+    6. _build_report → FilingsRAGReport(stub=False); si el LLM falla →
+       FilingsRAGReport(stub=True, error="<Clase>: msg") (fail loud, EC-68)
+    7. Return {"filings": report} → LangGraph hace merge en AnalysisState
 
 Por qué no usa Tavily (a diferencia de management_agent):
     Las secciones §1 y §7 están completamente cubiertas por el 10-K. La
@@ -28,27 +30,29 @@ Por qué imports al nivel de módulo:
 
 from __future__ import annotations
 
-import json
-from typing import Any
-
 import structlog
 
 from due_diligence.graph.state import AnalysisState
+from due_diligence.agents.llm_support import error_label, model_used
 from due_diligence.llm.client import get_client
-from due_diligence.schemas.base import Citation
+from due_diligence.llm.errors import LLMError
+from due_diligence.schemas.llm_outputs import FilingsLLMOutput
 from due_diligence.schemas.reports import FilingsRAGReport
 from due_diligence.tools.edgar import EdgarFilingsAdapter
+from due_diligence.validation.citations import count_verified, gate_llm_value, validate_and_relabel
 
 log = structlog.get_logger()
 
-# Instrucciones al LLM: actúa como analista value, responde §1+§7 del checklist,
-# devuelve solo JSON con citations explícitas. Sin markdown fuera del JSON.
+# Instrucciones al LLM: actúa como analista value y responde §1+§7 del checklist.
+# El FORMATO lo impone el schema FilingsLLMOutput vía structured outputs (ADR-032): aquí
+# solo se describe el CONTENIDO de cada campo. Antes el prompt incluía un "OUTPUT SCHEMA"
+# en JSON que el parser intentaba recortar con find("{") — origen de EC-68.
 _SYSTEM_PROMPT = """You are a value investing analyst specializing in SEC filing analysis.
 Analyze the provided 10-K sections and answer the checklist questions below.
 
 RULES:
 - Base every claim ONLY on the provided 10-K text. Never invent facts.
-- For each qualitative claim, include a citation with the section name and an exact excerpt.
+- For each qualitative claim, include a citation with the section name ('10-K Item 1', '10-K Item 1A' or '10-K Item 7') and an EXACT verbatim excerpt copied from the text. Excerpts are verified automatically against the source; paraphrased excerpts are discarded.
 - REGULATORY EVENTS: If Item 1A or Item 7 mentions ANY specific government action — entity list addition, export restriction, BIS/OFAC/SEC enforcement, sanctions, going-concern language — report it verbatim in key_regulatory_events with the entity name and date. Do NOT generalize these into "regulatory risk" — name the specific event.
 - GOVERNANCE RED FLAGS (EC-66): You MUST check for and separately report ALL of the following if mentioned ANYWHERE in the provided text:
     1. Active SEC investigations or formal inquiries targeting the company itself (not industry-wide)
@@ -59,28 +63,21 @@ RULES:
   Report these in governance_red_flags with the specific event, date if available, and verbatim excerpt.
   If NONE of the above are found, set governance_red_flags to null. Do NOT skip this field.
 - If information is not available in the provided text, say "Not available in provided sources."
-- Return ONLY valid JSON matching the schema below. No markdown, no explanation outside JSON.
 
-OUTPUT SCHEMA:
-{
-  "business_description": "<string — 3-5 sentences: what the company sells, to whom, how it makes money, key segments>",
-  "risk_factors_summary": "<string — 3-5 sentences: most material risks: regulatory, competitive, technology, macro>",
-  "mda_highlights": "<string — 3-5 sentences: key revenue/margin drivers, management concerns, notable trends>",
-  "backlog_usd": <float or null — contracted backlog in USD if mentioned in Item 7, e.g. 1270000000.0>,
-  "revenue_guidance": "<string or null — management's stated guidance for next period, e.g. '$1.1B–$1.2B revenue in 2026, 21-30% growth'>",
-  "geographic_revenue_breakdown": "<string or null — revenue split by geography if disclosed, e.g. 'China: 85%, US: 8%, Other: 7%'>",
-  "key_regulatory_events": "<string or null — SPECIFIC external government actions: entity list additions, export restrictions, BIS/OFAC/SEC enforcement orders with dates/entities. Null if none found. Example: 'December 2, 2024: BIS added ACM Research (Shanghai) to Entity List, restricting access to US-origin technology.'>",
-  "governance_red_flags": "<string or null — CRITICAL INTERNAL governance failures: active SEC investigations of the company, material weaknesses, restatements, class action lawsuits, whistleblower interference. Null if none found. Example: 'November 2024: Company restated 3 quarters of FY2024 financials due to revenue recognition errors (~$30-40M). SEC is investigating potential whistleblower interference. Class action filed covering Feb 8 – Nov 26, 2024.'>",
-  "citations": [
-    {
-      "claim": "<exact claim being cited>",
-      "source_url": "<section name: '10-K Item 1', '10-K Item 1A', '10-K Item 7'>",
-      "excerpt": "<verbatim excerpt from source>",
-      "confidence": <0.0 to 1.0>,
-      "gaap_vs_nongaap_flag": null
-    }
-  ]
-}"""
+FIELD GUIDANCE:
+- business_description: 3-5 sentences — what the company sells, to whom, how it makes money, key segments.
+- risk_factors_summary: 3-5 sentences — most material risks: regulatory, competitive, technology, macro, customer/supplier concentration.
+- mda_highlights: 3-5 sentences — key revenue/margin drivers, management concerns, notable trends.
+- backlog_usd: contracted backlog in USD if stated in Item 7 (e.g. 1270000000.0), else null.
+- backlog_citation: REQUIRED whenever backlog_usd is not null — the exact sentence from the 10-K that states the backlog figure (with its number and unit). Without a verifiable citation the backlog figure is discarded.
+- revenue_guidance: management's stated guidance for next period, quoted, else null.
+- geographic_revenue_breakdown: revenue split by geography if disclosed (e.g. 'China: 85%, US: 8%, Other: 7%'), else null.
+- key_regulatory_events: SPECIFIC external government actions with dates/entities, else null.
+- governance_red_flags: CRITICAL INTERNAL governance failures (see rule above), else null.
+- active_sec_investigation: true if the text discloses an ACTIVE SEC investigation, subpoena or formal inquiry targeting this company; false if the text was checked and none is disclosed; null if undeterminable.
+- material_weakness: true if the text discloses a material weakness in internal control over financial reporting; false/null otherwise.
+- governance_citation: REQUIRED whenever active_sec_investigation or material_weakness is true — the exact verbatim sentence from the 10-K disclosing it. Without a verifiable citation both flags are discarded.
+"""
 
 
 def _build_user_prompt(
@@ -138,63 +135,42 @@ If NONE of questions 10-14 apply, explicitly state "No governance red flags foun
 7. Is there a contracted backlog figure? If so, what is it in USD?
 8. Does management provide revenue or growth guidance for the next period? Quote it exactly.
 9. Are there any accounting changes, going-concern language, or capital raise announcements?
+"""
 
-Return valid JSON only."""
 
+def _build_report(out: FilingsLLMOutput, ticker: str, corpus: dict[str, str]) -> FilingsRAGReport:
+    """Convierte la salida validada del LLM en el report de dominio, con citas verificadas.
 
-def _parse_llm_response(response_text: str, ticker: str) -> FilingsRAGReport:
+    `out` ya cumple el schema (structured outputs): aquí no hay parseo, solo mapeo
+    y reglas de negocio (EC-69):
+    - citas validadas contra el corpus del 10-K (todo él es fuente primaria);
+    - `backlog_usd` solo si `backlog_citation` se verifica y contiene la cifra.
     """
-    Parsea la respuesta JSON del LLM en un FilingsRAGReport validado.
-
-    Si el JSON es inválido, devuelve un reporte parcial con stub=False
-    y el texto de error en mda_highlights. Nunca lanza excepción hacia el grafo.
-    """
-    try:
-        start = response_text.find("{")
-        end = response_text.rfind("}") + 1
-        if start == -1 or end == 0:
-            raise ValueError("No JSON object found in LLM response")
-
-        data: dict[str, Any] = json.loads(response_text[start:end])
-
-        citations = []
-        for c in data.get("citations", []):
-            try:
-                citations.append(Citation(
-                    claim=c.get("claim", ""),
-                    source_url=c.get("source_url", ""),
-                    excerpt=c.get("excerpt", ""),
-                    confidence=float(c.get("confidence", 0.5)),
-                    gaap_vs_nongaap_flag=c.get("gaap_vs_nongaap_flag"),
-                ))
-            except Exception as e:
-                log.debug("filings_citation_parse_failed", ticker=ticker, error=str(e))
-
-        # backlog_usd puede venir como int o float — normalizar
-        backlog_raw = data.get("backlog_usd")
-        backlog = float(backlog_raw) if backlog_raw is not None else None
-
-        return FilingsRAGReport(
-            ticker=ticker,
-            stub=False,
-            business_description=data.get("business_description"),
-            risk_factors_summary=data.get("risk_factors_summary"),
-            mda_highlights=data.get("mda_highlights"),
-            backlog_usd=backlog,
-            revenue_guidance=data.get("revenue_guidance"),
-            geographic_revenue_breakdown=data.get("geographic_revenue_breakdown"),
-            key_regulatory_events=data.get("key_regulatory_events"),
-            governance_red_flags=data.get("governance_red_flags"),
-            citations=citations,
-        )
-
-    except Exception as e:
-        log.error("filings_llm_parse_failed", ticker=ticker, error=str(e), response=response_text[:200])
-        return FilingsRAGReport(
-            ticker=ticker,
-            stub=False,
-            mda_highlights=f"[Parse error] Raw LLM response: {response_text[:500]}",
-        )
+    backlog, backlog_cit = gate_llm_value(out.backlog_usd, out.backlog_citation, corpus, numeric=True)
+    # Governance flags (T4a, EC-70): un True solo sobrevive con cita verificada, porque
+    # dispara un tope de confianza determinista en el Value Expert. False se conserva
+    # (no activa nada); un True sin evidencia pasa a None (no determinado).
+    gov_flagged = bool(out.active_sec_investigation or out.material_weakness)
+    _, gov_cit = gate_llm_value(True if gov_flagged else None, out.governance_citation, corpus, numeric=False)
+    gov_ok = gov_cit is not None and gov_cit.verified
+    sec_flag = out.active_sec_investigation if (out.active_sec_investigation is not True or gov_ok) else None
+    mw_flag = out.material_weakness if (out.material_weakness is not True or gov_ok) else None
+    citations = validate_and_relabel([c.to_citation() for c in out.citations], corpus)
+    citations += [c for c in (backlog_cit, gov_cit) if c is not None]
+    return FilingsRAGReport(
+        ticker=ticker, stub=False,
+        business_description=out.business_description,
+        risk_factors_summary=out.risk_factors_summary,
+        mda_highlights=out.mda_highlights,
+        backlog_usd=backlog,                  # None salvo cita verificada con la cifra
+        revenue_guidance=out.revenue_guidance,
+        geographic_revenue_breakdown=out.geographic_revenue_breakdown,
+        key_regulatory_events=out.key_regulatory_events,
+        governance_red_flags=out.governance_red_flags,
+        active_sec_investigation=sec_flag,
+        material_weakness=mw_flag,
+        citations=citations,
+    )
 
 
 def filings_agent(state: AnalysisState) -> dict:
@@ -222,14 +198,30 @@ def filings_agent(state: AnalysisState) -> dict:
     )
 
     log.info("filings_agent_llm_call", ticker=ticker)
-    response_text = get_client().complete(
-        messages=[{"role": "user", "content": user_prompt}],
-        system=_SYSTEM_PROMPT,
-        max_tokens=2048,
-    )
+    client = get_client()
+    try:
+        out = client.structured(
+            FilingsLLMOutput,
+            messages=[{"role": "user", "content": user_prompt}],
+            system=_SYSTEM_PROMPT,
+            max_tokens=4096,   # antes 2048; con strict + citas la truncación ya no es silenciosa
+        )
+    except LLMError as e:
+        # Fail loud (invariante 5, ADR-032): report vacío con error explícito. El grafo
+        # continúa y el Value Expert (DATA GAPS), el archiver y la CLI muestran el hueco.
+        # Antes: stub=False + "[Parse error]" en mda_highlights → parecía contenido real (EC-68).
+        log.error("filings_agent_llm_failed", ticker=ticker, error_type=type(e).__name__, error=str(e))
+        return {"filings": FilingsRAGReport(ticker=ticker, stub=True, error=error_label(e))}
 
-    # --- 3. Parsear respuesta del LLM en FilingsRAGReport ---
-    report = _parse_llm_response(response_text, ticker)
+    # --- 3. Salida tipada → report de dominio ---
+    # Corpus = las tres secciones del 10-K tal como se enviaron al LLM (local al nodo).
+    corpus = {"10-K Item 1": business_text or "", "10-K Item 1A": risk_factors_text or "",
+              "10-K Item 7": mda_text or ""}
+    report = _build_report(out, ticker, corpus)
+    n_ok, n_bad = count_verified(report.citations)
+    log.info("filings_citations_validated", ticker=ticker, verified=n_ok, unverified=n_bad)
+    # Modelo que realmente respondió (puede ser el fallback de otro proveedor).
+    report = report.model_copy(update={"model_used": model_used(client)})
 
     log.info(
         "filings_agent_complete",

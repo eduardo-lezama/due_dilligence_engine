@@ -3,27 +3,46 @@ Tests para value_expert_agent.
 
 Qué se testea:
     - value_expert_agent(): nodo LangGraph completo con LLM mockeado.
-    - _parse_response(): parsing JSON, validación de VERDICT, fallback en error.
+    - _to_report(): post-validación de negocio (clamps) sobre la salida tipada (ADR-032).
+    - Fail loud: LLMError → stub=True sin VERDICT; reintento ×1 solo ante LLMSchemaError.
     - _format_context(): que incluye datos de todos los reports disponibles.
     - Degraded mode: agente corre con estado mínimo (solo ticker).
-    - Uso del modelo expert: el agente llama a get_client().complete() con
+    - Uso del modelo expert: el agente llama a get_client().structured() con
       el modelo correcto (openai_expert_model).
 
 Todos los tests mockean el LLM — zero llamadas reales a la API.
 """
 
-import json
 import pytest
 
 from due_diligence.agents.value_expert import (
     value_expert_agent,
-    _parse_response,
+    _to_report,
     _format_context,
+    _validate_thesis_break_with_llm,
 )
+from due_diligence.llm.errors import LLMSchemaError, LLMTruncatedError
+from due_diligence.schemas.llm_outputs import ThesisBreakCheck, ValueExpertLLMOutput
 from due_diligence.schemas.reports import ValueExpertReport
 
 
-_VALID_LLM_RESPONSE = json.dumps({
+def _ve_out(**over) -> ValueExpertLLMOutput:
+    """Salida tipada mínima del Value Expert; `over` sobrescribe campos."""
+    base = {k: f"{k} text" for k in ("business_understanding", "moat_analysis", "management_assessment",
+            "financial_quality", "growth_reinvestment", "valuation_section", "risks",
+            "psychological_lens", "decision_frame")}
+    base.update(verdict="BUY", verdict_confidence=0.7, suggested_sizing_pct=5.0, verdict_rationale="r")
+    base.update(over)
+    return ValueExpertLLMOutput(**base)
+
+
+def _patch(mocker, **kw):
+    client = mocker.MagicMock(**kw)
+    mocker.patch("due_diligence.agents.value_expert.get_client", return_value=client)
+    return client
+
+
+_VALID_LLM_RESPONSE = ValueExpertLLMOutput(**{
     "business_understanding": "Apple designs and sells consumer electronics. Revenue comes from iPhone (~50%), Services (~20%), and other hardware. The business is simple to understand.",
     "moat_analysis": "Wide moat via brand and switching costs. ROIC of 87% sustained over multiple years confirms durable competitive advantage. Ecosystem lock-in deepens the moat.",
     "management_assessment": "Tim Cook has led Apple for 13 years with disciplined capital allocation — $600B+ returned to shareholders. Equity-based compensation aligns incentives.",
@@ -36,12 +55,21 @@ _VALID_LLM_RESPONSE = json.dumps({
     "verdict": "BUY",
     "verdict_confidence": 0.72,
     "suggested_sizing_pct": 7.0,
+    "verdict_rationale": "Quality compounder at fair value.",
 })
+
+
+def _ok_state(ticker: str = "AAPL") -> dict:
+    """Estado con Filings y Management presentes: sin ellos la confianza se topa a 0.6 (DATA GAPS)."""
+    from due_diligence.schemas.reports import FilingsRAGReport, ManagementReport
+    return {"ticker": ticker,
+            "filings": FilingsRAGReport(ticker=ticker, stub=False),
+            "mgmt": ManagementReport(ticker=ticker, stub=False)}
 
 
 def _mock_expert(mocker, response=_VALID_LLM_RESPONSE):
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = response
+    mock_client.structured.return_value = response
     mocker.patch("due_diligence.agents.value_expert.get_client", return_value=mock_client)
     return mock_client
 
@@ -52,19 +80,19 @@ def _mock_expert(mocker, response=_VALID_LLM_RESPONSE):
 
 def test_value_expert_returns_synthesis_key(mocker):
     _mock_expert(mocker)
-    result = value_expert_agent({"ticker": "AAPL"})
+    result = value_expert_agent(_ok_state())
     assert "synthesis" in result
 
 
 def test_value_expert_stub_false(mocker):
     _mock_expert(mocker)
-    result = value_expert_agent({"ticker": "AAPL"})
+    result = value_expert_agent(_ok_state())
     assert result["synthesis"].stub is False
 
 
 def test_value_expert_verdict_populated(mocker):
     _mock_expert(mocker)
-    report: ValueExpertReport = value_expert_agent({"ticker": "AAPL"})["synthesis"]
+    report: ValueExpertReport = value_expert_agent(_ok_state())["synthesis"]
     assert report.verdict == "BUY"
     assert report.verdict_confidence == pytest.approx(0.72)
     assert report.suggested_sizing_pct == pytest.approx(7.0)
@@ -72,7 +100,7 @@ def test_value_expert_verdict_populated(mocker):
 
 def test_value_expert_all_sections_populated(mocker):
     _mock_expert(mocker)
-    report = value_expert_agent({"ticker": "AAPL"})["synthesis"]
+    report = value_expert_agent(_ok_state())["synthesis"]
     assert report.business_understanding is not None
     assert report.moat_analysis is not None
     assert report.management_assessment is not None
@@ -88,96 +116,98 @@ def test_value_expert_uses_expert_model(mocker):
     """El agente debe llamar al LLM con openai_expert_model, no el fallback general."""
     from due_diligence.config import settings
     mock_client = _mock_expert(mocker)
-    value_expert_agent({"ticker": "AAPL"})
-    call_kwargs = mock_client.complete.call_args
+    value_expert_agent(_ok_state())
+    call_kwargs = mock_client.structured.call_args
     assert call_kwargs.kwargs.get("model") == settings.openai_expert_model
+    assert call_kwargs.args[0] is ValueExpertLLMOutput
 
 
 def test_value_expert_degraded_minimal_state(mocker):
     """Con solo ticker, el agente produce un report sin fallar."""
     _mock_expert(mocker)
-    result = value_expert_agent({"ticker": "AAPL"})
+    result = value_expert_agent(_ok_state())
     assert isinstance(result["synthesis"], ValueExpertReport)
     assert result["synthesis"].stub is False
 
 
 # ---------------------------------------------------------------------------
-# Tests: _parse_response
+# Tests: fail loud + _to_report (H1-T2d, ADR-032, ADR-009, EC-68)
 # ---------------------------------------------------------------------------
 
-def test_parse_valid_buy():
-    report = _parse_response(_VALID_LLM_RESPONSE, "AAPL")
-    assert report.verdict == "BUY"
-    assert report.verdict_confidence == pytest.approx(0.72)
-    assert report.suggested_sizing_pct == pytest.approx(7.0)
+def test_value_expert_truncation_produces_no_verdict(mocker):
+    client = _patch(mocker)
+    client.structured.side_effect = LLMTruncatedError("trunc")
+    s = value_expert_agent(_ok_state("TST"))["synthesis"]
+    assert s.stub is True and s.verdict is None and s.error.startswith("LLMTruncatedError")
+    assert client.structured.call_count == 1          # la truncación NO se reintenta
 
 
-def test_parse_valid_hold():
-    raw = json.dumps({
-        "business_understanding": "B", "moat_analysis": "M",
-        "management_assessment": "Mg", "financial_quality": "F",
-        "growth_reinvestment": "G", "valuation_section": "V",
-        "risks": "R", "psychological_lens": "P", "decision_frame": "D",
-        "verdict": "HOLD", "verdict_confidence": 0.5, "suggested_sizing_pct": 3.0,
-    })
-    report = _parse_response(raw, "KO")
-    assert report.verdict == "HOLD"
+def test_value_expert_retries_once_on_schema_error(mocker):
+    client = _patch(mocker)
+    client.structured.side_effect = [LLMSchemaError("bad"), _ve_out()]
+    s = value_expert_agent(_ok_state("TST"))["synthesis"]
+    assert s.stub is False and s.verdict == "BUY" and client.structured.call_count == 2
 
 
-def test_parse_valid_sell():
-    raw = json.dumps({
-        "verdict": "SELL", "verdict_confidence": 0.8, "suggested_sizing_pct": 0.0,
-    })
-    report = _parse_response(raw, "XYZ")
-    assert report.verdict == "SELL"
+def test_value_expert_schema_error_twice_fails_loud(mocker):
+    client = _patch(mocker)
+    client.structured.side_effect = [LLMSchemaError("bad"), LLMSchemaError("bad again")]
+    s = value_expert_agent(_ok_state("TST"))["synthesis"]
+    assert s.stub is True and s.verdict is None and client.structured.call_count == 2
 
 
-def test_parse_invalid_verdict_defaults_to_hold():
-    """Un VERDICT no reconocido se convierte a HOLD sin lanzar excepción."""
-    raw = json.dumps({
-        "verdict": "STRONG_BUY",
-        "verdict_confidence": 0.9,
-        "suggested_sizing_pct": 15.0,
-    })
-    report = _parse_response(raw, "TEST")
-    assert report.verdict == "HOLD"
+def test_value_expert_records_model_used(mocker):
+    client = _patch(mocker)
+    client.structured.return_value = _ve_out()
+    client.last_model_used = "gpt-5.4-mini"
+    assert value_expert_agent(_ok_state("TST"))["synthesis"].model_used == "gpt-5.4-mini"
 
 
-def test_parse_confidence_clamped_to_range():
-    """Confidence fuera de [0,1] se clampea."""
-    raw = json.dumps({"verdict": "BUY", "verdict_confidence": 1.5, "suggested_sizing_pct": 5.0})
-    report = _parse_response(raw, "TEST")
-    assert report.verdict_confidence == pytest.approx(1.0)
+def test_sizing_clamp_preserved():
+    r = _to_report(_ve_out(verdict_confidence=0.4, suggested_sizing_pct=15.0), "TST")
+    assert r.suggested_sizing_pct == pytest.approx(4.0)
+    r2 = _to_report(_ve_out(verdict_confidence=1.7, suggested_sizing_pct=50.0), "TST")
+    assert r2.verdict_confidence == 1.0 and r2.suggested_sizing_pct == 10.0
 
 
-def test_parse_sizing_clamped_to_max():
-    """
-    sizing_pct se clampea por dos vías:
-    1. Techo absoluto 20%
-    2. Techo por confidence (Fix D): max sizing ≤ confidence × 10
-
-    Con confidence=0.8, max sizing = 8% (más restrictivo que el techo absoluto).
-    """
-    raw = json.dumps({"verdict": "BUY", "verdict_confidence": 0.8, "suggested_sizing_pct": 50.0})
-    report = _parse_response(raw, "TEST")
-    # 50 → clamp a 20 → re-clamp por confidence (0.8 × 10 = 8.0)
-    assert report.suggested_sizing_pct == pytest.approx(8.0)
+def test_to_report_maps_all_sections_and_rationale():
+    r = _to_report(_VALID_LLM_RESPONSE, "AAPL")
+    assert r.stub is False and r.verdict == "BUY"
+    assert r.verdict_rationale == "Quality compounder at fair value."
+    assert r.verdict_confidence == pytest.approx(0.72) and r.suggested_sizing_pct == pytest.approx(7.0)
 
 
-def test_parse_invalid_json_returns_fallback():
-    """JSON inválido devuelve un ValueExpertReport parcial con HOLD."""
-    report = _parse_response("I cannot analyze this company.", "ERR")
-    assert isinstance(report, ValueExpertReport)
-    assert report.stub is False
-    assert report.verdict == "HOLD"
-    assert report.verdict_confidence == pytest.approx(0.0)
+def test_to_report_does_not_clamp_when_consistent():
+    """Sizing dentro del techo (confidence × 10) no se clampea (EC-24)."""
+    r = _to_report(_ve_out(verdict_confidence=0.85, suggested_sizing_pct=7.0), "FAKE")
+    assert r.suggested_sizing_pct == pytest.approx(7.0)
 
 
-def test_parse_json_with_surrounding_text():
-    """El parser extrae el JSON aunque el LLM añada texto antes y después."""
-    raw = "Here is my analysis:\n" + _VALID_LLM_RESPONSE + "\nEnd of analysis."
-    report = _parse_response(raw, "AAPL")
-    assert report.verdict == "BUY"
+def test_value_expert_schema_rejects_unknown_verdict():
+    """El Literal BUY/HOLD/SELL del schema sustituye al 'desconocido → HOLD' silencioso."""
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        _ve_out(verdict="STRONG_BUY")
+
+
+def test_thesis_validator_uses_structured_and_returns_none_on_error(mocker):
+    client = _patch(mocker)
+    client.structured.return_value = ThesisBreakCheck(is_currently_true=True, reason="fell 8%")
+    assert _validate_thesis_break_with_llm("df", "own", ["revenue fall"], "TST") is True
+    assert client.structured.call_args.args[0] is ThesisBreakCheck
+    client.structured.side_effect = LLMSchemaError("x")
+    assert _validate_thesis_break_with_llm("df", "own", ["revenue fall"], "TST") is None   # no "False": el fallo se ve
+
+
+def test_thesis_self_check_adds_unavailable_caveat_when_validator_fails(mocker):
+    """Validador caído → caveat 'validator unavailable', no 'tesis no rota' (ADR-031 + ADR-032)."""
+    from due_diligence.agents.value_expert import _thesis_break_self_check
+    mocker.patch("due_diligence.agents.value_expert._validate_thesis_break_with_llm", return_value=None)
+    rep = ValueExpertReport(ticker="T", stub=False,
+                            decision_frame="§9 Thesis break: if margin decline below 10%.",
+                            risks="Margin decline has accelerated.")
+    out = _thesis_break_self_check(rep, context="")
+    assert "Thesis-break validator unavailable" in out.decision_frame
 
 
 # ---------------------------------------------------------------------------
@@ -290,6 +320,7 @@ def test_format_context_surfaces_mgmt_citations_for_section_3():
                     excerpt="Sharon Price John (CEO) | SELL | 15,288 shares @ $73.21 | 2025-09-16",
                     source_url="form4.html",
                     confidence=1.0,
+                    verified=True,   # T3c: solo la evidencia verificada llega al Expert
                 )
             ],
         ),
@@ -298,39 +329,6 @@ def test_format_context_surfaces_mgmt_citations_for_section_3():
     # El precio $73.21 debe aparecer en el contexto, no solo en el appendix de citations
     assert "$73.21" in context
     assert "Insider transaction evidence" in context
-
-
-def test_parse_response_clamps_sizing_to_confidence_ceiling():
-    """
-    EC-24 / Fix D: el sizing se clampea a max(confidence × 10) para evitar el
-    bug de "confidence baja, sizing alto" detectado en BBW (64% confidence, 3% sizing).
-    """
-    import json
-    from due_diligence.agents.value_expert import _parse_response
-
-    # LLM emite sizing=8% con confidence=0.5 → ceiling debería ser 5%
-    raw = json.dumps({
-        "verdict": "HOLD",
-        "verdict_confidence": 0.5,
-        "suggested_sizing_pct": 8.0,
-    })
-    report = _parse_response(raw, "FAKE")
-    # 0.5 × 10 = 5.0 → sizing clamped to 5.0
-    assert report.suggested_sizing_pct == pytest.approx(5.0)
-
-
-def test_parse_response_does_not_clamp_when_consistent():
-    """Sizing dentro del techo (confidence × 10) no se clampea."""
-    import json
-    from due_diligence.agents.value_expert import _parse_response
-
-    raw = json.dumps({
-        "verdict": "BUY",
-        "verdict_confidence": 0.85,
-        "suggested_sizing_pct": 7.0,  # 7 < 0.85 × 10 = 8.5 → no clamp
-    })
-    report = _parse_response(raw, "FAKE")
-    assert report.suggested_sizing_pct == pytest.approx(7.0)
 
 
 def test_format_context_includes_reinvestment_rate(aapl_raw_path=None):
@@ -623,3 +621,138 @@ def test_system_prompt_requires_dcf_growth_reflexion():
     """El system prompt debe exigir reflexión sobre el growth assumption en §6."""
     from due_diligence.agents.value_expert import _SYSTEM_PROMPT
     assert "DCF GROWTH ASSUMPTION" in _SYSTEM_PROMPT or "growth assumption" in _SYSTEM_PROMPT.lower()
+
+
+# ---------------------------------------------------------------------------
+# Tests: los consumidores solo muestran evidencia verificada (H1-T3c, EC-69)
+# ---------------------------------------------------------------------------
+
+def _mgmt_with_cits():
+    from due_diligence.schemas.base import Citation
+    from due_diligence.schemas.reports import ManagementReport
+    ok = Citation(claim="c", source_url="Form 4", excerpt="CEO bought 5,000 shares at $10.00",
+                  confidence=0.9, verified=True)
+    bad = Citation(claim="c", source_url="Tavily", excerpt="CEO is selling everything", confidence=0.0,
+                   verified=False, verification_note="excerpt not found in source (fuzzy=40)")
+    return ManagementReport(ticker="TST", stub=False, form4_transactions_12m=3, citations=[ok, bad],
+                            insider_ownership_pct=12.5, ceo_tenure_years=11.0,
+                            insider_transaction_pattern="CEO net buyer",
+                            capital_allocation_summary="Buybacks below intrinsic value.",
+                            form4_summary="OFFICER/DIRECTOR discretionary transactions:\n  Jane Doe (CEO) | BUY | 5,000 shares @ $10.00 | 2026-03-01")
+
+
+def test_value_expert_context_shows_only_verified_evidence():
+    ctx = _format_context({"ticker": "TST", "mgmt": _mgmt_with_cits()})
+    assert "CEO bought 5,000 shares" in ctx and "selling everything" not in ctx
+    assert "Form 4 open-market transactions (12m, deterministic): 3" in ctx
+    assert "Insider ownership (DEF 14A, citation-verified): 12.5%" in ctx
+    assert "CEO tenure (citation-verified): 11 years" in ctx
+
+
+def test_context_labels_llm_narrative_as_unverified():
+    from due_diligence.schemas.reports import FilingsRAGReport
+    ctx = _format_context({"ticker": "TST", "mgmt": _mgmt_with_cits(),
+                           "filings": FilingsRAGReport(ticker="TST", stub=False, mda_highlights="Revenue up.")})
+    assert "Insider transaction pattern (LLM summary, unverified): CEO net buyer" in ctx
+    assert "Insider transaction pattern (Form 4)" not in ctx
+    assert "Form 4 transactions (Form 4, deterministic):" in ctx and "Jane Doe (CEO) | BUY" in ctx
+    assert "Capital allocation (LLM summary): Buybacks" in ctx
+    assert "MDA highlights (LLM summary): Revenue up." in ctx
+
+
+# ---------------------------------------------------------------------------
+# Tests: governance red flags llegan a la síntesis (H1-T4a, EC-70)
+# ---------------------------------------------------------------------------
+RF = "Active SEC investigation disclosed in Item 1A; material weakness in ICFR."
+
+
+def _gov_state(**filings_over):
+    from due_diligence.schemas.reports import FilingsRAGReport, ManagementReport
+    f = dict(ticker="TST", stub=False, governance_red_flags=RF)
+    f.update(filings_over)
+    return {"ticker": "TST", "filings": FilingsRAGReport(**f),
+            "mgmt": ManagementReport(ticker="TST", stub=False)}
+
+
+def test_value_expert_has_governance_block():
+    ctx = _format_context(_gov_state())
+    assert "## GOVERNANCE RED FLAGS (from 10-K)" in ctx and RF in ctx
+
+
+def test_system_prompt_has_rule_23_governance():
+    from due_diligence.agents.value_expert import _SYSTEM_PROMPT
+    assert "23. GOVERNANCE RED FLAGS" in _SYSTEM_PROMPT
+
+
+def test_confidence_capped_by_verified_governance_flag():
+    r = _to_report(_ve_out(verdict_confidence=0.9, suggested_sizing_pct=9.0,
+                           risks="Active SEC investigation and a material weakness in ICFR."),
+                   "TST", _gov_state(active_sec_investigation=True))
+    assert r.verdict_confidence == pytest.approx(0.6) and r.suggested_sizing_pct == pytest.approx(6.0)
+    r2 = _to_report(_ve_out(verdict_confidence=0.9), "TST", _gov_state(material_weakness=True))
+    assert r2.verdict_confidence == pytest.approx(0.6)
+    r3 = _to_report(_ve_out(verdict_confidence=0.9), "TST", _gov_state())   # sin flags verificados
+    assert r3.verdict_confidence == pytest.approx(0.9)
+
+
+def test_risks_caveat_when_governance_flag_omitted():
+    r = _to_report(_ve_out(risks="Competition and FX."), "TST",
+                   _gov_state(active_sec_investigation=True, material_weakness=True))
+    assert "§7 omits governance flag: active SEC investigation" in r.risks
+    assert "§7 omits governance flag: material weakness" in r.risks
+    ok = _to_report(_ve_out(risks="An active SEC investigation and a Material Weakness are disclosed."),
+                    "TST", _gov_state(active_sec_investigation=True, material_weakness=True))
+    assert "omits governance flag" not in ok.risks
+
+
+# ---------------------------------------------------------------------------
+# Tests: hipótesis del inversor aisladas (anti-sicofancia) — H1-T4b, EC-70
+# ---------------------------------------------------------------------------
+CP1 = {"proceed": True, "peers": "", "answers": {
+    "q1": {"question": "Is the moat durable?", "answer": "Yes, switching costs are huge"},
+    "q2": {"question": "Risk?", "answer": ""}}}
+
+
+def test_hypotheses_block_separated_and_labeled():
+    from due_diligence.agents.value_expert import _format_investor_hypotheses
+    lines = _format_investor_hypotheses({"checkpoint1_user_input": CP1,
+                                         "checkpoint2_user_input": {"growth_justification": "AI tailwind"}})
+    text = "\n".join(lines)
+    assert lines[0] == "## INVESTOR'S OWN HYPOTHESES (evaluate critically, do not adopt)"
+    assert "switching costs are huge" in text and "AI tailwind" in text
+    assert "Risk?" not in text                              # respuestas vacías omitidas
+
+
+def test_hypotheses_block_absent_without_input():
+    from due_diligence.agents.value_expert import _format_investor_hypotheses
+    assert _format_investor_hypotheses({"checkpoint1_user_input": {"proceed": True}}) == []
+
+
+def test_growth_justification_present_without_cagr_and_at_end():
+    ctx = _format_context({"ticker": "TST",
+                           "checkpoint2_user_input": {"growth_justification": "AI tailwind"}})
+    assert "AI tailwind" in ctx
+    assert ctx.rstrip().endswith("Rationale for DCF growth assumptions: AI tailwind")   # último bloque del contexto
+    assert "Investor's rationale for DCF growth assumptions" not in ctx   # etiqueta antigua eliminada
+
+
+def test_growth_justification_not_mixed_into_historical_context():
+    ctx = _format_context({"ticker": "TST", "historical_cagr_5y": 0.08, "historical_cagr_years": 5,
+                           "checkpoint2_user_input": {"growth_justification": "AI tailwind"}})
+    hist = ctx.split("## HISTORICAL CONTEXT")[1].split("## INVESTOR'S OWN HYPOTHESES")[0]
+    assert "AI tailwind" not in hist
+
+
+def test_system_prompt_has_rule_24_investor_hypotheses():
+    from due_diligence.agents.value_expert import _SYSTEM_PROMPT
+    assert "24. INVESTOR HYPOTHESES" in _SYSTEM_PROMPT
+
+
+def test_rule24_check_flags_missing_labels():
+    st = dict(_ok_state("TST"), checkpoint1_user_input=CP1,
+              checkpoint2_user_input={"growth_justification": "AI tailwind"})
+    r = _to_report(_ve_out(psychological_lens="Market is too pessimistic."), "TST", st)
+    assert "§8 did not evaluate 2 investor hypotheses" in r.psychological_lens
+    ok = _to_report(_ve_out(psychological_lens="Moat hypothesis: SUPPORTED by ROIC. AI tailwind: UNTESTABLE."),
+                    "TST", st)
+    assert "did not evaluate" not in ok.psychological_lens

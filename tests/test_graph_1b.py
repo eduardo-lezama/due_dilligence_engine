@@ -97,34 +97,34 @@ def test_checkpoint1_raises_outside_runnable_context():
 # --- Tests: end-to-end Phase 1b con MemorySaver ---
 
 def _make_competitive_response():
-    return json.dumps({
-        "moat_classification": "wide",
-        "moat_sources": ["brand", "switching_costs"],
-        "moat_analysis": "Wide moat via ecosystem lock-in.",
-        "widening_or_eroding": "Widening — services mix growing.",
-        "disruption_assessment": "Android is main threat; limited near-term risk.",
-        "citations": [],
-    })
+    """Salida tipada de structured() para competitive (ADR-032)."""
+    from due_diligence.schemas.llm_outputs import CompetitiveLLMOutput
+    return CompetitiveLLMOutput(moat_classification="wide",
+                                moat_sources=["brand", "switching_costs"], citations=[])
 
 
 def _make_management_response():
-    return json.dumps({
-        "insider_ownership_pct": 0.08,
-        "ceo_tenure_years": 13.0,
-        "form4_transactions_12m": 5,
-        "compensation_structure_notes": "Equity-aligned.",
-        "capital_allocation_summary": "Disciplined buybacks.",
-        "citations": [],
-    })
+    """Salida tipada de structured() para management (ADR-032)."""
+    from due_diligence.schemas.llm_outputs import ManagementLLMOutput
+    return ManagementLLMOutput(
+        insider_ownership_pct=0.08, insider_ownership_citation=None, founder_ceo=None,
+        ceo_tenure_years=13.0, ceo_tenure_citation=None, insider_transaction_pattern=None,
+        compensation_structure_notes="Equity-aligned.",
+        capital_allocation_summary="Disciplined buybacks.", citations=[])
 
 
 def _make_filings_response():
-    return json.dumps({
-        "business_description": "Apple designs and sells consumer electronics.",
-        "risk_factors_summary": "Competition, supply chain concentration.",
-        "mda_highlights": "Revenue grew 2% YoY.",
-        "citations": [],
-    })
+    """Salida tipada de structured() para filings (ADR-032)."""
+    from due_diligence.schemas.llm_outputs import FilingsLLMOutput
+    return FilingsLLMOutput(
+        business_description="Apple designs and sells consumer electronics.",
+        risk_factors_summary="Competition, supply chain concentration.",
+        mda_highlights="Revenue grew 2% YoY.",
+        backlog_usd=None, backlog_citation=None, revenue_guidance=None,
+        geographic_revenue_breakdown=None, key_regulatory_events=None,
+        governance_red_flags=None, active_sec_investigation=None, material_weakness=None,
+        governance_citation=None, citations=[],
+    )
 
 
 def test_graph_1b_fanout_pauses_at_checkpoint1(mocker):
@@ -166,7 +166,7 @@ def test_graph_1b_fanout_pauses_at_checkpoint1(mocker):
     )
     mocker.patch("due_diligence.agents.management.TavilyAdapter.search", return_value=[])
     mock_mgmt_client = mocker.MagicMock()
-    mock_mgmt_client.complete.return_value = _make_management_response()
+    mock_mgmt_client.structured.return_value = _make_management_response()
     mocker.patch("due_diligence.agents.management.get_client", return_value=mock_mgmt_client)
 
     # Mock Filings
@@ -183,7 +183,7 @@ def test_graph_1b_fanout_pauses_at_checkpoint1(mocker):
         return_value="",
     )
     mock_filings_client = mocker.MagicMock()
-    mock_filings_client.complete.return_value = _make_filings_response()
+    mock_filings_client.structured.return_value = _make_filings_response()
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_filings_client)
 
     # Mock Market (tool-lane: no LLM)
@@ -203,7 +203,7 @@ def test_graph_1b_fanout_pauses_at_checkpoint1(mocker):
     # Mock Competitive
     mocker.patch("due_diligence.agents.competitive.TavilyAdapter.search", return_value=[])
     mock_comp_client = mocker.MagicMock()
-    mock_comp_client.complete.return_value = _make_competitive_response()
+    mock_comp_client.structured.return_value = _make_competitive_response()
     mocker.patch("due_diligence.agents.competitive.get_client", return_value=mock_comp_client)
 
     from langgraph.checkpoint.memory import MemorySaver
@@ -259,7 +259,7 @@ def test_graph_1b_state_has_all_four_reports_after_fanout(mocker):
     )
     mocker.patch("due_diligence.agents.management.TavilyAdapter.search", return_value=[])
     mock_mgmt_client = mocker.MagicMock()
-    mock_mgmt_client.complete.return_value = _make_management_response()
+    mock_mgmt_client.structured.return_value = _make_management_response()
     mocker.patch("due_diligence.agents.management.get_client", return_value=mock_mgmt_client)
 
     # Mock Filings
@@ -276,7 +276,7 @@ def test_graph_1b_state_has_all_four_reports_after_fanout(mocker):
         return_value="",
     )
     mock_filings_client = mocker.MagicMock()
-    mock_filings_client.complete.return_value = _make_filings_response()
+    mock_filings_client.structured.return_value = _make_filings_response()
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_filings_client)
 
     # Mock Market
@@ -296,7 +296,7 @@ def test_graph_1b_state_has_all_four_reports_after_fanout(mocker):
     # Mock Competitive
     mocker.patch("due_diligence.agents.competitive.TavilyAdapter.search", return_value=[])
     mock_comp_client = mocker.MagicMock()
-    mock_comp_client.complete.return_value = _make_competitive_response()
+    mock_comp_client.structured.return_value = _make_competitive_response()
     mocker.patch("due_diligence.agents.competitive.get_client", return_value=mock_comp_client)
 
     from langgraph.checkpoint.memory import MemorySaver

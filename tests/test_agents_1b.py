@@ -24,16 +24,13 @@ Por qué top-level imports en los agentes:
 import json
 import pytest
 
-from due_diligence.agents.management import management_agent, _parse_llm_response
-from due_diligence.agents.filings import (
-    filings_agent,
-    _parse_llm_response as _parse_filings_response,
-)
+from due_diligence.agents.management import management_agent
+from due_diligence.agents.filings import filings_agent
+from due_diligence.llm.errors import LLMProviderError, LLMSchemaError, LLMTruncatedError
+from due_diligence.schemas.llm_outputs import (CitationOut, CompetitiveLLMOutput, FilingsLLMOutput,
+                                               ManagementLLMOutput)
 from due_diligence.agents.market import market_agent
-from due_diligence.agents.competitive import (
-    competitive_agent,
-    _parse_llm_response as _parse_competitive_response,
-)
+from due_diligence.agents.competitive import competitive_agent
 from due_diligence.schemas.reports import ManagementReport, FilingsRAGReport, MarketReport, CompetitiveReport
 
 
@@ -45,25 +42,31 @@ def minimal_state():
     return {"ticker": "AAPL"}
 
 
+def _mgmt_out(**over) -> ManagementLLMOutput:
+    """Salida LLM tipada (ADR-032) mínima para el management agent."""
+    base = dict(insider_ownership_pct=None, insider_ownership_citation=None, founder_ceo=None,
+                ceo_tenure_years=None, ceo_tenure_citation=None, insider_transaction_pattern=None,
+                compensation_structure_notes=None, capital_allocation_summary=None, citations=[])
+    base.update(over)
+    return ManagementLLMOutput(**base)
+
+
 @pytest.fixture
 def llm_response_valid():
-    """Respuesta JSON bien formada que el LLM devuelve en el caso feliz."""
-    return json.dumps({
-        "insider_ownership_pct": 0.08,
-        "ceo_tenure_years": 13.0,
-        "form4_transactions_12m": 5,
-        "compensation_structure_notes": "Tim Cook's compensation is primarily equity-based, vesting over 3 years with performance conditions tied to TSR vs. S&P 500.",
-        "capital_allocation_summary": "Apple has returned over $600B to shareholders via buybacks since 2012. Capital allocation is consistent and shareholder-friendly.",
-        "citations": [
-            {
-                "claim": "CEO compensation is primarily equity-based",
-                "source_url": "DEF 14A 2024",
-                "excerpt": "Mr. Cook's 2024 compensation consisted of $3M salary and $49M in equity awards",
-                "confidence": 0.95,
-                "gaap_vs_nongaap_flag": None
-            }
-        ]
-    })
+    """Salida estructurada del caso feliz (antes: JSON en texto)."""
+    return _mgmt_out(
+        insider_ownership_pct=0.08,
+        ceo_tenure_years=13.0,
+        compensation_structure_notes="Tim Cook's compensation is primarily equity-based, vesting over 3 years with performance conditions tied to TSR vs. S&P 500.",
+        capital_allocation_summary="Apple has returned over $600B to shareholders via buybacks since 2012. Capital allocation is consistent and shareholder-friendly.",
+        citations=[CitationOut(
+            claim="CEO compensation is primarily equity-based",
+            source_url="DEF 14A 2024",
+            excerpt="Mr. Cook's 2024 compensation consisted of $3M salary and $49M in equity awards",
+            confidence=0.95,
+            gaap_vs_nongaap_flag=None,
+        )],
+    )
 
 
 # --- Tests: management_agent nodo LangGraph ---
@@ -87,7 +90,7 @@ def test_management_agent_returns_mgmt_key(mocker, minimal_state, llm_response_v
         return_value=[],
     )
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = llm_response_valid
+    mock_client.structured.return_value = llm_response_valid
     mocker.patch("due_diligence.agents.management.get_client", return_value=mock_client)
 
     result = management_agent(minimal_state)
@@ -111,7 +114,7 @@ def test_management_agent_report_stub_false(mocker, minimal_state, llm_response_
     )
     mocker.patch("due_diligence.agents.management.TavilyAdapter.search", return_value=[])
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = llm_response_valid
+    mock_client.structured.return_value = llm_response_valid
     mocker.patch("due_diligence.agents.management.get_client", return_value=mock_client)
 
     result = management_agent(minimal_state)
@@ -138,17 +141,20 @@ def test_management_agent_populates_fields(mocker, minimal_state, llm_response_v
     )
     mocker.patch("due_diligence.agents.management.TavilyAdapter.search", return_value=[])
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = llm_response_valid
+    mock_client.structured.return_value = llm_response_valid
     mocker.patch("due_diligence.agents.management.get_client", return_value=mock_client)
 
     result = management_agent(minimal_state)
     report: ManagementReport = result["mgmt"]
 
-    assert report.insider_ownership_pct == 0.08
-    assert report.ceo_tenure_years == 13.0
-    assert report.form4_transactions_12m == 5
+    # Sin cita verificada contra fuente primaria, los números del LLM se descartan (EC-69).
+    assert report.insider_ownership_pct is None
+    assert report.ceo_tenure_years is None
+    # Determinista desde H1: len(form4_transactions), no lo que diga el LLM (ADR-005).
+    assert report.form4_transactions_12m == 1
+    # La cita no aparece en las fuentes mockeadas ("Proxy text") → se conserva, sin verificar.
     assert len(report.citations) == 1
-    assert report.citations[0].confidence == 0.95
+    assert report.citations[0].verified is False and report.citations[0].confidence == 0.0
 
 
 def test_management_agent_calls_edgar_and_tavily(mocker, minimal_state, llm_response_valid):
@@ -170,7 +176,7 @@ def test_management_agent_calls_edgar_and_tavily(mocker, minimal_state, llm_resp
         return_value=[],
     )
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = llm_response_valid
+    mock_client.structured.return_value = llm_response_valid
     mocker.patch("due_diligence.agents.management.get_client", return_value=mock_client)
 
     management_agent(minimal_state)
@@ -181,77 +187,40 @@ def test_management_agent_calls_edgar_and_tavily(mocker, minimal_state, llm_resp
     assert mock_tavily.call_count >= 1  # may be 2 with transcript fallback (EC-48)
 
 
-# --- Tests: _parse_llm_response ---
+# --- Tests: structured() + fail loud (H1-T2c, ADR-032, EC-68) ---
 
-def test_parse_valid_json():
-    """Parsea correctamente un JSON válido con todos los campos."""
-    raw = json.dumps({
-        "insider_ownership_pct": 5.2,
-        "ceo_tenure_years": 8.0,
-        "form4_transactions_12m": 3,
-        "compensation_structure_notes": "Equity-aligned compensation.",
-        "capital_allocation_summary": "Disciplined buybacks and dividends.",
-        "citations": [
-            {
-                "claim": "CEO owns 5.2% of shares",
-                "source_url": "DEF 14A 2025",
-                "excerpt": "Mr. Smith beneficially owns 5.2% of outstanding shares",
-                "confidence": 0.9,
-                "gaap_vs_nongaap_flag": None,
-            }
-        ],
-    })
-
-    report = _parse_llm_response(raw, "MSFT")
-
-    assert report.stub is False
-    assert report.insider_ownership_pct == 5.2
-    assert report.ceo_tenure_years == 8.0
-    assert len(report.citations) == 1
+@pytest.fixture
+def mgmt_sources(mocker):
+    """Fuentes de management sin red (EDGAR, 5.02, Tavily, Finnhub)."""
+    p = "due_diligence.agents.management."
+    mocker.patch(p + "EdgarManagementAdapter.fetch_def14a_text", return_value="")
+    mocker.patch(p + "EdgarManagementAdapter.fetch_form4_transactions", return_value=[])
+    mocker.patch(p + "EdgarManagementAdapter.fetch_10k_item10", return_value="")
+    mocker.patch(p + "EdgarEventsAdapter.fetch_8k_events", return_value=[])
+    mocker.patch(p + "TavilyAdapter.search", return_value=[])
+    mocker.patch(p + "FinnhubAdapter.fetch_transcripts", return_value=[])
 
 
-def test_parse_json_with_surrounding_text():
-    """El parser extrae el JSON aunque el LLM añada texto antes o después."""
-    raw = 'Here is the analysis:\n' + json.dumps({
-        "insider_ownership_pct": 1.0,
-        "ceo_tenure_years": None,
-        "form4_transactions_12m": 0,
-        "compensation_structure_notes": "N/A",
-        "capital_allocation_summary": "N/A",
-        "citations": [],
-    }) + '\nEnd of response.'
-
-    report = _parse_llm_response(raw, "XYZ")
-
-    assert report.stub is False
-    assert report.insider_ownership_pct == 1.0
+def test_management_agent_uses_structured_output(mocker, mgmt_sources):
+    client = mocker.MagicMock()
+    client.structured.return_value = _mgmt_out(capital_allocation_summary="Buybacks.")
+    client.last_model_used = "gpt-4.1"
+    mocker.patch("due_diligence.agents.management.get_client", return_value=client)
+    rep = management_agent({"ticker": "TST"})["mgmt"]
+    assert rep.stub is False and rep.error is None and rep.model_used == "gpt-4.1"
+    assert rep.capital_allocation_summary == "Buybacks."
+    assert rep.form4_transactions_12m == 0
+    assert client.structured.call_args.args[0] is ManagementLLMOutput
+    client.complete.assert_not_called()
 
 
-def test_parse_invalid_json_returns_fallback():
-    """Si el JSON es inválido, devuelve un ManagementReport parcial (no lanza excepción)."""
-    raw = "Sorry, I cannot analyze this company."
-
-    report = _parse_llm_response(raw, "UNKNOWN")
-
-    # El agente no debe fallar — devuelve reporte degradado
-    assert isinstance(report, ManagementReport)
-    assert report.stub is False  # stub=False porque el agente SÍ corrió
-    assert report.compensation_structure_notes is not None  # contiene el mensaje de error
-
-
-def test_parse_missing_optional_fields():
-    """Campos opcionales ausentes en el JSON se mapean a None sin error."""
-    raw = json.dumps({
-        "compensation_structure_notes": "Some notes.",
-        "capital_allocation_summary": "Some summary.",
-        "citations": [],
-    })
-
-    report = _parse_llm_response(raw, "TSLA")
-
-    assert report.insider_ownership_pct is None
-    assert report.ceo_tenure_years is None
-    assert report.form4_transactions_12m is None
+def test_management_agent_fails_loud_on_llm_error(mocker, mgmt_sources):
+    client = mocker.MagicMock()
+    client.structured.side_effect = LLMSchemaError("refusal")
+    mocker.patch("due_diligence.agents.management.get_client", return_value=client)
+    rep = management_agent({"ticker": "TST"})["mgmt"]
+    assert rep.stub is True and rep.error.startswith("LLMSchemaError")
+    assert rep.compensation_structure_notes is None   # nada de "[Parse error]"
 
 
 # --- Tests: TavilyAdapter degraded mode ---
@@ -273,23 +242,33 @@ def test_tavily_skips_when_no_api_key(mocker):
 # Fixtures — Filings Agent
 # ---------------------------------------------------------------------------
 
+def _filings_out(**over) -> FilingsLLMOutput:
+    """Salida LLM tipada (ADR-032) mínima para el filings agent; `over` sobrescribe campos."""
+    base = dict(business_description="Makes widgets.", risk_factors_summary="Customer concentration.",
+                mda_highlights="Revenue up 5%.", backlog_usd=None, backlog_citation=None,
+                revenue_guidance=None, geographic_revenue_breakdown=None,
+                key_regulatory_events=None, governance_red_flags=None,
+                active_sec_investigation=None, material_weakness=None, governance_citation=None,
+                citations=[])
+    base.update(over)
+    return FilingsLLMOutput(**base)
+
+
 @pytest.fixture
 def filings_llm_response_valid():
-    """Respuesta JSON bien formada que el LLM devuelve para el filings agent."""
-    return json.dumps({
-        "business_description": "Apple designs, manufactures and sells smartphones, personal computers, tablets, wearables and accessories. Revenue comes from product sales and services (App Store, iCloud, Apple Music). Hardware accounts for ~80% of revenue, services ~20% and growing.",
-        "risk_factors_summary": "Key risks: intense competition in all product categories; reliance on third-party manufacturers in Asia (supply chain concentration); regulatory scrutiny of App Store practices in EU and US; dependence on iPhone revenue (~50% of total).",
-        "mda_highlights": "FY2024 revenue of $391B, up 2% YoY, driven by services growth (+13%) offsetting flat iPhone revenue. Gross margin expanded to 45.9% on services mix shift. Management flagged FX headwinds and macroeconomic uncertainty in Greater China as key risks.",
-        "citations": [
-            {
-                "claim": "Services revenue grew 13% YoY in FY2024",
-                "source_url": "10-K Item 7",
-                "excerpt": "Net sales for Services were $96.2 billion, representing an increase of 13% compared to 2023",
-                "confidence": 0.95,
-                "gaap_vs_nongaap_flag": None,
-            }
-        ],
-    })
+    """Salida estructurada que structured() devuelve para el filings agent (antes: JSON en texto)."""
+    return _filings_out(
+        business_description="Apple designs, manufactures and sells smartphones, personal computers, tablets, wearables and accessories. Revenue comes from product sales and services (App Store, iCloud, Apple Music). Hardware accounts for ~80% of revenue, services ~20% and growing.",
+        risk_factors_summary="Key risks: intense competition in all product categories; reliance on third-party manufacturers in Asia (supply chain concentration); regulatory scrutiny of App Store practices in EU and US; dependence on iPhone revenue (~50% of total).",
+        mda_highlights="FY2024 revenue of $391B, up 2% YoY, driven by services growth (+13%) offsetting flat iPhone revenue. Gross margin expanded to 45.9% on services mix shift. Management flagged FX headwinds and macroeconomic uncertainty in Greater China as key risks.",
+        citations=[CitationOut(
+            claim="Services revenue grew 13% YoY in FY2024",
+            source_url="10-K Item 7",
+            excerpt="Net sales for Services were $96.2 billion, representing an increase of 13% compared to 2023",
+            confidence=0.95,
+            gaap_vs_nongaap_flag=None,
+        )],
+    )
 
 
 # --- Tests: filings_agent nodo LangGraph ---
@@ -309,7 +288,7 @@ def test_filings_agent_returns_filings_key(mocker, minimal_state, filings_llm_re
         return_value="MDA text...",
     )
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = filings_llm_response_valid
+    mock_client.structured.return_value = filings_llm_response_valid
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_client)
 
     result = filings_agent(minimal_state)
@@ -332,7 +311,7 @@ def test_filings_agent_stub_false(mocker, minimal_state, filings_llm_response_va
         return_value="",
     )
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = filings_llm_response_valid
+    mock_client.structured.return_value = filings_llm_response_valid
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_client)
 
     result = filings_agent(minimal_state)
@@ -352,10 +331,11 @@ def test_filings_agent_populates_fields(mocker, minimal_state, filings_llm_respo
     )
     mocker.patch(
         "due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_mda",
-        return_value="MDA text",
+        # Contiene el excerpt literal de la cita del fixture → la cita se verifica (T3b).
+        return_value="Net sales for Services were $96.2 billion, representing an increase of 13% compared to 2023.",
     )
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = filings_llm_response_valid
+    mock_client.structured.return_value = filings_llm_response_valid
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_client)
 
     result = filings_agent(minimal_state)
@@ -366,6 +346,7 @@ def test_filings_agent_populates_fields(mocker, minimal_state, filings_llm_respo
     assert report.risk_factors_summary is not None
     assert report.mda_highlights is not None
     assert len(report.citations) == 1
+    assert report.citations[0].verified is True
     assert report.citations[0].confidence == 0.95
 
 
@@ -384,7 +365,7 @@ def test_filings_agent_calls_all_three_edgar_methods(mocker, minimal_state, fili
         return_value="",
     )
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = filings_llm_response_valid
+    mock_client.structured.return_value = filings_llm_response_valid
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_client)
 
     filings_agent(minimal_state)
@@ -394,69 +375,38 @@ def test_filings_agent_calls_all_three_edgar_methods(mocker, minimal_state, fili
     mock_mda.assert_called_once_with("AAPL")
 
 
-# --- Tests: _parse_llm_response del filings agent ---
+# --- Tests: structured() + fail loud (H1-T2b, ADR-032, EC-68) ---
 
-def test_filings_parse_valid_json():
-    """Parsea correctamente un JSON válido con todos los campos."""
-    raw = json.dumps({
-        "business_description": "Sells software subscriptions to enterprises.",
-        "risk_factors_summary": "Competition from cloud giants; customer churn.",
-        "mda_highlights": "ARR grew 25% YoY; gross margin stable at 72%.",
-        "citations": [
-            {
-                "claim": "ARR grew 25% YoY",
-                "source_url": "10-K Item 7",
-                "excerpt": "Annual Recurring Revenue increased 25% year-over-year",
-                "confidence": 0.9,
-                "gaap_vs_nongaap_flag": None,
-            }
-        ],
-    })
-
-    report = _parse_filings_response(raw, "CRM")
-
-    assert report.stub is False
-    assert report.business_description == "Sells software subscriptions to enterprises."
-    assert len(report.citations) == 1
+@pytest.fixture
+def edgar_texts(mocker):
+    """Textos 10-K sintéticos para filings_agent (sin red)."""
+    p = "due_diligence.agents.filings.EdgarFilingsAdapter."
+    mocker.patch(p + "fetch_10k_business", return_value="We make widgets for industrial customers.")
+    mocker.patch(p + "fetch_10k_risk_factors", return_value="One customer accounts for 40% of revenue.")
+    mocker.patch(p + "fetch_10k_mda", return_value="Revenue increased 5% to $1,200 million.")
 
 
-def test_filings_parse_json_with_surrounding_text():
-    """El parser extrae el JSON aunque el LLM añada texto antes o después."""
-    raw = "Here is my analysis:\n" + json.dumps({
-        "business_description": "Makes semiconductors.",
-        "risk_factors_summary": "Cyclicality, supply chain.",
-        "mda_highlights": "Revenue down 12% on memory pricing.",
-        "citations": [],
-    }) + "\nEnd of analysis."
-
-    report = _parse_filings_response(raw, "MU")
-
-    assert report.stub is False
-    assert "semiconductor" in report.business_description.lower()
+def test_filings_agent_uses_structured_output(mocker, edgar_texts):
+    client = mocker.MagicMock()
+    client.structured.return_value = _filings_out()
+    client.last_model_used = "gpt-4.1"
+    mocker.patch("due_diligence.agents.filings.get_client", return_value=client)
+    report = filings_agent({"ticker": "WID"})["filings"]
+    assert report.stub is False and report.error is None
+    assert report.business_description == "Makes widgets."
+    assert report.model_used == "gpt-4.1"
+    assert client.structured.call_args.args[0] is FilingsLLMOutput
+    client.complete.assert_not_called()
 
 
-def test_filings_parse_invalid_json_returns_fallback():
-    """Si el JSON es inválido, devuelve FilingsRAGReport parcial sin lanzar excepción."""
-    raw = "I cannot analyze this filing."
-
-    report = _parse_filings_response(raw, "UNKNOWN")
-
-    assert isinstance(report, FilingsRAGReport)
-    assert report.stub is False
-    assert report.mda_highlights is not None  # contiene el mensaje de error
-
-
-def test_filings_parse_missing_optional_fields():
-    """Campos opcionales ausentes en el JSON se mapean a None sin error."""
-    raw = json.dumps({
-        "citations": [],
-    })
-
-    report = _parse_filings_response(raw, "TSLA")
-
-    assert report.business_description is None
-    assert report.risk_factors_summary is None
-    assert report.mda_highlights is None
+def test_filings_agent_fails_loud_on_llm_error(mocker, edgar_texts):
+    client = mocker.MagicMock()
+    client.structured.side_effect = LLMTruncatedError("gpt-4.1: truncated")
+    mocker.patch("due_diligence.agents.filings.get_client", return_value=client)
+    report = filings_agent({"ticker": "WID"})["filings"]
+    assert report.stub is True
+    assert report.error.startswith("LLMTruncatedError")
+    assert report.mda_highlights is None        # nada de "[Parse error]" disfrazado de contenido
 
 
 # ---------------------------------------------------------------------------
@@ -893,22 +843,17 @@ def _load_financials_fixture() -> "FinancialsReport":
     return EdgarAdapter.parse_financials(raw)
 
 
-_COMPETITIVE_LLM_RESPONSE = _json.dumps({
-    "moat_classification": "wide",
-    "moat_sources": ["brand", "switching_costs"],
-    "moat_analysis": "Apple has a wide moat driven by its brand premium and tight ecosystem lock-in. Customers who own iPhone, Mac, iPad and AirPods face significant switching costs.",
-    "widening_or_eroding": "The moat is widening. Services revenue growing at 13% YoY and gross margins expanding to 46% signal increasing switching costs and brand premium.",
-    "disruption_assessment": "Android ecosystem remains the primary competitive threat. However, Apple's switch to custom silicon (M-series) reduces supply chain risk and widens performance moat.",
-    "citations": [
-        {
-            "claim": "Apple's ROIC of 87% far exceeds typical consumer electronics peers (~15-25%)",
-            "source_url": "Financial data: ROIC series",
-            "excerpt": "ROIC series FY2025: 87.4%",
-            "confidence": 0.95,
-            "gaap_vs_nongaap_flag": None,
-        }
-    ],
-})
+_COMPETITIVE_LLM_RESPONSE = CompetitiveLLMOutput(
+    moat_classification="wide",
+    moat_sources=["brand", "switching_costs"],
+    citations=[CitationOut(
+        claim="Apple's ROIC of 87% far exceeds typical consumer electronics peers (~15-25%)",
+        source_url="Financial data: ROIC series",
+        excerpt="ROIC series FY2025: 87.4%",
+        confidence=0.95,
+        gaap_vs_nongaap_flag=None,
+    )],
+)
 
 @pytest.fixture
 def competitive_state():
@@ -926,8 +871,9 @@ def _mock_competitive(mocker, llm_response=_COMPETITIVE_LLM_RESPONSE):
         return_value=[],
     )
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = llm_response
+    mock_client.structured.return_value = llm_response
     mocker.patch("due_diligence.agents.competitive.get_client", return_value=mock_client)
+    return mock_client
 
 
 def test_competitive_agent_returns_competitive_key(mocker, competitive_state):
@@ -984,11 +930,14 @@ def test_competitive_agent_moat_clamp_downgrades_when_buyback_heavy(mocker, comp
 
 
 def test_competitive_agent_citations_populated(mocker, competitive_state):
-    """Las citations se construyen correctamente."""
+    """Las citations se validan contra los datos financieros enviados al LLM: "ROIC series
+    FY2025: 87.4%" coincide (fuzzy) con la línea "ROIC series: FY2025: 87.4%, ..." del
+    fixture AAPL → verified=True y source_url normalizado a la etiqueta real (EC-69)."""
     _mock_competitive(mocker)
     result = competitive_agent(competitive_state)
     assert len(result["competitive"].citations) == 1
-    assert result["competitive"].citations[0].confidence == 0.95
+    c = result["competitive"].citations[0]
+    assert c.verified is True and c.confidence == 0.95 and c.source_url == "Financial data"
 
 
 def test_competitive_agent_calls_tavily(mocker, competitive_state):
@@ -998,7 +947,7 @@ def test_competitive_agent_calls_tavily(mocker, competitive_state):
         return_value=[],
     )
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = _COMPETITIVE_LLM_RESPONSE
+    mock_client.structured.return_value = _COMPETITIVE_LLM_RESPONSE
     mocker.patch("due_diligence.agents.competitive.get_client", return_value=mock_client)
 
     competitive_agent(competitive_state)
@@ -1012,50 +961,32 @@ def test_competitive_agent_works_without_financials(mocker):
     assert result["competitive"].stub is False
 
 
-# --- Tests: _parse_llm_response del competitive agent ---
+# --- Tests: structured() + fail loud del competitive agent (H1-T2c, ADR-032) ---
 
-def test_competitive_parse_valid_moat():
-    """Clasifica correctamente los tres valores de moat."""
-    for moat in ("wide", "narrow", "none"):
-        raw = _json.dumps({
-            "moat_classification": moat,
-            "moat_sources": [],
-            "citations": [],
-        })
-        report = _parse_competitive_response(raw, "TEST")
-        assert report.moat_classification == moat
+def test_competitive_agent_uses_structured_output(mocker, competitive_state):
+    client = _mock_competitive(mocker, CompetitiveLLMOutput(moat_classification="none",
+                                                            moat_sources=[], citations=[]))
+    rep = competitive_agent(competitive_state)["competitive"]
+    assert rep.stub is False and rep.error is None and rep.moat_classification == "none"
+    assert rep.peer_roic_comparison == []   # lo rellena peers_node después (ADR-015)
+    assert client.structured.call_args.args[0] is CompetitiveLLMOutput
+    client.complete.assert_not_called()
 
 
-def test_competitive_parse_invalid_moat_defaults_to_none():
-    """Un valor de moat no reconocido se convierte a 'none' sin excepción."""
-    raw = _json.dumps({
-        "moat_classification": "unknown_value",
-        "moat_sources": [],
-        "citations": [],
-    })
-    report = _parse_competitive_response(raw, "TEST")
-    assert report.moat_classification == "none"
+def test_competitive_agent_fails_loud_on_llm_error(mocker, competitive_state):
+    client = _mock_competitive(mocker)
+    client.structured.side_effect = LLMProviderError("503", provider="openai", fallback_eligible=True)
+    rep = competitive_agent(competitive_state)["competitive"]
+    assert rep.stub is True and rep.error.startswith("LLMProviderError")
+    assert rep.moat_classification is None
 
 
-def test_competitive_parse_invalid_json_returns_stub_false():
-    """JSON inválido devuelve CompetitiveReport parcial con stub=False."""
-    report = _parse_competitive_response("not json at all", "ERR")
-    assert isinstance(report, CompetitiveReport)
-    assert report.stub is False
-
-
-def test_competitive_peer_roic_empty_from_llm_parse():
-    """_parse_llm_response siempre devuelve peer_roic_comparison vacío.
-    Los peers los inyecta peers_node después — competitive_agent no tiene acceso
-    a state['peer_financials'] porque corre en el fan-out antes de peers_node."""
-    raw = _json.dumps({
-        "moat_classification": "wide",
-        "moat_sources": ["brand"],
-        "peer_roic_comparison": [{"ticker": "MSFT", "roic": 0.35}],  # LLM intenta añadir
-        "citations": [],
-    })
-    report = _parse_competitive_response(raw, "AAPL")
-    assert report.peer_roic_comparison == []  # vacío aquí — se rellena en peers_node
+def test_competitive_schema_rejects_unknown_moat():
+    """El Literal del schema sustituye al 'unknown → none' manual: un valor fuera del
+    contrato es un LLMSchemaError en el cliente, no un 'none' silencioso."""
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        CompetitiveLLMOutput(moat_classification="unknown_value", moat_sources=[], citations=[])
 
 
 # ---------------------------------------------------------------------------
@@ -1187,3 +1118,127 @@ class TestThesisBreakSelfCheck:
         result = _thesis_break_self_check(report, context="")
 
         assert "THESIS-BREAK SELF-CHECK WARNING" in (result.decision_frame or "")
+
+
+# ---------------------------------------------------------------------------
+# Tests: validación de citas en los nodos y gating de números (H1-T3b, EC-69)
+# ---------------------------------------------------------------------------
+from due_diligence.agents.filings import _build_report as build_filings  # noqa: E402
+from due_diligence.agents.management import _build_report as build_mgmt  # noqa: E402
+
+DEF14A = "All directors and executive officers as a group beneficially own 12.5% of outstanding shares."
+
+
+def _cout(excerpt, source="DEF 14A"):
+    return CitationOut(claim="c", source_url=source, excerpt=excerpt, confidence=0.9,
+                       gaap_vs_nongaap_flag=None)
+
+
+def test_form4_count_is_deterministic():
+    rep = build_mgmt(_mgmt_out(), "TST", {"DEF 14A": DEF14A}, form4_count=7)
+    assert rep.form4_transactions_12m == 7
+
+
+def test_insider_pct_kept_only_with_verified_matching_citation():
+    ok = build_mgmt(_mgmt_out(insider_ownership_pct=12.5,
+                              insider_ownership_citation=_cout(DEF14A)), "TST", {"DEF 14A": DEF14A}, 0)
+    assert ok.insider_ownership_pct == 12.5
+    assert any(c.verified and "12.5%" in c.excerpt for c in ok.citations)
+    no_cit = build_mgmt(_mgmt_out(insider_ownership_pct=12.5), "TST", {"DEF 14A": DEF14A}, 0)
+    assert no_cit.insider_ownership_pct is None
+    mismatch = build_mgmt(_mgmt_out(insider_ownership_pct=30.0,
+                                    insider_ownership_citation=_cout(DEF14A)), "TST", {"DEF 14A": DEF14A}, 0)
+    assert mismatch.insider_ownership_pct is None
+
+
+def test_numeric_gate_rejects_web_only_support():
+    """Un % de propiedad sacado de la web no puede quedar 'verificado' (fuentes primarias, ADR-011)."""
+    web = "Analysts estimate insiders hold about 12.5% of the company's outstanding stock."
+    rep = build_mgmt(_mgmt_out(insider_ownership_pct=12.5, insider_ownership_citation=_cout(web, "Tavily")),
+                     "TST", {"DEF 14A": DEF14A, "Web (Tavily)": web}, 0)
+    assert rep.insider_ownership_pct is None
+    assert all(not c.verified for c in rep.citations if "Analysts estimate" in c.excerpt)
+
+
+def test_ceo_tenure_requires_year_in_verified_excerpt():
+    item10 = "Jane Doe has served as our Chief Executive Officer since 2015 and as a director since 2012."
+    ok = build_mgmt(_mgmt_out(ceo_tenure_years=11.0, ceo_tenure_citation=_cout(item10, "10-K Item 10")),
+                    "TST", {"10-K Item 10": item10}, 0)
+    assert ok.ceo_tenure_years == 11.0
+    no_year = "Jane Doe has served as our Chief Executive Officer for many years now."
+    bad = build_mgmt(_mgmt_out(ceo_tenure_years=11.0, ceo_tenure_citation=_cout(no_year, "10-K Item 10")),
+                     "TST", {"10-K Item 10": no_year}, 0)
+    assert bad.ceo_tenure_years is None
+
+
+def test_unverified_citations_marked_not_dropped():
+    rep = build_mgmt(_mgmt_out(citations=[_cout("the CEO has been buying aggressively all year")]),
+                     "TST", {"DEF 14A": DEF14A}, 0)
+    assert len(rep.citations) == 1 and rep.citations[0].verified is False
+
+
+def test_verified_text_citation_source_normalized_to_corpus_label():
+    web = "The board added two independent directors with deep retail operating experience in 2024."
+    rep = build_mgmt(_mgmt_out(citations=[_cout(web, "https://some-blog.example/post")]),
+                     "TST", {"DEF 14A": DEF14A, "Web (Tavily)": web}, 0)
+    assert rep.citations[0].verified is True and rep.citations[0].source_url == "Web (Tavily)"
+
+
+def test_empty_corpus_marks_all_unverified_with_note():
+    rep = build_mgmt(_mgmt_out(citations=[_cout("the CEO owns 12.5% of shares outstanding")]), "TST", {}, 0)
+    assert all(not c.verified and "empty corpus" in c.verification_note for c in rep.citations)
+
+
+def test_backlog_dropped_without_verified_citation():
+    rep = build_filings(_filings_out(backlog_usd=1.27e9, backlog_citation=None), "TST",
+                        {"10-K Item 7": "Backlog was $1.27 billion at year end."})
+    assert rep.backlog_usd is None
+
+
+def test_backlog_kept_with_verified_citation():
+    mda = "Backlog was $1.27 billion at year end, up 12% year over year."
+    rep = build_filings(_filings_out(backlog_usd=1.27e9,
+                                     backlog_citation=_cout("Backlog was $1.27 billion at year end", "10-K Item 7")),
+                        "TST", {"10-K Item 7": mda})
+    assert rep.backlog_usd == 1.27e9
+    assert any(c.verified and "1.27 billion" in c.excerpt for c in rep.citations)
+
+
+def test_competitive_citations_validated_against_financials_and_web(mocker, competitive_state):
+    from due_diligence.agents.competitive import _format_financials_for_prompt
+    fin_line = _format_financials_for_prompt(competitive_state["financials"]).splitlines()[1]
+    _mock_competitive(mocker, CompetitiveLLMOutput(moat_classification="narrow", moat_sources=["brand"],
+                                                   citations=[_cout(fin_line, "Financial data"),
+                                                              _cout("invented claim about pricing power everywhere")]))
+    rep = competitive_agent(competitive_state)["competitive"]
+    assert [c.verified for c in rep.citations] == [True, False]
+
+
+# ---------------------------------------------------------------------------
+# Tests: governance flags deterministas con cita verificada (H1-T4a, EC-70)
+# ---------------------------------------------------------------------------
+GOV_1A = ("In March 2026 we received a subpoena from the SEC Division of Enforcement in connection "
+          "with an investigation of our revenue recognition practices. We also identified a material "
+          "weakness in our internal control over financial reporting.")
+
+
+def test_governance_flag_without_citation_is_dropped():
+    rep = build_filings(_filings_out(active_sec_investigation=True, material_weakness=True,
+                                     governance_citation=None), "TST", {"10-K Item 1A": GOV_1A})
+    assert rep.active_sec_investigation is None and rep.material_weakness is None
+
+
+def test_governance_flag_with_verified_citation_kept():
+    cit = _cout("we received a subpoena from the SEC Division of Enforcement in connection with an "
+                "investigation of our revenue recognition practices", "10-K Item 1A")
+    rep = build_filings(_filings_out(active_sec_investigation=True, material_weakness=False,
+                                     governance_citation=cit), "TST", {"10-K Item 1A": GOV_1A})
+    assert rep.active_sec_investigation is True and rep.material_weakness is False
+    assert any(c.verified and "subpoena" in c.excerpt for c in rep.citations)
+
+
+def test_governance_flag_with_invented_citation_is_dropped():
+    cit = _cout("The SEC has opened a formal investigation into the CEO's trading activity", "10-K Item 1A")
+    rep = build_filings(_filings_out(active_sec_investigation=True, governance_citation=cit),
+                        "TST", {"10-K Item 1A": GOV_1A})
+    assert rep.active_sec_investigation is None

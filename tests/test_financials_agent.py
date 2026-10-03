@@ -48,7 +48,8 @@ def test_financials_node_preserves_source_xbrl(mocker):
     state = {"ticker": "AAPL", "cik": "0000320193", "as_of_date": "2024-09-28", "run_id": "t1"}
     result = financials_node(state)
 
-    assert result["financials"].revenue[0].source == "XBRL"
+    # T5: provenance real (concepto XBRL), ya no la etiqueta genérica "XBRL".
+    assert result["financials"].revenue[0].source == "RevenueFromContractWithCustomerExcludingAssessedTax"
     assert result["financials"].free_cash_flow[0].source == "calculated"
 
 
@@ -169,4 +170,5 @@ def test_financials_node_writes_cagr_to_state(mocker):
     assert isinstance(result["historical_cagr_5y"], float)
     assert "historical_cagr_years" in result
     assert isinstance(result["historical_cagr_years"], int)
-    assert 1 <= result["historical_cagr_years"] <= 4  # fixture AAPL tiene 4 periodos
+    # Fixture regenerado con periods=10 (EC-79): ventana de 5 años fiscales reales.
+    assert result["historical_cagr_years"] == 5

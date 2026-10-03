@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from due_diligence.tools.edgar import EdgarAdapter  # noqa: E402
 
 ARCHETYPES = [
+    ("AAPL", "large_cap_baseline"),  # H1 T14: AAPL se regenera también (antes se guardaba aparte)
     ("BBW",  "small_cap_simplified_income_statement"),
     ("AZO",  "buyback_heavy_negative_equity"),
     ("PRDO", "asset_light_zero_capex"),
@@ -52,5 +53,5 @@ if __name__ == "__main__":
         fetch_and_save(ticker, label)
 
     print("\nDone. Commit the fixtures:")
-    print("  git add tests/fixtures/bbw_xbrl_raw.json tests/fixtures/azo_xbrl_raw.json tests/fixtures/prdo_xbrl_raw.json"
+    print("  git add tests/fixtures/aapl_xbrl_raw.json tests/fixtures/bbw_xbrl_raw.json tests/fixtures/azo_xbrl_raw.json tests/fixtures/prdo_xbrl_raw.json"
 )

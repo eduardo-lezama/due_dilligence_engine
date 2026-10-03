@@ -145,7 +145,9 @@ def test_roic_available_or_graceful(archetype_raw):
 
     # Si hay ROIC calculado, debe ser un ratio dentro de rango razonable
     for roic in report.roic_series:
-        assert -5.0 < roic.value < 100.0, (
+        # H1 T14: rango que SÍ detecta errores (antes −500 %..10 000 %). 5.0 deja pasar el 272 % real de
+        # AAPL (IC sin caja ni valores negociables) y rechaza IC degenerados; IC < 5 % de activos ya es n/m.
+        assert -1.0 <= roic.value <= 5.0, (
             f"ROIC de {roic.value:.3f} es irrazonable para {archetype_raw['ticker']} "
             f"(período {roic.period})"
         )
@@ -168,5 +170,7 @@ def test_azo_invested_capital_uses_operating_method():
 
     raw = json.loads((Path(__file__).parent / "fixtures" / "azo_xbrl_raw.json").read_text())
     report = EdgarAdapter.parse_financials(raw)
-    assert report.invested_capital.value == pytest.approx(19_083_521_000)
+    # Fixture regenerado (T14), IC operativo (Koller) por equity ≤ 0: activos 19.355324B − caja 0.271803B
+    # − ROU operativo 3.194666B − NIBCL (pasivo corriente 9.519397B − deuda CP 0) = 6.369458B.
+    assert report.invested_capital.value == pytest.approx(6_369_458_000)
     assert report.invested_capital.source.startswith("operating")

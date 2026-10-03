@@ -933,7 +933,16 @@ def test_competitive_agent_citations_populated(mocker, competitive_state):
     """Las citations se validan contra los datos financieros enviados al LLM: "ROIC series
     FY2025: 87.4%" coincide (fuzzy) con la línea "ROIC series: FY2025: 87.4%, ..." del
     fixture AAPL → verified=True y source_url normalizado a la etiqueta real (EC-69)."""
-    _mock_competitive(mocker)
+    # El extracto se construye con el ROIC REAL del fixture (no un número fijo): al regenerar
+    # fixtures en H1 T14 el ROIC de AAPL cambió (IC sin caja ni valores negociables) y un valor
+    # escrito a mano rompía el test sin que el validador hubiera cambiado.
+    roic0 = competitive_state["financials"].roic_series[0]
+    response = _COMPETITIVE_LLM_RESPONSE.model_copy(update={"citations": [CitationOut(
+        claim="Apple's ROIC far exceeds typical consumer electronics peers",
+        source_url="Financial data: ROIC series",
+        excerpt=f"ROIC series: {roic0.period}: {roic0.value:.1%}",
+        confidence=0.95, gaap_vs_nongaap_flag=None)]})
+    _mock_competitive(mocker, llm_response=response)
     result = competitive_agent(competitive_state)
     assert len(result["competitive"].citations) == 1
     c = result["competitive"].citations[0]

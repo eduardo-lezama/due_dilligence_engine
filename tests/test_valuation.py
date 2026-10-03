@@ -1128,7 +1128,11 @@ def test_parse_financials_to_valuation_agent_sti_once_integration():
     assert b.cash == pytest.approx(fin.cash_and_equivalents.value)          # 35.934B, sin STI dentro
     assert b.short_term_investments == pytest.approx(30e9)
     # net claims = deuda 90.678B − caja 35.934B − STI 30B = 24.744B
-    assert b.net_claims == pytest.approx(fin.total_debt.value - fin.cash_and_equivalents.value - 30e9)
+    # Fixture AAPL regenerado (T14): también hay LTI (valores negociables no corrientes) → se suman
+    # una vez. A mano: 99.887B − 35.934B − 30B (STI forzada) − 77.723B = −43.770B.
+    lti = fin.long_term_investments.value if fin.long_term_investments else 0.0
+    assert b.net_claims == pytest.approx(fin.total_debt.value - fin.cash_and_equivalents.value - 30e9 - lti)
+    assert b.net_claims == pytest.approx(-43.770e9, rel=1e-4)
 
 
 def test_valuation_agent_returns_error_report_instead_of_crashing_on_bad_rates():

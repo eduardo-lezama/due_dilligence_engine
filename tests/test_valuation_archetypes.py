@@ -45,7 +45,13 @@ def test_valuation_archetype_bridge_and_per_share(archetype_raw):
     b = r.equity_bridge
     assert b is not None
     sti = fin.short_term_investments.value if fin.short_term_investments else 0.0
-    assert b.net_claims == pytest.approx(fin.total_debt.value - fin.cash_and_equivalents.value - sti)
+    # LTI y participaciones por puesta en equivalencia también son derechos a favor (ADR-033).
+    lti = fin.long_term_investments.value if fin.long_term_investments else 0.0
+    emi = fin.equity_method_investments.value if fin.equity_method_investments else 0.0
+    mi = fin.minority_interest.value if fin.minority_interest else 0.0
+    pref = fin.preferred_stock.value if fin.preferred_stock else 0.0
+    assert b.net_claims == pytest.approx(
+        fin.total_debt.value + mi + pref - fin.cash_and_equivalents.value - sti - lti - emi)
     assert r.dcf_intrinsic_per_share is not None and math.isfinite(r.dcf_intrinsic_per_share.value)
     # market EV = precio × acciones usadas + net claims
     price = r.price_current.value

@@ -34,7 +34,8 @@ def test_parse_financials_revenue_values(aapl_raw):
     assert len(report.revenue) >= 2
     assert report.revenue[0].value == pytest.approx(416_161_000_000)
     assert report.revenue[0].period == "FY2025"
-    assert report.revenue[0].source == "XBRL"
+    # T5: provenance real — el source es el concepto XBRL que aportó el dato (antes "XBRL").
+    assert report.revenue[0].source == "RevenueFromContractWithCustomerExcludingAssessedTax"
 
 
 def test_parse_financials_free_cash_flow_is_computed(aapl_raw):
@@ -50,7 +51,9 @@ def test_parse_financials_total_debt_is_sum_of_lt_and_st(aapl_raw):
     from due_diligence.tools.edgar import EdgarAdapter
 
     report = EdgarAdapter.parse_financials(aapl_raw)
-    expected_debt = 90_678_000_000 + 0  # LT debt FY2025, no ST borrowings
+    # Fixture regenerado (T14) con resolve_debt (EC-80): LT no corriente 78.328B + ST (papel comercial +
+    # porción corriente) 20.329B + leasing financiero 1.230B = 99.887B. Antes 90.678B: faltaba el CP.
+    expected_debt = 78_328_000_000 + 20_329_000_000 + 1_230_000_000
     assert report.total_debt.value == pytest.approx(expected_debt)
 
 
@@ -107,7 +110,15 @@ def test_parse_financials_total_debt_includes_finance_leases_and_flags():
 def test_parse_financials_fcff_fields_and_legacy_fixture(aapl_raw):
     """Fixture legacy sin claves nuevas → campos vacíos/None; con claves → MetricValues con unidad correcta."""
     from due_diligence.tools.edgar import EdgarAdapter
-    legacy = EdgarAdapter.parse_financials(aapl_raw)
+    # "Legacy" = raw sin las claves nuevas de T8 (el fixture regenerado ya las trae).
+    new_annual = {"interest_expense", "interest_income", "sbc", "depreciation_amortization",
+                  "diluted_shares", "basic_shares_weighted", "finance_lease_principal_payments"}
+    new_bs = {"operating_lease_liabilities", "operating_rou_asset", "minority_interest",
+              "preferred_stock", "equity_method_investments"}
+    legacy_raw = {**aapl_raw,
+                  "annual": {k: v for k, v in aapl_raw["annual"].items() if k not in new_annual},
+                  "balance_sheet": {k: v for k, v in aapl_raw["balance_sheet"].items() if k not in new_bs}}
+    legacy = EdgarAdapter.parse_financials(legacy_raw)
     assert legacy.sbc == [] and legacy.operating_lease_liabilities is None
     assert legacy.income_tax[0].period == "FY2025"   # el fixture AAPL ya trae income_tax
     raw = {**aapl_raw, "annual": {**aapl_raw["annual"],
@@ -324,9 +335,12 @@ def test_parse_financials_roic_series(aapl_raw):
     assert len(report.roic_series) >= 1
     assert report.roic_series[0].unit == "ratio"
     assert report.roic_series[0].period == "FY2025"
-    # FY2025: tax_rate = 20719/132729 ≈ 15.6%, NOPAT = 133050×0.844 ≈ 112245M
-    # IC = 73733 + 90678 - 35934 ≈ 128477M → ROIC ≈ 0.874
-    assert report.roic_series[0].value == pytest.approx(0.874, abs=0.01)
+    # T9 + fixture regenerado. FY2025: t = 20719/132729 = 15.61 %, NOPAT = 133050 × 0.8439 = 112281M.
+    # IC_2025 = equity 73733 + deuda 99887 − caja 35934 − STI 18763 − LTI 77723 = 41200M.
+    # IC_2024 = 56950 + 107525 − 29943 − 35228 − 91479 = 7825M < 5 % de activos (≈18.2B) → n/m,
+    # así que FY2025 usa IC de cierre (no media): ROIC = 112281 / 41200 = 2.725 (272 %).
+    assert report.roic_series[0].value == pytest.approx(2.7253, abs=0.001)
+    assert report.roic_series[0].source == "calculated-end-ic"
 
 
 def test_parse_financials_invested_capital(aapl_raw):
@@ -337,7 +351,8 @@ def test_parse_financials_invested_capital(aapl_raw):
 
     assert report.invested_capital is not None
     # Para AAPL: ic_primary ($128B) > 10% × ic_fallback ($33B) → primary se usa
-    expected_ic = 73_733_000_000 + 90_678_000_000 - 35_934_000_000
+    # IC primario sin activos no operativos (T9): equity + deuda − caja − STI − LTI = 41.2B.
+    expected_ic = 73_733_000_000 + 99_887_000_000 - 35_934_000_000 - 18_763_000_000 - 77_723_000_000
     assert report.invested_capital.value == pytest.approx(expected_ic)
     assert report.invested_capital.source == "equity+debt-cash"
     assert report.stockholders_equity.value == pytest.approx(73_733_000_000)

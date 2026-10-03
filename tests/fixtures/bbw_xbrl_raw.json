@@ -7,214 +7,929 @@
     "revenue": [
       {
         "value": 529832000.0,
-        "period": "FY2026"
+        "period": "FY2026",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax"
+      },
+      {
+        "value": 496404000.0,
+        "period": "FY2025",
+        "source": "facts:RevenueFromContractWithCustomerExcludingAssessedTax"
       },
       {
         "value": 486114000.0,
-        "period": "FY2024"
+        "period": "FY2024",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax"
       },
       {
         "value": 467937000.0,
-        "period": "FY2023"
+        "period": "FY2023",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax"
       },
       {
         "value": 411522000.0,
-        "period": "FY2022"
+        "period": "FY2022",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax"
+      },
+      {
+        "value": 255310000.0,
+        "period": "FY2021",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax"
+      },
+      {
+        "value": 338543000.0,
+        "period": "FY2020",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax"
+      },
+      {
+        "value": 336585000.0,
+        "period": "FY2019",
+        "source": "facts:RevenueFromContractWithCustomerExcludingAssessedTax"
+      },
+      {
+        "value": 357866000.0,
+        "period": "FY2017",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax"
+      },
+      {
+        "value": 357593000.0,
+        "period": "FY2016",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax"
+      },
+      {
+        "value": 387725000.0,
+        "period": "FY2014",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax"
+      },
+      {
+        "value": 373173000.0,
+        "period": "FY2013",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax"
       }
     ],
     "gross_profit": [
       {
         "value": 295629000.0,
-        "period": "FY2026"
+        "period": "FY2026",
+        "source": "GrossProfit"
+      },
+      {
+        "value": 272518000.0,
+        "period": "FY2025",
+        "source": "facts:GrossProfit"
       },
       {
         "value": 264392000.0,
-        "period": "FY2024"
+        "period": "FY2024",
+        "source": "GrossProfit"
       },
       {
         "value": 245872000.0,
-        "period": "FY2023"
+        "period": "FY2023",
+        "source": "GrossProfit"
       },
       {
         "value": 217955000.0,
-        "period": "FY2022"
+        "period": "FY2022",
+        "source": "GrossProfit"
+      },
+      {
+        "value": 97409000.0,
+        "period": "FY2021",
+        "source": "GrossProfit"
+      },
+      {
+        "value": 153623000.0,
+        "period": "FY2020",
+        "source": "GrossProfit"
       }
     ],
     "operating_income": [
       {
         "value": 66426000.0,
-        "period": "FY2026"
+        "period": "FY2026",
+        "source": "derived:GrossProfit-SellingGeneralAndAdministrativeExpense"
       },
       {
         "value": 65400000.0,
-        "period": "FY2024"
+        "period": "FY2024",
+        "source": "derived:GrossProfit-SellingGeneralAndAdministrativeExpense"
       },
       {
         "value": 61943000.0,
-        "period": "FY2023"
+        "period": "FY2023",
+        "source": "derived:GrossProfit-SellingGeneralAndAdministrativeExpense"
       },
       {
         "value": 50705000.0,
-        "period": "FY2022"
+        "period": "FY2022",
+        "source": "derived:GrossProfit-SellingGeneralAndAdministrativeExpense"
+      },
+      {
+        "value": -20176000.0,
+        "period": "FY2021",
+        "source": "derived:GrossProfit-SellingGeneralAndAdministrativeExpense"
+      },
+      {
+        "value": 1576000.0,
+        "period": "FY2020",
+        "source": "derived:GrossProfit-SellingGeneralAndAdministrativeExpense"
       }
     ],
     "net_income": [
       {
         "value": 52203000.0,
-        "period": "FY2026"
+        "period": "FY2026",
+        "source": "NetIncomeLoss"
+      },
+      {
+        "value": 51785000.0,
+        "period": "FY2025",
+        "source": "facts:NetIncomeLoss"
       },
       {
         "value": 52805000.0,
-        "period": "FY2024"
+        "period": "FY2024",
+        "source": "NetIncomeLoss"
       },
       {
         "value": 47985000.0,
-        "period": "FY2023"
+        "period": "FY2023",
+        "source": "NetIncomeLoss"
       },
       {
         "value": 47265000.0,
-        "period": "FY2022"
+        "period": "FY2022",
+        "source": "NetIncomeLoss"
+      },
+      {
+        "value": -22983000.0,
+        "period": "FY2021",
+        "source": "NetIncomeLoss"
+      },
+      {
+        "value": 261000.0,
+        "period": "FY2020",
+        "source": "NetIncomeLoss"
+      },
+      {
+        "value": -17933000.0,
+        "period": "FY2019",
+        "source": "facts:NetIncomeLoss"
+      },
+      {
+        "value": 7916000.0,
+        "period": "FY2017",
+        "source": "NetIncomeLoss"
+      },
+      {
+        "value": 1377000.0,
+        "period": "FY2016",
+        "source": "NetIncomeLoss"
+      },
+      {
+        "value": 27345000.0,
+        "period": "FY2015",
+        "source": "facts:NetIncomeLoss"
+      },
+      {
+        "value": 14362000.0,
+        "period": "FY2014",
+        "source": "NetIncomeLoss"
+      },
+      {
+        "value": -2112000.0,
+        "period": "FY2013",
+        "source": "NetIncomeLoss"
       }
     ],
     "operating_cash_flow": [
       {
         "value": 65052000.0,
-        "period": "FY2026"
+        "period": "FY2026",
+        "source": "NetCashProvidedByUsedInOperatingActivities"
+      },
+      {
+        "value": 47087000.0,
+        "period": "FY2025",
+        "source": "facts:NetCashProvidedByUsedInOperatingActivities"
       },
       {
         "value": 64310000.0,
-        "period": "FY2024"
+        "period": "FY2024",
+        "source": "NetCashProvidedByUsedInOperatingActivities"
       },
       {
         "value": 47276000.0,
-        "period": "FY2023"
+        "period": "FY2023",
+        "source": "NetCashProvidedByUsedInOperatingActivities"
       },
       {
         "value": 28077000.0,
-        "period": "FY2022"
+        "period": "FY2022",
+        "source": "NetCashProvidedByUsedInOperatingActivities"
+      },
+      {
+        "value": 13386000.0,
+        "period": "FY2021",
+        "source": "NetCashProvidedByUsedInOperatingActivities"
+      },
+      {
+        "value": 21609000.0,
+        "period": "FY2020",
+        "source": "NetCashProvidedByUsedInOperatingActivities"
+      },
+      {
+        "value": 9586000.0,
+        "period": "FY2019",
+        "source": "facts:NetCashProvidedByUsedInOperatingActivities"
+      },
+      {
+        "value": 21088000.0,
+        "period": "FY2017",
+        "source": "NetCashProvidedByUsedInOperatingActivities"
+      },
+      {
+        "value": 16014000.0,
+        "period": "FY2016",
+        "source": "facts:NetCashProvidedByUsedInOperatingActivities"
       }
     ],
     "capex": [
       {
         "value": 25545000.0,
-        "period": "FY2026"
+        "period": "FY2026",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment"
+      },
+      {
+        "value": 19317000.0,
+        "period": "FY2025",
+        "source": "facts:PaymentsToAcquirePropertyPlantAndEquipment"
       },
       {
         "value": 18295000.0,
-        "period": "FY2024"
+        "period": "FY2024",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment"
       },
       {
         "value": 13634000.0,
-        "period": "FY2023"
+        "period": "FY2023",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment"
       },
       {
         "value": 8130000.0,
-        "period": "FY2022"
+        "period": "FY2022",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment"
+      },
+      {
+        "value": 5046000.0,
+        "period": "FY2021",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment"
+      },
+      {
+        "value": 12384000.0,
+        "period": "FY2020",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment"
+      },
+      {
+        "value": 11253000.0,
+        "period": "FY2019",
+        "source": "facts:PaymentsToAcquirePropertyPlantAndEquipment"
+      },
+      {
+        "value": 17763000.0,
+        "period": "FY2017",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment"
+      },
+      {
+        "value": 27251000.0,
+        "period": "FY2016",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment"
       }
     ],
     "income_tax": [
       {
         "value": 15024000.0,
-        "period": "FY2026"
+        "period": "FY2026",
+        "source": "IncomeTaxExpenseBenefit"
+      },
+      {
+        "value": 15356000.0,
+        "period": "FY2025",
+        "source": "facts:IncomeTaxExpenseBenefit"
       },
       {
         "value": 13524000.0,
-        "period": "FY2024"
+        "period": "FY2024",
+        "source": "IncomeTaxExpenseBenefit"
       },
       {
         "value": 13939000.0,
-        "period": "FY2023"
+        "period": "FY2023",
+        "source": "IncomeTaxExpenseBenefit"
       },
       {
         "value": 3445000.0,
-        "period": "FY2022"
+        "period": "FY2022",
+        "source": "IncomeTaxExpenseBenefit"
+      },
+      {
+        "value": 2797000.0,
+        "period": "FY2021",
+        "source": "IncomeTaxExpenseBenefit"
+      },
+      {
+        "value": 1300000.0,
+        "period": "FY2020",
+        "source": "IncomeTaxExpenseBenefit"
+      },
+      {
+        "value": -574000.0,
+        "period": "FY2019",
+        "source": "facts:IncomeTaxExpenseBenefit"
+      },
+      {
+        "value": 5897000.0,
+        "period": "FY2017",
+        "source": "IncomeTaxExpenseBenefit"
+      },
+      {
+        "value": 3932000.0,
+        "period": "FY2016",
+        "source": "IncomeTaxExpenseBenefit"
+      },
+      {
+        "value": -9447000.0,
+        "period": "FY2015",
+        "source": "facts:IncomeTaxExpenseBenefit"
+      },
+      {
+        "value": 1662000.0,
+        "period": "FY2014",
+        "source": "IncomeTaxExpenseBenefit"
+      },
+      {
+        "value": -6000.0,
+        "period": "FY2013",
+        "source": "IncomeTaxExpenseBenefit"
       }
     ],
     "pretax_income": [
       {
         "value": 67227000.0,
-        "period": "FY2026"
+        "period": "FY2026",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
+      },
+      {
+        "value": 67141000.0,
+        "period": "FY2025",
+        "source": "facts:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
       },
       {
         "value": 66329000.0,
-        "period": "FY2024"
+        "period": "FY2024",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
       },
       {
         "value": 61924000.0,
-        "period": "FY2023"
+        "period": "FY2023",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
       },
       {
         "value": 50710000.0,
-        "period": "FY2022"
+        "period": "FY2022",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
+      },
+      {
+        "value": -20186000.0,
+        "period": "FY2021",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
+      },
+      {
+        "value": 1561000.0,
+        "period": "FY2020",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
+      },
+      {
+        "value": -18507000.0,
+        "period": "FY2019",
+        "source": "facts:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
+      },
+      {
+        "value": 13813000.0,
+        "period": "FY2017",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
+      },
+      {
+        "value": 5309000.0,
+        "period": "FY2016",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
+      },
+      {
+        "value": 17898000.0,
+        "period": "FY2015",
+        "source": "facts:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
+      },
+      {
+        "value": 16024000.0,
+        "period": "FY2014",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
+      },
+      {
+        "value": -2118000.0,
+        "period": "FY2013",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
       }
     ],
     "buybacks": [
       {
         "value": 27735000.0,
-        "period": "FY2026"
+        "period": "FY2026",
+        "source": "PaymentsForRepurchaseOfCommonStock"
+      },
+      {
+        "value": 31266000.0,
+        "period": "FY2025",
+        "source": "facts:PaymentsForRepurchaseOfCommonStock"
       },
       {
         "value": 20500000.0,
-        "period": "FY2024"
+        "period": "FY2024",
+        "source": "PaymentsForRepurchaseOfCommonStock"
       },
       {
         "value": 24172000.0,
-        "period": "FY2023"
+        "period": "FY2023",
+        "source": "PaymentsForRepurchaseOfCommonStock"
       },
       {
         "value": 4358000.0,
-        "period": "FY2022"
+        "period": "FY2022",
+        "source": "PaymentsForRepurchaseOfCommonStock"
+      },
+      {
+        "value": 0.0,
+        "period": "FY2021",
+        "source": "PaymentsForRepurchaseOfCommonStock"
+      },
+      {
+        "value": 2228000.0,
+        "period": "FY2019",
+        "source": "facts:PaymentsForRepurchaseOfCommonStock"
+      },
+      {
+        "value": 4232000.0,
+        "period": "FY2017",
+        "source": "PaymentsForRepurchaseOfCommonStock"
+      },
+      {
+        "value": 1469000.0,
+        "period": "FY2016",
+        "source": "PaymentsForRepurchaseOfCommonStock"
       }
     ],
     "dividends": [
       {
         "value": 11533000.0,
-        "period": "FY2026"
+        "period": "FY2026",
+        "source": "PaymentsOfDividendsCommonStock"
+      },
+      {
+        "value": 11024000.0,
+        "period": "FY2025",
+        "source": "facts:PaymentsOfDividendsCommonStock"
       },
       {
         "value": 22062000.0,
-        "period": "FY2024"
+        "period": "FY2024",
+        "source": "PaymentsOfDividendsCommonStock"
       },
       {
         "value": 292000.0,
-        "period": "FY2023"
+        "period": "FY2023",
+        "source": "PaymentsOfDividendsCommonStock"
       },
       {
         "value": 19933000.0,
-        "period": "FY2022"
+        "period": "FY2022",
+        "source": "PaymentsOfDividendsCommonStock"
+      },
+      {
+        "value": 0.0,
+        "period": "FY2021",
+        "source": "PaymentsOfDividendsCommonStock"
+      }
+    ],
+    "interest_expense": [],
+    "interest_income": [],
+    "sbc": [
+      {
+        "value": 2930000.0,
+        "period": "FY2026",
+        "source": "ShareBasedCompensation"
+      },
+      {
+        "value": 2175000.0,
+        "period": "FY2025",
+        "source": "facts:ShareBasedCompensation"
+      },
+      {
+        "value": 2089000.0,
+        "period": "FY2024",
+        "source": "ShareBasedCompensation"
+      },
+      {
+        "value": 2559000.0,
+        "period": "FY2023",
+        "source": "ShareBasedCompensation"
+      },
+      {
+        "value": 2631000.0,
+        "period": "FY2022",
+        "source": "ShareBasedCompensation"
+      },
+      {
+        "value": 1525000.0,
+        "period": "FY2021",
+        "source": "ShareBasedCompensation"
+      },
+      {
+        "value": 2877000.0,
+        "period": "FY2020",
+        "source": "ShareBasedCompensation"
+      },
+      {
+        "value": 3439000.0,
+        "period": "FY2019",
+        "source": "facts:ShareBasedCompensation"
+      },
+      {
+        "value": 3423000.0,
+        "period": "FY2017",
+        "source": "ShareBasedCompensation"
+      },
+      {
+        "value": 3025000.0,
+        "period": "FY2016",
+        "source": "ShareBasedCompensation"
+      }
+    ],
+    "depreciation_amortization": [
+      {
+        "value": 14952000.0,
+        "period": "FY2026",
+        "source": "DepreciationDepletionAndAmortization"
+      },
+      {
+        "value": 14772000.0,
+        "period": "FY2025",
+        "source": "facts:DepreciationDepletionAndAmortization"
+      },
+      {
+        "value": 13657000.0,
+        "period": "FY2024",
+        "source": "DepreciationDepletionAndAmortization"
+      },
+      {
+        "value": 12482000.0,
+        "period": "FY2023",
+        "source": "DepreciationDepletionAndAmortization"
+      },
+      {
+        "value": 12276000.0,
+        "period": "FY2022",
+        "source": "DepreciationDepletionAndAmortization"
+      },
+      {
+        "value": 13292000.0,
+        "period": "FY2021",
+        "source": "DepreciationDepletionAndAmortization"
+      },
+      {
+        "value": 13705000.0,
+        "period": "FY2020",
+        "source": "DepreciationDepletionAndAmortization"
+      },
+      {
+        "value": 16042000.0,
+        "period": "FY2019",
+        "source": "facts:DepreciationDepletionAndAmortization"
+      },
+      {
+        "value": 16165000.0,
+        "period": "FY2017",
+        "source": "DepreciationDepletionAndAmortization"
+      },
+      {
+        "value": 16171000.0,
+        "period": "FY2016",
+        "source": "DepreciationDepletionAndAmortization"
+      }
+    ],
+    "diluted_shares": [
+      {
+        "value": 13083436.0,
+        "period": "FY2026",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding"
+      },
+      {
+        "value": 13621075.0,
+        "period": "FY2025",
+        "source": "facts:WeightedAverageNumberOfDilutedSharesOutstanding"
+      },
+      {
+        "value": 14471875.0,
+        "period": "FY2024",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding"
+      },
+      {
+        "value": 15249819.0,
+        "period": "FY2023",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding"
+      },
+      {
+        "value": 16122583.0,
+        "period": "FY2022",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding"
+      },
+      {
+        "value": 14923304.0,
+        "period": "FY2021",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding"
+      },
+      {
+        "value": 14759810.0,
+        "period": "FY2020",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding"
+      },
+      {
+        "value": 14591270.0,
+        "period": "FY2019",
+        "source": "facts:WeightedAverageNumberOfDilutedSharesOutstanding"
+      },
+      {
+        "value": 15757060.0,
+        "period": "FY2017",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding"
+      },
+      {
+        "value": 15622273.0,
+        "period": "FY2016",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding"
+      }
+    ],
+    "basic_shares_weighted": [
+      {
+        "value": 13045394.0,
+        "period": "FY2026",
+        "source": "WeightedAverageNumberOfSharesOutstandingBasic"
+      },
+      {
+        "value": 13578587.0,
+        "period": "FY2025",
+        "source": "facts:WeightedAverageNumberOfSharesOutstandingBasic"
+      },
+      {
+        "value": 14342931.0,
+        "period": "FY2024",
+        "source": "WeightedAverageNumberOfSharesOutstandingBasic"
+      },
+      {
+        "value": 14940770.0,
+        "period": "FY2023",
+        "source": "WeightedAverageNumberOfSharesOutstandingBasic"
+      },
+      {
+        "value": 15460634.0,
+        "period": "FY2022",
+        "source": "WeightedAverageNumberOfSharesOutstandingBasic"
+      },
+      {
+        "value": 14923304.0,
+        "period": "FY2021",
+        "source": "WeightedAverageNumberOfSharesOutstandingBasic"
+      },
+      {
+        "value": 14711334.0,
+        "period": "FY2020",
+        "source": "WeightedAverageNumberOfSharesOutstandingBasic"
+      },
+      {
+        "value": 14591270.0,
+        "period": "FY2019",
+        "source": "facts:WeightedAverageNumberOfSharesOutstandingBasic"
+      },
+      {
+        "value": 15572045.0,
+        "period": "FY2017",
+        "source": "WeightedAverageNumberOfSharesOutstandingBasic"
+      },
+      {
+        "value": 15442086.0,
+        "period": "FY2016",
+        "source": "WeightedAverageNumberOfSharesOutstandingBasic"
+      }
+    ],
+    "finance_lease_principal_payments": [
+      {
+        "value": 97000.0,
+        "period": "FY2019",
+        "source": "facts:RepaymentsOfLongTermCapitalLeaseObligations"
+      },
+      {
+        "value": 76000.0,
+        "period": "FY2017",
+        "source": "facts:RepaymentsOfLongTermCapitalLeaseObligations"
       }
     ]
   },
   "balance_sheet": {
     "total_assets": {
       "value": 345453000.0,
-      "period": "FY2026"
+      "period": "FY2026",
+      "source": "Assets"
     },
     "long_term_debt": {
       "value": 0.0,
-      "period": "FY2026"
+      "period": "FY2026",
+      "source": "absent"
     },
     "short_term_debt": {
-      "value": 0.0,
-      "period": "FY2026"
+      "value": 0,
+      "period": "FY2026",
+      "source": "absent"
+    },
+    "finance_leases": {
+      "value": 0,
+      "period": "FY2026",
+      "source": "absent"
     },
     "cash_and_equivalents": {
       "value": 26755000.0,
-      "period": "FY2026"
+      "period": "FY2026",
+      "source": "CashAndCashEquivalentsAtCarryingValue"
     },
     "short_term_investments": {
       "value": 0.0,
-      "period": "FY2026"
+      "period": "FY2026",
+      "source": "absent"
+    },
+    "long_term_investments": null,
+    "current_liabilities": {
+      "value": 90626000.0,
+      "period": "FY2026",
+      "source": "LiabilitiesCurrent"
     },
     "stockholders_equity": {
       "value": 155028000.0,
-      "period": "FY2026"
+      "period": "FY2026",
+      "source": "StockholdersEquity"
+    },
+    "operating_lease_liabilities": {
+      "value": 127298000.0,
+      "period": "FY2026",
+      "source": "facts:OperatingLeaseLiability"
+    },
+    "operating_rou_asset": {
+      "value": 121129000.0,
+      "period": "FY2026",
+      "source": "OperatingLeaseRightOfUseAsset"
+    },
+    "equity_method_investments": null,
+    "minority_interest": null,
+    "preferred_stock": {
+      "value": 0.0,
+      "period": "FY2026",
+      "source": "PreferredStockValue"
     }
   },
+  "data_quality_flags": [],
+  "balance_history": [
+    {
+      "period": "FY2026",
+      "total_assets": 345453000.0,
+      "stockholders_equity": 155028000.0,
+      "total_debt": 0.0,
+      "short_term_debt": 0,
+      "cash": 26755000.0,
+      "short_term_investments": 0.0,
+      "current_liabilities": 90626000.0,
+      "operating_rou_asset": 121129000.0,
+      "long_term_investments": null
+    },
+    {
+      "period": "FY2025",
+      "total_assets": 289956000.0,
+      "stockholders_equity": 139082000.0,
+      "total_debt": 0.0,
+      "short_term_debt": 0,
+      "cash": 27758000.0,
+      "short_term_investments": 0.0,
+      "current_liabilities": 79394000.0,
+      "operating_rou_asset": 90200000.0,
+      "long_term_investments": null
+    },
+    {
+      "period": "FY2024",
+      "total_assets": 272325000.0,
+      "stockholders_equity": 129662000.0,
+      "total_debt": 0.0,
+      "short_term_debt": 0,
+      "cash": 44327000.0,
+      "short_term_investments": 0.0,
+      "current_liabilities": 83733000.0,
+      "operating_rou_asset": 73443000.0,
+      "long_term_investments": null
+    },
+    {
+      "period": "FY2023",
+      "total_assets": 280794000.0,
+      "stockholders_equity": 119117000.0,
+      "total_debt": 0.0,
+      "short_term_debt": 0,
+      "cash": 42198000.0,
+      "short_term_investments": 0.0,
+      "current_liabilities": 101151000.0,
+      "operating_rou_asset": 71791000.0,
+      "long_term_investments": null
+    },
+    {
+      "period": "FY2022",
+      "total_assets": 266324000.0,
+      "stockholders_equity": 93683000.0,
+      "total_debt": 0.0,
+      "short_term_debt": 0,
+      "cash": 32845000.0,
+      "short_term_investments": 0.0,
+      "current_liabilities": 97382000.0,
+      "operating_rou_asset": 77671000.0,
+      "long_term_investments": null
+    },
+    {
+      "period": "FY2021",
+      "total_assets": 261372000.0,
+      "stockholders_equity": 67308000.0,
+      "total_debt": 0.0,
+      "short_term_debt": 0,
+      "cash": 34840000.0,
+      "short_term_investments": 0.0,
+      "current_liabilities": 89328000.0,
+      "operating_rou_asset": 104825000.0,
+      "long_term_investments": null
+    },
+    {
+      "period": "FY2020",
+      "total_assets": 297262000.0,
+      "stockholders_equity": 88631000.0,
+      "total_debt": 0.0,
+      "short_term_debt": 0,
+      "cash": 26726000.0,
+      "short_term_investments": 0.0,
+      "current_liabilities": 85964000.0,
+      "operating_rou_asset": 126144000.0,
+      "long_term_investments": null
+    },
+    {
+      "period": "FY2019",
+      "total_assets": 172046000.0,
+      "stockholders_equity": 94314000.0,
+      "total_debt": 0.0,
+      "short_term_debt": 0,
+      "cash": 17894000.0,
+      "short_term_investments": 0.0,
+      "current_liabilities": 56177000.0,
+      "operating_rou_asset": 151513.0,
+      "long_term_investments": null
+    },
+    {
+      "period": "FY2017",
+      "total_assets": 197989000.0,
+      "stockholders_equity": 107315000.0,
+      "total_debt": 0.0,
+      "short_term_debt": 0,
+      "cash": 30445000.0,
+      "short_term_investments": 0.0,
+      "current_liabilities": 69863000.0,
+      "operating_rou_asset": null,
+      "long_term_investments": null
+    },
+    {
+      "period": "FY2016",
+      "total_assets": 199595000.0,
+      "stockholders_equity": 99112000.0,
+      "total_debt": 0.0,
+      "short_term_debt": 0,
+      "cash": 32483000.0,
+      "short_term_investments": 0.0,
+      "current_liabilities": 82857000.0,
+      "operating_rou_asset": null,
+      "long_term_investments": null
+    }
+  ],
   "shares": {
     "shares_outstanding": {
-      "value": 12580479.0,
-      "period": "FY2026"
+      "value": 12319335.0,
+      "period": "FY2026",
+      "source": "dei:EntityCommonStockSharesOutstanding"
     }
   }
 }

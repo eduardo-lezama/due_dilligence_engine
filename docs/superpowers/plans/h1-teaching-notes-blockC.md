@@ -47,3 +47,13 @@ El sistema hacía una mezcla: flujo apalancado (OCF − capex) descontado a un "
 **Defaults.** Sin WACC del usuario se usa el WACC real sugerido (con market cap) o 9,0 (sin él). `mid_year_convention` llega cableado (False por defecto).
 
 **Ejemplo A.** FCFF 210, NOPAT 225, WACC 9 %, g 0: EV 2 403,7 − net claims 450 = 1 953,7 → $195,37 (+30,2 % vs 150).
+
+## T12b — EPV, reverse DCF, múltiplos y peers en el mismo bridge
+
+**Idea.** Un solo plano para todo: el EPV (Greenwald, valor sin crecimiento) es un EV, así que pasa por el MISMO bridge que el DCF; el reverse DCF pregunta qué crecimiento hace que el DCF iguale el **EV de mercado** (no el market cap); los múltiplos EV usan ese mismo EV de mercado; los peers y el Critic usan la misma función `net_claims`.
+
+**Growth premium (Greenwald).** `1 − EPV/precio`: qué fracción del precio paga crecimiento. Si es alta y no hay moat (ROIC ≤ WACC), el crecimiento no crea valor y el precio está pagando algo que no existe.
+
+**Net-net.** Si la caja neta supera al equity de mercado, el EV de mercado es ≤ 0: los múltiplos EV no significan nada (n/m) y el reverse DCF no tiene solución.
+
+**Ejemplo A.** EPV = 300 × 0,75 / 9 % = 2 500 − 450 = 2 050 → $205 (+36,7 %). Market EV = 1 500 + 450 = 1 950 → EV/EBIT 6,5×, EV/FCFF 9,29×.

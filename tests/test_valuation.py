@@ -1191,3 +1191,73 @@ def test_valuation_agent_default_wacc_is_suggested_real_wacc_with_market():
     expected = round(suggest_wacc(st["financials"], 1_500e6).wacc * 100, 1)   # 7.8 (ver test_checkpoint_socratic)
     assert r.assumptions.wacc_pct == expected == 7.8
     assert r.wacc_breakdown is not None and r.suggested_wacc_pct == 7.8
+
+
+# ---------------------------------------------------------------------------
+# T12b — EPV, reverse DCF, múltiplos y peers en el mismo bridge (ADR-033)
+# ---------------------------------------------------------------------------
+
+def test_epv_uses_same_bridge_example_a():
+    # EPV = EBIT 300 × (1 − 25 % marginal) / 9 % = 225 / 0.09 = 2 500 (EV)
+    # per share = (2 500 − 450) / 10 = 205.00; upside = 205/150 − 1 = +36.7 %
+    r = valuation_agent(_levered_state())["valuation"]
+    assert r.epv_enterprise.value == pytest.approx(2_500e6, rel=1e-6)
+    assert r.epv_per_share.value == pytest.approx(205.00, abs=0.01)
+    assert r.epv_upside_pct == pytest.approx(36.7, abs=0.05)
+    # growth premium = 1 − 205/150 = −0.3667 (negativo: el precio está POR DEBAJO del EPV)
+    assert r.epv_growth_premium == pytest.approx(1 - 205 / 150, abs=1e-4)
+
+
+def test_reverse_dcf_targets_market_ev_not_market_cap():
+    from due_diligence.agents.valuation_math import dcf_components
+    r = valuation_agent(_levered_state())["valuation"]
+    # market EV = 150 × 10M + net claims 450M = 1 950M
+    assert r.market_enterprise_value.value == pytest.approx(1_950e6)
+    # El reverse usa la MISMA función que el directo (incluida la reinversión terminal con NOPAT 225)
+    ev_at_implied = dcf_components(210e6, r.reverse_dcf_implied_growth, 0.0, 0.09, 5, 5,
+                                   nopat_base=225e6).enterprise_value
+    assert ev_at_implied == pytest.approx(1_950e6, rel=2e-3)
+    assert r.ev_ebit_multiple.value == pytest.approx(6.5)              # 1 950 / 300
+    assert r.ev_fcf_multiple.value == pytest.approx(9.29, abs=0.01)    # EV/FCFF = 1 950 / 210 = 9.2857
+    assert r.pe_multiple.value == pytest.approx(1_500 / 195, abs=0.01) # equity de mercado / NI = 7.69
+    assert r.earnings_yield_pct == pytest.approx(300 / 1_950 * 100, abs=0.01)  # 15.38 %
+
+
+def test_net_net_market_ev_nonpositive_multiples_nm():
+    # Caja 2 000M > equity de mercado 1 500M + deuda 500M → market EV = 1 500 + 500 − 2 000 = 0 → n/m
+    st = _levered_state()
+    st["financials"] = st["financials"].model_copy(update={"cash_and_equivalents": _mv(2_000e6)})
+    r = valuation_agent(st)["valuation"]
+    assert r.market_enterprise_value.value == pytest.approx(0.0)
+    assert r.ev_ebit_multiple is None and r.ev_fcf_multiple is None and r.reverse_dcf_implied_growth is None
+    assert "Net-net" in r.dcf_reliability_note
+
+
+def test_compute_epv_no_enterprise_vs_market_cap_fallback():
+    # 180 × 0.75 / 0.09 = 1 500 − 200 = 1 300 / 10 = 130; sin precio → upside None (nunca EV vs market cap)
+    from due_diligence.agents.valuation import _compute_epv
+    _, ps, up, _, _ = _compute_epv([_mv(180e6)], 0.09, net_claims=200e6, shares=10e6, price_current=None)
+    assert ps.value == pytest.approx(130.0) and up is None
+
+
+def test_epv_growth_premium_reported():
+    # EPV/sh 100 vs precio 150 → el mercado paga un 33 % por crecimiento (Greenwald): no es "caro", es "premium".
+    # EBIT 120 × 0.75 / 0.09 = 1 000 → /10M = 100. (El plan usaba EBIT 135 → 112.5/sh, inconsistente
+    # con su propio assert de 100: dato corregido.) premium = 1 − 100/150 = 1/3
+    from due_diligence.agents.valuation import _compute_epv
+    _, ps, up, _, premium = _compute_epv([_mv(120e6)], 0.09, net_claims=0.0, shares=10e6, price_current=150.0)
+    assert ps.value == pytest.approx(150.0 * (1 - 1 / 3), rel=1e-6) and premium == pytest.approx(1 / 3, rel=1e-6)
+
+
+def test_ebit_median_includes_negative_years():
+    from due_diligence.agents.valuation import _ebit_median
+    med, _ = _ebit_median([_mv(100e6), _mv(-50e6, "FY2024"), _mv(80e6, "FY2023")])
+    assert med == pytest.approx(80e6)                       # antes se descartaba el −50 y salía 90
+    med_neg, _ = _ebit_median([_mv(10e6), _mv(-50e6, "FY2024"), _mv(-80e6, "FY2023")])
+    assert med_neg is None                                  # mediana ≤ 0 → EPV None
+
+
+def test_reverse_dcf_none_at_search_bounds():
+    # Target inalcanzable (EV de mercado 1 000× el FCFF) → la búsqueda se pega al borde 2.0 → None
+    from due_diligence.agents.valuation import _reverse_dcf
+    assert _reverse_dcf(1e6, 1e15, 0.025, 0.09, 10, stage1_years=5, fade_years=5) is None

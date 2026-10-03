@@ -19,3 +19,15 @@ Formato: síntoma → causa raíz → fix → commit.
 - **Causa raíz:** `FCF = OCF − capex` (ya neto de intereses) descontado a una tasa llamada WACC y presentado como equity sin restar deuda ni sumar caja/STI/LTI; acciones = portada sin dilución.
 - **Fix:** `valuation_agent` → FCFF normalizado (mediana del margen 3 años) → `dcf_components` con valor terminal con reinversión → EV capitalizado a la fecha de valoración → `equity_bridge` (deuda, NCI, preferentes, caja, STI, LTI + participaciones) → `resolve_share_count` (portada × diluidas/básicas) → upside por acción. `ValuationInputError` capturado → `ValuationReport(stub=True, error=...)`. Test de integración `parse_financials → valuation_agent` con STI > 0.
 - **Commit:** feat(h1-T12a).
+
+## EC-73 — EPV upside comparaba EV con market cap sin precio
+- **Síntoma:** sin precio (o con shares ausentes) el upside del EPV se calculaba como (EPV_enterprise − market cap)/market cap: EV contra equity, sesgado por toda la deuda neta. El EPV además restaba solo deuda − caja (sin STI/LTI/NCI/preferentes) y usaba `1 − NI/EBIT` como tipo.
+- **Causa raíz:** fallback "indicativo" que mezclaba planos; bridge del EPV distinto del (inexistente) del DCF.
+- **Fix:** `_compute_epv(ebit_series, wacc, net_claims, shares, price_current, mid_year, *, capitalization)` → mismo `net_claims` que el DCF, tipo marginal, misma capitalización a fecha de valoración, upside solo por acción (None + nota sin precio), `epv_growth_premium = 1 − EPV/sh ÷ precio` (Greenwald).
+- **Commit:** feat(h1-T12b).
+
+## EC-74 — Reverse DCF buscaba el market cap con un modelo de EV
+- **Síntoma:** el growth implícito salía infraestimado en empresas apalancadas y sobreestimado con caja neta; los múltiplos EV usaban `market_cap + deuda − caja` (STI ignorada) y EV/FCF apalancado; peers con otra definición de EV.
+- **Causa raíz:** target equity (market cap) frente a un DCF que produce EV; cada consumidor tenía su "net debt".
+- **Fix:** target = market EV (precio × acciones + `net_claims`), deshecha la capitalización, misma función `dcf_components` (incluida la reinversión terminal y mid-year) que el DCF directo; None si la solución toca los bordes de búsqueda o market EV ≤ 0 ("net-net", múltiplos n/m). EV/EBIT, EV/FCFF, earnings yield, P/E (equity de mercado / NI), `peers.py` y `critic.py` usan `net_claims`.
+- **Commit:** feat(h1-T12b).

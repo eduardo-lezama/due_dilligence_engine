@@ -30,3 +30,18 @@ Formato: concepto → por qué → cómo → relación con la arquitectura → e
 **Relación con la arquitectura.** Invariante 5 (tools fallan loud) aplicado a la capa LLM; ADR-032. El grafo NO se detiene: el report con `error` viaja hasta el Value Expert (bloque DATA GAPS, T2e), el archiver (sección "Analysis incomplete") y la CLI (panel rojo).
 
 **Ejemplo.** `client.structured.side_effect = LLMTruncatedError("trunc")` → `filings_agent(...)["filings"]` tiene `stub=True`, `error.startswith("LLMTruncatedError")` y `mda_highlights is None`.
+
+---
+
+## T2c — Un patrón para todos los agentes LLM (management, competitive, critic)
+
+**Concepto.** Los cuatro especialistas LLM comparten ahora la misma forma: `client.structured(Schema, ...)` → `_build_report(out, ticker)` (mapeo puro) → `model_copy(model_used=...)`; `except LLMError` → `Report(stub=True, error=error_label(e))`. Lo común vive en `agents/llm_support.py` (`error_label`, `model_used`).
+
+**Por qué.** Un patrón idéntico permite que el archiver, la CLI y SQLite traten los fallos de forma genérica (`collect_failures` lee `.error` de cualquier report) y hace imposible que un agente se quede con el parseo viejo. Tres detalles de dominio:
+- **Management:** `form4_transactions_12m` ya no lo emite el LLM; es `len(form4_transactions)` (ADR-005). Por eso el test de campos pasa de 5 (lo que decía el LLM) a 1 (lo que hay en el fixture).
+- **Competitive:** `Literal["wide","narrow","none"]` en el schema sustituye a "valor desconocido → none". Un valor fuera de contrato ya no se convierte en silencio en "none": es un `LLMSchemaError`. El clamp de wide moat (ADR-024) sigue intacto.
+- **Critic:** si la síntesis no existe o es stub, no llama al LLM (`error="skipped: synthesis unavailable"`). Un "red team" contra un análisis ausente solo añade ruido y coste.
+
+**Relación con la arquitectura.** ADR-032; invariante 3 (los agentes solo importan `llm.errors`, nunca el SDK); invariante 6 (los prompts mantienen las preguntas de §3 y §2; solo pierden el bloque de formato JSON).
+
+**Ejemplo.** `critic_agent({"ticker": "T", "synthesis": ValueExpertReport(ticker="T", stub=True)})` → `CriticReport(stub=True, error="skipped: synthesis unavailable")` y `structured` nunca se llama.

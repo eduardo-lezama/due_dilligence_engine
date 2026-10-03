@@ -22,18 +22,23 @@ Qué NO hace:
 Checklist cubierto:
     §8.4 Pre-mortem (docs/checklist-value-investing.md)
     §8.2 Consensus vs variant view
+
+Fail loud (ADR-032):
+    La salida se pide con LLMClient.structured(CriticLLMOutput). Un LLMError produce
+    CriticReport(stub=True, error=...). Si la síntesis del Expert no existe o es stub,
+    el Critic no llama al LLM: no tiene sentido un "red team" contra un análisis ausente.
 """
 
 from __future__ import annotations
-
-import json
-from typing import Any
 
 import structlog
 
 from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
+from due_diligence.agents.llm_support import error_label, model_used
 from due_diligence.llm.client import get_client
+from due_diligence.llm.errors import LLMError
+from due_diligence.schemas.llm_outputs import CriticLLMOutput
 from due_diligence.schemas.reports import CriticReport
 from due_diligence.utils.formatting import fmt_usd
 from due_diligence.utils.periods import align_by_period
@@ -52,18 +57,12 @@ RULES:
 - Every weakness must be grounded in the data provided — no invented facts.
 - Do not soften weaknesses with "however" or "that said". State them bluntly.
 - Do not repeat the bull case. The analyst already made it.
-- Return ONLY valid JSON. No markdown, no preamble.
 
-OUTPUT SCHEMA:
-{
-  "weaknesses": [
-    "<specific weakness 1>",
-    "<specific weakness 2>",
-    "<specific weakness 3>"
-  ],
-  "contra_thesis": "<2-3 sentences: the strongest argument against the bull case>",
-  "pre_mortem_scenario": "<2-3 sentences: 3 years later, the thesis failed because...>"
-}"""
+FIELD GUIDANCE (the output format is enforced by the response schema):
+- weaknesses: 3-5 specific weaknesses, one string each.
+- contra_thesis: 2-3 sentences — the strongest argument against the bull case.
+- pre_mortem_scenario: 2-3 sentences — 3 years later, the thesis failed because...
+"""
 
 
 def _build_critic_prompt(state: AnalysisState) -> str:
@@ -138,7 +137,7 @@ def _build_critic_prompt(state: AnalysisState) -> str:
             lines.append(f"- {f}")
         lines.append("")
 
-    lines.append("Now identify the weaknesses. Be blunt. Return valid JSON only.")
+    lines.append("Now identify the weaknesses. Be blunt.")
     return "\n".join(lines)
 
 
@@ -228,48 +227,17 @@ def _detect_red_flags(state: AnalysisState) -> list[str]:
     return flags
 
 
-def _parse_response(response_text: str, ticker: str) -> CriticReport:
+def _build_report(out: CriticLLMOutput, ticker: str) -> CriticReport:
+    """Convierte la salida validada del LLM en el report de dominio.
+
+    Se descartan weaknesses vacías (el schema garantiza list[str], no su contenido).
     """
-    Parsea la respuesta JSON del LLM en un CriticReport.
-
-    En caso de fallo, preserva el texto crudo en contra_thesis para
-    que el output no se pierda. El critic nunca bloquea el pipeline.
-    """
-    try:
-        start = response_text.find("{")
-        end = response_text.rfind("}") + 1
-        if start == -1 or end == 0:
-            raise ValueError("No JSON object in response")
-
-        data: dict[str, Any] = json.loads(response_text[start:end])
-
-        weaknesses = data.get("weaknesses", [])
-        if not isinstance(weaknesses, list):
-            weaknesses = []
-        # Asegurar que son strings
-        weaknesses = [str(w) for w in weaknesses if w]
-
-        return CriticReport(
-            ticker=ticker,
-            stub=False,
-            weaknesses=weaknesses,
-            contra_thesis=data.get("contra_thesis"),
-            pre_mortem_scenario=data.get("pre_mortem_scenario"),
-        )
-
-    except Exception as e:
-        log.error(
-            "critic_parse_failed",
-            ticker=ticker,
-            error=str(e),
-            response=response_text[:200],
-        )
-        return CriticReport(
-            ticker=ticker,
-            stub=False,
-            weaknesses=[],
-            contra_thesis=f"[Parse error] {response_text[:300]}",
-        )
+    return CriticReport(
+        ticker=ticker, stub=False,
+        weaknesses=[w for w in out.weaknesses if w and w.strip()],
+        contra_thesis=out.contra_thesis,
+        pre_mortem_scenario=out.pre_mortem_scenario,
+    )
 
 
 def critic_agent(state: AnalysisState) -> dict:
@@ -285,17 +253,32 @@ def critic_agent(state: AnalysisState) -> dict:
     ticker = state["ticker"]
     log.info("critic_agent_start", ticker=ticker)
 
+    # Sin síntesis válida no hay nada que criticar: no se gasta una llamada ni se
+    # muestra un "Red Team" contra un análisis inexistente (ADR-032, revisión funcional).
+    synthesis = state.get("synthesis")  # type: ignore[typeddict-item]
+    if synthesis is None or synthesis.stub:
+        log.warning("critic_agent_skipped_no_synthesis", ticker=ticker)
+        return {"critique": CriticReport(ticker=ticker, stub=True, error="skipped: synthesis unavailable")}
+
     user_prompt = _build_critic_prompt(state)
 
     log.info("critic_agent_llm_call", ticker=ticker, model=settings.openai_expert_model)
-    response_text = get_client().complete(
-        messages=[{"role": "user", "content": user_prompt}],
-        system=_SYSTEM_PROMPT,
-        model=settings.openai_expert_model,
-        max_tokens=1024,
-    )
+    client = get_client()
+    try:
+        out = client.structured(
+            CriticLLMOutput,
+            messages=[{"role": "user", "content": user_prompt}],
+            system=_SYSTEM_PROMPT,
+            model=settings.openai_expert_model,
+            max_tokens=2048,   # antes 1024: la truncación era frecuente y se ocultaba
+        )
+    except LLMError as e:
+        # Fail loud (EC-68): antes "[Parse error]" acababa en contra_thesis como si fuera texto real.
+        log.error("critic_agent_llm_failed", ticker=ticker, error_type=type(e).__name__, error=str(e))
+        return {"critique": CriticReport(ticker=ticker, stub=True, error=error_label(e))}
 
-    report = _parse_response(response_text, ticker)
+    report = _build_report(out, ticker)
+    report = report.model_copy(update={"model_used": model_used(client)})
 
     log.info(
         "critic_agent_complete",

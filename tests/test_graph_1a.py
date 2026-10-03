@@ -86,7 +86,11 @@ def _mock_specialists(mocker):
     mocker.patch("due_diligence.agents.management.EdgarManagementAdapter.fetch_10k_item10", return_value="")
     mocker.patch("due_diligence.agents.management.TavilyAdapter.search", return_value=[])
     mock_mgmt = mocker.MagicMock()
-    mock_mgmt.complete.return_value = '{"compensation_structure_notes":"N/A","capital_allocation_summary":"N/A","citations":[]}'
+    from due_diligence.schemas.llm_outputs import CompetitiveLLMOutput, ManagementLLMOutput
+    mock_mgmt.structured.return_value = ManagementLLMOutput(
+        insider_ownership_pct=None, insider_ownership_citation=None, founder_ceo=None,
+        ceo_tenure_years=None, ceo_tenure_citation=None, insider_transaction_pattern=None,
+        compensation_structure_notes="N/A", capital_allocation_summary="N/A", citations=[])
     mocker.patch("due_diligence.agents.management.get_client", return_value=mock_mgmt)
 
     mocker.patch("due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_business", return_value="")
@@ -112,7 +116,8 @@ def _mock_specialists(mocker):
 
     mocker.patch("due_diligence.agents.competitive.TavilyAdapter.search", return_value=[])
     mock_comp = mocker.MagicMock()
-    mock_comp.complete.return_value = '{"moat_classification":"none","moat_sources":[],"citations":[]}'
+    mock_comp.structured.return_value = CompetitiveLLMOutput(moat_classification="none",
+                                                            moat_sources=[], citations=[])
     mocker.patch("due_diligence.agents.competitive.get_client", return_value=mock_comp)
 
 

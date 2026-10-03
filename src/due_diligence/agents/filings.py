@@ -39,7 +39,7 @@ from due_diligence.llm.errors import LLMError
 from due_diligence.schemas.llm_outputs import FilingsLLMOutput
 from due_diligence.schemas.reports import FilingsRAGReport
 from due_diligence.tools.edgar import EdgarFilingsAdapter
-from due_diligence.validation.citations import count_verified, gate_llm_value, validate_and_relabel
+from due_diligence.validation.citations import count_verified, gate_llm_value, validate_and_relabel, dedupe_citations
 
 log = structlog.get_logger()
 
@@ -156,7 +156,7 @@ def _build_report(out: FilingsLLMOutput, ticker: str, corpus: dict[str, str]) ->
     sec_flag = out.active_sec_investigation if (out.active_sec_investigation is not True or gov_ok) else None
     mw_flag = out.material_weakness if (out.material_weakness is not True or gov_ok) else None
     citations = validate_and_relabel([c.to_citation() for c in out.citations], corpus)
-    citations += [c for c in (backlog_cit, gov_cit) if c is not None]
+    citations = dedupe_citations(citations + [c for c in (backlog_cit, gov_cit) if c is not None])
     return FilingsRAGReport(
         ticker=ticker, stub=False,
         business_description=out.business_description,

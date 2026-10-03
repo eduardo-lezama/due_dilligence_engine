@@ -162,6 +162,24 @@ def validate_and_relabel(citations: list[Citation], corpus: dict[str, str]) -> l
     return out
 
 
+def dedupe_citations(citations: list[Citation]) -> list[Citation]:
+    """Elimina citas repetidas (mismo excerpt normalizado), conservando la primera VERIFICADA si la hay.
+
+    Por qué: la cita que respalda un campo numérico (p.ej. % de insiders) suele venir también en la
+    lista general del LLM; sin deduplicar, el report la mostraba dos veces (visto en vivo con AAPL).
+    """
+    out: list[Citation] = []
+    index: dict[str, int] = {}
+    for c in citations:
+        key = normalize_text(c.excerpt)
+        if key not in index:
+            index[key] = len(out)
+            out.append(c)
+        elif c.verified and not out[index[key]].verified:
+            out[index[key]] = c
+    return out
+
+
 def count_verified(citations: list[Citation]) -> tuple[int, int]:
     """(verificadas, no verificadas) — para el log `<agent>_citations_validated`."""
     ok = sum(1 for c in citations if c.verified)

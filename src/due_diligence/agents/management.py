@@ -43,7 +43,7 @@ from due_diligence.schemas.reports import ManagementReport
 from due_diligence.tools.edgar import EdgarEventsAdapter, EdgarManagementAdapter, format_form4_for_prompt
 from due_diligence.tools.finnhub import FinnhubAdapter
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
-from due_diligence.validation.citations import count_verified, gate_llm_value, validate_and_relabel
+from due_diligence.validation.citations import count_verified, gate_llm_value, validate_and_relabel, dedupe_citations
 
 log = structlog.get_logger()
 
@@ -88,6 +88,11 @@ RULES:
 - When citing earnings call transcripts (SOURCE 5), set source_url to "Finnhub transcript <id>" and copy the speaker's verbatim sentence into `excerpt`.
 - If information is not available in the context, say "Not available in provided sources."
 - Citation excerpts are verified automatically against the sources: copy them VERBATIM. Paraphrased excerpts are discarded.
+- Excerpts must be ONE contiguous span copied from ONE source. Never join text from different places, never add
+  words, and never add computed figures (e.g. a percentage you calculated) to an excerpt.
+- TABLES (e.g. DEF 14A beneficial ownership): copy the row exactly as it appears, including footnote markers and
+  symbols, e.g. "officers as a group (12 persons) 9,079,765(17) *". A "*" means "less than 1%": if the table only
+  shows "*" and no percentage, set insider_ownership_pct to null — do not compute it yourself.
 
 FIELD GUIDANCE (the output format is enforced by the response schema):
 - insider_ownership_pct: total % of shares owned by all insiders combined (directors + executive officers as a group), as stated in SOURCE 1 (DEF 14A) or SOURCE 3; null if not stated.
@@ -235,7 +240,7 @@ def _build_report(out: ManagementLLMOutput, ticker: str, corpus: dict[str, str],
         ten_cit = ten_cit.model_copy(update={"verified": False, "confidence": 0.0,
                                              "verification_note": "no appointment year in excerpt"})
     citations = validate_and_relabel([c.to_citation() for c in out.citations], corpus)
-    citations += [c for c in (pct_cit, ten_cit) if c is not None]
+    citations = dedupe_citations(citations + [c for c in (pct_cit, ten_cit) if c is not None])
     return ManagementReport(
         ticker=ticker, stub=False,
         insider_ownership_pct=pct, founder_ceo=out.founder_ceo, ceo_tenure_years=tenure,

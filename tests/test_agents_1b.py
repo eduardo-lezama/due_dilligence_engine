@@ -1251,3 +1251,13 @@ def test_governance_flag_with_invented_citation_is_dropped():
     rep = build_filings(_filings_out(active_sec_investigation=True, governance_citation=cit),
                         "TST", {"10-K Item 1A": GOV_1A})
     assert rep.active_sec_investigation is None
+
+
+
+def test_field_citation_not_duplicated_when_llm_also_lists_it():
+    """Visto en vivo (AAPL, 2026-10-03): la cita que respalda el % de insiders aparecía dos veces en el
+    report (una en citations del LLM y otra añadida por el gating). Debe aparecer una sola vez."""
+    same = _cout(DEF14A)
+    rep = build_mgmt(_mgmt_out(insider_ownership_pct=12.5, insider_ownership_citation=same, citations=[same]),
+                     "TST", {"DEF 14A": DEF14A}, 0)
+    assert len([c for c in rep.citations if c.excerpt == DEF14A]) == 1

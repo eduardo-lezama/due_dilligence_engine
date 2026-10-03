@@ -235,3 +235,27 @@ def test_checkpoint2_node_real_langgraph_interrupt_roundtrip(levered_state_with_
     done = g.invoke(Command(resume={"wacc_pct": 9.0, "terminal_growth_pct": 2.5}), config=cfg)
     assert _pending_interrupt_payload(done, g, cfg) is None
     assert done["checkpoint2_user_input"]["wacc_pct"] == 9.0
+
+
+
+def test_checkpoint2_summary_small_cap_hints_use_adaptive_formatter():
+    """EC-86: el checkpoint 2 mostraba '$0.0B' de FCF y '$0B' de market cap en small caps,
+    justo donde el usuario decide WACC y crecimiento. Debe usar fmt_usd (EC-14/EC-17)."""
+    from due_diligence.agents.checkpoint import _build_checkpoint2_summary
+    from due_diligence.schemas.base import FinancialsReport, MetricValue
+    from due_diligence.schemas.reports import MarketReport
+
+    mv = lambda v, p="FY2025", u="USD": MetricValue(value=v, unit=u, period=p, source="test")
+    fin = FinancialsReport(
+        ticker="BBW", cik="1", as_of_date="2026-01-31", source_filing="10-K FY2026",
+        revenue=[mv(529.8e6)], gross_profit=[mv(290e6)], operating_income=[mv(60e6)], net_income=[mv(47e6)],
+        operating_cash_flow=[mv(65e6)], capex=[mv(25.4e6)], free_cash_flow=[mv(39.6e6, "FY2026")],
+        total_assets=mv(345e6), total_debt=mv(0.0), cash_and_equivalents=mv(26.8e6),
+        shares_outstanding=mv(12.58e6, u="shares"),
+    )
+    market = MarketReport(ticker="BBW", stub=False,
+                          price_current=mv(50.0, "2026-10-01", "USD/share"),
+                          market_cap=mv(629e6, "2026-10-01"))
+    s = _build_checkpoint2_summary({"ticker": "BBW", "financials": fin, "market": market})
+    assert s["context"]["latest_fcf"] == "$40M (FY2026)"
+    assert s["context"]["market_cap"] == "$629M"

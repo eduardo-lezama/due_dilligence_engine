@@ -650,6 +650,7 @@ def _format_context(state: AnalysisState) -> str:
                     f"{_fmt_usd(b.operating_lease_liabilities_memo)}"
                 )
             if valuation.share_count_used:
+                # /1e6 aceptado: nº de acciones (siempre ≥ 1M), no USD (MCE-26)
                 lines.append(f"Diluted shares used: {valuation.share_count_used / 1e6:,.2f}M "
                              f"({valuation.share_count_source})")
         if valuation.terminal_value_share is not None:

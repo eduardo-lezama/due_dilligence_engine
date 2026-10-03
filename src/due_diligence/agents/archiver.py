@@ -171,7 +171,7 @@ def _render_equity_bridge(bridge, share_count, per_share, *, share_count_source=
     lines.append(f"| = Equity value | {_fmt_usd(bridge.equity_value)} |")
     if share_count:
         src = f" ({share_count_source})" if share_count_source else ""
-        lines.append(f"| ÷ Diluted shares{src} | {share_count / 1e6:,.2f}M |")
+        lines.append(f"| ÷ Diluted shares{src} | {share_count / 1e6:,.2f}M |")  # /1e6 aceptado: nº de acciones (siempre ≥ 1M), no USD (MCE-26)
     if per_share is not None:
         lines.append(f"| = Per share | **${per_share:.2f}** |")
     if bridge.operating_lease_liabilities_memo is not None:

@@ -31,6 +31,7 @@ from __future__ import annotations
 import structlog
 from langgraph.types import interrupt
 
+from due_diligence.utils.formatting import fmt_usd
 from due_diligence.graph.state import AnalysisState
 
 log = structlog.get_logger()
@@ -185,18 +186,19 @@ def _build_checkpoint2_summary(state: AnalysisState) -> dict:
     financials = state.get("financials")  # type: ignore[typeddict-item]
     market = state.get("market")         # type: ignore[typeddict-item]
 
-    # /1e9 de estos hints: pendiente de T14 (formatter común); no forma parte del Bloque C.
+    # EC-86: formatter adaptativo común (fmt_usd). Con /1e9 una small cap salía como "$0.0B"
+    # justo donde el usuario decide WACC y crecimiento (regresión del patrón EC-14/EC-17).
     fcf_hint = None
     if financials is not None and financials.free_cash_flow:
         fcf = financials.free_cash_flow[0]
-        fcf_hint = f"${fcf.value / 1e9:.1f}B ({fcf.period})"
+        fcf_hint = f"{fmt_usd(fcf.value)} ({fcf.period})"
 
     price_hint = None
     if market is not None and market.price_current is not None:
         price_hint = f"${market.price_current.value:.2f}"
 
     market_cap = market.market_cap.value if (market is not None and market.market_cap is not None) else None
-    market_cap_hint = f"${market_cap / 1e9:.0f}B" if market_cap is not None else None
+    market_cap_hint = fmt_usd(market_cap) if market_cap is not None else None
 
     roic_hint = None
     if financials is not None and financials.roic_series:

@@ -24,13 +24,26 @@ from __future__ import annotations
 
 import structlog
 
+from due_diligence.agents.valuation_math import net_claims
 from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
+from due_diligence.schemas.base import MetricValue
 from due_diligence.schemas.reports import PeerROIC, PeerValuation
 from due_diligence.tools.edgar import DataUnavailableError, EdgarAdapter
 from due_diligence.tools.polygon import PolygonAdapter
 
 log = structlog.get_logger()
+
+
+def _opt_value(rep, field: str) -> float | None:
+    """Valor de un campo Optional[MetricValue] del FinancialsReport del peer, o None.
+
+    isinstance en lugar de `is not None`: el campo es Optional[MetricValue] por contrato, y así
+    un objeto parcial (reports de versiones previas sin los campos de balance de T8) no rompe el
+    cálculo — el componente ausente cuenta como 0 en net_claims, igual que en el sujeto.
+    """
+    v = getattr(rep, field, None)
+    return v.value if isinstance(v, MetricValue) else None
 
 
 def _get_sic(ticker: str) -> tuple[str | None, str | None]:
@@ -104,11 +117,23 @@ def _build_peer_valuations(reports: list) -> list[PeerValuation]:
         ebit: float | None = rep.operating_income[0].value if rep.operating_income else None
         fcf: float | None = rep.free_cash_flow[0].value if rep.free_cash_flow else None
         debt: float = rep.total_debt.value if rep.total_debt is not None else 0.0
-        # cash-only aceptado aquí (MCE-26, T6): antes de H1 la STI era siempre 0 en el raw, así que
-        # el EV de peers no cambia; T12b pasa este cálculo al bridge común (net_claims con STI).
+        # cash_and_equivalents es SOLO caja desde H1 (EC-81); STI/LTI/NCI/preferentes van aparte.
         cash: float = rep.cash_and_equivalents.value if rep.cash_and_equivalents is not None else 0.0
 
-        ev = market_cap + debt - cash
+        # EV del peer con la MISMA definición de derechos que el bridge del sujeto (ADR-033 §5):
+        # si sujeto y peers usaran "net debt" distintos, la comparación EV/EBIT vs mediana de
+        # peers (ADR-030) estaría sesgada. Market cap del peer (Polygon) como equity de mercado.
+        lt_inv = _opt_value(rep, "long_term_investments")
+        eq_method = _opt_value(rep, "equity_method_investments")
+        if eq_method:
+            lt_inv = (lt_inv or 0.0) + eq_method
+        ev = market_cap + net_claims(
+            debt, cash,
+            sti=_opt_value(rep, "short_term_investments"),
+            lt_investments=lt_inv,
+            minority_interest=_opt_value(rep, "minority_interest"),
+            preferred=_opt_value(rep, "preferred_stock"),
+        )
 
         if ev <= 0:
             log.warning("peer_valuation_negative_ev", peer=rep.ticker, ev=ev)

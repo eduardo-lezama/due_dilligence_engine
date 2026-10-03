@@ -42,93 +42,74 @@ def test_ebit_median_empty_series():
     assert source == "unavailable"
 
 
-def test_ebit_median_ignores_non_positive():
-    # Un período negativo no debe incluirse
+def test_ebit_median_includes_non_positive_years():
+    # Revisión adversarial: el trough cíclico forma parte del ciclo → se INCLUYE.
+    # 4 valores: sorted −50, 100, 110, 120 → mediana (100+110)/2 = 105 (antes descartaba −50 → 110)
     series = [_mv(-50), _mv(100), _mv(120), _mv(110)]
     med, source = _ebit_median(series)
-    assert med is not None
-    assert med > 0
+    assert med == pytest.approx(105.0)
+    assert source == "ebit_median_4y"
 
 
-# --- _compute_epv ---
+
+# --- _compute_epv (T12b: mismo bridge que el DCF, tipo MARGINAL, upside solo por acción) ---
 
 def test_compute_epv_enterprise_value():
-    """EPV_enterprise = NOPAT / WACC con tax derivada de NI/EBIT."""
-    # EBIT ~190M (mediana de 3 periodos), NI=150M → tax=(190-150)/190≈21%
-    # NOPAT = 190M × (1-0.21) ≈ 150M → EPV = 150M / 0.09 ≈ 1.67B
+    """EPV_enterprise = NOPAT / WACC con el tipo MARGINAL 25 % (ADR-033)."""
+    # Mediana de 190, 200, 180 = 190M → NOPAT = 190 × 0.75 = 142.5M → EPV = 142.5 / 0.09 = 1 583.33M
     series = [_mv(190e6), _mv(200e6), _mv(180e6)]
-    epv_ent, epv_ps, upside, source = _compute_epv(
-        ebit_series=series,
-        net_income_latest=150e6,
-        wacc=0.09,
-        net_debt=0.0,
-        shares=10e6,
-        market_cap=1.5e9,
+    epv_ent, epv_ps, upside, source, _ = _compute_epv(
+        ebit_series=series, wacc=0.09, net_claims=0.0, shares=10e6,
     )
-    assert epv_ent is not None
-    assert 1.5e9 < epv_ent.value < 2.0e9
-    assert source is not None
+    assert epv_ent.value == pytest.approx(142.5e6 / 0.09, abs=1)
+    assert source == "ebit_median_3y"
 
 
-def test_compute_epv_per_share_subtracts_net_debt():
-    """EPV per share debe restar net_debt antes de dividir."""
-    # EBIT=180M (solo 1 período → ebit_latest), tax=25% (default)
-    # NOPAT = 180M × 0.75 = 135M → EPV_enterprise = 135M / 0.09 = 1.5B
-    # EPV_equity = 1.5B - 200M = 1.3B → per_share = 1.3B / 10M = $130
-    series = [_mv(180e6)]
-    epv_ent, epv_ps, upside, source = _compute_epv(
-        ebit_series=series,
-        net_income_latest=None,  # fuerza tax default 25%
-        wacc=0.09,
-        net_debt=200e6,
-        shares=10e6,
-        market_cap=1e9,
+def test_compute_epv_per_share_subtracts_net_claims():
+    """EPV per share resta net_claims (mismo bridge que el DCF) antes de dividir."""
+    # EBIT=180M (1 periodo → ebit_latest): NOPAT 135M → EPV 1.5B − 200M = 1.3B / 10M = $130
+    epv_ent, epv_ps, upside, source, _ = _compute_epv(
+        ebit_series=[_mv(180e6)], wacc=0.09, net_claims=200e6, shares=10e6,
     )
-    assert epv_ent is not None
-    assert epv_ps is not None
-    assert abs(epv_ps.value - 130.0) < 2.0  # tolerancia por redondeo
+    assert epv_ps.value == pytest.approx(130.0)
 
 
-def test_compute_epv_upside_positive_when_epv_above_market():
-    """Si EPV_enterprise > market_cap, upside debe ser positivo."""
+def test_compute_epv_upside_vs_price():
+    """Upside = (EPV/sh − precio)/precio. Mediana 110M → 82.5/0.09 = 916.67M / 5M = $183.33;
+    con precio 100 → +83.3 %."""
     series = [_mv(100e6), _mv(120e6), _mv(110e6)]
-    epv_ent, epv_ps, upside, source = _compute_epv(
-        ebit_series=series,
-        net_income_latest=None,
-        wacc=0.09,
-        net_debt=0.0,
-        shares=5e6,
-        market_cap=500e6,   # EPV ≈ 110M×0.75/0.09 ≈ 917M > 500M
+    _, epv_ps, upside, _, premium = _compute_epv(
+        ebit_series=series, wacc=0.09, net_claims=0.0, shares=5e6, price_current=100.0,
     )
-    assert upside is not None
-    assert upside > 0
+    assert epv_ps.value == pytest.approx(183.33, abs=0.01)
+    assert upside == pytest.approx(83.3, abs=0.05)
+    assert premium == pytest.approx(1 - 183.33 / 100, abs=1e-4)
+
+
+def test_compute_epv_mid_year_and_capitalization_factors():
+    # 135M/0.09 = 1.5B × 1.09^0.5 (mid-year) × 1.05 (capitalización) = 1.5B × 1.044031 × 1.05
+    epv_ent, *_ = _compute_epv([_mv(180e6)], 0.09, net_claims=0.0, shares=10e6,
+                               mid_year=True, capitalization=1.05)
+    assert epv_ent.value == pytest.approx(1.5e9 * 1.09 ** 0.5 * 1.05, abs=1)
 
 
 def test_compute_epv_returns_none_when_no_data():
-    epv_ent, epv_ps, upside, source = _compute_epv(
-        ebit_series=[],
-        net_income_latest=None,
-        wacc=0.09,
-        net_debt=0.0,
-        shares=None,
-        market_cap=None,
+    epv_ent, epv_ps, upside, source, premium = _compute_epv(
+        ebit_series=[], wacc=0.09, net_claims=0.0, shares=None,
     )
-    assert epv_ent is None
-    assert epv_ps is None
-    assert upside is None
+    assert epv_ent is None and epv_ps is None and upside is None and premium is None
 
 
 def test_compute_epv_handles_negative_ebit():
-    """Períodos con EBIT negativo deben ser ignorados por _ebit_median."""
-    series = [_mv(-100e6), _mv(50e6)]
-    epv_ent, epv_ps, upside, source = _compute_epv(
-        ebit_series=series,
-        net_income_latest=None,
-        wacc=0.09,
-        net_debt=0.0,
-        shares=1e6,
-        market_cap=100e6,
+    """EBIT negativos se incluyen en la mediana; mediana ≤ 0 → EPV None (no un EPV negativo)."""
+    # 2 periodos (< 3) → "ebit_latest" = −100M → None
+    epv_ent, epv_ps, upside, source, _ = _compute_epv(
+        ebit_series=[_mv(-100e6), _mv(50e6)], wacc=0.09, net_claims=0.0, shares=1e6,
     )
-    # Solo el EBIT positivo (50M) se usa → EPV ≠ None
-    assert epv_ent is not None
-    assert epv_ent.value > 0
+    assert epv_ent is None and epv_ps is None and upside is None
+    # 3 periodos 100, −50, 80 → mediana 80M (con el −50 incluido) → EPV = 80 × 0.75 / 0.09 = 666.67M
+    epv_ent, _, _, source, _ = _compute_epv(
+        ebit_series=[_mv(100e6), _mv(-50e6), _mv(80e6)], wacc=0.09, net_claims=0.0, shares=1e6,
+    )
+    assert epv_ent.value == pytest.approx(80e6 * 0.75 / 0.09, abs=1)
+    assert source == "ebit_median_3y"

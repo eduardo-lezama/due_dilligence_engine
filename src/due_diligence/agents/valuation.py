@@ -7,17 +7,19 @@ Qué hace este módulo:
     la hace Python, no el LLM. Zero hallucination numérica por diseño (ADR-005).
 
 Fuentes de datos:
-    - state["financials"] (FinancialsReport) → FCF base, EBIT, net income, debt, cash
+    - state["financials"] (FinancialsReport) → OCF, capex, intereses, SBC, EBIT, impuestos,
+      deuda, caja, STI/LTI, NCI, preferentes, acciones (inputs FCFF y bridge, T8)
     - state["market"] (MarketReport) → precio actual, market cap
-    - state["checkpoint2_user_input"] → WACC, terminal growth, proyección en años
+    - state["checkpoint2_user_input"] → WACC, terminal growth, proyección, mid-year, fecha
 
-Qué calcula:
-    1. DCF en dos etapas (near-term + terminal) → equity value total
-    2. DCF upside/downside vs market cap actual
-    3. Reverse DCF → growth implícito en el precio actual (búsqueda binaria)
-    4. Múltiplos: EV/EBIT, EV/FCF, P/E
-    5. Earnings yield (EBIT/EV) — primera componente de Magic Formula (Greenblatt)
-    6. Tabla de sensibilidad WACC × near-term growth (3×3)
+Qué calcula (plano enterprise, ADR-033 — la aritmética vive en valuation_math):
+    1. DCF 3-stage sobre FCFF a WACC real → EV → equity bridge → valor por acción
+    2. Upside por acción frente al PRECIO (nunca EV vs market cap)
+    3. Reverse DCF → growth implícito en el EV de mercado (misma función que el directo)
+    4. EPV (Greenwald) en el mismo bridge + growth premium
+    5. Múltiplos sobre market EV: EV/EBIT, EV/FCFF, P/E (equity de mercado / NI), earnings yield
+    6. Tabla de sensibilidad WACC × near-term growth (3×3) en USD/share
+    7. Convergencia de los 4 métodos (ADR-030, umbrales ADR-033)
 
 Por qué near-term growth se calcula desde FCF histórico y no desde revenue:
     Ya tenemos el FCF calculado en FinancialsReport. Proyectar FCF directamente
@@ -33,14 +35,35 @@ Por qué no hay LLM aquí:
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Optional
 
 import structlog
 
 from due_diligence.graph.state import AnalysisState
 from due_diligence.schemas.base import MetricValue
-from due_diligence.schemas.reports import ValuationInput, ValuationReport, PeerValuation
+from due_diligence.schemas.reports import FcffBreakdown, ValuationInput, ValuationReport, PeerValuation
+from due_diligence.utils.formatting import fmt_usd
 from due_diligence.utils.periods import cagr_by_fiscal_years
+# Aritmética enterprise pura (ADR-033): este módulo orquesta, valuation_math calcula.
+from due_diligence.agents.valuation_math import (
+    BETA_DEFAULT,
+    ERP_PCT,
+    MARGINAL_TAX_RATE,
+    RF_PCT,
+    ValuationInputError,
+    compute_wacc,
+    dcf_components,
+    describe_wacc,
+    effective_tax_rate_multi,
+    equity_bridge,
+    estimate_pre_tax_cost_of_debt,
+    fcff_breakdown,
+    net_claims,
+    per_share,
+    resolve_share_count,
+    validate_dcf_rates,
+)
 
 log = structlog.get_logger()
 
@@ -93,9 +116,10 @@ def _three_stage_dcf(
     wacc: float,
     stage1_years: int,
     fade_years: int = 0,
+    mid_year: bool = False,
 ) -> float:
     """
-    DCF en tres etapas — Damodaran fade method (ADR-029).
+    DCF en tres etapas — Damodaran fade method (ADR-029), delegado a valuation_math (ADR-033).
 
     Stage 1 (años 1..stage1_years): crecimiento constante a g1.
     Stage 2 (años stage1_years+1..stage1_years+fade_years): fade lineal g1 → terminal_growth.
@@ -106,35 +130,16 @@ def _three_stage_dcf(
     que normalizar hacia el crecimiento de la economía tras los primeros años de ventaja.
 
     Returns:
-        Equity value total (USD). Suma de FCFs descontados + PV del terminal value.
+        **Enterprise value** (USD): descuenta FCFF al WACC. Para llegar a equity hace falta
+        el bridge (valuation_math.equity_bridge); antes de ADR-033 se trataba como equity.
+
+    Raises:
+        ValuationInputError: si WACC − g < 1pp. Antes se recortaba g a WACC − 0,5pp en
+        silencio, lo que producía TVs de ~200× el FCF (EC-76). Ahora falla loud.
     """
-    # Asegurar wacc > terminal_growth para evitar denominador negativo o infinito
-    if wacc <= terminal_growth:
-        terminal_growth = wacc - 0.005
-
-    pv = 0.0
-    fcf = base_fcf
-
-    # Stage 1: g1 constante
-    for t in range(1, stage1_years + 1):
-        fcf *= 1 + g1
-        pv += fcf / (1 + wacc) ** t
-
-    # Stage 2: fade lineal de g1 → terminal_growth
-    # g_t en fade_t-ésimo año = g1 - (g1 - terminal_growth) * fade_t / fade_years
-    for fade_t in range(1, fade_years + 1):
-        g_t = g1 - (g1 - terminal_growth) * fade_t / fade_years
-        fcf *= 1 + g_t
-        t = stage1_years + fade_t
-        pv += fcf / (1 + wacc) ** t
-
-    # Stage 3: perpetuidad a terminal_growth (Gordon Growth Model)
-    total_explicit = stage1_years + fade_years
-    terminal_fcf = fcf * (1 + terminal_growth)
-    terminal_value = terminal_fcf / (wacc - terminal_growth)
-    pv += terminal_value / (1 + wacc) ** total_explicit
-
-    return pv
+    return dcf_components(
+        base_fcf, g1, terminal_growth, wacc, stage1_years, fade_years, mid_year=mid_year,
+    ).enterprise_value
 
 
 def _two_stage_dcf(
@@ -190,19 +195,25 @@ def _reverse_dcf(
     years: int,
     stage1_years: Optional[int] = None,
     fade_years: Optional[int] = None,
+    mid_year: bool = False,
+    nopat_base: Optional[float] = None,
 ) -> Optional[float]:
     """
     Búsqueda binaria del g1 (stage 1 growth) que iguala el DCF al target_value.
 
-    Dado el market cap actual como target, responde: ¿qué crecimiento implica
-    el precio actual? Usa la misma estructura 3-stage que el forward DCF para
-    que los dos valores sean comparables.
+    target_value = **market EV** (equity de mercado + net claims, EC-74), expresado a la fecha
+    de cierre fiscal (el llamador deshace la capitalización). Antes se buscaba el market cap con
+    un modelo que produce EV: con deuda neta el growth implícito salía sesgado.
+    Usa EXACTAMENTE la misma estructura que el forward DCF (3-stage, mid-year y valor terminal
+    con reinversión si se pasa nopat_base) para que ambos sean comparables.
 
     Si stage1_years/fade_years son None, usa years como stage1 y fade=0
     (comportamiento idéntico al 2-stage original).
 
     Returns:
-        Growth rate implícito (fracción, ej 0.12 = 12%) o None si no calculable.
+        Growth rate implícito (fracción, ej 0.12 = 12%) o None si no calculable: FCF o target ≤ 0
+        (net-net), o solución pegada a los bordes de búsqueda [-50 %, +200 %] (< 1e-3): un g en
+        el borde no es una respuesta, es "fuera de rango".
     """
     if base_fcf <= 0 or target_value <= 0:
         return None
@@ -210,21 +221,49 @@ def _reverse_dcf(
     s1 = stage1_years if stage1_years is not None else years
     fd = fade_years if fade_years is not None else 0
 
-    lo, hi = -0.50, 2.00  # rango: -50% a +200% growth anual
+    def _ev(g: float) -> float:
+        return dcf_components(base_fcf, g, terminal_growth, wacc, s1, fd,
+                              mid_year=mid_year, nopat_base=nopat_base).enterprise_value
+
+    lo_bound, hi_bound = -0.50, 2.00  # rango: -50% a +200% growth anual
+    lo, hi = lo_bound, hi_bound
     for _ in range(60):   # 60 iteraciones → precisión ~4 decimal places
         mid = (lo + hi) / 2
-        val = _three_stage_dcf(base_fcf, mid, terminal_growth, wacc,
-                                stage1_years=s1, fade_years=fd)
-        if val < target_value:
+        if _ev(mid) < target_value:
             lo = mid
         else:
             hi = mid
 
     result = (lo + hi) / 2
+    if result - lo_bound < 1e-3 or hi_bound - result < 1e-3:
+        return None
     return round(result, 4)
 
 
-def _normalized_fcf_proxy(ebit: float, net_income: Optional[float]) -> Optional[float]:
+def _ten_year_equivalent_cagr(
+    g1: float, terminal_growth: float, stage1_years: int, fade_years: int,
+) -> Optional[float]:
+    """CAGR media equivalente del camino stage1 + fade: (Π(1+g_t))^(1/N) − 1 (revisión M2).
+
+    Un g1 implícito del 8 % con 5 + 5 años de fade a 2,5 % no es comparable con una CAGR
+    histórica a 5 años: el equivalente medio es ≈ 6,35 %. La clasificación usa este número.
+    """
+    n = stage1_years + fade_years
+    if n <= 0:
+        return None
+    path = [g1] * stage1_years + [
+        g1 - (g1 - terminal_growth) * t / fade_years for t in range(1, fade_years + 1)]
+    growth = 1.0
+    for g_t in path:
+        growth *= 1 + g_t
+    if growth <= 0:
+        return None
+    return round(growth ** (1 / n) - 1, 4)
+
+
+def _normalized_fcf_proxy(
+    ebit: float, net_income: Optional[float], tax_rate: Optional[float] = None,
+) -> Optional[float]:
     """
     Proxy de cash generation normalizado cuando el FCF reportado es negativo (EC-13).
 
@@ -233,10 +272,11 @@ def _normalized_fcf_proxy(ebit: float, net_income: Optional[float]) -> Optional[
     sistema devuelve "N/A — FCF insufficient", lo que pierde toda valoración para una
     clase entera del universo value (cyclicals descontados, compounders en inversión).
 
-    Cálculo: NOPAT = EBIT × (1 − effective_tax_rate).
-        - Si net_income también disponible y NI < EBIT: derive tax rate de la diferencia
-          (proxy razonable que ignora interest expense — OK para análisis directional).
-        - Si no: usar 25% default (mediana US corporate effective tax post-TCJA).
+    Cálculo: NOPAT = EBIT × (1 − t).
+        - t = `tax_rate` si el llamador pasa la tasa canónica (effective_tax_rate_multi).
+        - Si no: MARGINAL_TAX_RATE (25 %). La antigua 1 − NI/EBIT metía los intereses
+          (y la NCI) en el impuesto: EBIT 300, int 40, NI 195 → 35 % en vez de 25 % (EC-77).
+        - `net_income` ya no se usa; se conserva en la firma por compatibilidad de llamadas.
 
     Limitación: ignora working capital y maintenance vs growth capex. Sobreestima FCF
     sostenible para cyclicals en trough (cuando capex de mantenimiento es alto). Se
@@ -251,13 +291,8 @@ def _normalized_fcf_proxy(ebit: float, net_income: Optional[float]) -> Optional[
     """
     if ebit is None or ebit <= 0:
         return None
-    if net_income is not None and net_income > 0 and ebit > net_income:
-        # Derive tax rate del gap EBIT→NI (ignora interest expense — OK proxy)
-        derived_rate = 1 - (net_income / ebit)
-        tax_rate = max(0.10, min(derived_rate, 0.40))  # clamp realista
-    else:
-        tax_rate = 0.25  # US corporate post-TCJA mediana
-    return ebit * (1 - tax_rate)
+    t = tax_rate if tax_rate is not None else MARGINAL_TAX_RATE
+    return ebit * (1 - t)
 
 
 def _fcf_quality_flag(
@@ -310,10 +345,11 @@ def _fcf_quality_flag(
 
 
 # --- Constantes WACC advisory (ADR-029) ---
-# Rf: US 10y Treasury yield — actualizar manualmente cuando los tipos cambien significativamente.
-_RF_PCT: float = 4.2    # as of 2026-05
-_ERP_PCT: float = 5.0   # Damodaran historical ERP (US)
-_BETA_DEFAULT: float = 1.0  # simplificación: β=1, sin cálculo de β específica de empresa
+# Un hecho = un lugar: los valores viven en valuation_math; aquí solo alias históricos
+# para no romper imports existentes (cli, tests).
+_RF_PCT: float = RF_PCT              # US 10y Treasury, as of 2026-05
+_ERP_PCT: float = ERP_PCT            # Damodaran historical ERP (US)
+_BETA_DEFAULT: float = BETA_DEFAULT  # simplificación: β=1, sin β específica de empresa
 
 
 def _ebit_median(
@@ -329,13 +365,17 @@ def _ebit_median(
 
     Jerarquía: median_5y → median_Ny (≥3) → latest.
 
+    Los años con EBIT negativo SE INCLUYEN (revisión adversarial): descartarlos sesgaba al
+    alza el EPV de las cíclicas (un trough es parte del ciclo, no un outlier a ignorar).
+    Si la mediana resultante es ≤ 0 no hay poder de beneficio normalizado → (None, label).
+
     Returns:
         (median_ebit_usd, source_label) donde source: "ebit_median_5y",
         "ebit_median_Ny", "ebit_latest", o (None, "unavailable").
     """
     if not ebit_series:
         return None, "unavailable"
-    values = [mv.value for mv in ebit_series if mv.value is not None and mv.value > 0]
+    values = [mv.value for mv in ebit_series if mv.value is not None]
     if not values:
         return None, "unavailable"
 
@@ -352,86 +392,77 @@ def _ebit_median(
     sorted_vals = sorted(subset)
     n = len(sorted_vals)
     med = sorted_vals[n // 2] if n % 2 == 1 else (sorted_vals[n // 2 - 1] + sorted_vals[n // 2]) / 2
+    if med <= 0:
+        # Mediana ≤ 0: EPV = NOPAT/WACC sería negativo → None; el consumidor muestra "n/a"
+        # en lugar de un EPV sin sentido económico.
+        return None, label
     return med, label
 
 
 def _compute_epv(
     ebit_series: list,  # list[MetricValue]
-    net_income_latest: Optional[float],
     wacc: float,
-    net_debt: float,
+    net_claims: float,
     shares: Optional[float],
-    market_cap: Optional[float],
-    price_current: Optional[float] = None,  # EC-63: para calcular upside con precio real-time
-) -> tuple:  # (Optional[MetricValue], Optional[MetricValue], Optional[float], Optional[str])
+    price_current: Optional[float] = None,  # EC-63: upside SIEMPRE por acción frente al precio
+    mid_year: bool = False,
+    *,
+    capitalization: float = 1.0,
+    tax_rate: Optional[float] = None,
+) -> tuple:  # (Optional[MetricValue], Optional[MetricValue], Optional[float], Optional[str], Optional[float])
     """
-    Earnings Power Value — Greenwald (ADR-029).
+    Earnings Power Value — Greenwald (ADR-029), en el MISMO plano que el DCF (ADR-033).
 
-    EPV_enterprise = NOPAT_normalizado / WACC
-    EPV_equity = EPV_enterprise - net_debt
-    EPV_per_share = EPV_equity / shares
+    EPV_enterprise = NOPAT_normalizado / WACC   (× (1+WACC)^0.5 si mid_year; × capitalización
+                                                 desde el cierre fiscal, igual que el DCF)
+    EPV_equity     = EPV_enterprise − net_claims (el mismo bridge que el DCF: deuda, NCI,
+                                                 preferentes, caja, STI, LTI)
+    EPV_per_share  = EPV_equity / shares
 
-    EPV_enterprise es comparable con market_cap (ambos enterprise-level).
-    EPV_per_share es comparable con market price (ambos equity-level).
+    NOPAT normalizado = mediana(EBIT, incluidos años negativos) × (1 − MARGINAL_TAX_RATE).
+    growth_premium = 1 − EPV/sh ÷ precio (Greenwald): fracción del precio que paga por
+    crecimiento. Positivo = el mercado paga crecimiento (coherente solo con moat); negativo =
+    el precio está por debajo del valor sin crecimiento.
 
-    Tax rate derivada de NI/EBIT si disponible, else 25% (US corporate default).
+    Sin precio → upside None (se elimina el fallback EV vs market cap, EC-73).
 
     Returns:
-        (epv_enterprise_mv, epv_per_share_mv, epv_upside_pct, source_label)
+        (epv_enterprise_mv, epv_per_share_mv, epv_upside_pct, source_label, growth_premium)
         Todos pueden ser None si no hay datos suficientes.
     """
-    from due_diligence.schemas.base import MetricValue as _MV
-
     ebit_med, source = _ebit_median(ebit_series)
     if ebit_med is None or wacc <= 0:
-        return None, None, None, None
+        return None, None, None, None, None
 
-    # Tax rate: derivar de NI/EBIT del último período si coherente
-    ebit_latest = ebit_series[0].value if ebit_series else None
-    if (
-        net_income_latest is not None
-        and net_income_latest > 0
-        and ebit_latest is not None
-        and ebit_latest > net_income_latest
-    ):
-        derived_tax = 1 - (net_income_latest / ebit_latest)
-        tax_rate = max(0.10, min(derived_tax, 0.40))
-    else:
-        tax_rate = 0.25
-
-    nopat = ebit_med * (1 - tax_rate)
-    epv_enterprise = nopat / wacc
+    # Tax: el EPV es una perpetuidad → tipo MARGINAL (el efectivo converge a él, Damodaran).
+    # La antigua 1 − NI/EBIT metía los intereses en el impuesto (EC-77).
+    t = tax_rate if tax_rate is not None else MARGINAL_TAX_RATE
+    nopat = ebit_med * (1 - t)
+    epv_enterprise = nopat / wacc * ((1 + wacc) ** 0.5 if mid_year else 1.0) * capitalization
 
     period = ebit_series[0].period if ebit_series else "N/A"
-    epv_ent_mv = _MV(
+    epv_ent_mv = MetricValue(
         value=round(epv_enterprise),
         unit="USD",
         period=period,
         source=f"EPV ({source})",
     )
 
-    epv_ps_mv: Optional[_MV] = None
-    epv_upside: Optional[float] = None
-
+    epv_ps_mv: Optional[MetricValue] = None
     if shares is not None and shares > 0:
-        epv_equity = epv_enterprise - net_debt
-        epv_per_share_val = epv_equity / shares
-        epv_ps_mv = _MV(
-            value=round(epv_per_share_val, 2),
+        epv_ps_mv = MetricValue(
+            value=round(per_share(epv_enterprise - net_claims, shares), 2),
             unit="USD/share",
             period=period,
-            source=f"EPV ({source})",
+            source=f"EPV ({source}, bridge)",
         )
 
-    # EC-63: preferir cálculo per-share con price_current (real-time) sobre market_cap (stale).
+    epv_upside = _upside_pct(epv_ps_mv.value if epv_ps_mv else None, price_current)
+    growth_premium: Optional[float] = None
     if epv_ps_mv is not None and price_current is not None and price_current > 0:
-        epv_upside = round((epv_ps_mv.value - price_current) / price_current * 100, 1)
-    elif market_cap is not None and market_cap > 0:
-        # upside enterprise-level: (EPV_enterprise - mkt_cap) / mkt_cap
-        # mkt_cap sirve como proxy de enterprise value para este upside indicativo
-        epv_upside = round((epv_enterprise - market_cap) / market_cap * 100, 1)
+        growth_premium = round(1 - epv_ps_mv.value / price_current, 6)
 
-    return epv_ent_mv, epv_ps_mv, epv_upside, source
+    return epv_ent_mv, epv_ps_mv, epv_upside, source, growth_premium
 
 
 def _compute_suggested_wacc(
@@ -439,12 +470,17 @@ def _compute_suggested_wacc(
     rf_pct: float = _RF_PCT,
     erp_pct: float = _ERP_PCT,
     beta: float = _BETA_DEFAULT,
+    size_premium: bool = False,
 ) -> tuple[float, str]:
     """
-    WACC advisory por CAPM simplificado (ADR-029).
+    Devuelve el **coste de equity** CAPM (nombre histórico: antes se presentaba como "WACC").
 
-    Fórmula: WACC = Rf + β × ERP + size_premium
+    Fórmula: Ke = Rf + β × ERP (+ size_premium solo si `size_premium=True`)
     Con β=1 (simplificación — sin cálculo de beta específico por empresa).
+    El WACC real (con deuda) lo calcula `suggest_wacc` (ADR-033).
+
+    Prima de tamaño OFF por defecto (revisión adversarial): Damodaran la rechaza y con β por
+    industria (H3-5) se contaría dos veces. Se sigue mostrando en el desglose para que sea visible.
 
     size_premium por market cap bucket (Damodaran 2024):
     >$10B (large cap):   0%
@@ -467,11 +503,35 @@ def _compute_suggested_wacc(
     else:
         size_label, size_prem = "micro cap", 3.0
 
-    suggested = rf_pct + beta * erp_pct + size_prem
+    applied_prem = size_prem if size_premium else 0.0
+    suggested = rf_pct + beta * erp_pct + applied_prem
     breakdown = (
         f"Rf={rf_pct}% + β={beta}×ERP={erp_pct}% + size_premium={size_prem}% ({size_label})"
+        + ("" if size_premium else " — OFF, not applied")
     )
     return round(suggested, 1), breakdown
+
+
+def suggest_wacc(financials, market_cap: Optional[float], *, size_premium: bool = False):
+    """
+    WACC real sugerido (ADR-033) → Optional[WaccBreakdown].
+
+    Ke CAPM (ADR-029, prima de tamaño OFF por defecto) + Kd por rating sintético (cobertura
+    EBIT/intereses del último ejercicio) + escudo fiscal al tipo MARGINAL + pesos a mercado
+    (E = market cap; D = deuda contable del último año, proxy del valor de mercado).
+    None sin market cap: no hay pesos de mercado y no se inventan (el llamador cae a 9,0 %).
+    """
+    if market_cap is None or market_cap <= 0 or financials is None:
+        return None
+    ke_pct, ke_src = _compute_suggested_wacc(market_cap, size_premium=size_premium)  # histórico: devuelve Ke
+    ebit = financials.operating_income[0].value if financials.operating_income else None
+    interest = financials.interest_expense[0].value if financials.interest_expense else None
+    # Serie por año (T9) primero; el punto del balance como fallback; sin deuda → 0 (peso 0).
+    debt_latest = (financials.total_debt_series[0].value if financials.total_debt_series
+                   else (financials.total_debt.value if financials.total_debt else 0.0))
+    kd, kd_src = estimate_pre_tax_cost_of_debt(ebit=ebit, interest_expense=interest)
+    return compute_wacc(ke_pct / 100, kd, MARGINAL_TAX_RATE, market_cap, max(debt_latest, 0.0),
+                        cost_of_equity_source=f"CAPM: {ke_src}", cost_of_debt_source=kd_src)
 
 
 def _classify_dcf_upside(upside_pct: Optional[float]) -> str:
@@ -487,17 +547,19 @@ def _classify_dcf_upside(upside_pct: Optional[float]) -> str:
 
 def _classify_epv_upside(upside_pct: Optional[float]) -> str:
     """
-    Clasifica EPV vs market cap.
+    Clasifica el upside del EPV por acción frente al precio (ADR-033 §8: banda ±10 % simétrica).
 
-    >10%: cheap (mercado paga menos que el valor sin crecimiento).
-    0-10%: fair (mercado paga algo por encima del EPV pero poco).
-    <0%: expensive (mercado valora el crecimiento; EPV no justifica el precio).
+    >10%: cheap (el precio está por debajo del valor sin crecimiento).
+    [-10%, 10%]: fair.
+    <-10%: expensive (el precio paga crecimiento; leer junto a epv_growth_premium y el moat).
+    Antes <0 % ya era "expensive": asimétrico frente al DCF (±20 %) y penalizaba cualquier
+    prima de crecimiento por pequeña que fuera.
     """
     if upside_pct is None:
         return "n/a"
     if upside_pct > 10:
         return "cheap"
-    if upside_pct < 0:
+    if upside_pct < -10:
         return "expensive"
     return "fair"
 
@@ -556,12 +618,17 @@ def _build_methods_summary(
     historical_cagr: Optional[float],
     ev_ebit,            # Optional[MetricValue]
     peer_ev_ebit_median: Optional[float],
+    reverse_10y_equivalent: Optional[float] = None,
 ) -> list[dict]:
     """
-    Tabla de 4 métodos de valoración con clasificación uniforme (ADR-030).
+    Tabla de 4 métodos de valoración con clasificación uniforme (ADR-030, umbrales ADR-033 §8).
 
     Cada fila: method, per_share, display_upside, classification.
     Consumida por Value Expert (_format_context) y Archiver.
+
+    Reverse DCF (revisión M2): si se pasa `reverse_10y_equivalent`, la clasificación compara la
+    CAGR equivalente a 10 años del camino implícito (stage1 + fade) con la CAGR histórica de
+    ingresos — un g1 del 8 % con fade no es comparable con una CAGR plana de 5 años.
 
     Los classifiers siguen umbrales simples: ver _classify_* functions.
     La síntesis de la convergencia la hace el LLM (Value Expert regla #21)
@@ -599,8 +666,14 @@ def _build_methods_summary(
             "upside_pct": None,
             "display_upside": (
                 f"implied {_fmt_pct(reverse_growth)} vs historical {_fmt_pct(historical_cagr)}"
+                if reverse_10y_equivalent is None else
+                f"implied g1 {_fmt_pct(reverse_growth)} (10y-equiv {_fmt_pct(reverse_10y_equivalent)}) "
+                f"vs historical {_fmt_pct(historical_cagr)} revenue CAGR"
             ),
-            "classification": _classify_reverse_vs_historical(reverse_growth, historical_cagr),
+            "classification": _classify_reverse_vs_historical(
+                reverse_10y_equivalent if reverse_10y_equivalent is not None else reverse_growth,
+                historical_cagr,
+            ),
         },
         {
             "method": "EV/EBIT vs peer median",
@@ -672,16 +745,25 @@ def _sensitivity_table(
     growth_center: float,
     stage1_years: int = 0,
     fade_years: int = 0,
+    *,
+    net_claims: float,
+    share_count: float,
+    mid_year: bool = False,
+    nopat_base: Optional[float] = None,
+    days_since_fye: int = 0,
 ) -> list[dict]:
     """
-    Tabla 3×3: eje X = WACC ± 2%, eje Y = g1 (stage 1 growth) ± 5%.
+    Tabla 3×3: eje X = WACC ± 2%, eje Y = g1 (stage 1 growth) ± 5%. Celdas en **USD/share**.
 
     EC-64: delta ampliado de ±1% a ±2% para cubrir empresas de alto riesgo donde el
     WACC apropiado puede superar en 4-5pp el advisory (e.g. SYM: advisory 9.7%,
     WACC razonable 14-17%). Con ±1% el analista veía solo 13-15%; con ±2% ve 12-16%.
 
-    Cada celda es el equity value total del DCF 3-stage. El fade se mantiene
-    fijo en todas las celdas — solo g1 y WACC varían.
+    Cada celda recorre el MISMO camino que el titular del DCF (ADR-033): dcf_components (con
+    reinversión terminal si nopat_base y mid-year si procede) → EV × (1+w)^(días/365) →
+    − net_claims → / share_count. Así la celda central reproduce el valor por acción del informe.
+    Antes era el "equity value" total en USD B sin bridge: no comparable con el precio.
+    Celda con WACC − g < 1pp → None ("n/m"). El fade se mantiene fijo; solo g1 y WACC varían.
 
     stage1_years=0 + fade_years=0 equivale al comportamiento 2-stage original
     (stage1=years, fade=0) para compatibilidad en tests.
@@ -696,9 +778,16 @@ def _sensitivity_table(
         row = {"near_term_growth_pct": round(g * 100, 1), "values": {}}
         for w_delta in (-0.02, 0.0, 0.02):
             w = wacc_center + w_delta
-            val = _three_stage_dcf(base_fcf, g, terminal_growth, w,
-                                   stage1_years=s1, fade_years=fd)
-            row["values"][f"wacc_{round(w*100,1)}pct"] = round(val / 1e9, 1)  # en USD B
+            key = f"wacc_{round(w*100,1)}pct"
+            try:
+                ev = dcf_components(base_fcf, g, terminal_growth, w, s1, fd,
+                                    mid_year=mid_year, nopat_base=nopat_base).enterprise_value
+                ev *= (1 + w) ** (days_since_fye / 365)
+                row["values"][key] = round(per_share(ev - net_claims, share_count), 2)
+            except ValuationInputError:
+                # WACC − 2pp puede caer por debajo de g + 1pp (p.ej. WACC 4.5 %, g 2.5 %):
+                # celda None ("n/m") en lugar de tumbar el nodo entero (revisión adversarial, T10).
+                row["values"][key] = None
         rows.append(row)
     return rows
 
@@ -801,17 +890,126 @@ def _compute_magic_formula_rank(
     return subject_rank, updated
 
 
+# ---------------------------------------------------------------------------
+# Helpers del plano enterprise (T12a, ADR-033)
+# ---------------------------------------------------------------------------
+
+def _latest(series) -> Optional[float]:
+    """Valor más reciente de una serie MetricValue (index 0 = latest), o None."""
+    return series[0].value if series else None
+
+
+def _mv_val(mv) -> Optional[float]:
+    """Valor de un MetricValue OPCIONAL (no de una lista: para listas usar _latest)."""
+    return mv.value if mv is not None else None
+
+
+def _upside_pct(per_share_value: Optional[float], price: Optional[float]) -> Optional[float]:
+    """(per_share − price)/price en %, o None si no hay precio (nunca EV vs market cap, EC-73)."""
+    if per_share_value is None or not price or price <= 0:
+        return None
+    return round((per_share_value - price) / price * 100, 1)
+
+
+def _canonical_tax_rate(financials) -> float:
+    """Tipo efectivo canónico (effective_tax_rate_multi) con las series alineadas por PERIODO.
+
+    effective_tax_rate_multi empareja por posición; si income_tax y pretax_income no tienen
+    los mismos años (huecos en XBRL), emparejar por índice mezclaría ejercicios. Se alinean
+    aquí por etiqueta FY y se pasan ya emparejados. Sin datos → 25 % (default canónico).
+    """
+    if financials is None:
+        return effective_tax_rate_multi([], [])
+    pretax_by = {m.period: m.value for m in financials.pretax_income}
+    pairs = [(m.value, pretax_by[m.period]) for m in financials.income_tax if m.period in pretax_by]
+    return effective_tax_rate_multi([t for t, _ in pairs], [p for _, p in pairs])
+
+
+def _fcff_for_year(financials, i: int, tax_rate: float) -> Optional[FcffBreakdown]:
+    """FCFF del ejercicio en posición i de operating_cash_flow, con cada input del MISMO periodo.
+
+    Un input ausente para ese año cuenta 0.0 (y se lista en missing_inputs por _build_fcff):
+    emparejar por etiqueta FY evita mezclar el capex de un año con el OCF de otro (EC-82).
+    """
+    ocf = financials.operating_cash_flow
+    if i >= len(ocf):
+        return None
+    period = ocf[i].period
+
+    def _at(series) -> float:   # valor de la serie en el MISMO periodo, 0.0 si falta
+        return next((m.value for m in series if m.period == period), 0.0)
+
+    return fcff_breakdown(
+        ocf=ocf[i].value, capex=_at(financials.capex),
+        interest_expense=_at(financials.interest_expense), tax_rate=tax_rate,
+        sbc=_at(financials.sbc), interest_income=_at(financials.interest_income),
+        finance_lease_principal=_at(financials.finance_lease_principal_payments),
+    )
+
+
+def _build_fcff(financials, tax_rate: float) -> tuple[Optional[FcffBreakdown], Optional[float], list[str], str]:
+    """
+    Base FCFF del DCF (revisión adversarial A2).
+
+    Si hay ≥3 ejercicios con ingresos: mediana del margen FCFF/ingresos de hasta 3 años × ingresos
+    del último (like-with-like con el EPV, que usa mediana de EBIT; un año con capex o capital
+    circulante atípico no fija toda la valoración). Si no: FCFF del último ejercicio.
+
+    Returns:
+        (breakdown del ÚLTIMO año — componentes coherentes entre sí —, base usada en el DCF,
+         inputs ausentes, etiqueta de fuente).
+    """
+    if financials is None or not financials.operating_cash_flow:
+        return None, None, ["operating_cash_flow"], "unavailable"
+    latest = _fcff_for_year(financials, 0, tax_rate)
+    missing = [n for n, s in (("capex", financials.capex), ("interest_expense", financials.interest_expense),
+                              ("sbc", financials.sbc), ("interest_income", financials.interest_income))
+               if not s]
+    latest = latest.model_copy(update={"missing_inputs": missing})
+    rev_by = {m.period: m.value for m in financials.revenue}
+    margins = []
+    for i in range(min(3, len(financials.operating_cash_flow))):
+        bd = _fcff_for_year(financials, i, tax_rate)
+        rev = rev_by.get(financials.operating_cash_flow[i].period)
+        if bd is not None and rev:
+            margins.append(bd.fcff / rev)
+    if len(margins) >= 3 and financials.revenue:
+        median_margin = sorted(margins)[1]
+        base = median_margin * financials.revenue[0].value
+        return latest, base, missing, f"median FCFF margin (3y) × latest revenue = {median_margin:.1%}"
+    return latest, latest.fcff, missing, "latest FY FCFF"
+
+
 def valuation_agent(state: AnalysisState) -> dict:
     """
-    Nodo LangGraph: calcula valor intrínseco usando aritmética pura.
+    Nodo LangGraph: calcula valor intrínseco usando aritmética pura (ADR-033).
 
     Lee FinancialsReport y MarketReport del estado + assumptions del usuario
     (checkpoint2_user_input). Si algún dato no está disponible, produce un
     ValuationReport parcial en lugar de fallar.
 
+    Fail loud SIN tumbar el grafo: un input inválido (WACC − g < 1pp, signo de capex
+    negativo...) lanza ValuationInputError en la aritmética; aquí se captura y se devuelve
+    ValuationReport(stub=True, error=...) para que archiver y síntesis lo traten como
+    DATA GAP visible (un caller programático o la web no pasan por la validación de la CLI).
+
     Returns:
-        {"valuation": ValuationReport(stub=False, ...)}
+        {"valuation": ValuationReport(...)} (+ "peer_valuations" con mf_rank si hay peers)
     """
+    ticker = state["ticker"]
+    try:
+        return _run_valuation(state)
+    except ValuationInputError as e:
+        log.error("valuation_input_error", ticker=ticker, error=str(e))
+        return {"valuation": ValuationReport(ticker=ticker, stub=True, error=f"ValuationInputError: {e}")}
+
+
+def _run_valuation(state: AnalysisState) -> dict:
+    """Cuerpo de valuation_agent. Puede lanzar ValuationInputError (lo captura el nodo)."""
+    # Import diferido: checkpoint importa valuation (suggest_wacc) dentro de una función;
+    # importarlo aquí a nivel de módulo crearía un ciclo checkpoint ↔ valuation.
+    from due_diligence.agents.checkpoint import CHECKPOINT2_DEFAULTS
+
     ticker = state["ticker"]
     financials = state.get("financials")   # type: ignore[typeddict-item]
     market = state.get("market")           # type: ignore[typeddict-item]
@@ -819,20 +1017,50 @@ def valuation_agent(state: AnalysisState) -> dict:
 
     log.info("valuation_agent_start", ticker=ticker)
 
-    # --- 1. Construir ValuationInput desde checkpoint2_user_input + defaults ---
+    # --- 1. Market cap y precio (antes que las assumptions: el WACC por defecto los necesita) ---
+    market_cap: Optional[float] = None
+    price_current_mv: Optional[MetricValue] = None
+    as_of_date: str = "N/A"
+    if market is not None and market.market_cap is not None:
+        market_cap = market.market_cap.value
+        if market.market_cap.period:
+            as_of_date = market.market_cap.period
+    if market is not None and market.price_current is not None:
+        price_current_mv = market.price_current
+    price: Optional[float] = (
+        price_current_mv.value if price_current_mv is not None and price_current_mv.value > 0 else None
+    )
+
+    # --- 1b. Assumptions: checkpoint2_user_input + defaults únicos (CHECKPOINT2_DEFAULTS) ---
+    # WACC por defecto = WACC real sugerido (ADR-033); 9,0 solo sin market cap.
+    wacc_suggestion = suggest_wacc(financials, market_cap)
+    if user_raw.get("wacc_pct") is not None:
+        wacc_pct = float(user_raw["wacc_pct"])
+    elif wacc_suggestion is not None:
+        wacc_pct = round(wacc_suggestion.wacc * 100, 1)
+    else:
+        wacc_pct = float(CHECKPOINT2_DEFAULTS["wacc_pct"])
+    raw_date = user_raw.get("valuation_date")
+    valuation_date = (raw_date if isinstance(raw_date, date)
+                      else date.fromisoformat(str(raw_date)) if raw_date else date.today())
     assumptions = ValuationInput(
         checkpoint_id="checkpoint2",
-        wacc_pct=float(user_raw.get("wacc_pct", 9.0)),
-        terminal_growth_pct=float(user_raw.get("terminal_growth_pct", 2.5)),
-        projection_years=int(user_raw.get("projection_years", 10)),
+        wacc_pct=wacc_pct,
+        terminal_growth_pct=float(user_raw.get("terminal_growth_pct", CHECKPOINT2_DEFAULTS["terminal_growth_pct"])),
+        projection_years=int(user_raw.get("projection_years", CHECKPOINT2_DEFAULTS["projection_years"])),
         stage1_years=user_raw.get("stage1_years"),
         fade_years=user_raw.get("fade_years"),
         revenue_growth_yr1_pct=user_raw.get("revenue_growth_yr1_pct"),
         margin_assumption_pct=user_raw.get("margin_assumption_pct"),
+        # Cableado explícito (revisión adversarial): antes el flag nunca llegaba al ValuationInput.
+        mid_year_convention=bool(user_raw.get("mid_year_convention", CHECKPOINT2_DEFAULTS["mid_year_convention"])),
+        valuation_date=valuation_date,
     )
     wacc = assumptions.wacc_pct / 100
     terminal_growth = assumptions.terminal_growth_pct / 100
     years = assumptions.projection_years
+    # Fail loud temprano (EC-76): lanza ValuationInputError → valuation_agent lo convierte en error visible.
+    validate_dcf_rates(wacc, terminal_growth)
 
     # 3-stage split: resolved from user input with auto 50/50 fallback (ADR-029)
     stage1_years, fade_years = _resolve_stages(
@@ -840,7 +1068,7 @@ def valuation_agent(state: AnalysisState) -> dict:
     )
 
     # --- 2. Extraer métricas del FinancialsReport ---
-    base_fcf: Optional[float] = None
+    base_fcf: Optional[float] = None       # FCF apalancado (OCF − capex): solo growth y flags legacy
     ebit: Optional[float] = None
     net_income: Optional[float] = None
     total_debt: Optional[float] = None
@@ -854,6 +1082,8 @@ def valuation_agent(state: AnalysisState) -> dict:
         if financials.free_cash_flow:
             base_fcf = financials.free_cash_flow[0].value
             fcf_period = financials.free_cash_flow[0].period
+        if financials.operating_cash_flow:
+            fcf_period = financials.operating_cash_flow[0].period   # periodo del FCFF
         if financials.operating_income:
             ebit = financials.operating_income[0].value
         if financials.net_income:
@@ -861,32 +1091,56 @@ def valuation_agent(state: AnalysisState) -> dict:
         if financials.total_debt is not None:
             total_debt = financials.total_debt.value
         if financials.cash_and_equivalents is not None:
-            # cash-only aceptado aquí (MCE-26, T6): antes de H1 la STI era siempre 0 en el raw;
-            # el bridge EV→equity de T12a resta STI aparte (una sola vez).
+            # SOLO caja desde T6 (EC-81); STI y LTI se restan UNA vez en el bridge de abajo.
             cash = financials.cash_and_equivalents.value
         if financials.revenue:
             revenue_latest = financials.revenue[0].value
         if financials.gross_profit:
             gross_profit_latest = financials.gross_profit[0].value
 
-    # --- 3. Extraer market cap y precio del MarketReport ---
-    market_cap: Optional[float] = None
-    price_current_mv: Optional[MetricValue] = None
-    as_of_date: str = "N/A"
-    shares: Optional[float] = None
-    if market is not None and market.market_cap is not None:
-        market_cap = market.market_cap.value
-        if market.market_cap.period:
-            as_of_date = market.market_cap.period
-    if market is not None and market.price_current is not None:
-        price_current_mv = market.price_current
+    # --- 2b. Plano enterprise (ADR-033): tipo, FCFF, acciones, derechos netos, market EV ---
+    note_parts: list[str] = []
+    tax_rate = _canonical_tax_rate(financials)
+    fcff_bd, fcff_base_value, fcff_missing, fcff_source = _build_fcff(financials, tax_rate)
+    share_count, share_source = resolve_share_count(
+        _mv_val(financials.shares_outstanding) if financials is not None else None,
+        _latest(financials.diluted_shares) if financials is not None else None,
+        _mv_val(financials.basic_shares_weighted) if financials is not None else None,
+        market_cap, price,
+    )
+    lt_inv: Optional[float] = None
+    equity_method: Optional[float] = None
+    if financials is not None:
+        lt_inv = _mv_val(financials.long_term_investments)
+        equity_method = _mv_val(financials.equity_method_investments)
+    # Participaciones por el método de la participación: su resultado NO está en EBIT/FCFF, así que
+    # se suman como activo no operativo junto a las LTI (revisión adversarial), con aviso visible.
+    if equity_method:
+        lt_inv = (lt_inv or 0.0) + equity_method
+        note_parts.append(
+            f"ℹ️ Equity-method investments ({fmt_usd(equity_method)}) added to the bridge as a "
+            f"non-operating asset — verify they do not generate operating income."
+        )
+    claims_kwargs = dict(
+        total_debt=total_debt or 0.0, cash=cash or 0.0,
+        sti=_mv_val(financials.short_term_investments) if financials is not None else None,
+        lt_investments=lt_inv,
+        minority_interest=_mv_val(financials.minority_interest) if financials is not None else None,
+        preferred=_mv_val(financials.preferred_stock) if financials is not None else None,
+    )
+    claims = net_claims(**claims_kwargs)
+    # Equity de mercado coherente con el per-share (EC-63): precio × mismas acciones que el DCF.
+    equity_mkt: Optional[float] = price * share_count if (price and share_count) else market_cap
+    market_ev: Optional[float] = equity_mkt + claims if equity_mkt is not None else None
+    if market_ev is not None and market_ev <= 0:
+        note_parts.append("ℹ️ Net-net: net cash exceeds market equity (market EV ≤ 0); EV multiples n/m.")
 
-    # Shares outstanding: desde FinancialsReport (EDGAR XBRL) si disponible,
-    # o derivado de market_cap / price como aproximación.
-    if financials is not None and financials.shares_outstanding is not None:
-        shares = financials.shares_outstanding.value
-    elif market_cap is not None and price_current_mv is not None and price_current_mv.value > 0:
-        shares = market_cap / price_current_mv.value
+    # Capitalización desde el cierre fiscal (revisión M5): los flujos se descuentan al cierre,
+    # pero el precio es de hoy → EV × (1+WACC)^(días/365). Mismo factor para DCF, EPV y reverse.
+    days_since_fye = 0
+    if financials is not None and assumptions.valuation_date is not None:
+        days_since_fye = max((assumptions.valuation_date - financials.as_of_date).days, 0)
+    capitalization = (1 + wacc) ** (days_since_fye / 365)
 
     # --- 4. Near-term growth: user override > min(FCF_CAGR, revenue_CAGR) > default 7% ---
     # ADR-022: se ancla en el mínimo de FCF CAGR y revenue CAGR.
@@ -925,7 +1179,6 @@ def valuation_agent(state: AnalysisState) -> dict:
     # cambia el equity value un 30-50%. El usuario y el Value Expert deben saber siempre
     # qué valor se usó, de dónde viene, y cuán confiable es esa señal.
     dcf_reliability_note: Optional[str] = None
-    note_parts: list[str] = []
 
     # Línea de contexto del growth — siempre en primer lugar, nivel de alerta según fuente
     if near_term_growth_source == "user_override":
@@ -959,7 +1212,8 @@ def valuation_agent(state: AnalysisState) -> dict:
         growth_context = (
             f"Near-term FCF growth: {near_term_growth:.1%} (historical FCF CAGR, {n_y} years)."
         )
-    note_parts.append(growth_context)
+    # La línea de growth va primero: es el parámetro más sensible y el lector debe verlo antes.
+    note_parts.insert(0, growth_context)
 
     if growth_was_capped and assumptions.revenue_growth_yr1_pct is None:
         note_parts.append(
@@ -1007,8 +1261,8 @@ def valuation_agent(state: AnalysisState) -> dict:
                 log.info(
                     "valuation_cyclical_peak_base_detected",
                     ticker=ticker,
-                    rev_latest=f"{rev_latest/1e9:.2f}B",
-                    rev_median=f"{rev_median/1e9:.2f}B",
+                    rev_latest=fmt_usd(rev_latest),
+                    rev_median=fmt_usd(rev_median),
                     ratio=f"{peak_ratio:.2f}",
                 )
 
@@ -1021,62 +1275,78 @@ def valuation_agent(state: AnalysisState) -> dict:
         years=years,
     )
 
-    # --- 5. DCF — usar FCF si positivo, fallback a NOPAT proxy si FCF<0 pero EBIT>0 (EC-13) ---
-    # Empresas en trough cíclico (MOS FY2025: FCF -$535M / EBIT $822M) o heavy reinvestment
-    # (growth-stage) tienen FCF negativo transitorio pero EBIT positivo. Sin este fallback,
-    # el sistema devolvía "N/A — FCF insufficient" perdiendo toda valoración. Usar NOPAT
-    # como proxy de cash generation normalizado preserva la valoración directional.
+    # --- 5. DCF sobre FCFF; fallback NOPAT (ya unlevered → misma base, EC-13) ---
+    # NOPAT del último año con el tipo canónico: ancla del valor terminal con reinversión
+    # (Damodaran/Koller) y fallback del DCF cuando el FCFF es negativo (trough / reinversión fuerte).
+    nopat_base: Optional[float] = ebit * (1 - tax_rate) if ebit is not None else None
+    terminal_nopat = nopat_base if nopat_base is not None and nopat_base > 0 else None
     dcf_base: Optional[float] = None
     dcf_base_source: str = ""  # etiqueta para `MetricValue.source` y reliability note
-
-    if base_fcf is not None and base_fcf > 0:
-        dcf_base = base_fcf
-        dcf_base_source = "FCF"
-    elif ebit is not None and ebit > 0:
-        proxy = _normalized_fcf_proxy(ebit, net_income)
-        if proxy is not None and proxy > 0:
-            dcf_base = proxy
-            dcf_base_source = "NOPAT proxy (EBIT × (1-tax))"
+    if fcff_base_value is not None and fcff_base_value > 0:
+        dcf_base, dcf_base_source = fcff_base_value, f"FCFF ({fcff_source})"
+    elif terminal_nopat is not None:
+        dcf_base, dcf_base_source = terminal_nopat, "NOPAT proxy (EBIT × (1-t))"
+    else:
+        note_parts.append("⚠️ DCF not computed: no positive FCFF or NOPAT (loss-making or data gap).")
+        log.warning("valuation_agent_no_dcf_base", ticker=ticker, fcff=fcff_base_value, ebit=ebit)
 
     dcf_value: Optional[MetricValue] = None
     dcf_per_share: Optional[MetricValue] = None
     dcf_upside: Optional[float] = None
-
-    if dcf_base is not None and dcf_base > 0:
-        equity_value = _three_stage_dcf(dcf_base, near_term_growth, terminal_growth, wacc,
-                                         stage1_years=stage1_years, fade_years=fade_years)
-        dcf_value = MetricValue(
-            value=round(equity_value),
-            unit="USD",
-            period=fcf_period,
-            source=f"calculated ({dcf_base_source})",
+    ev_dcf_mv: Optional[MetricValue] = None
+    bridge = None
+    comps = None
+    if dcf_base is not None:
+        comps = dcf_components(dcf_base, near_term_growth, terminal_growth, wacc, stage1_years, fade_years,
+                               mid_year=assumptions.mid_year_convention, nopat_base=terminal_nopat)
+        ev = comps.enterprise_value * capitalization
+        if days_since_fye > 0:
+            note_parts.append(f"ℹ️ EV capitalized {days_since_fye} days from fiscal year-end to valuation date.")
+        bridge = equity_bridge(
+            ev, **claims_kwargs,
+            lease_liabilities=_mv_val(financials.operating_lease_liabilities) if financials is not None else None,
         )
-        if shares is not None and shares > 0:
-            dcf_per_share = MetricValue(
-                value=round(equity_value / shares, 2),
-                unit="USD/share",
-                period=fcf_period,
-                source=f"calculated ({dcf_base_source})",
-            )
-        # EC-63: preferir cálculo per-share usando price_current (real-time vía Finnhub quote()).
-        # market_cap de basicFinancials puede ser de la fecha del último filing (stale hasta
-        # 12-18 meses). price_current es siempre real-time → upside % coherente con dcf_per_share.
-        if dcf_per_share is not None and price_current_mv is not None and price_current_mv.value > 0:
-            dcf_upside = round(
-                (dcf_per_share.value - price_current_mv.value) / price_current_mv.value * 100, 1
-            )
-        elif market_cap is not None and market_cap > 0:
-            dcf_upside = round((equity_value - market_cap) / market_cap * 100, 1)
-    else:
-        log.warning("valuation_agent_no_dcf_base", ticker=ticker,
-                    fcf=base_fcf, ebit=ebit)
+        ev_dcf_mv = MetricValue(value=round(ev), unit="USD", period=fcf_period,
+                                source=f"calculated ({dcf_base_source} at WACC)")
+        dcf_value = MetricValue(value=round(bridge.equity_value), unit="USD", period=fcf_period,
+                                source=f"calculated ({dcf_base_source}, EV − net claims)")
+        if share_count:
+            ps = per_share(bridge.equity_value, share_count)
+            dcf_per_share = MetricValue(value=round(ps, 2), unit="USD/share", period=fcf_period,
+                                        source=f"calculated ({dcf_base_source}, bridge)")
+            dcf_upside = _upside_pct(dcf_per_share.value, price)
+            if dcf_upside is None:
+                note_parts.append("⚠️ Upside not computed: price unavailable.")
+        else:
+            note_parts.append("⚠️ Per-share value not computed: share count unavailable.")
+        if bridge.equity_value < 0:
+            note_parts.append("⚠️ Equity value negative: net claims exceed DCF enterprise value.")
+        if comps.terminal_value_share and comps.terminal_value_share > 0.75:
+            note_parts.append(f"⚠️ {comps.terminal_value_share:.0%} of value comes from the terminal value.")
 
-    # --- 6. Reverse DCF — usa el mismo dcf_base (FCF o NOPAT proxy) ---
-    # Usa la misma estructura 3-stage para que forward y reverse sean comparables.
+    # Notas obligatorias de inputs (ADR-033): lo ausente se dice, no se maquilla.
+    if "sbc" in fcff_missing:
+        note_parts.append("⚠️ SBC unavailable: FCFF may be overstated (stock comp not charged).")
+    if "interest_expense" in fcff_missing and (total_debt or 0) > 0:
+        note_parts.append("⚠️ Interest expense unavailable: after-tax interest not added back (FCFF understated).")
+    if "interest_income" in fcff_missing and bridge is not None and bridge.enterprise_value > 0:
+        liquid = (cash or 0.0) + (claims_kwargs["sti"] or 0.0)
+        if liquid > 0.10 * bridge.enterprise_value:
+            note_parts.append("⚠️ Interest income unavailable while cash+STI > 10% of EV: "
+                              "possible double count of cash yield (in FCFF and in the bridge).")
+    if bridge is not None and bridge.components_missing:
+        note_parts.append(f"ℹ️ Bridge components unavailable (treated as 0): {', '.join(bridge.components_missing)}.")
+    if share_count and any(k in share_source for k in ("dilution not applied", "approximation", "overstates")):
+        note_parts.append(f"ℹ️ Share count: {share_source}.")
+
+    # --- 6. Reverse DCF — objetivo = MARKET EV (EC-74), misma función y base que el directo ---
+    # El market EV es de hoy; el modelo produce EV a fecha de cierre → se deshace la
+    # capitalización para comparar en la misma fecha. Market EV ≤ 0 (net-net) → None.
     reverse_growth: Optional[float] = None
-    if dcf_base is not None and market_cap is not None:
-        reverse_growth = _reverse_dcf(dcf_base, market_cap, terminal_growth, wacc, years,
-                                       stage1_years=stage1_years, fade_years=fade_years)
+    if dcf_base is not None and market_ev is not None and market_ev > 0:
+        reverse_growth = _reverse_dcf(dcf_base, market_ev / capitalization, terminal_growth, wacc, years,
+                                       stage1_years=stage1_years, fade_years=fade_years,
+                                       mid_year=assumptions.mid_year_convention, nopat_base=terminal_nopat)
 
     # DCF spread note (Fix C / EC-16): si el forward DCF asume un growth >5pp
     # por encima del implied growth, el upside existe solo por assumptions que el
@@ -1103,12 +1373,12 @@ def valuation_agent(state: AnalysisState) -> dict:
             spread_pp=f"{spread_pp:.0f}",
         )
 
-    # Nota EC-13: cuando usamos NOPAT proxy en lugar de FCF, documentarlo explícitamente.
+    # Nota EC-13: cuando usamos NOPAT proxy en lugar de FCFF, documentarlo explícitamente.
     # El lector debe saber que la valoración es directional, no point estimate.
-    if dcf_base_source.startswith("NOPAT") and dcf_base is not None and base_fcf is not None:
+    if dcf_base_source.startswith("NOPAT") and dcf_base is not None and fcff_base_value is not None:
         note_parts.append(
-            f"⚠️ DCF computed on NORMALIZED NOPAT (${dcf_base / 1e6:.0f}M = EBIT × (1-tax)) "
-            f"because reported FCF was negative (${base_fcf / 1e6:.0f}M in {fcf_period}). "
+            f"⚠️ DCF computed on NORMALIZED NOPAT ({fmt_usd(dcf_base)} = EBIT × (1-tax)) "
+            f"because FCFF was negative ({fmt_usd(fcff_base_value)} in {fcf_period}). "
             f"This is appropriate for cyclical troughs or heavy reinvestment but ignores "
             f"working capital and maintenance vs growth capex split — treat as directional, "
             f"not point estimate. Reverse DCF implied growth uses same NOPAT base."
@@ -1116,14 +1386,10 @@ def valuation_agent(state: AnalysisState) -> dict:
         log.info(
             "valuation_dcf_nopat_fallback",
             ticker=ticker,
-            fcf=base_fcf,
+            fcff=fcff_base_value,
             ebit=ebit,
             nopat_proxy=dcf_base,
         )
-
-    # Actualizar sensitivity table también si usamos NOPAT proxy
-    if note_parts:
-        dcf_reliability_note = " ".join(note_parts)
 
     # --- 7. Múltiplos (requieren market cap) ---
     ev_ebit_mv: Optional[MetricValue] = None
@@ -1131,79 +1397,96 @@ def valuation_agent(state: AnalysisState) -> dict:
     pe_mv: Optional[MetricValue] = None
     earnings_yield: Optional[float] = None
 
-    if market_cap is not None:
-        # Enterprise Value = market cap + deuda neta
-        debt_val = total_debt or 0.0
-        cash_val = cash or 0.0
-        ev = market_cap + debt_val - cash_val
-
-        period_label = as_of_date
-
-        if ebit is not None and ev > 0:
+    period_label = as_of_date
+    # EV de mercado = equity de mercado (precio × acciones) + net claims: la MISMA definición de
+    # derechos que el bridge del DCF/EPV (ADR-033 §5). Market EV ≤ 0 (net-net) → múltiplos "n/m".
+    if market_ev is not None and market_ev > 0:
+        if ebit is not None:
             ev_ebit_mv = MetricValue(
-                value=round(ev / ebit, 2),
+                value=round(market_ev / ebit, 2),
                 unit="x",
                 period=period_label,
-                source="calculated",
+                source="calculated (market EV / EBIT)",
             )
-            earnings_yield = round(ebit / ev * 100, 2)  # EBIT/EV × 100
+            earnings_yield = round(ebit / market_ev * 100, 2)  # EBIT/EV × 100
 
-        if base_fcf is not None and base_fcf > 0 and ev > 0:
+        # EV/FCFF (antes EV/FCF apalancado): numerador y denominador en el mismo plano enterprise.
+        if fcff_base_value is not None and fcff_base_value > 0:
             ev_fcf_mv = MetricValue(
-                value=round(ev / base_fcf, 2),
+                value=round(market_ev / fcff_base_value, 2),
                 unit="x",
                 period=period_label,
-                source="calculated",
+                source="calculated (market EV / FCFF)",
             )
 
-        if net_income is not None and net_income > 0 and market_cap > 0:
-            pe_mv = MetricValue(
-                value=round(market_cap / net_income, 2),
-                unit="x",
-                period=period_label,
-                source="calculated",
-            )
+    if equity_mkt is not None and equity_mkt > 0 and net_income is not None and net_income > 0:
+        pe_mv = MetricValue(
+            value=round(equity_mkt / net_income, 2),
+            unit="x",
+            period=period_label,
+            source="calculated (price × shares / NI)",
+        )
 
     # --- 8. Sensitivity table — usa dcf_base (FCF o NOPAT proxy según fallback EC-13) ---
+    # Celdas en USD/share por el mismo camino que el titular (bridge + capitalización + reinversión).
     sensitivity: list[dict] = []
     if dcf_base is not None and dcf_base > 0:
-        sensitivity = _sensitivity_table(dcf_base, terminal_growth, years, wacc, near_term_growth,
-                                          stage1_years=stage1_years, fade_years=fade_years)
+        if share_count:
+            sensitivity = _sensitivity_table(
+                dcf_base, terminal_growth, years, wacc, near_term_growth,
+                stage1_years=stage1_years, fade_years=fade_years,
+                net_claims=claims, share_count=share_count,
+                mid_year=assumptions.mid_year_convention, nopat_base=terminal_nopat,
+                days_since_fye=days_since_fye,
+            )
+        else:
+            note_parts.append("⚠️ Sensitivity table not computed: share count unavailable.")
 
     # --- 8b. EPV (Greenwald) — piso de valor sin crecimiento (ADR-029) ---
-    net_debt = (total_debt or 0.0) - (cash or 0.0)
+    # Mismo bridge (claims) y misma capitalización a fecha de valoración que el DCF (ADR-033):
+    # antes el DCF no restaba deuda y el EPV sí → la convergencia comparaba planos distintos.
     ebit_series = financials.operating_income if financials is not None else []
-    epv_ent_mv, epv_ps_mv, epv_upside_pct, epv_source = _compute_epv(
+    epv_ent_mv, epv_ps_mv, epv_upside_pct, epv_source, epv_growth_premium = _compute_epv(
         ebit_series=ebit_series,
-        net_income_latest=net_income,
         wacc=wacc,
-        net_debt=net_debt,
-        shares=shares,
-        market_cap=market_cap,
-        price_current=price_current_mv.value if price_current_mv is not None else None,
+        net_claims=claims,
+        shares=share_count,
+        price_current=price,
+        mid_year=assumptions.mid_year_convention,
+        capitalization=capitalization,
     )
+    if epv_growth_premium is not None:
+        # Lectura de Greenwald: el EPV no es "caro/barato" a secas; dice cuánto paga el precio
+        # por crecimiento, que solo es valioso si hay moat (ROIC > WACC sostenido).
+        note_parts.append(
+            f"ℹ️ EPV growth premium: {epv_growth_premium:.0%} of the price pays for growth."
+            if epv_growth_premium >= 0 else
+            f"ℹ️ EPV growth premium: price is {-epv_growth_premium / (1 - epv_growth_premium):.0%} "
+            f"below the no-growth value (EPV)."
+        )
 
-    # --- 8c. WACC advisory (ADR-029) ---
-    suggested_wacc, wacc_breakdown = _compute_suggested_wacc(market_cap=market_cap)
+    # --- 8c. WACC sugerido (ADR-033): WACC real con su desglose ---
+    suggested_wacc: Optional[float] = round(wacc_suggestion.wacc * 100, 1) if wacc_suggestion else None
+    wacc_breakdown_str: Optional[str] = describe_wacc(wacc_suggestion) if wacc_suggestion else None
 
-    # EC-64: si el WACC usado difiere >3pp del advisory, añadir nota visible al analista.
-    # El advisory usa β=1 sin company-specific risk — para empresas de alto riesgo
+    # EC-64: si el WACC usado difiere >3pp del sugerido, añadir nota visible al analista.
+    # El sugerido usa β=1 sin company-specific risk — para empresas de alto riesgo
     # (concentración de clientes, SEC investigation, restatements) la diferencia puede
     # ser estructural. La sensitivity table (±2%) cubre el rango relevante.
-    wacc_delta_pp = round(assumptions.wacc_pct - suggested_wacc, 1)
-    if abs(wacc_delta_pp) > 3.0:
-        direction = "above" if wacc_delta_pp > 0 else "below"
-        wacc_note = (
-            f"WACC used ({assumptions.wacc_pct}%) is {abs(wacc_delta_pp):.1f}pp {direction} "
-            f"advisory ({suggested_wacc}%). Advisory uses β=1.0 (no company-specific risk). "
-            f"For high-risk profiles (customer concentration >50%, active SEC investigation, "
-            f"restatements), consider adding 2-5pp. Sensitivity table covers "
-            f"{assumptions.wacc_pct - 2:.1f}%–{assumptions.wacc_pct + 2:.1f}%."
-        )
-        if dcf_reliability_note:
-            dcf_reliability_note = dcf_reliability_note + " | " + wacc_note
-        else:
-            dcf_reliability_note = wacc_note
+    if suggested_wacc is not None:
+        wacc_delta_pp = round(assumptions.wacc_pct - suggested_wacc, 1)
+        if abs(wacc_delta_pp) > 3.0:
+            direction = "above" if wacc_delta_pp > 0 else "below"
+            note_parts.append(
+                f"WACC used ({assumptions.wacc_pct}%) is {abs(wacc_delta_pp):.1f}pp {direction} "
+                f"suggested real WACC ({suggested_wacc}%). The suggestion uses β=1.0 (no company-specific "
+                f"risk). For high-risk profiles (customer concentration >50%, active SEC investigation, "
+                f"restatements), consider adding 2-5pp. Sensitivity table covers "
+                f"{assumptions.wacc_pct - 2:.1f}%–{assumptions.wacc_pct + 2:.1f}%."
+            )
+
+    if note_parts:
+        dcf_reliability_note = " ".join(note_parts)
 
     # --- 9. Magic Formula rank (MCE-18) ---
     # peer_valuations populated by peers_node; mf_rank=None there, computed here.
@@ -1233,10 +1516,14 @@ def valuation_agent(state: AnalysisState) -> dict:
         n = len(sv)
         peer_ev_ebit_median = sv[n // 2] if n % 2 == 1 else (sv[n // 2 - 1] + sv[n // 2]) / 2
 
-    # El historical_cagr para la comparación reverse vs historical usa near_term_growth
-    # excepto cuando el usuario lo ha sobreescrito (en ese caso el CAGR histórico viene de revenue_cagr)
-    historical_cagr_for_conv = (
-        near_term_growth if near_term_growth_source != "user_override" else revenue_cagr
+    # Histórico de convergencia = CAGR de INGRESOS (ADR-033 §9, EC-75). Antes era
+    # near_term_growth, que ya es el input del DCF directo: comparar el reverse contra él era
+    # circular (el "histórico" salía del mismo FCF CAGR que alimentaba el modelo).
+    historical_cagr_for_conv = revenue_cagr
+    # Reverse comparable (revisión M2): CAGR media a 10 años del camino implícito stage1 + fade.
+    reverse_10y = (
+        _ten_year_equivalent_cagr(reverse_growth, terminal_growth, stage1_years, fade_years)
+        if reverse_growth is not None else None
     )
     methods_summary = _build_methods_summary(
         dcf_per_share=dcf_per_share,
@@ -1247,6 +1534,7 @@ def valuation_agent(state: AnalysisState) -> dict:
         historical_cagr=historical_cagr_for_conv,
         ev_ebit=ev_ebit_mv,
         peer_ev_ebit_median=peer_ev_ebit_median,
+        reverse_10y_equivalent=reverse_10y,
     )
 
     # --- 10. Construir el report ---
@@ -1258,6 +1546,7 @@ def valuation_agent(state: AnalysisState) -> dict:
         price_current=price_current_mv,
         dcf_upside_pct=dcf_upside,
         reverse_dcf_implied_growth=reverse_growth,
+        reverse_dcf_10y_equivalent=reverse_10y,
         ev_ebit_multiple=ev_ebit_mv,
         ev_fcf_multiple=ev_fcf_mv,
         pe_multiple=pe_mv,
@@ -1274,10 +1563,29 @@ def valuation_agent(state: AnalysisState) -> dict:
         epv_per_share=epv_ps_mv,
         epv_upside_pct=epv_upside_pct,
         epv_source=epv_source,
+        epv_growth_premium=epv_growth_premium,
         suggested_wacc_pct=suggested_wacc,
-        suggested_wacc_breakdown=wacc_breakdown,
+        suggested_wacc_breakdown=wacc_breakdown_str,
+        wacc_breakdown=wacc_suggestion,
         valuation_methods_summary=methods_summary,
         fcf_quality_warning=fcf_quality_warning,
+        # --- Plano enterprise (ADR-033) ---
+        valuation_basis="FCFF discounted at WACC → EV → equity bridge → per share (ADR-033)",
+        fcff_base=(MetricValue(value=round(fcff_base_value), unit="USD", period=fcf_period, source=fcff_source)
+                   if fcff_base_value is not None else None),
+        fcff_breakdown=fcff_bd,
+        dcf_base_source=dcf_base_source or None,
+        tax_rate_used=tax_rate,
+        enterprise_value_dcf=ev_dcf_mv,
+        equity_bridge=bridge,
+        market_enterprise_value=(MetricValue(value=round(market_ev), unit="USD", period=as_of_date,
+                                             source="price × shares + net claims")
+                                 if market_ev is not None else None),
+        share_count_used=share_count,
+        share_count_source=share_source,
+        terminal_value_share=comps.terminal_value_share if comps is not None else None,
+        mid_year_convention_used=assumptions.mid_year_convention,
+        sensitivity_unit="USD/share" if sensitivity else None,
     )
 
     log.info(

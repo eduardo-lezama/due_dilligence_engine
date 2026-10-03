@@ -43,8 +43,9 @@ Cada ADR sigue: Status · Context · Decision · Consequences · Alternatives.
 | [026](ADR-026-thesis-break-validation.md) | Thesis-break self-consistency validation framework | Accepted | 2+ |
 | [027](ADR-027-near-term-growth-transparency.md) | Near-term growth transparency — 5-layer pattern para parámetros DCF críticos | Accepted | 2+ |
 | [028](ADR-028-external-api-preflight-quota-check.md) | External API pre-flight quota check (Tavily) | Accepted | 2+ |
-| [029](ADR-029-three-stage-dcf-and-epv.md) | 3-Stage DCF con Damodaran Fade + EPV Anchor + WACC Advisory | Accepted | 2+ |
-| [030](ADR-030-valuation-convergence-signaling.md) | Valuation Methods Convergence Signaling (4-method tabla + Rule #21) | Accepted | 2+ |
+| [029](ADR-029-three-stage-dcf-and-epv.md) | 3-Stage DCF con Damodaran Fade + EPV Anchor + WACC Advisory | Accepted (superseded in part by 033) | 2+ |
+| [030](ADR-030-valuation-convergence-signaling.md) | Valuation Methods Convergence Signaling (4-method tabla + Rule #21) | Accepted (thresholds amended by 033) | 2+ |
+| [033](ADR-033-fcff-wacc-equity-bridge.md) | FCFF a WACC real + equity bridge común a DCF, EPV y reverse DCF | Accepted | H1 |
 
 ## Cómo añadir un ADR
 1. Crear `ADR-NNN-slug.md` incrementando N.

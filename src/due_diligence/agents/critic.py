@@ -103,11 +103,15 @@ def _build_critic_prompt(state: AnalysisState) -> str:
             fcf_trend = [f"{f.period}: {fmt_usd(f.value)}" for f in financials.free_cash_flow[:3]]
             lines.append(f"FCF trend: {', '.join(fcf_trend)}")
         if financials.total_debt is not None and financials.cash_and_equivalents is not None:
-            # net_debt = deuda − caja − STI (misma definición que el bridge EV→equity; desde H1
-            # cash_and_equivalents ya NO incluye STI, EC-81). T12b lo sustituye por net_claims.
-            sti = financials.short_term_investments.value if financials.short_term_investments else 0.0
-            net_debt = financials.total_debt.value - financials.cash_and_equivalents.value - sti
-            lines.append(f"Net debt: {fmt_usd(net_debt)}")
+            # Net claims = deuda + NCI + preferentes − caja − STI − LTI: la MISMA función que el
+            # bridge EV→equity (ADR-033). Import local para no tocar el bloque de imports del Critic.
+            from due_diligence.agents.valuation_math import net_claims
+            _v = lambda mv: mv.value if mv is not None else None  # noqa: E731
+            claims = net_claims(
+                financials.total_debt.value, financials.cash_and_equivalents.value,
+                sti=_v(financials.short_term_investments), lt_investments=_v(financials.long_term_investments),
+                minority_interest=_v(financials.minority_interest), preferred=_v(financials.preferred_stock))
+            lines.append(f"Net claims (debt + NCI + preferred − cash − STI − LTI): {fmt_usd(claims)}")
         lines.append("")
 
     filings = state.get("filings")  # type: ignore[typeddict-item]
@@ -131,7 +135,7 @@ def _build_critic_prompt(state: AnalysisState) -> str:
         if valuation.dcf_upside_pct is not None:
             lines.append(f"DCF upside: {valuation.dcf_upside_pct:+.1f}%")
         if valuation.ev_fcf_multiple is not None:
-            lines.append(f"EV/FCF: {valuation.ev_fcf_multiple.value:.1f}x")
+            lines.append(f"EV/FCFF: {valuation.ev_fcf_multiple.value:.1f}x")  # market EV / FCFF (ADR-033)
         lines.append("")
 
     # MCE-23: Detected flags — señales cuantitativas que el sistema ha precalculado

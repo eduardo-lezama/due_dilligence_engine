@@ -141,6 +141,48 @@ def _count_verified_citations(state) -> int:
 # Markdown renderer
 # ---------------------------------------------------------------------------
 
+def _render_equity_bridge(bridge, share_count, per_share, *, share_count_source=None) -> list[str]:
+    """
+    Sección "### Enterprise → Equity Bridge" (ADR-033): EV del DCF → equity → por acción.
+
+    Cada derecho sobre el EV queda visible para auditoría: deuda, minoritarios y preferentes
+    restan; caja, STI y LTI suman. Los arrendamientos operativos aparecen como MEMO (no se
+    restan: su pago ya está en OCF/EBIT, ASC 842). Componentes ausentes se listan aparte
+    para que "0" no se confunda con "dato no disponible".
+
+    Args:
+        bridge: EquityBridge del ValuationReport.
+        share_count: acciones diluidas usadas (None si no disponibles).
+        per_share: valor por acción ya calculado por el agente (no se recalcula aquí).
+    """
+    lines = ["### Enterprise → Equity Bridge", "", "| Component | Value |", "|---|---|",
+             f"| Enterprise value (DCF, FCFF) | {_fmt_usd(bridge.enterprise_value)} |",
+             f"| (−) Total debt | {_fmt_usd(bridge.total_debt)} |"]
+    if bridge.minority_interest:
+        lines.append(f"| (−) Minority interest | {_fmt_usd(bridge.minority_interest)} |")
+    if bridge.preferred_stock:
+        lines.append(f"| (−) Preferred stock | {_fmt_usd(bridge.preferred_stock)} |")
+    lines.append(f"| (+) Cash | {_fmt_usd(bridge.cash)} |")
+    if bridge.short_term_investments:
+        lines.append(f"| (+) Short-term investments | {_fmt_usd(bridge.short_term_investments)} |")
+    if bridge.long_term_investments:
+        lines.append(f"| (+) Long-term investments (non-operating) | {_fmt_usd(bridge.long_term_investments)} |")
+    lines.append(f"| = Net claims | {_fmt_usd(bridge.net_claims)} |")
+    lines.append(f"| = Equity value | {_fmt_usd(bridge.equity_value)} |")
+    if share_count:
+        src = f" ({share_count_source})" if share_count_source else ""
+        lines.append(f"| ÷ Diluted shares{src} | {share_count / 1e6:,.2f}M |")
+    if per_share is not None:
+        lines.append(f"| = Per share | **${per_share:.2f}** |")
+    if bridge.operating_lease_liabilities_memo is not None:
+        lines.append(f"| Operating lease liabilities (memo, not deducted — ASC 842) "
+                     f"| {_fmt_usd(bridge.operating_lease_liabilities_memo)} |")
+    lines.append("")
+    if bridge.components_missing:
+        lines += [f"*Bridge components unavailable (treated as 0): {', '.join(bridge.components_missing)}*", ""]
+    return lines
+
+
 def _render_markdown(state: AnalysisState, run_stats=None) -> str:
     """
     Serializa el estado completo en un report markdown estructurado.
@@ -261,12 +303,13 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
                  f"**{valuation.reverse_dcf_implied_growth:.1%}**")
             )
         if valuation.dcf_intrinsic_value:
-            label = "DCF equity value (total)"
+            label = "DCF equity value (after bridge)"
             if has_contradiction:
                 label += " — *conditional*"
             rows.append((label, _fmt_usd(valuation.dcf_intrinsic_value.value)))
         if valuation.dcf_upside_pct is not None:
-            label = "DCF upside vs market cap"
+            # Upside SIEMPRE por acción frente al precio (ADR-033 §10, EC-73).
+            label = "DCF upside vs price"
             if has_contradiction:
                 label += " — *conditional*"
             rows.append((label, f"{valuation.dcf_upside_pct:+.1f}%"))
@@ -276,7 +319,9 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
         if valuation.ev_ebit_multiple:
             rows.append(("EV/EBIT", f"{valuation.ev_ebit_multiple.value:.1f}x"))
         if valuation.ev_fcf_multiple:
-            rows.append(("EV/FCF", f"{valuation.ev_fcf_multiple.value:.1f}x"))
+            # Market EV / FCFF desde ADR-033; reports viejos (sin valuation_basis) eran EV/FCF apalancado.
+            ev_fcf_label = "EV/FCFF" if valuation.valuation_basis else "EV/FCF"
+            rows.append((ev_fcf_label, f"{valuation.ev_fcf_multiple.value:.1f}x"))
         if valuation.pe_multiple:
             rows.append(("P/E", f"{valuation.pe_multiple.value:.1f}x"))
         if valuation.earnings_yield_pct is not None:
@@ -319,10 +364,30 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
             )
             if valuation.suggested_wacc_pct is not None:
                 lines.append(
-                    f"*Suggested WACC (advisory): {valuation.suggested_wacc_pct:.1f}% "
-                    f"— {valuation.suggested_wacc_breakdown}*"
+                    f"*Suggested WACC (real: Ke + Kd after tax, market weights): "
+                    f"{valuation.suggested_wacc_pct:.1f}% — {valuation.suggested_wacc_breakdown}*"
                 )
+            # Pie del plano enterprise (ADR-033): base, tipo, mid-year y dependencia del terminal.
+            footer_parts = []
+            if valuation.fcff_base is not None:
+                footer_parts.append(f"FCFF base {_fmt_usd(valuation.fcff_base.value)} ({valuation.fcff_base.source})")
+            if valuation.tax_rate_used is not None:
+                footer_parts.append(f"tax rate {valuation.tax_rate_used:.1%}")
+            if valuation.mid_year_convention_used is not None:
+                footer_parts.append(f"mid-year convention {'ON' if valuation.mid_year_convention_used else 'OFF'}")
+            if valuation.terminal_value_share is not None:
+                footer_parts.append(f"Terminal value share {valuation.terminal_value_share:.0%} of EV")
+            if footer_parts:
+                lines.append(f"*{'; '.join(footer_parts)}*")
             lines.append("")
+
+        # --- Enterprise → Equity bridge (ADR-033) ---
+        if valuation.equity_bridge is not None:
+            lines += _render_equity_bridge(
+                valuation.equity_bridge, valuation.share_count_used,
+                valuation.dcf_intrinsic_per_share.value if valuation.dcf_intrinsic_per_share else None,
+                share_count_source=valuation.share_count_source,
+            )
         # Mostrar reliability note si no se mostró ya arriba (spread → showed at top).
         # Con EC-54, la nota existe siempre que se calculó DCF, no solo en error conditions.
         if valuation.dcf_reliability_note and not has_contradiction:
@@ -357,16 +422,33 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
             lines.append(f"*Convergence: {', '.join(summary_parts)} out of {len(valuation.valuation_methods_summary)} methods.*")
             lines.append("")
 
+    # Valoración fallida con error tipado (ADR-033 §6): se muestra, no se omite en silencio.
+    if valuation and valuation.stub and valuation.error:
+        lines += ["## Valuation Summary", "",
+                  f"> ⚠️ Valuation not computed — {valuation.error}", ""]
+
     # --- Sensitivity table ---
     if valuation and valuation.sensitivity_table:
-        lines += ["### DCF Sensitivity — 3-stage Damodaran fade (equity value, USD B)", ""]
+        # Unidad explícita: USD/share desde ADR-033; reports viejos sin el campo eran equity en USD B.
+        unit = valuation.sensitivity_unit or "USD B (legacy)"
+        lines += [f"### DCF Sensitivity — 3-stage Damodaran fade ({unit})", ""]
         header_row = valuation.sensitivity_table[0]
         wacc_labels = list(header_row["values"].keys())
         lines.append("| g1 (Stage 1 growth) \\ WACC | " + " | ".join(wacc_labels) + " |")
         lines.append("|---|" + "---|" * len(wacc_labels))
         for row in valuation.sensitivity_table:
-            vals = " | ".join(str(v) for v in row["values"].values())
+            # None = celda inválida (WACC − g < 1pp) → "n/m", nunca un número inventado.
+            vals = " | ".join("n/m" if v is None else str(v) for v in row["values"].values())
             lines.append(f"| {row['near_term_growth_pct']}% | {vals} |")
+        lines.append("")
+
+    # --- Data quality flags (deterministas, de parse_financials) ---
+    # Identidades contables rotas, fallbacks de conceptos XBRL... Antes no tenían consumidor:
+    # el lector del informe debe verlos junto a las cifras que pueden estar afectadas.
+    fin_for_flags = state.get("financials")  # type: ignore[typeddict-item]
+    if fin_for_flags is not None and fin_for_flags.data_quality_flags:
+        lines += ["## Data quality flags", ""]
+        lines += [f"- {flag}" for flag in fin_for_flags.data_quality_flags]
         lines.append("")
 
     # --- Key operational data from filings (backlog, guidance, regulatory events) ---

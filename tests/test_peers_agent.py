@@ -449,3 +449,29 @@ def test_peers_node_empty_list_does_not_add_peer_valuations():
     result = peers_node({"ticker": "AAPL", "peers": []})
 
     assert "peer_valuations" not in result
+
+
+def test_build_peer_valuations_subtracts_sti_once_via_net_claims(mocker):
+    """T12b: el EV de peers usa net_claims (misma definición que el bridge del sujeto):
+    EV = market cap + deuda − caja − STI, con STI UNA sola vez (cash_and_equivalents ya no la incluye)."""
+    from due_diligence.agents.peers import _build_peer_valuations
+    from due_diligence.schemas.base import MetricValue
+
+    mv = lambda v: MetricValue(value=v, unit="USD", period="FY2025", source="XBRL")  # noqa: E731
+    fake_rep = MagicMock()
+    fake_rep.ticker = "PEER"
+    fake_rep.roic_series = [MetricValue(value=0.2, unit="ratio", period="FY2025", source="calculated")]
+    fake_rep.operating_income = [mv(100.0)]
+    fake_rep.free_cash_flow = [mv(60.0)]
+    fake_rep.total_debt = mv(300.0)
+    fake_rep.cash_and_equivalents = mv(50.0)
+    fake_rep.short_term_investments = mv(100.0)
+    fake_rep.long_term_investments = None
+    fake_rep.equity_method_investments = None
+    fake_rep.minority_interest = None
+    fake_rep.preferred_stock = None
+    mocker.patch("due_diligence.agents.peers.PolygonAdapter.fetch_market_data",
+                 return_value={"market_cap": 1_000.0, "price_current": 10.0})
+    pv = _build_peer_valuations([fake_rep])[0]
+    # EV = 1 000 + 300 − 50 − 100 = 1 150 → EV/EBIT = 11.5 (antes 1 250 → 12.5: STI ignorada)
+    assert pv.ev_ebit == pytest.approx(11.5)

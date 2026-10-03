@@ -25,6 +25,7 @@ ADR-009 (Verdict):
     Es el output final del sistema: BUY/SELL/HOLD con justificación.
 """
 
+from datetime import date
 from typing import Optional
 from pydantic import BaseModel, Field
 from due_diligence.schemas.base import Citation, MetricValue
@@ -174,20 +175,89 @@ class ValuationInput(CheckpointInput):
     fade_years: Optional[int] = None     # None = projection_years - stage1_years
     revenue_growth_yr1_pct: Optional[float] = None  # Override de g1 (user sabe lo que hace)
     margin_assumption_pct: Optional[float] = None  # Margen operativo asumido
+    # ADR-033 §7: factor (1+WACC)^0.5 sobre el EV. Default False en H1 (comparabilidad con
+    # los reports históricos); la fuente única del default es checkpoint.CHECKPOINT2_DEFAULTS.
+    mid_year_convention: bool = False
+    # Fecha a la que se valora: el EV se capitaliza (1+WACC)^(días/365) desde el cierre fiscal
+    # (los flujos se descuentan al cierre, el precio es de hoy). None → hoy (lo fija el agente).
+    valuation_date: Optional[date] = None
+
+
+# --------------------------------------------------------------------------- #
+# Plano enterprise de la valoración (ADR-033): FCFF → WACC → EV → bridge → por acción.
+# Viven aquí (y no en valuation_math) para que ValuationReport los pueda referenciar
+# y el archiver / Value Expert los rendericen sin importar código de cálculo.
+# --------------------------------------------------------------------------- #
+
+class FcffBreakdown(BaseModel):
+    """Componentes del FCFF (ADR-033). Unlevered: flujo disponible para TODOS los proveedores de capital."""
+    ocf: float
+    after_tax_interest_addback: float      # + interest_expense × (1−t): OCF US GAAP ya lo restó
+    after_tax_interest_income: float       # − interest_income × (1−t): evita contar dos veces la caja (bridge)
+    capex: float
+    sbc_charge: float                      # SBC tratado como coste en caja (Damodaran)
+    finance_lease_principal: float = 0.0   # − principal de leasing financiero (capex equivalente, no está en capex)
+    tax_rate: float
+    fcff: float
+    missing_inputs: list[str] = Field(default_factory=list)
+
+
+class EquityBridge(BaseModel):
+    """EV → equity común (ADR-033). Cada componente visible para auditoría en archiver/Value Expert."""
+    enterprise_value: float
+    total_debt: float
+    minority_interest: float = 0.0
+    preferred_stock: float = 0.0
+    cash: float
+    short_term_investments: float = 0.0
+    long_term_investments: float = 0.0
+    operating_lease_liabilities_memo: Optional[float] = None  # NO restado: ya está en OCF/EBIT (ASC 842)
+    net_claims: float          # debt + minority + preferred − cash − STI − LTI
+    equity_value: float        # enterprise_value − net_claims (puede ser negativo: se informa, no se recorta)
+    components_missing: list[str] = Field(default_factory=list)
+
+
+class WaccBreakdown(BaseModel):
+    """WACC real = wE·Ke + wD·Kd·(1−t) (ADR-033). Fracciones, no %."""
+    cost_of_equity: float
+    cost_of_equity_source: str
+    pre_tax_cost_of_debt: float
+    cost_of_debt_source: str
+    tax_rate: float
+    after_tax_cost_of_debt: float
+    equity_weight: float
+    debt_weight: float
+    wacc: float
+
+
+class DcfComponents(BaseModel):
+    """Desglose del DCF 3-stage: explícito vs terminal (ADR-033)."""
+    pv_explicit: float
+    pv_terminal: float
+    enterprise_value: float
+    terminal_value_share: Optional[float]   # pv_terminal / EV; None si EV == 0
+    mid_year: bool
+    # True si el flujo terminal se construyó desde NOPAT × (1 − g/RONIC) (Damodaran/Koller);
+    # False = legacy FCFF_T × (1+g), que sobrevalora el TV cuando g > 0.
+    terminal_reinvestment_modeled: bool = False
 
 
 class ValuationReport(BaseModel):
     """Reporte de valuation (DCF, múltiplos, sensitivity)."""
     ticker: str
     stub: bool = True
-    dcf_intrinsic_value: Optional[MetricValue] = None  # Valor intrínseco DCF (equity value total)
-    dcf_intrinsic_per_share: Optional[MetricValue] = None  # Valor intrínseco por acción
-    dcf_upside_pct: Optional[float] = None             # (intrinsic - market_cap) / market_cap
+    # Error tipado capturado (p.ej. "ValuationInputError: WACC must exceed g…"): el agente devuelve
+    # stub=True + error en lugar de tumbar el grafo (ADR-033 §6). None = valoración normal.
+    error: Optional[str] = None
+    dcf_intrinsic_value: Optional[MetricValue] = None  # Equity value DCF (EV − net_claims, tras el bridge; ADR-033)
+    dcf_intrinsic_per_share: Optional[MetricValue] = None  # Equity / share_count_used
+    dcf_upside_pct: Optional[float] = None             # (per_share − price)/price × 100; None sin precio (EC-73)
     price_current: Optional[MetricValue] = None        # Precio de mercado actual (copia de MarketReport)
-    reverse_dcf_implied_growth: Optional[float] = None  # Growth implícito en precio actual
-    ev_ebit_multiple: Optional[MetricValue] = None      # EV/EBIT (Greenblatt — EBITDA no disponible en XBRL básico)
-    ev_fcf_multiple: Optional[MetricValue] = None       # EV/FCF (Owner earnings proxy)
-    pe_multiple: Optional[MetricValue] = None           # P/E (market_cap / net_income)
+    reverse_dcf_implied_growth: Optional[float] = None  # g1 implícito: el DCF iguala el MARKET EV (EC-74)
+    reverse_dcf_10y_equivalent: Optional[float] = None  # CAGR equivalente a 10 años del camino implícito (stage1+fade)
+    ev_ebit_multiple: Optional[MetricValue] = None      # market EV / EBIT (Greenblatt — EBITDA no disponible en XBRL básico)
+    ev_fcf_multiple: Optional[MetricValue] = None       # market EV / FCFF base
+    pe_multiple: Optional[MetricValue] = None           # equity de mercado (price × shares) / net income
     earnings_yield_pct: Optional[float] = None          # EBIT/EV × 100 — componente Magic Formula
     magic_formula_rank: Optional[int] = None            # Rank según Magic Formula (requiere peer list — None en Phase 1)
     sensitivity_table: list[dict] = Field(default_factory=list)  # Tabla de sensibilidad WACC × growth
@@ -200,15 +270,31 @@ class ValuationReport(BaseModel):
     stage1_years_used: Optional[int] = None             # Años con g1 constante
     fade_years_used: Optional[int] = None               # Años de fade lineal g1→terminal
     # --- EPV — Earnings Power Value (Greenwald) ---
-    epv_enterprise: Optional[MetricValue] = None        # NOPAT_mediana / WACC (enterprise value sin deuda)
-    epv_per_share: Optional[MetricValue] = None         # (EPV_enterprise - net_debt) / shares
-    epv_upside_pct: Optional[float] = None              # (EPV_enterprise - market_cap) / market_cap × 100
+    epv_enterprise: Optional[MetricValue] = None        # NOPAT normalizado / WACC (EV, mismo plano que el DCF)
+    epv_per_share: Optional[MetricValue] = None         # (EPV − net_claims) / shares
+    epv_upside_pct: Optional[float] = None              # (EPV/sh − price)/price × 100; None sin precio
     epv_source: Optional[str] = None                   # "ebit_median_5y" | "ebit_median_3y" | "ebit_latest"
-    # --- WACC advisory (ADR-029) ---
-    suggested_wacc_pct: Optional[float] = None          # CAPM simplificado (β=1, Rf hardcoded)
-    suggested_wacc_breakdown: Optional[str] = None      # "Rf=4.2% + β=1.0×ERP=5.0% + size_premium=0.5%"
+    epv_growth_premium: Optional[float] = None          # 1 − EPV/sh ÷ price: lo que el precio paga por crecimiento (Greenwald)
+    # --- WACC sugerido (ADR-029 → ADR-033) ---
+    suggested_wacc_pct: Optional[float] = None          # WACC real (antes Ke): wE·Ke + wD·Kd·(1−t), en %
+    suggested_wacc_breakdown: Optional[str] = None      # describe_wacc(): "Ke 9.2% (...) × 87% + Kd 4.8% (...) × (1−25%) × 13% = 8.5%"
+    wacc_breakdown: Optional[WaccBreakdown] = None      # desglose estructurado del WACC sugerido
     # --- Convergence signaling (ADR-030) ---
     valuation_methods_summary: list[dict] = Field(default_factory=list)  # 4 métodos con clasificación cheap/fair/expensive
+    # --- Plano enterprise (ADR-033): FCFF → EV → bridge → por acción ---
+    valuation_basis: Optional[str] = None               # "FCFF discounted at WACC → EV → equity bridge"
+    fcff_base: Optional[MetricValue] = None             # base del DCF (FCFF normalizado o último año); source = método
+    fcff_breakdown: Optional[FcffBreakdown] = None      # componentes del FCFF del ÚLTIMO ejercicio
+    dcf_base_source: Optional[str] = None               # "FCFF (...)" | "NOPAT proxy (EBIT × (1-t))"
+    tax_rate_used: Optional[float] = None               # effective_tax_rate_multi (Σtax/Σpretax ≤3 años)
+    enterprise_value_dcf: Optional[MetricValue] = None  # EV del DCF (capitalizado a la fecha de valoración)
+    equity_bridge: Optional[EquityBridge] = None        # EV → equity con cada componente visible
+    market_enterprise_value: Optional[MetricValue] = None  # price × shares + net_claims (base de múltiplos y reverse)
+    share_count_used: Optional[float] = None            # acciones diluidas usadas en el per-share
+    share_count_source: Optional[str] = None            # cómo se obtuvo share_count_used
+    terminal_value_share: Optional[float] = None        # PV(TV)/EV del DCF; > 0.75 → dependencia del terminal
+    mid_year_convention_used: Optional[bool] = None
+    sensitivity_unit: Optional[str] = None              # "USD/share" (ADR-033); None = legacy (USD B de EV)
 
 
 class ValueExpertReport(LLMAgentReport):

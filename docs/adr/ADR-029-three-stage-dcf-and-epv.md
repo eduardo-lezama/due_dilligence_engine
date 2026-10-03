@@ -1,6 +1,6 @@
 # ADR-029: 3-Stage DCF with Damodaran Fade + EPV Anchor + WACC Advisory
 
-**Status**: Accepted  
+**Status**: Accepted — **Superseded in part by [ADR-033](ADR-033-fcff-wacc-equity-bridge.md)** (el DCF descuenta FCFF a WACC real → EV → equity bridge; tipo impositivo canónico; "WACC advisory" pasa a WACC real con Kd por rating sintético y prima de tamaño OFF por defecto; WACC − g < 1 pp falla loud). La estructura 3-stage con fade y el EPV de Greenwald siguen vigentes.  
 **Date**: 2026-05-17  
 **Deciders**: Eduardo (AI/Agentic Engineering Lead)  
 **Tags**: `valuation`, `dcf`, `epv`, `wacc`, `damodaran`, `greenwald`, `transparency`

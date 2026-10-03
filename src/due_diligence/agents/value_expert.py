@@ -113,7 +113,7 @@ RULES — NON-NEGOTIABLE:
     (a) Count the signals and state the convergence explicitly: "3 of 4 methods signal cheap", not just describe each individually.
     (b) If 3 or 4 methods classify as "cheap" → state that conviction is high and explain why the convergence is meaningful.
     (c) If methods diverge (e.g. DCF cheap but EPV expensive) → adopt HOLD bias by default. Explain in §6 which method you weight most and WHY — e.g. "EPV is the more conservative anchor here because the DCF relies on a growth rate the market is not pricing."
-    (d) EPV is the zero-growth floor: if EPV > market cap (EPV upside > 0%), state explicitly that a BUY does NOT require growth assumptions to hold — the margin of safety exists in the static business alone. This is the highest-conviction BUY signal.
+    (d) EPV is the zero-growth floor: if EPV per share > price (EPV upside > 0%), state explicitly that a BUY does NOT require growth assumptions to hold — the margin of safety exists in the static business alone. This is the highest-conviction BUY signal.
     (e) Never ignore the convergence count. A sentence like "DCF shows 35% upside" with no mention of EPV or reverse DCF is an incomplete §6.
 
 22. ROIC TREND & INCREMENTAL (§4+§5): the ROIC trend label and the incremental ROIC figure are computed deterministically; narrative MUST be consistent with both; if incremental ROIC is n/m, say so and do not infer reinvestment quality. The 'ROIC trend interpretation' label (RISING, FALLING, or STABLE) is AUTHORITATIVE — you MUST NOT use language that contradicts it:
@@ -404,6 +404,13 @@ def _format_context(state: AnalysisState) -> str:
                         f"Elevate to §7 Risks as 'structural margin pressure'."
                     )
         lines.append("")
+        # Data quality flags (deterministas, parse_financials): identidades contables rotas,
+        # fallbacks de conceptos. El LLM debe tratar las cifras afectadas con cautela, no ignorarlas.
+        if financials.data_quality_flags:
+            lines.append("## DATA QUALITY FLAGS (deterministic)")
+            lines += [f"- {flag}" for flag in financials.data_quality_flags]
+            lines.append("Treat figures touched by these flags as lower-confidence in §4 and §6.")
+            lines.append("")
 
     # --- Quarterly XBRL snapshot (EC-44/MCE-24) ---
     q_snap = state.get("quarterly_snapshot")  # type: ignore[typeddict-item]
@@ -600,31 +607,97 @@ def _format_context(state: AnalysisState) -> str:
 
     # --- Valuation ---
     valuation = state.get("valuation")  # type: ignore[typeddict-item]
+    if valuation is not None and valuation.stub and valuation.error:
+        # Error tipado del agente (p.ej. WACC ≤ g): hueco de datos VISIBLE, no ausencia silenciosa.
+        lines.append("## VALUATION UNAVAILABLE")
+        lines.append(f"{valuation.error}")
+        lines.append("§6 MUST state that no deterministic valuation is available; do NOT invent "
+                     "intrinsic values, upsides or multiples.")
+        lines.append("")
     if valuation is not None and not valuation.stub:
         lines.append("## VALUATION REPORT")
+        if valuation.valuation_basis:
+            lines.append(f"Valuation basis: {valuation.valuation_basis}")
+        # --- Plano enterprise (ADR-033): FCFF → WACC → EV → bridge → por acción ---
+        if valuation.fcff_base is not None:
+            lines.append(f"FCFF base: {_fmt_usd(valuation.fcff_base.value)} ({valuation.fcff_base.source})")
+        if valuation.fcff_breakdown is not None:
+            bd = valuation.fcff_breakdown
+            lines.append(
+                f"FCFF components (latest FY): OCF {_fmt_usd(bd.ocf)} + after-tax interest "
+                f"{_fmt_usd(bd.after_tax_interest_addback)} − after-tax interest income "
+                f"{_fmt_usd(bd.after_tax_interest_income)} − capex {_fmt_usd(bd.capex)} − SBC "
+                f"{_fmt_usd(bd.sbc_charge)} − finance-lease principal {_fmt_usd(bd.finance_lease_principal)} "
+                f"= {_fmt_usd(bd.fcff)} (tax {bd.tax_rate:.1%})"
+                + (f"; missing inputs: {', '.join(bd.missing_inputs)}" if bd.missing_inputs else "")
+            )
+        if valuation.suggested_wacc_breakdown:
+            lines.append(f"WACC breakdown (suggested, real): {valuation.suggested_wacc_breakdown}")
+        if valuation.enterprise_value_dcf is not None:
+            lines.append(f"Enterprise value (DCF): {_fmt_usd(valuation.enterprise_value_dcf.value)}")
+        if valuation.equity_bridge is not None:
+            b = valuation.equity_bridge
+            lines.append(
+                f"Equity bridge: EV {_fmt_usd(b.enterprise_value)} − debt {_fmt_usd(b.total_debt)} "
+                f"− minority {_fmt_usd(b.minority_interest)} − preferred {_fmt_usd(b.preferred_stock)} "
+                f"+ cash {_fmt_usd(b.cash)} + STI {_fmt_usd(b.short_term_investments)} "
+                f"+ LTI {_fmt_usd(b.long_term_investments)} = equity {_fmt_usd(b.equity_value)} "
+                f"(net claims {_fmt_usd(b.net_claims)})"
+            )
+            if b.operating_lease_liabilities_memo is not None:
+                lines.append(
+                    f"Operating lease liabilities (memo, not deducted — ASC 842, already in OCF/EBIT): "
+                    f"{_fmt_usd(b.operating_lease_liabilities_memo)}"
+                )
+            if valuation.share_count_used:
+                lines.append(f"Diluted shares used: {valuation.share_count_used / 1e6:,.2f}M "
+                             f"({valuation.share_count_source})")
+        if valuation.terminal_value_share is not None:
+            lines.append(f"Terminal value share of DCF EV: {valuation.terminal_value_share:.0%}")
+            if valuation.terminal_value_share > 0.75:
+                lines.append("⚠️ >75% of the DCF value comes from the terminal value — "
+                             "§6 must flag terminal-value dependence.")
         if valuation.dcf_intrinsic_value is not None:
-            lines.append(f"DCF equity value: {_fmt_usd(valuation.dcf_intrinsic_value.value)}")
+            lines.append(f"DCF equity value (after bridge): {_fmt_usd(valuation.dcf_intrinsic_value.value)}")
+        if valuation.dcf_intrinsic_per_share is not None:
+            lines.append(f"DCF value per share: ${valuation.dcf_intrinsic_per_share.value:.2f}")
         if valuation.dcf_upside_pct is not None:
-            lines.append(f"DCF upside vs market cap: {valuation.dcf_upside_pct:+.1f}%")
+            lines.append(f"DCF upside vs price: {valuation.dcf_upside_pct:+.1f}%")
         if valuation.reverse_dcf_implied_growth is not None:
-            lines.append(f"Reverse DCF implied growth: {valuation.reverse_dcf_implied_growth:.1%}")
+            ten_y = (f" (10y-equivalent CAGR {valuation.reverse_dcf_10y_equivalent:.1%})"
+                     if valuation.reverse_dcf_10y_equivalent is not None else "")
+            lines.append(f"Reverse DCF implied growth (target = market EV): "
+                         f"{valuation.reverse_dcf_implied_growth:.1%}{ten_y}")
+        if valuation.market_enterprise_value is not None:
+            lines.append(f"Market EV (price × shares + net claims): "
+                         f"{_fmt_usd(valuation.market_enterprise_value.value)}")
         if valuation.ev_ebit_multiple is not None:
             lines.append(f"EV/EBIT: {valuation.ev_ebit_multiple.value:.1f}x")
         if valuation.ev_fcf_multiple is not None:
-            lines.append(f"EV/FCF: {valuation.ev_fcf_multiple.value:.1f}x")
+            lines.append(f"EV/FCFF: {valuation.ev_fcf_multiple.value:.1f}x")
         if valuation.pe_multiple is not None:
             lines.append(f"P/E: {valuation.pe_multiple.value:.1f}x")
         if valuation.earnings_yield_pct is not None:
             lines.append(f"Earnings yield (EBIT/EV): {valuation.earnings_yield_pct:.1f}%")
         if valuation.epv_per_share is not None:
             epv_upside_str = (
-                f" ({valuation.epv_upside_pct:+.1f}% vs market cap)"
+                f" ({valuation.epv_upside_pct:+.1f}% vs price)"
                 if valuation.epv_upside_pct is not None else ""
             )
             lines.append(
                 f"EPV (zero-growth floor, Greenwald): ${valuation.epv_per_share.value:.2f}/sh"
                 f"{epv_upside_str} — source: {valuation.epv_source or 'EBIT median'}"
             )
+        if valuation.epv_growth_premium is not None:
+            # Lectura Greenwald: el precio por encima del EPV paga crecimiento, que solo vale si hay moat.
+            gp = valuation.epv_growth_premium
+            reading = (
+                f"{gp:.0%} of the price pays for growth — justified only if the moat lets growth "
+                f"earn above WACC (cross-check with §2 and incremental ROIC)"
+                if gp >= 0 else
+                "price is below the no-growth value: margin of safety does not depend on growth"
+            )
+            lines.append(f"EPV growth premium (1 − EPV/price): {gp:+.0%} — {reading}")
         if valuation.assumptions is not None:
             a = valuation.assumptions
             stage_str = ""
@@ -639,8 +712,8 @@ def _format_context(state: AnalysisState) -> str:
             )
         if valuation.suggested_wacc_pct is not None:
             lines.append(
-                f"Suggested WACC (advisory): {valuation.suggested_wacc_pct:.1f}% "
-                f"— {valuation.suggested_wacc_breakdown}"
+                f"Suggested WACC (real: Ke + after-tax Kd, market weights): "
+                f"{valuation.suggested_wacc_pct:.1f}%"
             )
 
         # Bloque DCF GROWTH ASSUMPTION (EC-54) — el parámetro más sensible del DCF debe
@@ -718,7 +791,7 @@ def _format_context(state: AnalysisState) -> str:
             )
             if valuation.epv_upside_pct is not None and valuation.epv_upside_pct > 0:
                 lines.append(
-                    "EPV note: EPV > market cap — the stock is potentially below zero-growth value. "
+                    "EPV note: EPV per share > price — the stock is potentially below zero-growth value. "
                     "A BUY verdict here does NOT require growth assumptions to hold."
                 )
 

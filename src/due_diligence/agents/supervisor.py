@@ -80,6 +80,8 @@ def supervisor_node(state: AnalysisState) -> dict:
         raise ValueError(f"{ticker}: ticker not found in EDGAR — {e}")
 
     # Step 2: 10-K availability — ¿es un US domestic filer estándar?
+    # patrón latest() aceptado (MCE-26, T5): aquí solo se comprueba que exista un 10-K y su
+    # fecha; los NÚMEROS usan _get_latest_full_10k (excluye 10-K/A, EC-27/EC-87) en fetch_raw.
     latest_10k = company.get_filings(form="10-K").latest()
     if latest_10k is not None:
         as_of_date = str(latest_10k.period_of_report)

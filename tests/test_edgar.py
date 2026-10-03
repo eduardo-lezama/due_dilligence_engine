@@ -548,16 +548,17 @@ class TestFetchQuarterlySnapshotThreshold:
         from datetime import date, timedelta
         from due_diligence.tools.edgar import EdgarAdapter
 
-        # Mockear Company para que no llame a EDGAR real
+        # EC-84: el assert anterior (`get_filings.called or result is None`) era tautológico
+        # — pasaba siempre porque result era None por cualquier motivo. Ahora se exige que
+        # el fetch trimestral se intente de verdad y que, sin 10-Q, devuelva None.
         mock_company = mocker.MagicMock()
-        mock_company.get_filings.return_value = []  # No hay 10-Q → devuelve None
+        mock_company.get_quarterly_financials.return_value = None  # sin 10-Q
         mocker.patch("edgar.Company", return_value=mock_company)
         mocker.patch("edgar.set_identity")
-
         tenk_as_of = date.today() - timedelta(days=60)
         result = EdgarAdapter.fetch_quarterly_snapshot("AAPL", tenk_as_of=tenk_as_of)
-        # El fetch fue intentado (Company se llamó), aunque no haya 10-Q
-        assert mock_company.get_filings.called or result is None  # llegó a buscar
+        mock_company.get_quarterly_financials.assert_called_once_with()
+        assert result is None
 
 
 # ---------------------------------------------------------------------------

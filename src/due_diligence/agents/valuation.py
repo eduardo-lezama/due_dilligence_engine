@@ -41,6 +41,15 @@ from due_diligence.graph.state import AnalysisState
 from due_diligence.schemas.base import MetricValue
 from due_diligence.schemas.reports import ValuationInput, ValuationReport, PeerValuation
 from due_diligence.utils.periods import cagr_by_fiscal_years
+# Aritmética enterprise pura (ADR-033): este módulo orquesta, valuation_math calcula.
+from due_diligence.agents.valuation_math import (
+    BETA_DEFAULT,
+    ERP_PCT,
+    MARGINAL_TAX_RATE,
+    RF_PCT,
+    ValuationInputError,
+    dcf_components,
+)
 
 log = structlog.get_logger()
 
@@ -93,9 +102,10 @@ def _three_stage_dcf(
     wacc: float,
     stage1_years: int,
     fade_years: int = 0,
+    mid_year: bool = False,
 ) -> float:
     """
-    DCF en tres etapas — Damodaran fade method (ADR-029).
+    DCF en tres etapas — Damodaran fade method (ADR-029), delegado a valuation_math (ADR-033).
 
     Stage 1 (años 1..stage1_years): crecimiento constante a g1.
     Stage 2 (años stage1_years+1..stage1_years+fade_years): fade lineal g1 → terminal_growth.
@@ -106,35 +116,16 @@ def _three_stage_dcf(
     que normalizar hacia el crecimiento de la economía tras los primeros años de ventaja.
 
     Returns:
-        Equity value total (USD). Suma de FCFs descontados + PV del terminal value.
+        **Enterprise value** (USD): descuenta FCFF al WACC. Para llegar a equity hace falta
+        el bridge (valuation_math.equity_bridge); antes de ADR-033 se trataba como equity.
+
+    Raises:
+        ValuationInputError: si WACC − g < 1pp. Antes se recortaba g a WACC − 0,5pp en
+        silencio, lo que producía TVs de ~200× el FCF (EC-76). Ahora falla loud.
     """
-    # Asegurar wacc > terminal_growth para evitar denominador negativo o infinito
-    if wacc <= terminal_growth:
-        terminal_growth = wacc - 0.005
-
-    pv = 0.0
-    fcf = base_fcf
-
-    # Stage 1: g1 constante
-    for t in range(1, stage1_years + 1):
-        fcf *= 1 + g1
-        pv += fcf / (1 + wacc) ** t
-
-    # Stage 2: fade lineal de g1 → terminal_growth
-    # g_t en fade_t-ésimo año = g1 - (g1 - terminal_growth) * fade_t / fade_years
-    for fade_t in range(1, fade_years + 1):
-        g_t = g1 - (g1 - terminal_growth) * fade_t / fade_years
-        fcf *= 1 + g_t
-        t = stage1_years + fade_t
-        pv += fcf / (1 + wacc) ** t
-
-    # Stage 3: perpetuidad a terminal_growth (Gordon Growth Model)
-    total_explicit = stage1_years + fade_years
-    terminal_fcf = fcf * (1 + terminal_growth)
-    terminal_value = terminal_fcf / (wacc - terminal_growth)
-    pv += terminal_value / (1 + wacc) ** total_explicit
-
-    return pv
+    return dcf_components(
+        base_fcf, g1, terminal_growth, wacc, stage1_years, fade_years, mid_year=mid_year,
+    ).enterprise_value
 
 
 def _two_stage_dcf(
@@ -224,7 +215,9 @@ def _reverse_dcf(
     return round(result, 4)
 
 
-def _normalized_fcf_proxy(ebit: float, net_income: Optional[float]) -> Optional[float]:
+def _normalized_fcf_proxy(
+    ebit: float, net_income: Optional[float], tax_rate: Optional[float] = None,
+) -> Optional[float]:
     """
     Proxy de cash generation normalizado cuando el FCF reportado es negativo (EC-13).
 
@@ -233,10 +226,11 @@ def _normalized_fcf_proxy(ebit: float, net_income: Optional[float]) -> Optional[
     sistema devuelve "N/A — FCF insufficient", lo que pierde toda valoración para una
     clase entera del universo value (cyclicals descontados, compounders en inversión).
 
-    Cálculo: NOPAT = EBIT × (1 − effective_tax_rate).
-        - Si net_income también disponible y NI < EBIT: derive tax rate de la diferencia
-          (proxy razonable que ignora interest expense — OK para análisis directional).
-        - Si no: usar 25% default (mediana US corporate effective tax post-TCJA).
+    Cálculo: NOPAT = EBIT × (1 − t).
+        - t = `tax_rate` si el llamador pasa la tasa canónica (effective_tax_rate_multi).
+        - Si no: MARGINAL_TAX_RATE (25 %). La antigua 1 − NI/EBIT metía los intereses
+          (y la NCI) en el impuesto: EBIT 300, int 40, NI 195 → 35 % en vez de 25 % (EC-77).
+        - `net_income` ya no se usa; se conserva en la firma por compatibilidad de llamadas.
 
     Limitación: ignora working capital y maintenance vs growth capex. Sobreestima FCF
     sostenible para cyclicals en trough (cuando capex de mantenimiento es alto). Se
@@ -251,13 +245,8 @@ def _normalized_fcf_proxy(ebit: float, net_income: Optional[float]) -> Optional[
     """
     if ebit is None or ebit <= 0:
         return None
-    if net_income is not None and net_income > 0 and ebit > net_income:
-        # Derive tax rate del gap EBIT→NI (ignora interest expense — OK proxy)
-        derived_rate = 1 - (net_income / ebit)
-        tax_rate = max(0.10, min(derived_rate, 0.40))  # clamp realista
-    else:
-        tax_rate = 0.25  # US corporate post-TCJA mediana
-    return ebit * (1 - tax_rate)
+    t = tax_rate if tax_rate is not None else MARGINAL_TAX_RATE
+    return ebit * (1 - t)
 
 
 def _fcf_quality_flag(
@@ -310,10 +299,11 @@ def _fcf_quality_flag(
 
 
 # --- Constantes WACC advisory (ADR-029) ---
-# Rf: US 10y Treasury yield — actualizar manualmente cuando los tipos cambien significativamente.
-_RF_PCT: float = 4.2    # as of 2026-05
-_ERP_PCT: float = 5.0   # Damodaran historical ERP (US)
-_BETA_DEFAULT: float = 1.0  # simplificación: β=1, sin cálculo de β específica de empresa
+# Un hecho = un lugar: los valores viven en valuation_math; aquí solo alias históricos
+# para no romper imports existentes (cli, tests).
+_RF_PCT: float = RF_PCT              # US 10y Treasury, as of 2026-05
+_ERP_PCT: float = ERP_PCT            # Damodaran historical ERP (US)
+_BETA_DEFAULT: float = BETA_DEFAULT  # simplificación: β=1, sin β específica de empresa
 
 
 def _ebit_median(
@@ -329,13 +319,17 @@ def _ebit_median(
 
     Jerarquía: median_5y → median_Ny (≥3) → latest.
 
+    Los años con EBIT negativo SE INCLUYEN (revisión adversarial): descartarlos sesgaba al
+    alza el EPV de las cíclicas (un trough es parte del ciclo, no un outlier a ignorar).
+    Si la mediana resultante es ≤ 0 no hay poder de beneficio normalizado → (None, label).
+
     Returns:
         (median_ebit_usd, source_label) donde source: "ebit_median_5y",
         "ebit_median_Ny", "ebit_latest", o (None, "unavailable").
     """
     if not ebit_series:
         return None, "unavailable"
-    values = [mv.value for mv in ebit_series if mv.value is not None and mv.value > 0]
+    values = [mv.value for mv in ebit_series if mv.value is not None]
     if not values:
         return None, "unavailable"
 
@@ -352,6 +346,10 @@ def _ebit_median(
     sorted_vals = sorted(subset)
     n = len(sorted_vals)
     med = sorted_vals[n // 2] if n % 2 == 1 else (sorted_vals[n // 2 - 1] + sorted_vals[n // 2]) / 2
+    if med <= 0:
+        # Mediana ≤ 0: EPV = NOPAT/WACC sería negativo → None; el consumidor muestra "n/a"
+        # en lugar de un EPV sin sentido económico.
+        return None, label
     return med, label
 
 
@@ -363,6 +361,7 @@ def _compute_epv(
     shares: Optional[float],
     market_cap: Optional[float],
     price_current: Optional[float] = None,  # EC-63: para calcular upside con precio real-time
+    tax_rate: Optional[float] = None,
 ) -> tuple:  # (Optional[MetricValue], Optional[MetricValue], Optional[float], Optional[str])
     """
     Earnings Power Value — Greenwald (ADR-029).
@@ -374,7 +373,7 @@ def _compute_epv(
     EPV_enterprise es comparable con market_cap (ambos enterprise-level).
     EPV_per_share es comparable con market price (ambos equity-level).
 
-    Tax rate derivada de NI/EBIT si disponible, else 25% (US corporate default).
+    Tax rate: MARGINAL_TAX_RATE (25 %) salvo que se pase `tax_rate` (ADR-033).
 
     Returns:
         (epv_enterprise_mv, epv_per_share_mv, epv_upside_pct, source_label)
@@ -386,20 +385,11 @@ def _compute_epv(
     if ebit_med is None or wacc <= 0:
         return None, None, None, None
 
-    # Tax rate: derivar de NI/EBIT del último período si coherente
-    ebit_latest = ebit_series[0].value if ebit_series else None
-    if (
-        net_income_latest is not None
-        and net_income_latest > 0
-        and ebit_latest is not None
-        and ebit_latest > net_income_latest
-    ):
-        derived_tax = 1 - (net_income_latest / ebit_latest)
-        tax_rate = max(0.10, min(derived_tax, 0.40))
-    else:
-        tax_rate = 0.25
-
-    nopat = ebit_med * (1 - tax_rate)
+    # Tax: el EPV es una perpetuidad → tipo MARGINAL (el efectivo converge a él, Damodaran).
+    # La antigua 1 − NI/EBIT metía los intereses en el impuesto (EC-77). net_income_latest
+    # queda sin uso hasta que T12b simplifique la firma.
+    t = tax_rate if tax_rate is not None else MARGINAL_TAX_RATE
+    nopat = ebit_med * (1 - t)
     epv_enterprise = nopat / wacc
 
     period = ebit_series[0].period if ebit_series else "N/A"
@@ -696,9 +686,16 @@ def _sensitivity_table(
         row = {"near_term_growth_pct": round(g * 100, 1), "values": {}}
         for w_delta in (-0.02, 0.0, 0.02):
             w = wacc_center + w_delta
-            val = _three_stage_dcf(base_fcf, g, terminal_growth, w,
-                                   stage1_years=s1, fade_years=fd)
-            row["values"][f"wacc_{round(w*100,1)}pct"] = round(val / 1e9, 1)  # en USD B
+            key = f"wacc_{round(w*100,1)}pct"
+            try:
+                val = _three_stage_dcf(base_fcf, g, terminal_growth, w,
+                                       stage1_years=s1, fade_years=fd)
+            except ValuationInputError:
+                # WACC − 2pp puede caer por debajo de g + 1pp (p.ej. WACC 4.5 %, g 2.5 %):
+                # celda None ("n/m") en lugar de tumbar el nodo entero (revisión adversarial, T10).
+                row["values"][key] = None
+                continue
+            row["values"][key] = round(val / 1e9, 1)  # en USD B (legacy; T12c pasa a USD/share)
         rows.append(row)
     return rows
 

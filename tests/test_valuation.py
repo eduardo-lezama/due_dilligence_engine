@@ -79,10 +79,19 @@ def test_dcf_higher_wacc_gives_lower_value():
     assert low_wacc > high_wacc
 
 
-def test_dcf_wacc_leq_terminal_growth_doesnt_crash():
-    """wacc <= terminal_growth es un edge case — el código debe manejarlo sin crash."""
-    val = _two_stage_dcf(100e9, 0.10, 0.09, 0.09, 10)  # wacc == terminal_growth
-    assert val > 0
+def test_dcf_wacc_leq_terminal_growth_raises():
+    """wacc <= terminal_growth: fail loud (EC-76). Antes se recortaba g a wacc−0.5pp en silencio
+    y el TV salía ~200× el FCF; ahora ValuationInputError y el agente lo convierte en error visible."""
+    from due_diligence.agents.valuation_math import ValuationInputError
+    with pytest.raises(ValuationInputError):
+        _two_stage_dcf(100e9, 0.10, 0.09, 0.09, 10)  # wacc == terminal_growth
+
+
+def test_sensitivity_invalid_cell_is_none_in_legacy_units():
+    """WACC centro 4.5 % − 2pp = 2.5 % = g → celda None ("n/m"), no excepción que tumbe el nodo."""
+    t = _sensitivity_table(100e6, 0.025, 10, 0.045, 0.10)
+    assert t[0]["values"]["wacc_2.5pct"] is None
+    assert t[0]["values"]["wacc_4.5pct"] is not None   # spread exacto de 2pp: válido
 
 
 def test_dcf_zero_fcf_returns_zero():

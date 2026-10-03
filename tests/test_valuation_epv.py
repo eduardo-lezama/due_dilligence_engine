@@ -42,12 +42,13 @@ def test_ebit_median_empty_series():
     assert source == "unavailable"
 
 
-def test_ebit_median_ignores_non_positive():
-    # Un período negativo no debe incluirse
+def test_ebit_median_includes_non_positive_years():
+    # Revisión adversarial: el trough cíclico forma parte del ciclo → se INCLUYE.
+    # 4 valores: sorted −50, 100, 110, 120 → mediana (100+110)/2 = 105 (antes descartaba −50 → 110)
     series = [_mv(-50), _mv(100), _mv(120), _mv(110)]
     med, source = _ebit_median(series)
-    assert med is not None
-    assert med > 0
+    assert med == pytest.approx(105.0)
+    assert source == "ebit_median_4y"
 
 
 # --- _compute_epv ---
@@ -119,16 +120,17 @@ def test_compute_epv_returns_none_when_no_data():
 
 
 def test_compute_epv_handles_negative_ebit():
-    """Períodos con EBIT negativo deben ser ignorados por _ebit_median."""
-    series = [_mv(-100e6), _mv(50e6)]
+    """EBIT negativos se incluyen en la mediana; mediana ≤ 0 → EPV None (no un EPV negativo)."""
+    # 2 periodos (< 3) → "ebit_latest" = −100M → None
     epv_ent, epv_ps, upside, source = _compute_epv(
-        ebit_series=series,
-        net_income_latest=None,
-        wacc=0.09,
-        net_debt=0.0,
-        shares=1e6,
-        market_cap=100e6,
+        ebit_series=[_mv(-100e6), _mv(50e6)],
+        net_income_latest=None, wacc=0.09, net_debt=0.0, shares=1e6, market_cap=100e6,
     )
-    # Solo el EBIT positivo (50M) se usa → EPV ≠ None
-    assert epv_ent is not None
-    assert epv_ent.value > 0
+    assert epv_ent is None and epv_ps is None and upside is None
+    # 3 periodos 100, −50, 80 → mediana 80M (con el −50 incluido) → EPV = 80 × 0.75 / 0.09 = 666.67M
+    epv_ent, _, _, source = _compute_epv(
+        ebit_series=[_mv(100e6), _mv(-50e6), _mv(80e6)],
+        net_income_latest=None, wacc=0.09, net_debt=0.0, shares=1e6, market_cap=100e6,
+    )
+    assert epv_ent.value == pytest.approx(80e6 * 0.75 / 0.09, abs=1)
+    assert source == "ebit_median_3y"

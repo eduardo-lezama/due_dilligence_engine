@@ -157,6 +157,65 @@ class ValuationInput(CheckpointInput):
     margin_assumption_pct: Optional[float] = None  # Margen operativo asumido
 
 
+# --------------------------------------------------------------------------- #
+# Plano enterprise de la valoración (ADR-033): FCFF → WACC → EV → bridge → por acción.
+# Viven aquí (y no en valuation_math) para que ValuationReport los pueda referenciar
+# y el archiver / Value Expert los rendericen sin importar código de cálculo.
+# --------------------------------------------------------------------------- #
+
+class FcffBreakdown(BaseModel):
+    """Componentes del FCFF (ADR-033). Unlevered: flujo disponible para TODOS los proveedores de capital."""
+    ocf: float
+    after_tax_interest_addback: float      # + interest_expense × (1−t): OCF US GAAP ya lo restó
+    after_tax_interest_income: float       # − interest_income × (1−t): evita contar dos veces la caja (bridge)
+    capex: float
+    sbc_charge: float                      # SBC tratado como coste en caja (Damodaran)
+    finance_lease_principal: float = 0.0   # − principal de leasing financiero (capex equivalente, no está en capex)
+    tax_rate: float
+    fcff: float
+    missing_inputs: list[str] = Field(default_factory=list)
+
+
+class EquityBridge(BaseModel):
+    """EV → equity común (ADR-033). Cada componente visible para auditoría en archiver/Value Expert."""
+    enterprise_value: float
+    total_debt: float
+    minority_interest: float = 0.0
+    preferred_stock: float = 0.0
+    cash: float
+    short_term_investments: float = 0.0
+    long_term_investments: float = 0.0
+    operating_lease_liabilities_memo: Optional[float] = None  # NO restado: ya está en OCF/EBIT (ASC 842)
+    net_claims: float          # debt + minority + preferred − cash − STI − LTI
+    equity_value: float        # enterprise_value − net_claims (puede ser negativo: se informa, no se recorta)
+    components_missing: list[str] = Field(default_factory=list)
+
+
+class WaccBreakdown(BaseModel):
+    """WACC real = wE·Ke + wD·Kd·(1−t) (ADR-033). Fracciones, no %."""
+    cost_of_equity: float
+    cost_of_equity_source: str
+    pre_tax_cost_of_debt: float
+    cost_of_debt_source: str
+    tax_rate: float
+    after_tax_cost_of_debt: float
+    equity_weight: float
+    debt_weight: float
+    wacc: float
+
+
+class DcfComponents(BaseModel):
+    """Desglose del DCF 3-stage: explícito vs terminal (ADR-033)."""
+    pv_explicit: float
+    pv_terminal: float
+    enterprise_value: float
+    terminal_value_share: Optional[float]   # pv_terminal / EV; None si EV == 0
+    mid_year: bool
+    # True si el flujo terminal se construyó desde NOPAT × (1 − g/RONIC) (Damodaran/Koller);
+    # False = legacy FCFF_T × (1+g), que sobrevalora el TV cuando g > 0.
+    terminal_reinvestment_modeled: bool = False
+
+
 class ValuationReport(BaseModel):
     """Reporte de valuation (DCF, múltiplos, sensitivity)."""
     ticker: str

@@ -73,6 +73,21 @@ lo fusiona). El hash de commit es el de la rama `h1-blockB`.
 - **Pendiente conocido:** restatements — el backfill toma el filing más reciente y puede mezclar años re-expresados con no re-expresados.
 - **Commit:** `feat(h1-T7)`.
 
+### EC-85 — ROIC histórico con IC y tasa del último año (T9)
+
+- **Síntoma:** la serie ROIC de 4 años dividía el NOPAT de cada año entre el IC del ÚLTIMO balance y aplicaba la tasa impositiva del último año a todos: una empresa que duplicó su capital aparecía con ROIC histórico inflado (capital de hoy, beneficios de ayer) y la "tendencia" era casi solo la del EBIT. El contexto del Value Expert llamaba "marginal ROIC > average" a esa tendencia.
+- **Causa raíz:** el raw solo tenía el balance del último año (no había `balance_history`) y `parse_financials` calculaba un único `effective_tax_rate` local.
+- **Fix:** `build_raw` emite `balance_history` (un balance por columna FY con las mismas reglas de deuda/caja/STI); `parse_financials` calcula `ROIC_t = NOPAT_t / media(IC_t, IC_{t−1})` con la tasa del año (`effective_tax_rate` canónica importada de `xbrl_extract`, sin variable local homónima); `edgar.invested_capital(...)`: primaria Equity + Debt − Cash − STI − LTI, operativa Assets − Cash − STI − LTI − ROU − NIBCL, **un solo método por empresa** (si algún año tiene equity ≤ 0 → operativa para toda la serie), IC < 5 % de activos → n/m; `incremental_roic` = ΔNOPAT/ΔIC ≤ 3 años (None si ΔIC ≤ 5 %); series `total_debt_series`, `cash_series` (caja + STI), `equity_series` para `suggest_wacc` (T11). Regla 22 del Value Expert reescrita sobre el ROIC incremental real; la tendencia ya no se etiqueta como "ROIC marginal". Fixtures legacy sin `balance_history` → `source="calculated-latest-ic"` hasta el re-fetch de T14 (AAPL 0.874 intacto).
+- **AZO:** IC operativo explícito = 19,355,324,000 − 271,803,000 = 19,083,521,000 (mismo número que el antiguo "total_assets-cash fallback", ahora método `operating:`); test en `test_edgar_archetypes.py`.
+- **Commit:** `feat(h1-T9)`.
+
+### Pendientes conocidos del Bloque B
+
+- Restatements: `backfill_gaps`/`EdgarFactsLookup` toman el filing más reciente; pueden mezclar años re-expresados con no re-expresados.
+- `operating_income` trimestral solo con `OperatingIncomeLoss` (sin fallback GP − SG&A).
+- `valuation.py` y `peers.py` siguen calculando EV con cash-only (sin restar STI) hasta el bridge de T12; idéntico al comportamiento previo porque la STI era siempre 0.
+- `valuation.py:236` (NOPAT proxy) aún usa su propio tipo impositivo: T10 lo sustituye por `effective_tax_rate_multi`.
+
 ### Nota para `src/due_diligence/tools/CLAUDE.md` (gitignored → aplicar en la sesión principal)
 
 Añadir bajo "Rules":

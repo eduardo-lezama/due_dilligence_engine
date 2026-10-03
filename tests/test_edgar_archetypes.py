@@ -149,3 +149,24 @@ def test_roic_available_or_graceful(archetype_raw):
             f"ROIC de {roic.value:.3f} es irrazonable para {archetype_raw['ticker']} "
             f"(período {roic.period})"
         )
+
+
+# ---------------------------------------------------------------------------
+# Test 6: AZO (equity negativo) usa IC operativo — valor calculado a mano (T9)
+# ---------------------------------------------------------------------------
+
+def test_azo_invested_capital_uses_operating_method():
+    """
+    T9 / revisión adversarial A4: equity ≤ 0 → IC operativo SIEMPRE.
+    Fixture AZO legacy (sin LiabilitiesCurrent ni ROU): IC = Assets − Cash − STI − LTI − ROU
+    = 19,355,324,000 − 271,803,000 − 0 − 0 − 0 = 19,083,521,000 (mismo número que el antiguo
+    "total_assets-cash fallback", ahora con método explícito).
+    """
+    import json
+    from pathlib import Path
+    from due_diligence.tools.edgar import EdgarAdapter
+
+    raw = json.loads((Path(__file__).parent / "fixtures" / "azo_xbrl_raw.json").read_text())
+    report = EdgarAdapter.parse_financials(raw)
+    assert report.invested_capital.value == pytest.approx(19_083_521_000)
+    assert report.invested_capital.source.startswith("operating")

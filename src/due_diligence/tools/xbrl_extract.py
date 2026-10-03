@@ -585,6 +585,27 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
     if flags:
         log.warning("balance_data_quality_flags", ticker=ticker, flags=flags)
 
+    # --- balance_history (T9): un balance por columna FY → IC por año, series de deuda/caja/equity ---
+    # Cada año usa las MISMAS reglas que el último (resolve_debt, caja solo-caja, STI aparte).
+    val = lambda item: item["value"] if item else None  # noqa: E731
+    history = []
+    for col in fy_columns(bs_df)[:10]:
+        p = col.replace(" ", "")
+        g = lambda c, p=p: point_value(bs_df, c, p, facts)  # noqa: E731 — closure de periodo
+        d = resolve_debt(g, p)
+        history.append({
+            "period": p, "total_assets": val(g(("Assets",))),
+            "stockholders_equity": val(g(("StockholdersEquity",))),
+            "total_debt": d["long_term_debt"]["value"] + d["short_term_debt"]["value"] + d["finance_leases"]["value"],
+            "short_term_debt": d["short_term_debt"]["value"],
+            # caja de cada año: no lanza (años antiguos pueden no tenerla) → None y el año se omite del IC
+            "cash": val(g(CASH_CONCEPTS + RESTRICTED_CASH)),
+            "short_term_investments": val(g(STI)) or 0.0,
+            "current_liabilities": val(g(("LiabilitiesCurrent",))),
+            "operating_rou_asset": val(g(OP_ROU_ASSET)),
+            "long_term_investments": val(g(LTI)),
+        })
+
     return {
         "ticker": ticker.upper(), "cik": cik, "as_of_date": period_end.isoformat(),
         "source_filing": f"10-K {fy_label}",
@@ -631,6 +652,7 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
         },
         # Identidades contables rotas / inferencias: llegan al FinancialsReport y al report.
         "data_quality_flags": flags,
+        "balance_history": history,
         "shares": {"shares_outstanding": {
             "value": float(shares_outstanding) if shares_outstanding is not None else None,
             "period": fy_label, "source": "dei:EntityCommonStockSharesOutstanding"}},

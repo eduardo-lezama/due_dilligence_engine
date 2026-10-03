@@ -142,6 +142,103 @@ def test_parse_financials_fcff_signs_normalized():
 
 
 # ---------------------------------------------------------------------------
+# Task 9 — ROIC por año, IC por año, ROIC incremental, series de balance (EC-85)
+# ---------------------------------------------------------------------------
+
+def test_effective_tax_rate_per_year_rules():
+    from due_diligence.tools.edgar import effective_tax_rate
+    assert effective_tax_rate(21.0, 100.0) == 0.21
+    assert effective_tax_rate(80.0, 100.0) == 0.5        # clamp
+    assert effective_tax_rate(5.0, -10.0) == 0.25        # pretax <= 0 → default
+    assert effective_tax_rate(None, 100.0) == 0.25
+
+
+def test_invested_capital_operating_fallback_excludes_non_interest_bearing_and_rou():
+    from due_diligence.tools.edgar import invested_capital
+    # AZO-like: equity ≤ 0 → SIEMPRE operativo (regla explícita; antes primary 5130 > umbral 1358 y el
+    # test era aritméticamente imposible). Current liabilities 6000, of which 500 is debt; ROU 3000.
+    ic, method = invested_capital(equity=-3400.0, total_debt=8800.0, cash=270.0, total_assets=19355.0,
+                                  current_liabilities=6000.0, short_term_debt=500.0,
+                                  sti=0.0, lti=0.0, operating_rou_asset=3000.0)
+    assert ic == pytest.approx(19355.0 - 270.0 - 3000.0 - 5500.0)
+    assert method.startswith("operating")
+
+
+def test_invested_capital_primary_when_equity_positive():
+    from due_diligence.tools.edgar import invested_capital
+    assert invested_capital(equity=200.0, total_debt=100.0, cash=50.0, total_assets=500.0) == (250.0, "equity+debt-cash")
+
+
+def test_invested_capital_tiny_ic_is_not_meaningful():
+    from due_diligence.tools.edgar import invested_capital
+    # IC < 5 % de activos → None (ROIC "n/m"), evita ROIC > 200 % espurios en net-cash + equity negativo
+    assert invested_capital(equity=10.0, total_debt=0.0, cash=0.0, total_assets=1000.0) is None
+
+
+def _raw_with_history():
+    def s(vals):
+        return [{"value": v, "period": f"FY{y}", "source": "X"} for y, v in vals]
+    return {
+        "ticker": "T", "cik": "1", "as_of_date": "2025-12-31", "source_filing": "10-K FY2025",
+        "annual": {"revenue": s([(2025, 1000), (2024, 900), (2023, 800), (2022, 700)]),
+                   "gross_profit": [], "net_income": [], "capex": [], "operating_cash_flow": [],
+                   "operating_income": s([(2025, 200), (2024, 150), (2023, 120), (2022, 100)]),
+                   "income_tax": s([(2025, 40), (2024, 15)]), "pretax_income": s([(2025, 200), (2024, 150)])},
+        "balance_sheet": {"total_assets": {"value": 2000, "period": "FY2025"},
+                          "long_term_debt": {"value": 300, "period": "FY2025"},
+                          "short_term_debt": {"value": 0, "period": "FY2025"},
+                          "cash_and_equivalents": {"value": 100, "period": "FY2025"},
+                          "short_term_investments": {"value": 0, "period": "FY2025"},
+                          "stockholders_equity": {"value": 800, "period": "FY2025"}},
+        "balance_history": [
+            {"period": f"FY{y}", "total_assets": 2000.0, "stockholders_equity": eq, "total_debt": 300.0,
+             "short_term_debt": 0.0, "cash": 100.0, "short_term_investments": 0.0, "current_liabilities": None}
+            for y, eq in ((2025, 800.0), (2024, 700.0), (2023, 600.0), (2022, 500.0))],
+        "shares": {"shares_outstanding": {"value": 10.0, "period": "FY2025"}},
+    }
+
+
+def test_roic_series_uses_per_year_ic_and_tax():
+    from due_diligence.tools.edgar import EdgarAdapter
+    r = EdgarAdapter.parse_financials(_raw_with_history())
+    # FY2025: NOPAT = 200*(1-0.20)=160; IC = avg(1000, 900) = 950
+    assert r.roic_series[0].period == "FY2025"
+    assert r.roic_series[0].value == pytest.approx(160 / 950, abs=1e-4)
+    # FY2024: tax 0.10 → NOPAT 135; IC avg(900, 800)=850
+    assert r.roic_series[1].value == pytest.approx(135 / 850, abs=1e-4)
+    assert [m.period for m in r.equity_series] == ["FY2025", "FY2024", "FY2023", "FY2022"]
+    assert r.total_debt_series[0].value == 300.0 and r.cash_series[0].value == 100.0
+
+
+def test_incremental_roic_three_year_window():
+    from due_diligence.tools.edgar import EdgarAdapter
+    r = EdgarAdapter.parse_financials(_raw_with_history())
+    # NOPAT FY2025 = 160, FY2022 = 100*0.75 = 75 ; IC end 1000 vs 700 → 85/300
+    assert r.incremental_roic.value == pytest.approx(85 / 300, abs=1e-4)
+    assert r.incremental_roic.period == "FY2022→FY2025"
+
+
+def test_one_ic_method_for_whole_series_when_any_year_has_negative_equity():
+    """Revisión adversarial A4: si algún año tiene equity ≤ 0, TODA la serie usa IC operativo
+    (mezclar métodos entre años crearía saltos espurios en ROIC y en ΔIC)."""
+    from due_diligence.tools.edgar import EdgarAdapter
+    raw = _raw_with_history()
+    raw["balance_history"][3]["stockholders_equity"] = -50.0   # FY2022 negativo
+    r = EdgarAdapter.parse_financials(raw)
+    # Operativo sin LiabilitiesCurrent: 2000 − 100 = 1900 todos los años → FY2025 160/1900
+    assert r.roic_series[0].value == pytest.approx(160 / 1900, abs=1e-4)
+    assert r.invested_capital.source.startswith("operating")
+
+
+def test_legacy_fixture_keeps_latest_ic_roic(aapl_raw):
+    from due_diligence.tools.edgar import EdgarAdapter
+    legacy = {k: v for k, v in aapl_raw.items() if k != "balance_history"}
+    r = EdgarAdapter.parse_financials(legacy)
+    assert r.roic_series[0].source == "calculated-latest-ic"
+    assert r.equity_series == [] and r.incremental_roic is None
+
+
+# ---------------------------------------------------------------------------
 # parse_quarterly_snapshot — pure function tests (no EDGAR call, no fixture file)
 # ---------------------------------------------------------------------------
 
@@ -293,7 +390,8 @@ def test_parse_financials_invested_capital_fallback_for_buyback_heavy(aapl_raw):
     report = EdgarAdapter.parse_financials(raw_modified)
 
     assert report.invested_capital is not None
-    assert "fallback" in report.invested_capital.source
+    # T9: equity ≤ 0 → IC operativo (Assets − cash − STI − LTI − ROU [− NIBCL]); antes "fallback".
+    assert report.invested_capital.source.startswith("operating")
     # ROIC debe seguir calculándose con el fallback
     assert len(report.roic_series) >= 1
     assert report.roic_series[0].value > 0  # ROIC válido, no excluido

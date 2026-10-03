@@ -111,9 +111,15 @@ class FinancialsReport(BaseModel):
     finance_lease_principal_payments: list[MetricValue] = Field(default_factory=list)  # capex equivalente (FCFF)
 
     # ROIC (Return on Invested Capital) — calculado de XBRL, no generado por LLM.
-    # NOPAT = OperatingIncome × (1 − effective_tax_rate); IC = Equity + Debt − Cash.
-    # La serie usa el IC del año más reciente para todos los años (aproximación — ver edgar.py).
+    # ROIC_t = NOPAT_t / media(IC_t, IC_{t-1}) con la tasa efectiva del año t (T9, EC-85).
+    # source: "calculated-avg-ic" / "calculated-end-ic"; fixtures legacy sin balance_history →
+    # "calculated-latest-ic" (IC del último año para todos, aproximación previa).
     roic_series: list[MetricValue] = Field(default_factory=list)  # ROIC como ratio (ej: 0.87 = 87%)
+    incremental_roic: Optional[MetricValue] = None  # ΔNOPAT/ΔIC ≤3 años, period "FY2022→FY2025"; None = n/m
+    # Series de balance por año (mismas etiquetas FY, index 0 = latest). Las consume suggest_wacc (T11).
+    total_debt_series: list[MetricValue] = Field(default_factory=list)
+    cash_series: list[MetricValue] = Field(default_factory=list)   # caja + STI de cada año
+    equity_series: list[MetricValue] = Field(default_factory=list)
     invested_capital: Optional[MetricValue] = None   # IC más reciente en USD
     stockholders_equity: Optional[MetricValue] = None  # Book equity más reciente en USD
 

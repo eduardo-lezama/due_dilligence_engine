@@ -348,3 +348,23 @@ def test_build_raw_operating_lease_sums_components_and_new_memo_items():
     assert b["equity_method_investments"]["value"] == 7.0
     assert b["minority_interest"] is None and b["preferred_stock"] is None
     assert raw["annual"]["finance_lease_principal_payments"][0]["value"] == 3.0
+
+
+# --------------------------------------------------------------------------- #
+# Task 9 — balance_history por año (base del IC por año y de suggest_wacc)
+# --------------------------------------------------------------------------- #
+
+def test_build_raw_emits_balance_history_per_fy_column():
+    inc, bs, cf = _min_frames()
+    bs.loc["LongTermDebtNoncurrent"] = ["d", False, 78.0, 70.0]
+    bs.loc["ShortTermInvestments"] = ["s", False, 40.0, 30.0]
+    bs.loc["LiabilitiesCurrent"] = ["c", False, 60.0, 55.0]
+    bs.loc["OperatingLeaseRightOfUseAsset"] = ["r", False, 9.0, 8.0]
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2025, 9, 27), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+    h = raw["balance_history"]
+    assert [y["period"] for y in h] == ["FY2025", "FY2024"]
+    assert h[1] == {"period": "FY2024", "total_assets": 500.0, "stockholders_equity": 200.0,
+                    "total_debt": 70.0, "short_term_debt": 0.0, "cash": 50.0,
+                    "short_term_investments": 30.0, "current_liabilities": 55.0,
+                    "operating_rou_asset": 8.0, "long_term_investments": None}

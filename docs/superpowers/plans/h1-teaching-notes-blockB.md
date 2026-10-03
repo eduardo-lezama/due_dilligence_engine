@@ -73,3 +73,17 @@ flowchart LR
 **Relación con la arquitectura.** Todos los campos nuevos tienen default (`[]`/`None`), así los 51 fixtures y reports históricos siguen cargando; el Bloque C (T10–T13) es el consumidor. `income_tax`/`pretax_income` se exponen para el tipo impositivo canónico `effective_tax_rate_multi`.
 
 **Ejemplo.** Con la vista curada sin `InterestExpense` pero raw facts con FY2025=2.0 y FY2024=1.5, `extract_annual(INTEREST_EXPENSE, ...)` → `[{2.0, FY2025, "facts:InterestExpense"}, {1.5, FY2024, "facts:InterestExpense"}]`.
+
+---
+
+## T9 — ROIC medio vs ROIC incremental (y por qué un solo método de IC)
+
+**Concepto.** ROIC = NOPAT / capital invertido. Como el NOPAT es un flujo de todo el año y el IC una foto a fin de año, la medida correcta divide entre el IC **medio** del año: `ROIC_t = NOPAT_t / ((IC_t + IC_{t−1}) / 2)`. El **ROIC incremental** (Mauboussin) mide el retorno del capital NUEVO: `ΔNOPAT / ΔIC` entre dos años. Un negocio con ROIC medio del 30 % pero incremental del 5 % está reinvirtiendo mal aunque el nivel parezca excelente.
+
+**Por qué.** El código viejo dividía el NOPAT de cada año entre el IC del último balance (y aplicaba la tasa del último año a todos). La "tendencia" resultante era básicamente la del EBIT, y el contexto la vendía como "ROIC marginal". Sin balances por año no había forma de calcular nada mejor.
+
+**Cómo.** `build_raw` emite `balance_history`: un balance por columna FY, resuelto con las mismas reglas que el último (deuda sin doble conteo, caja solo caja, STI aparte). `invested_capital(...)` tiene dos vistas: la de financiación (Equity + Deuda − caja − STI − LTI) y la operativa de Koller (Activos − caja − STI − LTI − ROU operativo − NIBCL; NIBCL = pasivo corriente que no paga intereses, financiado por proveedores). Regla: si **algún** año tiene equity ≤ 0 (recompras masivas tipo AZO), toda la serie usa la operativa — mezclar métodos entre años crea saltos de ROIC que no existen en el negocio. Si el IC es < 5 % de los activos, el ROIC no es interpretable (n/m).
+
+**Relación con la arquitectura.** El Value Expert recibe la tendencia (label RISING/FALLING/STABLE, regla 22 / EC-58) y, en línea aparte, el ROIC incremental real o "n/m". La regla 22 obliga a que la narrativa sea consistente con ambos y prohíbe inferir calidad de reinversión cuando es n/m. Las series `total_debt_series`, `cash_series` y `equity_series` las consumirá `suggest_wacc` (T11).
+
+**Ejemplo (test `_raw_with_history`).** FY2025: NOPAT = 200 × (1 − 40/200) = 160; IC = media(1000, 900) = 950 → ROIC 16,8 %. Incremental FY2022→FY2025: (160 − 75) / (1000 − 700) = 28,3 %.

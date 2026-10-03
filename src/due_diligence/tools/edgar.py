@@ -34,18 +34,55 @@ from due_diligence.schemas.base import FinancialsReport, MetricValue
 from due_diligence.schemas.reports import QuarterlySnapshot
 # DataUnavailableError vive en la capa pura (xbrl_extract) y se re-exporta aquí para
 # mantener `from due_diligence.tools.edgar import DataUnavailableError` en todo el código.
+# effective_tax_rate es la definición CANÓNICA (xbrl_extract); se importa, no se redefine
+# (antes había una variable local homónima en parse_financials — revisión adversarial).
 from due_diligence.tools.xbrl_extract import (
     REVENUE_CONCEPTS,
     DataUnavailableError,
     EdgarFactsLookup,
     build_raw,
+    effective_tax_rate,
     latest_quarter_column,
     quarter_value,
 )
-from due_diligence.utils.periods import align_by_period
+from due_diligence.utils.periods import align_by_period, fiscal_year
 
 log = structlog.get_logger()
 
+
+_IC_MIN_SHARE_OF_ASSETS = 0.05   # por debajo, el ROIC no es interpretable (n/m)
+
+
+def invested_capital(*, equity: float, total_debt: float, cash: float, total_assets: float,
+                     current_liabilities: float | None = None, short_term_debt: float = 0.0,
+                     sti: float = 0.0, lti: float = 0.0, operating_rou_asset: float = 0.0,
+                     force_operating: bool = False) -> tuple[float, str] | None:
+    """IC (ADR-023, EC-18, revisión adversarial A4).
+
+    Primaria (financiación): Equity + Debt − Cash − STI − LTI.
+    Operativa (Koller): Assets − Cash − STI − LTI − ROU operativo − NIBCL. El ROU operativo se excluye
+    porque el EBIT ya es neto del coste del arrendamiento (coherente con no restar el pasivo en el bridge).
+    Regla: equity ≤ 0 o force_operating → operativa SIEMPRE (un solo método por empresa en toda la
+    serie: mezclar métodos entre años crea saltos espurios en ROIC y en ΔIC).
+    IC < 5 % de activos → None (ROIC n/m).
+
+    Returns: (ic, método) o None si el IC no es interpretable.
+    """
+    non_op = cash + sti + lti
+    if current_liabilities is not None:
+        # NIBCL = pasivo corriente que no devenga intereses (proveedores, devengos...): lo
+        # financian los proveedores, no los inversores → se resta del capital invertido.
+        nibcl = max(current_liabilities - short_term_debt, 0.0)
+        operating = total_assets - non_op - operating_rou_asset - nibcl
+        op_method = "operating: assets-cash-STI-LTI-ROU-NIBCL"
+    else:
+        operating = total_assets - non_op - operating_rou_asset
+        op_method = "operating: assets-cash-STI-LTI-ROU (no LiabilitiesCurrent)"
+    primary = equity + total_debt - non_op
+    chosen, method = (operating, op_method) if (equity <= 0 or force_operating) else (primary, "equity+debt-cash")
+    if chosen <= 0 or (total_assets > 0 and chosen < _IC_MIN_SHARE_OF_ASSETS * total_assets):
+        return None
+    return chosen, method
 
 class EdgarAdapter:
     @staticmethod
@@ -208,47 +245,42 @@ class EdgarAdapter:
         sti_value = sti_item["value"] if sti_item and sti_item.get("value") is not None else 0.0
         period = bs["total_assets"]["period"]
 
-        # --- ROIC calculation ---
-        # effective_tax_rate = IncomeTaxExpenseBenefit / PreTaxIncome (most recent year)
-        # Clamped to [0, 0.5] para evitar distorsiones por DTA/DTL o años con impuesto negativo.
-        income_tax_list = _mv_list(annual.get("income_tax", []))
-        pretax_list = _mv_list(annual.get("pretax_income", []))
-        effective_tax_rate = 0.25  # fallback estándar si faltan datos
-        if income_tax_list and pretax_list and pretax_list[0].value != 0:
-            t = income_tax_list[0].value / pretax_list[0].value
-            effective_tax_rate = max(0.0, min(t, 0.5))
+        # --- ROIC por año (T9, EC-85) ---
+        # Antes: NOPAT_t / IC_último con la tasa del último año para TODOS los años → la serie
+        # histórica mezclaba el capital de hoy con beneficios de hace años. Ahora:
+        # ROIC_t = NOPAT_t / media(IC_t, IC_{t-1}) con la tasa efectiva DEL AÑO t
+        # (effective_tax_rate canónica de xbrl_extract: clamp [0, 0.5], 0.25 si no calculable).
+        tax_by = {m.period: m.value for m in _mv_list(annual.get("income_tax", []))}
+        pretax_by = {m.period: m.value for m in _mv_list(annual.get("pretax_income", []))}
+        op_inc_list = _mv_list(annual["operating_income"])
+        nopat_by = {oi.period: oi.value * (1 - effective_tax_rate(tax_by.get(oi.period), pretax_by.get(oi.period)))
+                    for oi in op_inc_list}
 
-        # Invested Capital — fórmula con fallback (ADR-023, EC-18).
-        # Primaria: Equity + Debt − Cash (balance sheet view, capital aportado por financiadores).
-        # Fallback: Total Assets − Cash (operating asset view, robusto a buybacks agresivos).
-        #
-        # Por qué el fallback: empresas que devuelven mucho capital al accionista
-        # (Domino's, AutoZone, BBW post-buybacks) acaban con equity reducido o negativo
-        # por treasury stock acumulado. La fórmula primaria entonces da un IC
-        # cercano a cero → ROIC explota o no se calcula. Total Assets − Cash representa
-        # la base de activos operativos real, que persiste independiente del capital structure.
+        history = raw.get("balance_history") or []
+        # Un solo método de IC por empresa (revisión adversarial A4): si CUALQUIER año tiene
+        # equity ≤ 0, toda la serie (y el snapshot) usa el IC operativo. Mezclar métodos
+        # entre años crea saltos espurios en ROIC y en ΔIC.
+        force_operating = any((h.get("stockholders_equity") or 0.0) <= 0 for h in history)
+
         se_raw = bs.get("stockholders_equity")
         equity_value = se_raw["value"] if se_raw else 0.0
         total_assets_value = bs["total_assets"]["value"] if bs.get("total_assets") else 0.0
 
-        # IC resta la caja NO operativa completa: caja + STI (antes iba sumada dentro de cash_value).
-        non_operating_cash = cash_value + sti_value
-        ic_primary = equity_value + total_debt_value - non_operating_cash
-        ic_fallback = total_assets_value - non_operating_cash if total_assets_value > 0 else 0.0
+        def _bs_value(key: str) -> float:
+            """Valor de un item opcional del balance (None/ausente → 0.0; solo para IC)."""
+            item = bs.get(key)
+            return item["value"] if item and item.get("value") is not None else 0.0
 
-        # Threshold: la primaria es "degenerada" si < 10% del operating capital.
-        # Esto detecta el patrón buyback-heavy donde equity queda artificialmente bajo.
-        threshold = 0.10 * ic_fallback if ic_fallback > 0 else 0.0
-
-        if ic_primary > threshold and ic_primary > 0:
-            ic_value = ic_primary
-            ic_method = "equity+debt-cash"
-        elif ic_fallback > 0:
-            ic_value = ic_fallback
-            ic_method = "total_assets-cash (fallback for low/negative book equity)"
-        else:
-            ic_value = 0.0
-            ic_method = None
+        # IC del último balance (snapshot) con la MISMA función que la serie (ADR-023, EC-18).
+        cl_item = bs.get("current_liabilities")
+        ic_res = invested_capital(
+            equity=equity_value, total_debt=total_debt_value, cash=cash_value, sti=sti_value,
+            lti=_bs_value("long_term_investments"), operating_rou_asset=_bs_value("operating_rou_asset"),
+            total_assets=total_assets_value,
+            current_liabilities=cl_item["value"] if cl_item and cl_item.get("value") is not None else None,
+            short_term_debt=bs["short_term_debt"]["value"], force_operating=force_operating,
+        )
+        ic_value, ic_method = ic_res if ic_res else (0.0, None)
 
         stockholders_equity_mv = (
             MetricValue(value=equity_value, unit="USD", period=period, source="XBRL")
@@ -259,18 +291,60 @@ class EdgarAdapter:
             if ic_value > 0 else None
         )
 
-        # ROIC series: NOPAT_year / IC_latest para cada año con operating_income
-        op_inc_list = _mv_list(annual["operating_income"])
+        # IC por año desde balance_history (raws nuevos). Años sin activos/caja se omiten.
+        ic_by: dict[str, float] = {}
+        for h in history:
+            if h.get("total_assets") is None or h.get("cash") is None:
+                continue
+            res = invested_capital(equity=h.get("stockholders_equity") or 0.0, total_debt=h["total_debt"],
+                                   cash=h["cash"], sti=h.get("short_term_investments") or 0.0,
+                                   lti=h.get("long_term_investments") or 0.0,
+                                   operating_rou_asset=h.get("operating_rou_asset") or 0.0,
+                                   total_assets=h["total_assets"], current_liabilities=h.get("current_liabilities"),
+                                   short_term_debt=h.get("short_term_debt") or 0.0,
+                                   force_operating=force_operating)   # un solo método para toda la serie
+            if res:
+                ic_by[h["period"]] = res[0]
+
         roic_series: list[MetricValue] = []
-        if ic_value > 0:
-            for oi in op_inc_list:
-                nopat = oi.value * (1.0 - effective_tax_rate)
-                roic_series.append(MetricValue(
-                    value=round(nopat / ic_value, 4),
-                    unit="ratio",
-                    period=oi.period,
-                    source="calculated",
-                ))
+        for oi in op_inc_list:
+            if ic_by:
+                ic_t = ic_by.get(oi.period)
+                if ic_t is None:
+                    continue
+                ic_prev = ic_by.get(f"FY{fiscal_year(oi.period) - 1}")
+                denom, src = ((ic_t + ic_prev) / 2, "calculated-avg-ic") if ic_prev else (ic_t, "calculated-end-ic")
+            elif ic_value > 0:  # legacy fixtures without balance_history (hasta el re-fetch de T14)
+                denom, src = ic_value, "calculated-latest-ic"
+            else:
+                continue
+            roic_series.append(MetricValue(value=round(nopat_by[oi.period] / denom, 4), unit="ratio",
+                                           period=oi.period, source=src))
+
+        # ROIC incremental (Mauboussin): ΔNOPAT/ΔIC entre el último año y el más antiguo
+        # dentro de 3 años fiscales. None si ΔIC ≤ 5 % del IC inicial (ruido, no reinversión).
+        incremental = None
+        if ic_by and op_inc_list:
+            end = op_inc_list[0].period
+            y_end = fiscal_year(end)
+            starts = sorted(p for p in ic_by if p in nopat_by and 0 < y_end - fiscal_year(p) <= 3)
+            if starts and end in ic_by:
+                start = starts[0]  # oldest within 3 years
+                d_ic = ic_by[end] - ic_by[start]
+                if d_ic > 0.05 * abs(ic_by[start]):
+                    incremental = MetricValue(value=round((nopat_by[end] - nopat_by[start]) / d_ic, 4),
+                                              unit="ratio", period=f"{start}→{end}", source="calculated")
+
+        def _hist_series(key_fn, unit: str = "USD") -> list[MetricValue]:
+            """Serie anual de balance desde balance_history (index 0 = latest, etiquetas FY)."""
+            return [MetricValue(value=v, unit=unit, period=h["period"], source="XBRL")
+                    for h in history if (v := key_fn(h)) is not None]
+
+        total_debt_series = _hist_series(lambda h: h.get("total_debt"))
+        # cash_series = caja + STI (liquidez financiera total del año; la caja sola es cash_and_equivalents)
+        cash_series = _hist_series(lambda h: None if h.get("cash") is None
+                                   else h["cash"] + (h.get("short_term_investments") or 0.0))
+        equity_series = _hist_series(lambda h: h.get("stockholders_equity"))
 
         return FinancialsReport(
             ticker=raw["ticker"],
@@ -331,6 +405,10 @@ class EdgarAdapter:
             roic_series=roic_series,
             invested_capital=invested_capital_mv,
             stockholders_equity=stockholders_equity_mv,
+            incremental_roic=incremental,
+            total_debt_series=total_debt_series,
+            cash_series=cash_series,
+            equity_series=equity_series,
             source_filing=raw["source_filing"],
         )
 

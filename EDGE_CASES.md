@@ -414,3 +414,116 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
   5. **value_expert.py**: bloque `## DCF GROWTH ASSUMPTION` en `_format_context()` con nivel de alerta por fuente. Rule #20 obliga al Value Expert a declarar la tasa usada, su procedencia, y su credibilidad en §6.
 - **Aplicabilidad sistémica**: cualquier empresa. Especialmente crítico para small caps sin FCF positivo multi-año (fallback invisible), y para empresas donde FCF CAGR > revenue CAGR (cap silencioso).
 - **Commit**: pendiente
+
+### EC-55 — Sistema saltaba Q1 earnings completo cuando 10-K tenía < 90 días de antigüedad
+
+- **Síntoma**: análisis de CGNX (mayo 2026) no incluía Q1 2026 earnings a pesar de que el 8-K fue publicado el 6-mayo-2026, 11 días antes del análisis. `quarterly_earnings_text=None` en el report.
+- **Causa raíz**: `fetch_quarterly_snapshot()` tenía `staleness_threshold_days=90`. El 10-K de CGNX (FY2025) fue publicado en febrero 2026 — tenía ~90 días en mayo. La comprobación `age_days <= 90` devolvía `True` y el sistema saltaba el fetch del 10-Q. El press release 8-K Item 2.02 tiene un lookback separado (120 días) pero también puede fallar por P3 (ver EC-57).
+- **Fix**: `staleness_threshold_days=45` como default. 45 días ≈ 1.5 meses: suficiente para que el primer 10-Q posterior al 10-K anual (que sale ~6 semanas después) active el fetch.
+- **Aplicabilidad sistémica**: cualquier empresa que publique 10-K en Q1 (enero-marzo) y sea analizada en mayo-junio. Especialmente relevante para empresas con fiscal year calendar (diciembre).
+- **Commit**: pendiente (MCE-27)
+
+### EC-56 — CAGR anclado a año boom: tasa de crecimiento histórico sesgada por base cíclica alta
+
+- **Síntoma**: CGNX análisis mayo 2026 mostraba CAGR 5y de -0.4% (o similar a cero/negativo), calculado desde FY2022 (año pico de automatización post-COVID: revenue record). El DCF proyectaba desde base inflada. El Value Expert no tenía señal de que el punto de partida era un pico cíclico.
+- **Causa raíz**: `_compute_revenue_cagr_5y` calcula (newest/oldest)^(1/n)-1. Si el año más reciente está por encima del rango histórico (boom), el CAGR se deprime artificialmente porque la mediana histórica es más baja. El sistema no tenía mecanismo para detectar ni señalizar este sesgo.
+- **Fix (P5)**: en `valuation_agent()`, tras calcular `near_term_growth`, si `revenue[0].value > median × 1.15` (más reciente >15% sobre la mediana histórica), se añade aviso a `dcf_reliability_note`: "Cyclical peak base: current revenue is X.Xx the historical median. CAGR-derived growth rate may be anchored to a boom year."
+- **Condición de activación**: no activa si el usuario especificó `revenue_growth_yr1_pct` override (ya tomó control consciente).
+- **Aplicabilidad sistémica**: cualquier empresa cíclica (industriales, semiconductores, machinery) donde el año más reciente es un pico secular post-crisis o post-boom. AZO y BBW menos afectados (revenue estable o en crecimiento suave). PRDO tampoco (educación, ciclos diferentes).
+- **Commit**: pendiente (MCE-27)
+
+### EC-57 — Item 2.02 no detectado en 8-K con descripción completa del ítem
+
+- **Síntoma**: `fetch_earnings_press_release()` devolvía `None` para algunos filers a pesar de existir el 8-K Item 2.02. En EDGAR, el campo `items` puede contener strings como `"2.02 Results of Operations and Financial Condition"` en vez de simplemente `"2.02"`.
+- **Causa raíz**: detección usaba `== "2.02"` (exact match). Cualquier string con descripción adjunta fallaba silenciosamente. El sistema pasaba al siguiente filing sin registrar el mismatch.
+- **Fix (P3)**: `startswith("2.02")` tras strip de "Item ". Detecta todas las variantes conocidas: `"2.02"`, `"2.02 Results of..."`, `"Item 2.02"`, `"Item 2.02 Results of..."`. Además: `max_chars` 3000→8000 (press releases típicos ocupan 5-7KB; con 3000 chars se cortaban a mitad perdiendo guidance y métricas operativas).
+- **Audit MCE-26**: búsqueda sistemática de `== "2.02"` en todo `src/` — solo aparecía en `edgar.py:fetch_earnings_press_release`. No hay otras ocurrencias del patrón.
+- **Aplicabilidad sistémica**: cualquier empresa. Probabilidad más alta en filers con herramientas de filing que rellenan el campo item con el título completo según el reglamento SEC.
+- **Commit**: pendiente (MCE-27)
+
+---
+
+## MCE-28 — PATH audit: ROIC trend, thesis-break false positive, FCF CAGR, Form 4 ordering (2026-05-22)
+
+### EC-58 — Value Expert contradecía label ROIC RISING con narrativa de "eroding moat"
+
+- **Síntoma**: PATH (UiPath) análisis mayo 2026 — §2/§5 del informe declaraba "moat is eroding, declining ROIC" con confianza 100%. La serie XBRL real: FY2023:-28.7% → FY2024:-12.3% → FY2025:-2.1% → FY2026:+4.7%, tendencia RISING inequívoca.
+- **Causa raíz**: el Value Expert recibía la serie numérica de ROIC y el label pre-computado `ROIC trend interpretation: RISING` en el contexto, pero ninguna regla del system prompt le prohibía explícitamente contradecirlo. El LLM se fijó en el nivel absoluto (negativo) e ignoró la tendencia direccional. Sin constraint explícito, el LLM optimiza para sonar prudente ("ROIC negativo → moat débil") aunque contradiga los datos directamente.
+- **Fix**: Rule 22 añadida al system prompt de `value_expert.py`: el label pre-computado XBRL es AUTHORITATIVE. Si el label es RISING, el LLM MUST NOT escribir "declining ROIC", "eroding ROIC", "falling ROIC", "moat is eroding due to ROIC decline". El texto permisible para ROIC aún negativo pero en mejora: "ROIC improving from deeply negative toward breakeven", "ROIC recovery in progress". Ver `agents/value_expert.py` — Rule 22 en `_SYSTEM_PROMPT`.
+- **Audit MCE-26**: patrón revisado en `value_expert.py` — solo un punto de generación de §2/§5. No hay otros agentes que generen narrativa de ROIC trend.
+- **Aplicabilidad sistémica**: cualquier empresa con ROIC en recuperación (turnaround, emerging profitability). Especialmente SaaS/tech en transición de growth a profitability (PATH, SNOW, DDOG early stages). Sin esta regla, el LLM siempre interpreta ROIC negativo como "moat weakness" aunque la dirección sea positiva.
+- **Commit**: MCE-28
+
+### EC-59 — Thesis-break self-check: falso positivo por substring matching (PATH "fall" en "falling")
+
+- **Síntoma**: PATH marcado con `⚠️ THESIS-BREAK SELF-CHECK WARNING: revenue fall` cuando los ingresos crecían +13% YoY. Thesis-breaker PATH §9: "thesis breaks if FY2027 quarterly revenue falls below 10%". §7 del mismo análisis: "revenue growth falling toward double digits". El mismo mecanismo causó EC-45 (CGNX, "compress" en "compressing").
+- **Causa raíz**: `_thesis_break_self_check` usaba Python `w in text` — substring matching, no word boundary. `"fall" in "falling"` → True. El thesis-breaker define la condición futura ("si X ocurre"), el análisis §7 describe riesgo futuro en forma progresiva ("cayendo hacia"), y Python los confundía como condición actual cumplida.
+- **Fix (ADR-031)**: pipeline de dos etapas. Stage 1: `re.search(rf'\b{re.escape(w)}\b', text)` — "fall" no matchea "falls"/"falling"/"fallen". Stage 2: solo si el Python word-boundary trigger dispara, invocar LLM cheap (`gpt-4o-mini`, `settings.openai_validation_model`) con prompt binario: "¿Esta condición está ACTUALMENTE ACTIVA o es un riesgo FUTURO?". El warning solo se añade si el LLM confirma `is_currently_true=True`. Default conservador: si el LLM falla, retorna `False` (prefiere falso negativo sobre falso positivo). Ver `agents/value_expert.py` — `_word_in_text`, `_validate_thesis_break_with_llm`, `_thesis_break_self_check`. Ver también ADR-031.
+- **Aplicabilidad sistémica**: cualquier empresa con thesis-breakers expresados en infinitivo/raíz ("if revenue falls", "if margins compress", "if growth declines") y análisis que describen el mismo riesgo en forma progresiva o futura. El false positive es prácticamente garantizado sin word-boundary fix.
+- **Commit**: MCE-28
+
+### EC-60 — FCF CAGR fallback usaba revenue CAGR cuando FCF más antiguo era negativo
+
+- **Síntoma**: PATH DCF usaba tasa de crecimiento near-term de 15% (revenue CAGR). FCF real de PATH: FY2022:-$12M → FY2023:$146M → FY2024:$303M → FY2025:$421M → FY2026:$523M. CAGR real FCF (ventana FY2023-FY2026): ~53% en 3 años, pero ese era el arranque desde FCF positivo. CAGR más relevante para DCF maduro: ~9.8% (FY2023→FY2026 de $146M→$523M). El sistema ignoraba completamente los datos FCF disponibles y usaba revenue como proxy, inflando el DCF un ~35-40%.
+- **Causa raíz**: `_fcf_cagr` calculaba `(newest / oldest) ^ (1/n) - 1` siempre usando el FCF más antiguo como denominador. Si `oldest <= 0`, retornaba `None`. Cualquier empresa con FCF negativo en el primer año de la serie (incluso si todos los años recientes son positivos) caía al fallback de revenue. No buscaba el primer denominador positivo disponible.
+- **Fix**: `_fcf_cagr_with_window(fcf_series)` — escanea la serie hacia atrás desde el más antiguo hasta encontrar el primer valor positivo como denominador. Retorna `(cagr, n_periods)` donde `n_periods` es el tamaño real de la ventana usada. Si `newest <= 0`, retorna `(None, 0)`. `_fcf_cagr` mantiene firma de compatibilidad como wrapper. `_compute_near_term_growth` y `valuation_agent` usan `_fcf_cagr_with_window` directamente para capturar `n_periods`. Ver `agents/valuation.py:52-91`.
+- **Aplicabilidad sistémica**: cualquier empresa que haya tenido FCF negativo en años pasados pero positivo en años recientes — especialmente SaaS en transición, turnarounds, empresas en early growth phase. Sin este fix, el fallback a revenue CAGR era silencioso e inflaba sistemáticamente los DCF.
+- **Commit**: MCE-28
+
+### EC-61 — Form 4 cap 20 en orden ascendente: compras recientes del CEO no detectadas
+
+- **Síntoma**: PATH análisis mayo 2026 — el CEO compró 9.62M de acciones (transacción material, señal bullish fuerte), pero el informe no lo mencionaba. Los Form 4 feateaban ventas rutinarias de empleados de hace 12-18 meses. El campo `insider_trades` de `FilingsReport` estaba poblado pero no incluía la compra relevante.
+- **Causa raíz**: `fetch_form4_transactions` aplicaba `filings[:20]` (cap de 20) antes de procesar. EDGAR devuelve Form 4 en orden cronológico ascendente por defecto (los más antiguos primero). Con 20 Form 4s, la compra reciente del CEO quedaba fuera del slice si había >20 filings históricos anteriores. Adicionalmente, `_detect_10b5_1_plan` no cubría variantes XML con checkbox (`"rule 10b5"`, `"10b-5-1"`, `"trading plan"`, `"prearranged"`).
+- **Fix**: cap aumentado de 20 a 50 (`filings[:50]`). Sort explícito por `filing_date` descendente antes de procesar: las transacciones más recientes se analizan primero. Si `filing_date` no disponible, se preserva el orden original de EDGAR sin error. Expansión de `_10B5_PATTERNS` a 10 variantes incluyendo `"rule 10b5"`, `"10b-5-1"`, `"trading plan"`, `"pre-arranged"`, `"prearranged"`, `"predetermined plan"`, `"automatic plan"`. Ver `tools/edgar.py:900-910`.
+- **Audit MCE-26**: patrón `filings[:20]` buscado en todo `src/` — solo ocurría en `fetch_form4_transactions`. Patrón `_10B5_PATTERNS` — solo definido en `edgar.py`.
+- **Aplicabilidad sistémica**: cualquier empresa con alta actividad de Form 4 (large caps con muchos insiders reportando) o donde un insider principal haya realizado una transacción material recientemente. Con cap=20 y orden ascendente, el sistema era estructuralmente ciego a las últimas semanas de actividad insider en empresas activas.
+- **Commit**: MCE-28
+
+### EC-62 — EV/EBIT negativo clasificado como "cheap" vs peers
+
+- **Síntoma**: SYM (EBIT = -$115M, EV ~$28B) → EV/EBIT = -48.5x. Sistema clasifica como `"cheap"` vs peers con mediana 31.4x. El informe muestra "cheap" en la convergence table, lo que es económicamente absurdo.
+- **Causa raíz**: `_classify_ev_ebit_vs_peers` no guardaba contra `subject_ev_ebit <= 0`. Con EBIT negativo, EV/EBIT es negativo. `negative / 31.4 = -1.54`, y `-1.54 < 0.70` → `"cheap"` por lógica de ratio. El guard existente solo cubría `peer_ev_ebit_median <= 0`.
+- **Fix**: añadir guard explícito `if subject_ev_ebit is None or subject_ev_ebit <= 0: return "n/a"` antes de calcular el ratio. Ver `agents/valuation.py:_classify_ev_ebit_vs_peers`.
+- **Aplicabilidad sistémica**: cualquier empresa con EBIT negativo (growth-stage, turnaround, año de reestructuración). Sin este fix, la clasificación era sistemáticamente incorrecta para toda empresa no-profitable.
+- **Commit**: MCE-29
+
+### EC-63 — DCF upside % calculado desde market_cap stale (Finnhub basicFinancials)
+
+- **Síntoma**: SYM análisis muestra DCF per share = $48.91 con upside +331.9%. Precio actual = $53.63. El $48.91 debería implicar ligera sobrevaluación (-8.8%), no megaupside. El precio base implícito del cálculo era ~$11.33 (precio post-crash noviembre 2024).
+- **Causa raíz**: `dcf_upside = (equity_value - market_cap) / market_cap`. `market_cap` proviene de `Finnhub basicFinancials`, que devuelve el market cap a fecha del último filing trimestral — puede estar 6-18 meses desactualizado. `price_current` proviene de `Finnhub quote()` — siempre real-time. Para SYM, `basicFinancials` tenía el market cap del crash de noviembre 2024 (~$11/share) mientras la acción ya había recuperado a $53.63. El `dcf_per_share` era correcto; el `%` era incorrecto porque usaba denominadores de fuentes distintas.
+- **Fix**: calcular `dcf_upside` desde valores per-share cuando estén disponibles: `(dcf_per_share.value - price_current.value) / price_current.value`. Fallback a `(equity_value - market_cap) / market_cap` solo si `dcf_per_share` o `price_current` no están disponibles. Mismo patrón aplicado a `epv_upside` en `_compute_epv` (nuevo parámetro `price_current`). Ver `agents/valuation.py:~L1030,~L382`.
+- **Aplicabilidad sistémica**: cualquier empresa con alta volatilidad de precio donde `basicFinancials` y el precio actual difieran significativamente. Post-crash, post-spike, post-M&A. El upside % podía ser radicalmente incorrecto en ambas direcciones.
+- **Commit**: MCE-29
+
+### EC-64 — WACC sensitivity table ±1% insuficiente para empresas de alto riesgo
+
+- **Síntoma**: SYM análisis con WACC 14% muestra sensitivity 13-15%. Para evaluar SYM correctamente se necesita ver valores a 17-18% WACC (85% concentración cliente, SEC investigation activa, restatements). Con ±1%, el analista nunca ve el rango de interés.
+- **Causa raíz**: `_sensitivity_table` usaba `w_delta in (-0.01, 0.0, 0.01)`. Para empresas con WACC apropiado de 17%+ y advisory de 9.7%, la tabla solo cubría 13-15% — exactamente el rango que el analista ya había explorado manualmente.
+- **Fix**: cambiar a `w_delta in (-0.02, 0.0, 0.02)`. Tabla 3×3 ahora cubre WACC ±2pp. Cuando `abs(wacc_usado - wacc_advisory) > 3pp`, el sistema añade nota en `dcf_reliability_note` indicando la divergencia y recordando que el advisory usa β=1 sin company-specific risk premium. Ver `agents/valuation.py:_sensitivity_table` y bloque EC-64.
+- **Aplicabilidad sistémica**: empresas de alto riesgo idiosincrático donde el WACC apropiado supera en ≥3pp el advisory (concentración cliente, governance issues, recent IPO, capital-intensive + single customer).
+- **Commit**: MCE-29
+
+### EC-65 — FCF inflado por advance payments usado como base DCF sin advertencia
+
+- **Síntoma**: SYM FY2025: Revenue $2.247B, EBIT -$115M, FCF $825M → FCF margin 36.7%. Gross margin ~20%. Un FCF margin 1.8× el gross margin es imposible desde operaciones normalizadas. Sistema usaba $825M como `dcf_base` sin aviso.
+- **Causa raíz**: no existía mecanismo para detectar FCF anómalamente alto vs la economía declarada del negocio. FCF > gross_profit es económicamente imposible desde operaciones puras.
+- **Fix**: nueva función `_fcf_quality_flag(fcf_latest, revenue_latest, gross_profit_latest)`. Flag cuando FCF/Revenue > 25% Y FCF margin > gross_margin × 1.3. Advertencia en `dcf_reliability_note` y campo separado `fcf_quality_warning` en `ValuationReport`. No modifica el DCF. Ver `agents/valuation.py:_fcf_quality_flag`, `schemas/reports.py:ValuationReport`.
+- **Aplicabilidad sistémica**: project-based businesses con advance payments (defense, large-scale systems integrators, construction, enterprise software con multi-year contracts prepagados).
+- **Commit**: MCE-29
+
+### EC-66 — Governance red flags (SEC investigation, restatements) no capturadas
+
+- **Síntoma**: SYM análisis reporta "no Item 4.02 restatement found". Pero SYM tenía: restatement de 3 trimestres FY2024 (dic 2024), investigación SEC activa, material weaknesses, class action feb-nov 2024. Nada aparecía en el informe.
+- **Causa raíz (dual)**: (1) `fetch_8k_events` con ventana de 12 meses no alcanzaba los 8-Ks de diciembre 2024 cuando el análisis se corría 17 meses después. (2) El prompt del filings agent no pedía explícitamente SEC investigations activas, material weaknesses, class actions, ni whistleblower issues — el LLM los diluía como "riesgo genérico".
+- **Fix**: (1) `edgar.py`: nuevo parámetro `restatement_months=24` en `fetch_8k_events`. Item 4.02 usa look-back de 2 años; el resto usa `months` estándar. Un solo round-trip a EDGAR. (2) `filings.py`: `_SYSTEM_PROMPT` añade sección GOVERNANCE RED FLAGS obligatoria con 5 items. User prompt añade preguntas 10-14. Nuevo campo `governance_red_flags: Optional[str]` en `FilingsRAGReport`. Ver `tools/edgar.py:fetch_8k_events`, `agents/filings.py:_SYSTEM_PROMPT`, `schemas/reports.py:FilingsRAGReport`.
+- **Aplicabilidad sistémica**: cualquier empresa con governance issues en los últimos 2 años. Sin este fix, el sistema era estructuralmente ciego a restatements históricos e investigaciones activas.
+- **Commit**: MCE-29
+
+### EC-67 — HRL (Hormel): revenue concept not found — cadena anual incompleta vs quarterly
+
+- **Síntoma**: `DataUnavailableError: HRL: revenue concept not found in income statement` al intentar analizar Hormel Foods Corp (ticker HRL). El DD se interrumpía en el nodo `financials`.
+- **Causa raíz**: la cadena de fallback XBRL para revenue *anual* (`edgar.py:288-292`) solo intentaba 2 conceptos: `RevenueFromContractWithCustomerExcludingAssessedTax` y `Revenues`. Hormel usa `SalesRevenueNet` — el concepto legacy pre-ASC 606 estándar para empresas CPG/food. La función de quarterly snapshot (línea ~710) ya tenía 4 fallbacks incluyendo `SalesRevenueNet`, pero la cadena anual nunca se había igualado. Inconsistencia estructural entre las dos cadenas.
+- **Fix**: cadena anual expandida a 6 conceptos: añadidos `SalesRevenueNet` (legacy CPG/food), `RevenueFromContractWithCustomerIncludingAssessedTax` (ASC 606 con IVA), `SalesRevenueGoodsNet` (product-only), `NetSales` (industriales/food). Quarterly igualada con los mismos 6 conceptos. Ver `tools/edgar.py:287-299` y `tools/edgar.py:709-715`.
+- **Audit MCE-26**: `RevenueFromContractWithCustomerExcludingAssessedTax` aparece en exactamente 2 sitios de `src/` — ambos corregidos en este fix.
+- **Aplicabilidad sistémica**: cualquier empresa CPG, food & beverage, o industrial que adoptó XBRL antes de ASC 606 (2018) puede usar `SalesRevenueNet` o `NetSales`. Sin este fix, el sistema rechazaba un conjunto amplio de empresas del universo value (consumer staples, food & beverage son sectores canónicos de Buffett/Munger).
+- **Commit**: pendiente

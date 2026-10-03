@@ -1,11 +1,12 @@
 """
-FinnhubAdapter — noticias de empresa desde Finnhub.
+FinnhubAdapter — noticias y earnings trimestrales desde Finnhub.
 
 Qué hace este módulo:
     Thin wrapper sobre la API de Finnhub (finnhub-python SDK).
-    Obtiene las noticias recientes de una empresa por ticker,
-    filtradas a los últimos N días, listas para inyectar en
-    el prompt del market_agent.
+    Obtiene:
+      1. Noticias recientes de empresa (fetch_company_news) — texto libre.
+      2. EPS / revenue actuals por quarter (fetch_quarterly_earnings) —
+         datos estructurados beat/miss. Free tier: 60 req/min.
 
 Por qué Finnhub para noticias:
     Finnhub indexa noticias de fuentes financieras confiables (Reuters,
@@ -13,12 +14,19 @@ Por qué Finnhub para noticias:
     sobre si una noticia pertenece a la empresa analizada. Free tier:
     60 req/min, suficiente para uso personal.
 
+Por qué fetch_quarterly_earnings complementa el 8-K press release:
+    El press release es texto libre difícil de parsear. El endpoint
+    /stock/earnings de Finnhub devuelve EPS actual vs estimado, surprise%,
+    y revenue (cuando disponible) por quarter — datos limpios y comparables
+    para los últimos N quarters sin depender del HTML parsing de EDGAR.
+
 Degraded mode:
-    Si FINNHUB_API_KEY no está configurada, fetch_company_news devuelve
-    lista vacía sin error — el market_agent produce recent_news_summary="N/A".
+    Si FINNHUB_API_KEY no está configurada, ambos métodos devuelven
+    lista vacía sin error.
 
 Uso en tests:
-    Mockear FinnhubAdapter.fetch_company_news con mocker.patch.
+    Mockear FinnhubAdapter.fetch_company_news / fetch_quarterly_earnings
+    con mocker.patch.
 """
 
 from datetime import date, timedelta
@@ -86,6 +94,61 @@ class FinnhubAdapter:
 
         log.info("finnhub_news_complete", ticker=ticker, articles=len(articles))
         return articles
+
+    @staticmethod
+    def fetch_quarterly_earnings(
+        ticker: str,
+        limit: int = 4,
+    ) -> list[dict[str, Any]]:
+        """
+        Obtiene los últimos `limit` quarters de EPS actuals vs estimados via Finnhub.
+
+        Endpoint: /stock/earnings (client.company_earnings en finnhub-python).
+        Devuelve datos estructurados: period, actual EPS, estimated EPS, surprise%,
+        y revenue (cuando disponible). Complementa el texto libre del 8-K press
+        release con datos limpios y comparables sin depender del HTML parsing de EDGAR.
+
+        Cada item devuelto contiene:
+            period (str, YYYY-MM-DD), actual (float), estimate (float),
+            surprise (float), surprisePercent (float),
+            revenueActual (float | None), revenueEstimate (float | None)
+
+        Devuelve [] si FINNHUB_API_KEY no está configurada, hay error de red,
+        o el ticker no tiene datos de earnings.
+        """
+        if not settings.finnhub_api_key:
+            log.warning("finnhub_earnings_skipped", reason="FINNHUB_API_KEY not configured")
+            return []
+
+        import finnhub  # type: ignore[import]
+
+        client = finnhub.Client(api_key=settings.finnhub_api_key)
+
+        try:
+            log.debug("finnhub_earnings_fetch", ticker=ticker, limit=limit)
+            raw = client.company_earnings(ticker, limit=limit) or []
+        except Exception as e:
+            log.warning("finnhub_earnings_failed", ticker=ticker, error=str(e))
+            return []
+
+        if not raw:
+            log.info("finnhub_no_earnings", ticker=ticker)
+            return []
+
+        results: list[dict[str, Any]] = []
+        for item in raw[:limit]:
+            results.append({
+                "period": item.get("period", ""),
+                "actual": item.get("actual"),
+                "estimate": item.get("estimate"),
+                "surprise": item.get("surprise"),
+                "surprisePercent": item.get("surprisePercent"),
+                "revenueActual": item.get("revenueActual"),
+                "revenueEstimate": item.get("revenueEstimate"),
+            })
+
+        log.info("finnhub_earnings_fetched", ticker=ticker, quarters=len(results))
+        return results
 
     @staticmethod
     def fetch_transcripts(ticker: str, quarters: int = 4) -> list[dict[str, Any]]:

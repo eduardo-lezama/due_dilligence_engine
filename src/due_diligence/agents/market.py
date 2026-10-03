@@ -119,6 +119,22 @@ def market_agent(state: AnalysisState) -> dict:
     except Exception as e:
         log.warning("earnings_press_release_fetch_failed", ticker=ticker, error=str(e))
 
+    # --- 4b. Structured quarterly EPS actuals via Finnhub (P2 — quarterly reliability) ---
+    # Complementa el texto libre del 8-K con datos EPS estructurados (actual vs estimado,
+    # surprise%). Disponible en free tier. Devuelve [] si key no configurada o error de red.
+    quarterly_eps_actuals = FinnhubAdapter.fetch_quarterly_earnings(ticker)
+
+    # --- 4c. Tavily fallback cuando 8-K extraction falla o es insuficiente (P4) ---
+    # Si el press release no se encontró o tiene < 500 chars (HTML parsing fallido, filing
+    # no publicado todavía, etc.), buscar earnings recientes via Tavily como último recurso.
+    if (not quarterly_earnings_text or len(quarterly_earnings_text.strip()) < 500) and settings.market_news_include_tavily:
+        company_name_for_fallback = state.get("company_name", ticker)  # type: ignore[typeddict-item]
+        quarterly_earnings_text = _fetch_quarterly_earnings_tavily(
+            ticker=ticker,
+            company_name=company_name_for_fallback,
+            existing_text=quarterly_earnings_text,
+        )
+
     report = MarketReport(
         ticker=ticker,
         stub=False,
@@ -130,6 +146,7 @@ def market_agent(state: AnalysisState) -> dict:
         material_events=material_events,
         quarterly_earnings_text=quarterly_earnings_text,
         quarterly_earnings_date=quarterly_earnings_date,
+        quarterly_eps_actuals=quarterly_eps_actuals,
     )
 
     log.info(
@@ -148,6 +165,45 @@ def _to_mv(value: float | None, unit: str, period: str) -> MetricValue | None:
     if value is None:
         return None
     return MetricValue(value=value, unit=unit, period=period, source="Polygon")
+
+
+def _fetch_quarterly_earnings_tavily(
+    ticker: str,
+    company_name: str,
+    existing_text: str | None,
+) -> str | None:
+    """
+    Fallback Tavily cuando el 8-K press release no está disponible o está incompleto.
+
+    Se activa solo si MARKET_NEWS_INCLUDE_TAVILY=true y el texto existente tiene
+    < 500 chars (extracción EDGAR fallida o filing no publicado aún).
+
+    Busca: "<company> Q<N> <year> earnings revenue guidance" para obtener cobertura
+    de medios financieros cuando EDGAR no tiene el filing o el parser falló.
+
+    Returns:
+        Texto Tavily formateado (o el existing_text original si Tavily también falla).
+    """
+    try:
+        from datetime import date
+        current_year = date.today().year
+        queries = [
+            (f"{company_name} earnings results revenue quarterly {current_year}", None),
+            (f"{company_name} quarterly earnings guidance beat miss {current_year}", None),
+        ]
+        results = TavilyAdapter.search(queries)
+        if not results:
+            return existing_text
+        text = format_tavily_for_prompt(results, max_chars_per_result=1000)
+        log.info(
+            "quarterly_earnings_tavily_fallback",
+            ticker=ticker,
+            text_length=len(text),
+        )
+        return text
+    except Exception as e:
+        log.warning("quarterly_earnings_tavily_failed", ticker=ticker, error=str(e))
+        return existing_text
 
 
 def _fetch_drawdown_context_news(

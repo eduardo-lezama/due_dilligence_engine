@@ -285,9 +285,17 @@ class EdgarAdapter:
             raise DataUnavailableError(f"{ticker}: '{concept}' has no annual data")
 
         # --- Income statement ---
-        revenue = _get_annual(inc_df, "RevenueFromContractWithCustomerExcludingAssessedTax")
-        if not revenue:
-            revenue = _get_annual(inc_df, "Revenues")
+        # Cadena de fallback XBRL para revenue — distintas empresas usan distintos conceptos
+        # según su industry y cuándo adoptaron ASC 606 (EC-67: HRL usa SalesRevenueNet).
+        # La cadena quarterly (línea ~701) ya tenía más fallbacks; se iguala aquí.
+        revenue = (
+            _get_annual(inc_df, "RevenueFromContractWithCustomerExcludingAssessedTax")
+            or _get_annual(inc_df, "Revenues")
+            or _get_annual(inc_df, "SalesRevenueNet")                                    # legacy pre-ASC 606 (HRL, CPG)
+            or _get_annual(inc_df, "RevenueFromContractWithCustomerIncludingAssessedTax") # ASC 606 con IVA incluido
+            or _get_annual(inc_df, "SalesRevenueGoodsNet")                               # product-only (algunos CPG/retail)
+            or _get_annual(inc_df, "NetSales")                                           # algunos industriales/food
+        )
         if not revenue:
             raise DataUnavailableError(f"{ticker}: revenue concept not found in income statement")
 
@@ -627,13 +635,17 @@ class EdgarAdapter:
     def fetch_quarterly_snapshot(
         ticker: str,
         tenk_as_of: date | None = None,
-        staleness_threshold_days: int = 90,
+        staleness_threshold_days: int = 45,
     ) -> QuarterlySnapshot | None:
         """
         Obtiene métricas clave del 10-Q más reciente si el 10-K está stale (EC-44/MCE-24).
 
         Solo busca 10-Q si el 10-K tiene >staleness_threshold_days de antigüedad.
         Extrae revenue, operating_income, gross_profit del quarter más reciente.
+
+        45 días (vs el anterior 90): con 90 días una empresa que publica el 10-K en
+        marzo quedaba "fresca" hasta junio, saltándose Q1 earnings (publicados en
+        abril/mayo). 45 días fuerza la verificación tras cada quarter regular.
 
         Args:
             ticker: Ticker de la empresa.
@@ -697,8 +709,10 @@ class EdgarAdapter:
             "revenue": _get_val(inc_df, [
                 "RevenueFromContractWithCustomerExcludingAssessedTax",
                 "Revenues",
-                "SalesRevenueNet",
+                "SalesRevenueNet",                                     # legacy pre-ASC 606 (EC-67)
                 "RevenueFromContractWithCustomerIncludingAssessedTax",
+                "SalesRevenueGoodsNet",                                # product-only CPG/retail
+                "NetSales",                                            # algunos industriales/food
             ]),
             "operating_income": _get_val(inc_df, [
                 "OperatingIncomeLoss",
@@ -892,8 +906,18 @@ class EdgarManagementAdapter:
             log.info("form4_no_filings", ticker=ticker, months=months)
             return []
 
+        # Ordenar newest-first antes del cap: garantiza que el límite de 50 no corte
+        # actividad reciente si EDGAR devuelve filings en orden variable (EC-61).
+        # Cap aumentado de 20 → 50: large caps con múltiples insiders activos pueden
+        # superar 20 Form 4s en 12 meses (PATH: CEO + varios directores).
+        all_filings = list(filings[:50])
+        try:
+            all_filings.sort(key=lambda f: f.filing_date, reverse=True)
+        except Exception:
+            pass  # Si filing_date no disponible, usar el orden original de EDGAR
+
         transactions = []
-        for filing in list(filings[:20]):
+        for filing in all_filings:
             try:
                 obj = filing.obj()
                 df = obj.to_dataframe()
@@ -1195,7 +1219,12 @@ def _detect_10b5_1_plan(filing: object, obj: object) -> bool:
 
     Returns True si hay evidencia de plan 10b5-1.
     """
-    _10B5_PATTERNS = ("10b5-1", "rule 10b5", "10b-5-1", "trading plan", "pre-arranged")
+    _10B5_PATTERNS = (
+        "10b5-1", "rule 10b5", "10b-5-1", "trading plan", "pre-arranged",
+        # Variantes observadas en Form 4 modernos post-2023 SEC amendment (EC-61):
+        # UiPath y otros large caps usan estas frases alternativas en footnotes/body.
+        "10b5(1)", "rule 10b-5", "prearranged", "predetermined plan", "automatic plan",
+    )
 
     # Layer 1: footnotes del parsed object
     try:
@@ -1395,14 +1424,22 @@ class EdgarEventsAdapter:
         ticker: str,
         items: list[str] | None = None,
         months: int = 12,
+        restatement_months: int = 24,
     ) -> list[dict]:
         """
         Obtiene eventos 8-K materiales del ticker en la ventana especificada.
 
+        Item 4.02 (Non-Reliance / Restatement) usa una ventana separada y más larga
+        (restatement_months, default 24) porque una restatement de hace 18 meses sigue
+        siendo material para la tesis de inversión. Los otros items (2.02, 5.02) usan
+        la ventana estándar `months`. La query a EDGAR usa el máximo de ambos para un
+        solo round-trip; el filtrado por fecha se aplica por item individualmente (EC-66).
+
         Args:
             ticker: Ticker de la empresa (e.g. "AAPL").
             items: Items 8-K a filtrar. Default: ["2.02", "4.02", "5.02"].
-            months: Ventana de búsqueda en meses. Default: 12 (año fiscal completo).
+            months: Ventana estándar en meses. Default: 12 (año fiscal completo).
+            restatement_months: Ventana para Item 4.02. Default: 24 (2 años).
 
         Returns:
             list[dict] con campos: filing_date, item_numbers, summary_text, filing_url.
@@ -1416,7 +1453,15 @@ class EdgarEventsAdapter:
 
         set_identity(settings.sec_user_agent)
         company = Company(ticker)
-        start_date = (date.today() - timedelta(days=months * 30)).isoformat()
+
+        # Usar la ventana más larga para la query si 4.02 está en el filter —
+        # luego aplicamos cutoff por item en el loop para no surfacear eventos
+        # 2.02/5.02 de hace 2 años que ya no son relevantes.
+        items_normalized = {i.replace("Item ", "").strip().lower() for i in items}
+        has_restatement_item = "4.02" in items_normalized
+        query_months = max(months, restatement_months) if has_restatement_item else months
+        start_date = (date.today() - timedelta(days=query_months * 30)).isoformat()
+        standard_cutoff = (date.today() - timedelta(days=months * 30)).isoformat()
 
         try:
             filings = list(company.get_filings(form="8-K", date=f"{start_date}:"))
@@ -1424,21 +1469,28 @@ class EdgarEventsAdapter:
             log.warning("edgar_events_filings_fetch_failed", ticker=ticker, error=str(e))
             return []
 
-        # Normalizar el filter: edgartools devuelve "Item X.YY" pero el filter recibe
-        # "X.YY". Format mismatch silencioso = todos los filings filtrados out (EC-30).
-        # Aceptamos ambos formatos en el filter.
-        items_normalized = {i.replace("Item ", "").strip().lower() for i in items}
-
         events: list[dict] = []
         for f in filings:
             try:
+                filing_date_str = str(f.filing_date)
                 obj = f.obj()
                 filed_items_raw = list(getattr(obj, "items", []) or [])
-                # Normalizar items del filing: strip "Item " prefix para comparar
-                matching = [
-                    i for i in filed_items_raw
-                    if i.replace("Item ", "").strip().lower() in items_normalized
-                ]
+                # Normalizar items del filing: strip "Item " prefix para comparar (EC-30)
+                filed_normalized = {i.replace("Item ", "").strip().lower() for i in filed_items_raw}
+
+                # Aplicar cutoff por item: 4.02 usa restatement_months, resto usa months.
+                # Esto evita surfacear 2.02/5.02 de hace 23 meses como "noticias recientes".
+                matching = []
+                for raw_item in filed_items_raw:
+                    item_key = raw_item.replace("Item ", "").strip().lower()
+                    if item_key not in items_normalized:
+                        continue
+                    if item_key == "4.02":
+                        # Siempre incluir si está dentro de restatement_months (ya cubierto por query)
+                        matching.append(raw_item)
+                    elif filing_date_str >= standard_cutoff:
+                        matching.append(raw_item)
+
                 if not matching:
                     continue
 
@@ -1464,14 +1516,20 @@ class EdgarEventsAdapter:
                 )
                 continue
 
-        log.info("edgar_events_fetched", ticker=ticker, count=len(events), months=months)
+        log.info(
+            "edgar_events_fetched",
+            ticker=ticker,
+            count=len(events),
+            months=months,
+            restatement_months=restatement_months if has_restatement_item else None,
+        )
         return events
 
     @staticmethod
     def fetch_earnings_press_release(
         ticker: str,
         max_age_days: int = 120,
-        max_chars: int = 3000,
+        max_chars: int = 8000,
     ) -> dict | None:
         """
         Obtiene el press release de earnings más reciente via 8-K Item 2.02.
@@ -1483,6 +1541,10 @@ class EdgarEventsAdapter:
 
         Solo busca dentro de max_age_days para evitar surfacear datos obsoletos.
         Devuelve None si no hay 8-K 2.02 reciente.
+
+        max_chars=8000: los press releases típicos ocupan 5-7KB (revenue, EPS,
+        guidance, métricas operativas). Con 3000 chars el documento se cortaba
+        a mitad perdiendo guidance y métricas clave.
 
         Args:
             ticker: Ticker de la empresa.
@@ -1510,9 +1572,11 @@ class EdgarEventsAdapter:
             try:
                 obj = f.obj()
                 filed_items_raw = list(getattr(obj, "items", []) or [])
-                # Buscar solo Item 2.02
+                # Buscar Item 2.02 con detección robusta: el formato varía por filer.
+                # Variantes conocidas: "2.02", "2.02 Results of Operations...",
+                # "Item 2.02". El `== "2.02"` fallaba en variantes con descripción.
                 has_202 = any(
-                    i.replace("Item ", "").strip().lower() == "2.02"
+                    i.replace("Item ", "").strip().startswith("2.02")
                     for i in filed_items_raw
                 )
                 if not has_202:

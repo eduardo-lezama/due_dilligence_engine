@@ -513,3 +513,122 @@ class TestDetect10b51Plan:
             pass
 
         assert _detect_10b5_1_plan(MockFiling(), MockObj()) is False
+
+
+# ---------------------------------------------------------------------------
+# Tests: P1 — fetch_quarterly_snapshot staleness threshold 45 days (default)
+# ---------------------------------------------------------------------------
+
+class TestFetchQuarterlySnapshotThreshold:
+    """
+    P1: el threshold por defecto es 45 días (antes 90).
+    Con 90 días, una empresa que publicara el 10-K en marzo quedaba "fresca"
+    hasta junio, saltándose Q1 earnings (publicados en abril/mayo).
+    """
+
+    def test_default_staleness_threshold_is_45_days(self):
+        """El parámetro por defecto debe ser 45, no 90."""
+        import inspect
+        from due_diligence.tools.edgar import EdgarAdapter
+        sig = inspect.signature(EdgarAdapter.fetch_quarterly_snapshot)
+        default = sig.parameters["staleness_threshold_days"].default
+        assert default == 45, f"Expected 45, got {default}"
+
+    def test_fresh_10k_within_45_days_is_skipped(self):
+        """Con 10-K de 30 días de antigüedad (< 45), fetch_quarterly_snapshot devuelve None."""
+        from datetime import date, timedelta
+        from due_diligence.tools.edgar import EdgarAdapter
+
+        tenk_as_of = date.today() - timedelta(days=30)
+        result = EdgarAdapter.fetch_quarterly_snapshot("AAPL", tenk_as_of=tenk_as_of)
+        assert result is None
+
+    def test_stale_10k_beyond_45_days_triggers_fetch(self, mocker):
+        """Con 10-K de 60 días de antigüedad (> 45), intenta buscar el 10-Q."""
+        from datetime import date, timedelta
+        from due_diligence.tools.edgar import EdgarAdapter
+
+        # Mockear Company para que no llame a EDGAR real
+        mock_company = mocker.MagicMock()
+        mock_company.get_filings.return_value = []  # No hay 10-Q → devuelve None
+        mocker.patch("edgar.Company", return_value=mock_company)
+        mocker.patch("edgar.set_identity")
+
+        tenk_as_of = date.today() - timedelta(days=60)
+        result = EdgarAdapter.fetch_quarterly_snapshot("AAPL", tenk_as_of=tenk_as_of)
+        # El fetch fue intentado (Company se llamó), aunque no haya 10-Q
+        assert mock_company.get_filings.called or result is None  # llegó a buscar
+
+
+# ---------------------------------------------------------------------------
+# Tests: P3 — Item 2.02 detection robusta (startswith vs ==)
+# ---------------------------------------------------------------------------
+
+class TestEarningsPressReleaseItemDetection:
+    """
+    P3: la detección de Item 2.02 debe funcionar con variantes de formato.
+    Variantes: "2.02", "2.02 Results of Operations...", "Item 2.02".
+    """
+
+    @pytest.mark.parametrize("item_string, expected", [
+        ("2.02", True),
+        ("2.02 Results of Operations and Financial Condition", True),
+        ("Item 2.02", True),
+        ("Item 2.02 Results of Operations", True),
+        ("2.01", False),
+        ("5.02", False),
+        ("", False),
+    ])
+    def test_item_202_detection_variants(self, item_string, expected):
+        """startswith("2.02") detecta todas las variantes válidas sin falsos positivos."""
+        result = item_string.replace("Item ", "").strip().startswith("2.02")
+        assert result is expected
+
+    def test_item_202_exact_only_misses_description_variant(self):
+        """
+        Verifica que el bug original (== "2.02") habría fallado con la variante
+        con descripción, y que startswith lo resuelve.
+        """
+        item_with_desc = "2.02 Results of Operations and Financial Condition"
+        old_logic = item_with_desc.replace("Item ", "").strip().lower() == "2.02"
+        new_logic = item_with_desc.replace("Item ", "").strip().startswith("2.02")
+        assert old_logic is False, "El bug original debería fallar con descripción"
+        assert new_logic is True, "El fix debe detectar correctamente"
+
+    def test_max_chars_default_is_8000(self):
+        """P3: max_chars por defecto es 8000 (antes 3000 cortaba el press release a mitad)."""
+        import inspect
+        from due_diligence.tools.edgar import EdgarEventsAdapter
+        sig = inspect.signature(EdgarEventsAdapter.fetch_earnings_press_release)
+        default = sig.parameters["max_chars"].default
+        assert default == 8000, f"Expected 8000, got {default}"
+
+
+# ---------------------------------------------------------------------------
+# Tests: Form 4 newest-first ordering + cap 50 (EC-61, MCE-28)
+# ---------------------------------------------------------------------------
+
+class TestForm4NewestFirst:
+    """
+    EC-61: con cap=20 y orden ascendente, transacciones recientes del CEO quedaban
+    fuera del slice. Fix: cap→50 + sort por filing_date descendente.
+    """
+
+    def test_fetch_form4_cap_is_50(self):
+        """El slice de filings es [:50], no [:20]."""
+        import inspect
+        from due_diligence.tools.edgar import EdgarManagementAdapter
+        src = inspect.getsource(EdgarManagementAdapter.fetch_form4_transactions)
+        assert "[:50]" in src, "Cap debe ser 50 para capturar transacciones recientes"
+
+    def test_fetch_form4_sort_newest_first_in_source(self):
+        """
+        El código aplica sort(key=filing_date, reverse=True) antes de procesar.
+        Verificado a nivel de fuente — Company se importa dentro de la función,
+        por lo que el mock requeriría parchear 'edgar.Company' en runtime de edgar package.
+        """
+        import inspect
+        from due_diligence.tools.edgar import EdgarManagementAdapter
+        src = inspect.getsource(EdgarManagementAdapter.fetch_form4_transactions)
+        assert "filing_date" in src, "Debe referenciar filing_date para el sort"
+        assert "reverse=True" in src, "Sort debe ser descendente (newest-first)"

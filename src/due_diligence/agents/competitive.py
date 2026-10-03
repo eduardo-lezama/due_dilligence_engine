@@ -48,11 +48,17 @@ log = structlog.get_logger()
 
 # Queries Tavily para §2 del checklist. Diseñadas para obtener evidencia
 # de pricing power, market share, disruption threats y competitive dynamics.
-_TAVILY_QUERY_TEMPLATES = [
-    "{company_name} competitive advantage moat pricing power market share",
-    "{company_name} competitors competitive landscape industry analysis",
-    "{company_name} disruption threat technology business model risk",
-    "{company_name} gross margin trend vs competitors operating leverage",
+#
+# Formato: (template, time_range). Se incluye {ticker} para desambiguar empresas
+# con nombre genérico. time_range diferenciado por tipo de pregunta:
+#   - Moat/ventaja competitiva: None (el moat se evalúa sobre historial multi-año,
+#     no solo el último año; artículos de 2-5 años atrás son relevantes).
+#   - Landscape/disruption/márgenes: "year" (dinámica competitiva reciente).
+_TAVILY_QUERY_TEMPLATES: list[tuple[str, str | None]] = [
+    ("{ticker} {company_name} competitive advantage moat pricing power market share", None),
+    ("{ticker} {company_name} competitors competitive landscape industry analysis", "year"),
+    ("{ticker} {company_name} disruption threat technology business model risk", "year"),
+    ("{ticker} {company_name} gross margin trend vs competitors operating leverage", "year"),
 ]
 
 _SYSTEM_PROMPT = """You are a value investing analyst specializing in competitive moat analysis.
@@ -274,7 +280,8 @@ def competitive_agent(state: AnalysisState) -> dict:
 
     # --- 2. Búsqueda web Tavily para competitive landscape ---
     tavily_queries = [
-        t.format(company_name=company_name) for t in _TAVILY_QUERY_TEMPLATES
+        (t.format(ticker=ticker, company_name=company_name), tr)
+        for t, tr in _TAVILY_QUERY_TEMPLATES
     ]
     tavily_results = TavilyAdapter.search(tavily_queries)
     tavily_text = format_tavily_for_prompt(tavily_results)

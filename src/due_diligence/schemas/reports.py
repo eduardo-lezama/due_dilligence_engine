@@ -56,6 +56,10 @@ class FilingsRAGReport(BaseModel):
     revenue_guidance: Optional[str] = None          # Guidance de management para próximo periodo
     geographic_revenue_breakdown: Optional[str] = None  # "China: 85%, US: 10%, Other: 5%"
     key_regulatory_events: Optional[str] = None     # Eventos regulatorios específicos con fecha y entidad
+    # EC-66: señales de governance críticas extraídas explícitamente del 10-K Risk Factors / MD&A.
+    # Separado de key_regulatory_events (que cubre acciones de gobierno externas como BIS/OFAC).
+    # Cubre: SEC investigations activas, material weaknesses, class actions, restatements.
+    governance_red_flags: Optional[str] = None      # SEC investigation, material weakness, class action, restatement — null si ninguno encontrado
     citations: list[Citation] = Field(default_factory=list)
 
 
@@ -71,6 +75,7 @@ class MarketReport(BaseModel):
     material_events: list[dict] = Field(default_factory=list)  # Eventos 8-K materiales (ADR-017)
     quarterly_earnings_text: Optional[str] = None  # Press release earnings más reciente (8-K 2.02, EC-44)
     quarterly_earnings_date: Optional[str] = None  # Fecha del filing del press release
+    quarterly_eps_actuals: list[dict] = Field(default_factory=list)  # EPS actual/estimado/surprise por quarter (Finnhub)
 
 
 class PeerROIC(BaseModel):
@@ -169,6 +174,7 @@ class ValuationReport(BaseModel):
     sensitivity_table: list[dict] = Field(default_factory=list)  # Tabla de sensibilidad WACC × growth
     assumptions: Optional[ValuationInput] = None        # Assumptions usadas en el DCF
     dcf_reliability_note: Optional[str] = None          # Warning cuando el DCF puede ser poco fiable
+    fcf_quality_warning: Optional[str] = None           # EC-65: FCF inflado por advance payments / project timing
     near_term_growth_used_pct: Optional[float] = None   # Tasa de crecimiento FCF efectivamente usada en el DCF (e.g. 0.123 = 12.3%)
     near_term_growth_source: Optional[str] = None       # Procedencia: "user_override" | "fcf_cagr_Ny" | "fcf_cagr_Ny_rev_capped" | "revenue_cagr_fallback" | "default_7pct"
     # --- 3-stage DCF (ADR-029) ---

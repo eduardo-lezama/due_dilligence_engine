@@ -41,6 +41,7 @@ Checklist cubierto (docs/checklist-value-investing.md):
 from __future__ import annotations
 
 import json
+import re
 import statistics
 from typing import Any
 
@@ -105,6 +106,12 @@ RULES — NON-NEGOTIABLE:
     (c) If methods diverge (e.g. DCF cheap but EPV expensive) → adopt HOLD bias by default. Explain in §6 which method you weight most and WHY — e.g. "EPV is the more conservative anchor here because the DCF relies on a growth rate the market is not pricing."
     (d) EPV is the zero-growth floor: if EPV > market cap (EPV upside > 0%), state explicitly that a BUY does NOT require growth assumptions to hold — the margin of safety exists in the static business alone. This is the highest-conviction BUY signal.
     (e) Never ignore the convergence count. A sentence like "DCF shows 35% upside" with no mention of EPV or reverse DCF is an incomplete §6.
+
+22. ROIC TREND LABEL AUTHORITY (§2/§5): the context provides a pre-computed 'ROIC trend interpretation' label: RISING, FALLING, or STABLE, derived directly from XBRL data. This label is AUTHORITATIVE — you MUST NOT use language that contradicts it:
+    - RISING label → do NOT write "declining ROIC", "eroding ROIC", "deteriorating ROIC", "falling ROIC", or "moat is eroding due to ROIC decline". Even if the absolute ROIC level is still negative, a trend from -28% to +5% is an unambiguous improvement and MUST be described as such. Use language like "ROIC recovering toward positive territory" or "marginal returns improving."
+    - FALLING label → do NOT describe ROIC as "improving", "recovering", or "strengthening".
+    - STABLE label → use neutral language about ROIC.
+    Critical distinction: absolute ROIC level (negative = poor quality capital allocation) vs ROIC direction (RISING = marginal capital is earning improving returns). A company going from -28% to +5% ROIC is at a potential inflection point — not in erosion. Describing RISING trend as "eroding moat" is a category error that produces incorrect verdicts with high spurious confidence.
 
 VERDICT RUBRIC:
 - BUY: moat confirmed + quality management + DCF upside >20% + no material 8-K red flags + conflicting signals resolved in favor of the bull case.
@@ -747,28 +754,110 @@ def _parse_response(response_text: str, ticker: str) -> ValueExpertReport:
         )
 
 
+def _word_in_text(word: str, text: str) -> bool:
+    """
+    Comprueba si `word` aparece como palabra completa en `text` (word boundary match).
+
+    Evita falsos positivos por substring: 'fall' no coincide con 'falls', 'falling',
+    'fallen'. Sin este check, "revenue fall" (condición futura en thesis-breaker)
+    disparaba sobre texto que contenía "revenue falls below 10%" — causa raíz del
+    false positive EC-59 (PATH) y EC-45 (CGNX con "margin compress" vs "compressing").
+    """
+    return bool(re.search(rf'\b{re.escape(word)}\b', text))
+
+
+def _validate_thesis_break_with_llm(
+    decision_frame: str,
+    own_text: str,
+    triggered_phrases: list[str],
+    ticker: str,
+) -> bool:
+    """
+    Valida semánticamente si un thesis-breaker Python-triggered es verdadero ahora (ADR-031).
+
+    Solo llamado cuando _word_in_text detecta overlap entre el thesis-breaker (§9) y las
+    secciones §4/§5/§7. La distinción clave que regex no puede hacer:
+    - "thesis breaks if revenue falls below 10%" (condición FUTURA) vs
+    - "revenue fell 8% YoY in Q3 2026" (hecho ACTUAL ya ocurrido)
+
+    Usa modelo barato (gpt-4o-mini, settings.openai_validation_model) — prompt estrecho,
+    respuesta JSON ~50 tokens. Coste marginal: ~$0.0001 por invocación.
+
+    Returns:
+        True si el LLM confirma que la condición ES ACTUALMENTE VERDADERA.
+        False (default conservador) si no confirmado, o en cualquier error de parsing/red.
+        El default False garantiza que no añadimos warnings por errores técnicos.
+    """
+    prompt = (
+        f"THESIS-BREAKER CONDITION (from §9 of investment analysis):\n"
+        f"{decision_frame[:600]}\n\n"
+        f"CURRENT ANALYSIS EXCERPTS (§4 Financial Quality, §5 Growth, §7 Risks):\n"
+        f"{own_text[:800]}\n\n"
+        f"Python pre-filter detected word overlap in: {triggered_phrases}\n\n"
+        f"Is the THESIS-BREAKER condition CURRENTLY TRUE based on the excerpts?\n"
+        f"Answer YES only if the excerpts contain CLEAR EVIDENCE that the condition "
+        f"IS ALREADY HAPPENING NOW (past/present tense facts, not future risk).\n"
+        f"Answer NO if the excerpts only describe it as a FORWARD-LOOKING RISK or "
+        f"FUTURE POSSIBILITY.\n\n"
+        f'Return JSON only: {{"is_currently_true": true_or_false, "reason": "one sentence"}}'
+    )
+    try:
+        response = get_client().complete(
+            messages=[{"role": "user", "content": prompt}],
+            system="You are a precise financial analyst. Return valid JSON only.",
+            model=settings.openai_validation_model,
+            max_tokens=120,
+        )
+        start = response.find("{")
+        end = response.rfind("}") + 1
+        if start == -1 or end == 0:
+            return False
+        data = json.loads(response[start:end])
+        result = bool(data.get("is_currently_true", False))
+        log.info(
+            "thesis_break_llm_validation",
+            ticker=ticker,
+            is_currently_true=result,
+            reason=data.get("reason", ""),
+            triggered_phrases=triggered_phrases,
+        )
+        return result
+    except Exception as e:
+        log.warning(
+            "thesis_break_llm_validation_failed",
+            ticker=ticker,
+            error=str(e),
+        )
+        return False  # Default conservador: ningún warning si hay error de red/parsing
+
+
 def _thesis_break_self_check(
     report: ValueExpertReport, context: str
 ) -> ValueExpertReport:
     """
     Verifica que el thesis-breaker de §9 no sea ya verdadero en los datos (EC-45).
 
-    Heurística: busca en decision_frame patrones como "thesis breaks if X declines"
-    y luego verifica si financial_quality, risks, o growth_reinvestment ya describen X
-    como ocurriendo. Si detecta contradicción, loguea warning y añade caveat.
+    Pipeline de dos etapas (ADR-031):
+    1. Python pre-filter con word boundary regex (_word_in_text): rápido, cero coste.
+       Elimina falsos positivos por inflexiones ("falls" ≠ "fall", "declining" ≠ "decline").
+    2. LLM semantic validation (_validate_thesis_break_with_llm): solo si Python trigger
+       dispara. Modelo cheap (gpt-4o-mini) confirma si la condición es ACTUALMENTE verdadera
+       vs si es solo un riesgo futuro — distinción semántica que regex no puede hacer.
 
-    No modifica el verdict — eso sería overreach. Solo flagea la inconsistencia
-    para que el Critic y el usuario puedan evaluarla.
+    No modifica el verdict — eso sería overreach. Solo flagea la inconsistencia para
+    que el Critic y el usuario puedan evaluarla.
     """
     df = (report.decision_frame or "").lower()
     if not df or len(df) < 20:
         return report
 
-    # Frases que indican condiciones negativas en el thesis-breaker
+    # Frases que indican condiciones negativas típicas en un thesis-breaker.
+    # Se añaden variantes inflectadas comunes para maximizar recall sin perder precision
+    # (la precision la aporta el LLM validator en la segunda etapa).
     negative_condition_phrases = [
-        "margin decline", "margin compress", "margin below", "margin fall",
+        "margin decline", "margin compress", "margin compression", "margin below", "margin fall",
         "revenue decline", "revenue drop", "revenue fall", "revenue below",
-        "guidance cut", "guidance withdraw", "guidance lower",
+        "guidance cut", "guidance withdraw", "guidance withdrawn", "guidance lower",
         "backlog decline", "backlog fall", "backlog shrink",
         "debt increase", "leverage increase", "debt exceed",
         "loss widen", "net loss", "negative earnings",
@@ -785,32 +874,52 @@ def _thesis_break_self_check(
     if not own_text:
         return report
 
-    # Buscar overlap: ¿el thesis-breaker menciona una condición que las secciones
-    # ya describen como ocurriendo?
+    # Stage 1: Python pre-filter con word boundary matching (EC-59).
+    # _word_in_text usa regex \b para que "fall" no matchee "falls" o "falling" —
+    # esto elimina el false positive de PATH donde "revenue falls below 10%" (condición
+    # futura en §9) disparaba sobre "revenue growth falling toward X%" en §7 (riesgo).
     triggered = []
     for phrase in negative_condition_phrases:
         words = phrase.split()
-        # Cada palabra del phrase debe aparecer en decision_frame
-        if all(w in df for w in words):
-            # Y al menos 2 de las palabras deben aparecer en las secciones propias
-            matches_in_own = sum(1 for w in words if w in own_text)
+        if all(_word_in_text(w, df) for w in words):
+            matches_in_own = sum(1 for w in words if _word_in_text(w, own_text))
             if matches_in_own >= 2:
                 triggered.append(phrase)
 
-    if triggered:
-        log.warning(
-            "thesis_break_already_true",
+    if not triggered:
+        return report
+
+    # Stage 2: LLM semantic validation — confirmar antes de añadir el warning (ADR-031).
+    # El Python trigger es necesario pero no suficiente. El LLM distingue
+    # "condición futura posible" de "hecho actual ya ocurrido".
+    confirmed = _validate_thesis_break_with_llm(
+        decision_frame=report.decision_frame or "",
+        own_text=own_text,
+        triggered_phrases=triggered[:3],
+        ticker=report.ticker,
+    )
+
+    if not confirmed:
+        log.info(
+            "thesis_break_python_trigger_llm_rejected",
             ticker=report.ticker,
             triggered_phrases=triggered[:3],
-            verdict=report.verdict,
         )
-        caveat = (
-            f"\n\n⚠️ THESIS-BREAK SELF-CHECK WARNING: the conditions "
-            f"[{', '.join(triggered[:3])}] appear to be ALREADY TRUE based on "
-            f"the analysis above. This may indicate the thesis is already broken "
-            f"and the verdict should be reassessed."
-        )
-        report.decision_frame = (report.decision_frame or "") + caveat
+        return report
+
+    log.warning(
+        "thesis_break_already_true",
+        ticker=report.ticker,
+        triggered_phrases=triggered[:3],
+        verdict=report.verdict,
+    )
+    caveat = (
+        f"\n\n⚠️ THESIS-BREAK SELF-CHECK WARNING: the conditions "
+        f"[{', '.join(triggered[:3])}] appear to be ALREADY TRUE based on "
+        f"the analysis above. This may indicate the thesis is already broken "
+        f"and the verdict should be reassessed."
+    )
+    report.decision_frame = (report.decision_frame or "") + caveat
 
     return report
 

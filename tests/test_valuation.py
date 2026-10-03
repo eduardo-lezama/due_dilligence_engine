@@ -27,6 +27,7 @@ from due_diligence.agents.valuation import (
     _reverse_dcf,
     _sensitivity_table,
     _fcf_cagr,
+    _fcf_cagr_with_window,
 )
 from due_diligence.schemas.reports import ValuationReport, MarketReport
 from due_diligence.schemas.base import MetricValue
@@ -171,6 +172,70 @@ def test_fcf_cagr_negative_oldest_returns_none():
         MetricValue(value=-10e9, unit="USD", period="FY2024", source="calculated"),
     ]
     assert _fcf_cagr(series) is None
+
+
+# ---------------------------------------------------------------------------
+# Tests: _fcf_cagr_with_window (EC-60, MCE-28)
+# ---------------------------------------------------------------------------
+
+class TestFcfCagrWithWindow:
+    """
+    _fcf_cagr_with_window escanea desde el FCF más antiguo hacia adelante buscando
+    el primer valor positivo como denominador, evitando el fallback silencioso a
+    revenue CAGR cuando el año más antiguo era negativo (EC-60).
+    """
+
+    def test_all_positive_uses_full_window(self):
+        """Serie completamente positiva → misma ventana que _fcf_cagr."""
+        series = [
+            MetricValue(value=523e6, unit="USD", period="FY2026", source="calculated"),
+            MetricValue(value=421e6, unit="USD", period="FY2025", source="calculated"),
+            MetricValue(value=303e6, unit="USD", period="FY2024", source="calculated"),
+            MetricValue(value=146e6, unit="USD", period="FY2023", source="calculated"),
+        ]
+        cagr, n = _fcf_cagr_with_window(series)
+        assert cagr is not None
+        assert n == 3  # ventana de 3 años: FY2023→FY2026
+        # 523/146 ^ (1/3) - 1 ≈ 53%
+        assert abs(cagr - ((523 / 146) ** (1 / 3) - 1)) < 0.001
+
+    def test_negative_oldest_uses_shorter_window(self):
+        """
+        Caso PATH: FY2022 negativo, FY2023+ positivo.
+        Debe usar FY2023 como denominador en lugar de caer a None.
+        """
+        series = [
+            MetricValue(value=523e6, unit="USD", period="FY2026", source="calculated"),
+            MetricValue(value=421e6, unit="USD", period="FY2025", source="calculated"),
+            MetricValue(value=303e6, unit="USD", period="FY2024", source="calculated"),
+            MetricValue(value=146e6, unit="USD", period="FY2023", source="calculated"),
+            MetricValue(value=-12e6, unit="USD", period="FY2022", source="calculated"),
+        ]
+        cagr, n = _fcf_cagr_with_window(series)
+        assert cagr is not None
+        assert n == 3  # ventana FY2023→FY2026 (salta FY2022 negativo)
+        assert cagr > 0
+
+    def test_all_negative_returns_none(self):
+        """Sin ningún punto positivo en la cola → (None, 0)."""
+        series = [
+            MetricValue(value=50e6, unit="USD", period="FY2025", source="calculated"),
+            MetricValue(value=-20e6, unit="USD", period="FY2024", source="calculated"),
+            MetricValue(value=-50e6, unit="USD", period="FY2023", source="calculated"),
+        ]
+        cagr, n = _fcf_cagr_with_window(series)
+        assert cagr is None
+        assert n == 0
+
+    def test_backward_compat_fcf_cagr_wrapper(self):
+        """_fcf_cagr sigue funcionando como wrapper (no rompe tests existentes)."""
+        series = [
+            MetricValue(value=121e9, unit="USD", period="FY2025", source="calculated"),
+            MetricValue(value=100e9, unit="USD", period="FY2024", source="calculated"),
+        ]
+        cagr_old = _fcf_cagr(series)
+        cagr_new, _ = _fcf_cagr_with_window(series)
+        assert cagr_old == cagr_new
 
 
 # ---------------------------------------------------------------------------
@@ -333,6 +398,122 @@ def test_valuation_agent_uses_defaults_when_no_checkpoint2():
     assert report.assumptions is not None
     assert report.assumptions.wacc_pct == 9.0
     assert report.assumptions.terminal_growth_pct == 2.5
+
+
+# ---------------------------------------------------------------------------
+# Tests: P5 — CAGR cyclical peak base qualifier
+# ---------------------------------------------------------------------------
+
+def _mv(value: float, period: str = "FY2025", unit: str = "USD", source: str = "XBRL") -> "MetricValue":
+    """Helper para construir MetricValue en tests de forma concisa."""
+    return MetricValue(value=value, unit=unit, period=period, source=source)
+
+
+def _build_financials_with_peak_revenue():
+    """
+    Construye un FinancialsReport con revenue en el año más reciente > mediana × 1.15.
+    Simula una empresa tipo CGNX: boom en el año más reciente tras varios años normales.
+    """
+    from due_diligence.schemas.base import FinancialsReport
+    revenues = [
+        _mv(900e6, "FY2025"),   # boom: +50% vs mediana ~580M
+        _mv(600e6, "FY2024"),
+        _mv(580e6, "FY2023"),
+        _mv(560e6, "FY2022"),
+        _mv(540e6, "FY2021"),
+    ]
+    return FinancialsReport(
+        ticker="PEAK",
+        cik="0001234567",
+        as_of_date="2025-09-30",
+        stub=False,
+        source_filing="10-K FY2025",
+        revenue=revenues,
+        gross_profit=[_mv(400e6)],
+        operating_income=[_mv(100e6)],
+        net_income=[_mv(80e6)],
+        operating_cash_flow=[_mv(180e6)],
+        capex=[_mv(20e6)],
+        free_cash_flow=[_mv(200e6), _mv(150e6, "FY2024")],
+        total_assets=_mv(1_200e6),
+        total_debt=_mv(200e6),
+        cash_and_equivalents=_mv(300e6),
+        shares_outstanding=_mv(100e6, unit="shares", source="XBRL"),
+    )
+
+
+def _build_financials_with_normal_revenue():
+    """Revenue sin picos — más reciente está dentro del rango normal (< mediana × 1.15)."""
+    from due_diligence.schemas.base import FinancialsReport
+    revenues = [
+        _mv(610e6, "FY2025"),
+        _mv(600e6, "FY2024"),
+        _mv(590e6, "FY2023"),
+        _mv(580e6, "FY2022"),
+        _mv(570e6, "FY2021"),
+    ]
+    return FinancialsReport(
+        ticker="NORM",
+        cik="0001234568",
+        as_of_date="2025-09-30",
+        stub=False,
+        source_filing="10-K FY2025",
+        revenue=revenues,
+        gross_profit=[_mv(260e6)],
+        operating_income=[_mv(80e6)],
+        net_income=[_mv(60e6)],
+        operating_cash_flow=[_mv(110e6)],
+        capex=[_mv(10e6)],
+        free_cash_flow=[_mv(120e6), _mv(110e6, "FY2024")],
+        total_assets=_mv(800e6),
+        total_debt=_mv(100e6),
+        cash_and_equivalents=_mv(150e6),
+        shares_outstanding=_mv(50e6, unit="shares", source="XBRL"),
+    )
+
+
+def test_valuation_agent_cyclical_peak_qualifier_present_when_boom_year():
+    """P5: si revenue reciente > mediana × 1.15, el dcf_reliability_note incluye el aviso."""
+    state = {
+        "ticker": "PEAK",
+        "financials": _build_financials_with_peak_revenue(),
+        "market": _build_market_report(market_cap=500e6),
+    }
+    report = valuation_agent(state)["valuation"]
+    assert report.dcf_reliability_note is not None
+    assert "Cyclical peak" in report.dcf_reliability_note
+
+
+def test_valuation_agent_no_cyclical_peak_qualifier_for_normal_revenue():
+    """P5: si revenue es estable (< mediana × 1.15), NO aparece el aviso de peak base."""
+    state = {
+        "ticker": "NORM",
+        "financials": _build_financials_with_normal_revenue(),
+        "market": _build_market_report(market_cap=300e6),
+    }
+    report = valuation_agent(state)["valuation"]
+    # El note puede existir por otras razones, pero NO debe contener "Cyclical peak"
+    if report.dcf_reliability_note:
+        assert "Cyclical peak" not in report.dcf_reliability_note
+
+
+def test_valuation_agent_no_cyclical_peak_when_user_overrides_growth():
+    """P5: si el usuario especifica growth_override, el qualifier no se activa."""
+    state = {
+        "ticker": "PEAK",
+        "financials": _build_financials_with_peak_revenue(),
+        "market": _build_market_report(market_cap=500e6),
+        "checkpoint2_user_input": {
+            "wacc_pct": 10.0,
+            "terminal_growth_pct": 2.5,
+            "projection_years": 10,
+            "revenue_growth_yr1_pct": 8.0,  # usuario override → no activar qualifier
+        },
+    }
+    report = valuation_agent(state)["valuation"]
+    # Con user override, el qualifier de peak base no debe aparecer
+    if report.dcf_reliability_note:
+        assert "Cyclical peak" not in report.dcf_reliability_note
 
 
 # ---------------------------------------------------------------------------

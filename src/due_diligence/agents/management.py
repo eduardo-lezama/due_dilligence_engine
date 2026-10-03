@@ -48,12 +48,20 @@ log = structlog.get_logger()
 # Formato: (template, time_range) — None = sin filtro temporal (para contexto histórico).
 # Las queries de ownership/compensation usan "year" para evitar datos obsoletos.
 # Las queries de CEO background y estructura corporativa usan None — esa info no envejece.
+#
+# Se incluye {ticker} junto a {company_name} para reducir ambigüedad en empresas con
+# nombre genérico (Apple, Target, Cardinal Health). La combinación ticker+nombre es más
+# específica que solo el nombre sin aumentar el riesgo de colisión (ej. "BBW" → el ticker
+# corto junto al nombre completo es inequívoco; ver comentario análogo en market.py).
+#
+# La query de estructura corporativa reemplaza VIE/listing (específico de ADRs chinos)
+# por una query de capital allocation que es útil para cualquier empresa (cambio EC-67b).
 _TAVILY_QUERY_TEMPLATES: list[tuple[str, str | None]] = [
-    ("{company_name} CEO founder background track record tenure history", None),  # historia no envejece
-    ("{company_name} insider ownership shareholder alignment", "year"),
-    ("{company_name} executive compensation structure incentives", "year"),
-    ("{company_name} management quality governance board directors", "year"),
-    ("{company_name} corporate structure subsidiary holding VIE listing", None),  # estructura no envejece
+    ("{ticker} {company_name} CEO founder background track record tenure history", None),  # historia no envejece
+    ("{ticker} {company_name} insider ownership shareholder alignment", "year"),
+    ("{ticker} {company_name} executive compensation structure incentives", "year"),
+    ("{ticker} {company_name} management quality governance board directors", "year"),
+    ("{ticker} {company_name} corporate structure capital allocation holding subsidiaries", None),  # estructura no envejece
 ]
 
 # Prompt del sistema: instruye al LLM a actuar como analista value
@@ -295,7 +303,7 @@ def management_agent(state: AnalysisState) -> dict:
     # Cada query tiene su propio time_range: None para contexto histórico (CEO background,
     # estructura corporativa), "year" para datos que deben ser recientes (ownership, compensación).
     tavily_queries = [
-        (t.format(company_name=company_name), tr)
+        (t.format(ticker=ticker, company_name=company_name), tr)
         for t, tr in _TAVILY_QUERY_TEMPLATES
     ]
     tavily_results = TavilyAdapter.search(tavily_queries)

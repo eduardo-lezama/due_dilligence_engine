@@ -124,6 +124,7 @@ ValuationReport.suggested_wacc_pct, .suggested_wacc_breakdown
 ### Negative
 - **DCF numeric tests required recalibration**: 3-stage produces different numbers. All existing DCF numeric assertions were verified correct under the new model.
 - **β=1.0 WACC simplification**: wrong for extreme betas. Disclosed. Acceptable for a personal tool where the user can override.
+- **No company-specific risk premium in advisory (EC-64)**: the advisory formula `Rf + β×ERP + size_premium` does not include a company-specific risk premium. For high-risk profiles (customer concentration >50%, active SEC investigation, restatements, recent IPO), the appropriate WACC may exceed the advisory by 3-8pp. The system surfaces this gap via an automatic note in `dcf_reliability_note` when `abs(wacc_used - advisory) > 3pp`, and the sensitivity table covers ±2pp (expanded from ±1pp in MCE-29) to ensure the analyst can see values at the higher-risk WACC range. The user must still supply the company-specific adjustment manually at Checkpoint 2.
 - **EPV not computed for companies with no positive EBIT history**: returns None gracefully. Documented in reliability note.
 
 ## Alternatives Considered

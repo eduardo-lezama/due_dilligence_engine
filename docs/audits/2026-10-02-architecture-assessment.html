@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Auditoría Due Diligence Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: memo de auditoría de una columna (~68ch), con tablas y bloques de datos que respiran a ancho completo del contenedor */
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --fg:#1b2129; --muted:#5a6573; --line:#dde2e8;
+  --accent:#0d6b5e; --accent-soft:#e3f1ee;
+  --high:#b42318; --high-soft:#fbe9e7; --mid:#a15c07; --mid-soft:#fdf1df; --low:#4a5868; --low-soft:#eceff3;
+  --font-display:"Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --step-0:1.0625rem; --step-1:1.25rem; --step-2:1.6rem; --step-3:2.2rem;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#12161b; --surface:#1a2027; --fg:#e4e8ed; --muted:#9aa6b4; --line:#2c343e;
+  --accent:#4fbfa9; --accent-soft:#16302c;
+  --high:#f2867a; --high-soft:#3a1f1c; --mid:#e6b061; --mid-soft:#36291a; --low:#aab5c2; --low-soft:#252c35;
+  color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#12161b; --surface:#1a2027; --fg:#e4e8ed; --muted:#9aa6b4; --line:#2c343e;
+  --accent:#4fbfa9; --accent-soft:#16302c;
+  --high:#f2867a; --high-soft:#3a1f1c; --mid:#e6b061; --mid-soft:#36291a; --low:#aab5c2; --low-soft:#252c35;
+  color-scheme:dark; }
+
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:var(--step-0);line-height:1.65;padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:46rem;margin:0 auto;display:flex;flex-direction:column;gap:3rem}
+header{padding-block:3rem 0;display:flex;flex-direction:column;gap:.75rem;border-bottom:1px solid var(--line);padding-bottom:2rem}
+.eyebrow{font-family:var(--font-mono);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:var(--step-3);font-weight:800;letter-spacing:-.01em}
+h2{font-size:var(--step-2);font-weight:700}
+h3{font-size:var(--step-1);font-weight:700}
+p{margin:0}
+section{display:flex;flex-direction:column;gap:1rem}
+.lede{font-size:1.2rem;color:var(--fg)}
+.muted{color:var(--muted)}
+code,.mono{font-family:var(--font-mono);font-size:.88em}
+code{background:var(--low-soft);padding:.05em .35em;border-radius:3px;overflow-wrap:anywhere}
+ul,ol{margin:0;padding-left:1.25rem;display:flex;flex-direction:column;gap:.55rem}
+li{min-width:0}
+strong{font-weight:600}
+
+.verdict{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);padding:1.25rem 1.4rem;display:flex;flex-direction:column;gap:.6rem}
+.verdict .k{font-family:var(--font-display);font-weight:800;font-size:1.35rem;color:var(--accent)}
+
+/* Distribución de veredictos: barras a escala sobre 51 análisis */
+.chart{background:var(--surface);border:1px solid var(--line);padding:1.25rem 1.4rem;display:flex;flex-direction:column;gap:.9rem}
+.bar-row{display:grid;grid-template-columns:4.5rem 1fr 2.5rem;gap:.75rem;align-items:center;font-family:var(--font-mono);font-size:.85rem;font-variant-numeric:tabular-nums}
+.bar-track{background:var(--low-soft);height:1.1rem;border-radius:2px;overflow:hidden}
+.bar{height:100%;background:var(--muted)}
+.bar.hold{background:var(--mid)}
+.bar.sell{background:var(--high)}
+.bar.buy{background:var(--accent)}
+.bar-row .n{text-align:right}
+.chart-note{font-size:.95rem;color:var(--muted)}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:1rem}
+.stat{display:flex;flex-direction:column;gap:.2rem;border-top:2px solid var(--line);padding-top:.6rem}
+.stat .v{font-family:var(--font-display);font-weight:800;font-size:1.6rem;font-variant-numeric:tabular-nums}
+.stat .l{font-size:.92rem;color:var(--muted);line-height:1.4}
+
+.pill{display:inline-block;font-family:var(--font-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;padding:.12rem .45rem;border-radius:3px;vertical-align:.12em;margin-right:.4rem;white-space:nowrap}
+.pill.high{background:var(--high-soft);color:var(--high)}
+.pill.mid{background:var(--mid-soft);color:var(--mid)}
+.pill.low{background:var(--low-soft);color:var(--low)}
+.pill.keep{background:var(--accent-soft);color:var(--accent)}
+
+.layer{display:flex;flex-direction:column;gap:.7rem;padding-top:.4rem}
+.layer h3 .tag{font-family:var(--font-mono);font-weight:400;font-size:.8rem;color:var(--muted);margin-left:.5rem}
+.findings{list-style:none;padding:0;gap:.8rem}
+.findings li{padding-left:0}
+
+.table-wrap{overflow-x:auto;border:1px solid var(--line);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.95rem;min-width:36rem}
+th,td{text-align:left;vertical-align:top;padding:.65rem .8rem;border-bottom:1px solid var(--line)}
+th{font-family:var(--font-display);font-weight:700;font-size:.85rem;letter-spacing:.02em;background:var(--low-soft)}
+tr:last-child td{border-bottom:0}
+td.v{font-family:var(--font-display);font-weight:700;white-space:nowrap}
+
+.horizons{display:flex;flex-direction:column;gap:1.25rem;counter-reset:h}
+.horizon{display:grid;grid-template-columns:3rem 1fr;gap:1rem;align-items:start}
+.horizon .num{font-family:var(--font-display);font-weight:800;font-size:2rem;color:var(--accent);line-height:1}
+.horizon .body{display:flex;flex-direction:column;gap:.5rem;min-width:0}
+.horizon .when{font-family:var(--font-mono);font-size:.8rem;color:var(--muted)}
+
+.dont li::marker{content:"✕  ";color:var(--high)}
+footer{border-top:1px solid var(--line);padding-top:1.5rem;font-size:.95rem;color:var(--muted);display:flex;flex-direction:column;gap:.5rem}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:480px){ .bar-row{grid-template-columns:3.6rem 1fr 2rem} .horizon{grid-template-columns:2.2rem 1fr} }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Due Diligence Engine · auditoría integral · 2 oct 2026</span>
+  <h1>Qué dice la auditoría y qué hacer con ella</h1>
+  <p class="lede">La arquitectura es correcta. La implementación no cumple lo que promete la documentación, y el veredicto final casi nunca discrimina. El orquestador no es el problema.</p>
+  <p class="muted">Explicación del informe completo que está en <code>docs/audits/2026-10-02-architecture-assessment.md</code>.</p>
+</header>
+
+<section>
+  <h2>Cómo se hizo</h2>
+  <p>Cinco investigaciones corrieron en paralelo. Tres auditores leyeron el código por capas: orquestación, datos y valoración, y prompts y razonamiento. Otros dos investigaron fuera: el estado de los frameworks agentic en 2026, y técnicas y fuentes de datos para valorar empresas.</p>
+  <p>Después comprobé a mano cada afirmación crítica contra el código y contra la base de datos de análisis. Nada entró al informe sin esa comprobación.</p>
+</section>
+
+<section>
+  <h2>El dato que cambia la lectura</h2>
+  <p>Ninguna auditoría de un ticker suelto podía ver esto. Solo aparece al mirar los 51 análisis guardados en SQLite a la vez.</p>
+  <div class="chart" role="img" aria-label="Distribución de veredictos: 44 HOLD, 6 SELL, 1 BUY sobre 51 análisis">
+    <div class="bar-row"><span>HOLD</span><div class="bar-track"><div class="bar hold" style="width:86.3%"></div></div><span class="n">44</span></div>
+    <div class="bar-row"><span>SELL</span><div class="bar-track"><div class="bar sell" style="width:11.8%"></div></div><span class="n">6</span></div>
+    <div class="bar-row"><span>BUY</span><div class="bar-track"><div class="bar buy" style="width:2%"></div></div><span class="n">1</span></div>
+    <p class="chart-note">Barras a escala sobre el total de 51 análisis registrados en <code>data/analyses.db</code>.</p>
+  </div>
+  <div class="stats">
+    <div class="stat"><span class="v">25</span><span class="l">HOLD con DCF upside superior al 30 %. CALM +3483 %, LULU +341 %, SYM +332 %.</span></div>
+    <div class="stat"><span class="v">7</span><span class="l">HOLD con downside peor que −20 %. KTOS llega a −96 %.</span></div>
+    <div class="stat"><span class="v">0,61–0,84</span><span class="l">Rango de confianza, da igual el caso. El sizing es 2 % en 25 de 41 informes.</span></div>
+  </div>
+  <p>El veredicto está desacoplado de la valoración. La causa es estructural: BUY exige cinco condiciones a la vez, y una regla del prompt dice literalmente que, si los métodos divergen, se adopte HOLD por defecto. La confianza la declara el propio modelo. QLYS salió BUY y luego HOLD con seis días de diferencia y los mismos datos.</p>
+</section>
+
+<section>
+  <h2>Lo que está bien y no hay que tocar</h2>
+  <ul>
+    <li><strong>La separación entre cálculo y LLM es real.</strong> Financials, peers y valuation no llaman al modelo. Los cuatro métodos de valoración y el reverse DCF son Python puro.</li>
+    <li><strong>Los nodos son funciones puras.</strong> El acoplamiento a LangGraph es mínimo, así que cualquier cambio de orquestador sería barato.</li>
+    <li><strong>El Critic independiente es el diseño correcto.</strong> La investigación de 2026 sobre debate entre agentes lo respalda.</li>
+    <li><strong>La rúbrica de moat con downgrade determinista</strong> es el patrón a extender a otras secciones.</li>
+    <li><strong>La disciplina documental</strong> de ADRs, edge cases y auditoría post-fix está muy por encima de la media.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Lo que está roto, por capa</h2>
+  <p class="muted">El informe tiene 19 hallazgos con archivo y línea. Aquí van los que más pesan.</p>
+
+  <div class="layer">
+    <h3>Razonamiento <span class="tag">prompts, síntesis, Critic</span></h3>
+    <ul class="findings">
+      <li><span class="pill high">Alto</span><strong>La validación de citas no existe.</strong> El campo <code>verified</code> nunca se asigna y no hay código de comparación con el filing. Cada cita trae una confianza del 100 % que pone el propio LLM. En KBR, una cita atribuye al CEO una compra que en el texto es del CFO.</li>
+      <li><span class="pill high">Alto</span><strong>El Critic escribe y nadie lo lee.</strong> Su salida solo se pega al markdown. No ajusta veredicto ni confianza. Además usa el mismo modelo que el Value Expert.</li>
+      <li><span class="pill high">Alto</span><strong>El prompt del Value Expert es un registro de parches.</strong> Tiene 22 reglas y 12 nacieron de un ticker concreto. Hay reglas que prohíben palabras en vez de corregir el razonamiento.</li>
+      <li><span class="pill mid">Medio</span><strong>Al Expert le falta contexto, no le sobra.</strong> El MD&amp;A se corta a 10 000 caracteres cuando uno real tiene entre 50 000 y 150 000. Las reglas pesan casi tanto como los datos.</li>
+    </ul>
+  </div>
+
+  <div class="layer">
+    <h3>Datos y valoración <span class="tag">XBRL, balance, DCF</span></h3>
+    <ul class="findings">
+      <li><span class="pill high">Alto</span><strong>El balance se extrae mal.</strong> La deuda a corto suma conceptos que se solapan. Las inversiones a corto están fijadas a cero. Así la deuda neta sale inflada en empresas con caja.</li>
+      <li><span class="pill high">Alto</span><strong>El último trimestre se elige ordenando texto.</strong> "Q4 2025" queda por delante de "Q1 2026".</li>
+      <li><span class="pill high">Alto</span><strong>El ROIC histórico no es ROIC.</strong> Usa el capital invertido del último año para todos los años, así que mide la tendencia del EBIT.</li>
+      <li><span class="pill high">Alto</span><strong>DCF y EPV no son comparables.</strong> El camino FCF funciona como un FCFE mal etiquetado. El fallback NOPAT no resta deuda neta, y el EPV sí. La tabla de convergencia los compara como si fueran lo mismo.</li>
+      <li><span class="pill mid">Medio</span><strong>Faltan métricas de calidad contable.</strong> No hay Piotroski, Altman, Beneish ni accruals, aunque todo se puede calcular desde XBRL.</li>
+    </ul>
+  </div>
+
+  <div class="layer">
+    <h3>Orquestación y cliente LLM</h3>
+    <ul class="findings">
+      <li><span class="pill high">Alto</span><strong>Un fallo de parseo se archiva como HOLD.</strong> El informe de DRS del 25 de abril contiene "Parse error" y está guardado como un HOLD normal.</li>
+      <li><span class="pill high">Alto</span><strong>El JSON se parsea a mano en cinco agentes.</strong> Nunca se valida contra el schema. Una respuesta cortada por límite de tokens solo genera un aviso.</li>
+      <li><span class="pill high">Alto</span><strong>El fallback a OpenAI captura cualquier error,</strong> incluidos bugs de programación, y no lo registra en el informe.</li>
+      <li><span class="pill mid">Medio</span><strong>El estado no persiste.</strong> La CLI usa memoria, así que un Ctrl+C pierde el análisis entero. Las respuestas socráticas del checkpoint 1 no las lee ningún nodo.</li>
+    </ul>
+  </div>
+
+  <div class="layer">
+    <h3>Evaluación</h3>
+    <ul class="findings">
+      <li><span class="pill high">Alto</span><strong>No hay ninguna.</strong> Los 390 tests simulan el LLM. El único juez de calidad son tus auditorías manuales con Opus, y cada una añade una regla nueva sin comprobar que no rompa las anteriores.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>¿LangGraph o deepagents?</h2>
+  <div class="verdict">
+    <span class="k">Mantener LangGraph y subir a 1.2.x</span>
+    <p>Tu checklist es un proceso conocido con un orden fijo: hechos, juicio humano, valoración, síntesis y crítica. La autonomía aporta cuando no se sabe qué pasos hacen falta, y aquí se sabe. Todos los sistemas financieros serios revisados usan un grafo fijo con cálculo determinista.</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Opción</th><th>Qué aporta</th><th>Por qué no encaja aquí</th></tr></thead>
+      <tbody>
+        <tr><td class="v"><span class="pill keep">Sí</span>LangGraph 1.2</td><td>Timeouts por nodo, manejador de errores, reintentos y caché nativos. Migrar desde 1.1.8 no rompe nada.</td><td>Encaja.</td></tr>
+        <tr><td class="v">deepagents 0.7</td><td>Sistema de ficheros virtual, subagentes, resumen de contexto, prompt caching.</td><td>El LLM decide qué subagente corre. El HITL es por herramienta, no un checkpoint socrático. Ya cambió el formato de checkpoints sin vuelta atrás.</td></tr>
+        <tr><td class="v">LangChain middleware</td><td>Fallback, reintentos, resumen y salida estructurada.</td><td>Solo actúa dentro de su propio bucle de agente. Tus nodos hacen una llamada con schema.</td></tr>
+        <tr><td class="v">Claude Agent SDK</td><td>Subagentes, hooks, MCP, sesiones.</td><td>Solo funciona con Claude y tú operas por OpenAI. Es un agente autónomo, no un grafo.</td></tr>
+        <tr><td class="v">Pydantic AI</td><td>Tipado fuerte, grafos y evals integradas.</td><td>Migrar no da nada que LangGraph no tenga. Su librería de evals sí conviene usarla.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Donde sí cabe autonomía es dentro de un nodo. Por ejemplo, que el agente de filings pida secciones del 10-K bajo demanda con un presupuesto de pasos, en vez de recibir 10 000 caracteres cortados. El grafo exterior sigue siendo fijo.</p>
+</section>
+
+<section>
+  <h2>Qué técnicas nuevas añadir primero</h2>
+  <p class="muted">Ordenadas por impacto dividido por esfuerzo.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Acción</th><th>Por qué</th></tr></thead>
+      <tbody>
+        <tr><td class="v">Actualizar edgartools</td><td>Pasar de 5.30 a 5.59 corrige bugs silenciosos de signo del capex, pasivos totales y TTM que te afectan directamente.</td></tr>
+        <tr><td class="v">Scores contables</td><td>Beneish, Piotroski, Altman, accruals, SBC sobre FCF. Todo determinista y le da hechos al Critic.</td></tr>
+        <tr><td class="v">DCF por escenarios</td><td>Bear, base y bull con probabilidades fijadas en el checkpoint 2, más Monte Carlo ligero. Da la probabilidad de que el valor supere al precio.</td></tr>
+        <tr><td class="v">Normalización cíclica</td><td>Márgenes y ROIC medios de 7 a 10 años para el EPV, y owner earnings con capex de mantenimiento.</td></tr>
+        <tr><td class="v">Base rates</td><td>Comparar el crecimiento implícito del reverse DCF con cuántas empresas de ese tamaño lo logran históricamente, con la SEC Frames API.</td></tr>
+        <tr><td class="v">Tipos de mercado vivos</td><td>Tipo libre de riesgo desde FRED y beta por industria de Damodaran, en lugar de 4,2 % y beta 1 fijados en el código.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>Hoja de ruta</h2>
+  <p>El principio es primero que el sistema no mienta, luego que razone mejor, luego que sepa más.</p>
+  <div class="horizons">
+    <div class="horizon"><span class="num">1</span><div class="body">
+      <h3>Integridad</h3><span class="when">2–3 semanas</span>
+      <p>Hacer commit de las 1 321 líneas pendientes. Usar salida estructurada nativa y tratar la respuesta cortada como error. Que un fallo de parseo bloquee el veredicto. Implementar la validación de citas. Arreglar balance, trimestres y el puente entre valor de empresa y valor por acción.</p>
+    </div></div>
+    <div class="horizon"><span class="num">2</span><div class="body">
+      <h3>Razonamiento evaluable</h3><span class="when">3–4 semanas</span>
+      <p>Montar el banco de pruebas con los 41 contextos ya generados. Cambiar el veredicto a BUY, WATCHLIST con precio de entrada, PASS y SELL. Que el Critic ajuste la confianza con reglas fijas. Usar un modelo frontier solo en Expert y Critic, que cuesta entre 0,3 y 1 € por decisión.</p>
+    </div></div>
+    <div class="horizon"><span class="num">3</span><div class="body">
+      <h3>Saber más</h3><span class="when">continuo</span>
+      <p>Añadir las técnicas de la tabla anterior, el contexto bajo demanda, transcripts desde los 8-K, short interest de FINRA y persistencia real con SQLite.</p>
+    </div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Qué no hacer</h2>
+  <ul class="dont">
+    <li>Migrar el orquestador a deepagents, Agent SDK o cualquier otro framework.</li>
+    <li>Añadir otra regla al prompt del Expert sin un test que la cubra.</li>
+    <li>Añadir un campo al schema que ningún nodo posterior lea.</li>
+    <li>Montar un bucle de revisión entre Expert y Critic. La investigación muestra que acaban dándose la razón.</li>
+    <li>Añadir un vector store antes de tener el banco de pruebas.</li>
+  </ul>
+</section>
+
+<footer>
+  <p><strong>Cómo usarlo.</strong> Lee el informe completo una vez. Cuando retomes el proyecto, ve directo a la hoja de ruta y empieza por el horizonte 1 en orden. Cada paso remite a su hallazgo con archivo y línea.</p>
+  <p>El informe completo está en <code>docs/audits/2026-10-02-architecture-assessment.md</code>, sin commit.</p>
+</footer>
+</div>
+</body>
+</html>

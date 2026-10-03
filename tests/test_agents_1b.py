@@ -691,6 +691,192 @@ def test_finnhub_skips_when_no_api_key(mocker):
     assert result == []
 
 
+# --- Tests: P2 — Finnhub fetch_quarterly_earnings (structured EPS actuals) ---
+
+def test_finnhub_quarterly_earnings_skips_when_no_api_key(mocker):
+    """P2: Sin FINNHUB_API_KEY, fetch_quarterly_earnings devuelve [] sin error."""
+    mocker.patch(
+        "due_diligence.tools.finnhub.settings",
+        finnhub_api_key="",
+    )
+    from due_diligence.tools.finnhub import FinnhubAdapter
+    result = FinnhubAdapter.fetch_quarterly_earnings("CGNX")
+    assert result == []
+
+
+def test_finnhub_quarterly_earnings_returns_structured_data(mocker):
+    """P2: fetch_quarterly_earnings devuelve lista de dicts con campos EPS."""
+    mock_raw = [
+        {
+            "period": "2025-10-01",
+            "actual": 0.17,
+            "estimate": 0.15,
+            "surprise": 0.02,
+            "surprisePercent": 13.3,
+            "revenueActual": 225_000_000.0,
+            "revenueEstimate": 215_000_000.0,
+        },
+        {
+            "period": "2025-07-01",
+            "actual": 0.14,
+            "estimate": 0.13,
+            "surprise": 0.01,
+            "surprisePercent": 7.7,
+            "revenueActual": None,
+            "revenueEstimate": None,
+        },
+    ]
+    mocker.patch(
+        "due_diligence.tools.finnhub.settings",
+        finnhub_api_key="test-key",
+    )
+    mock_client = mocker.MagicMock()
+    mock_client.company_earnings.return_value = mock_raw
+    mocker.patch("finnhub.Client", return_value=mock_client)
+
+    from due_diligence.tools.finnhub import FinnhubAdapter
+    result = FinnhubAdapter.fetch_quarterly_earnings("CGNX", limit=4)
+
+    assert len(result) == 2
+    assert result[0]["period"] == "2025-10-01"
+    assert result[0]["actual"] == 0.17
+    assert result[0]["surprisePercent"] == 13.3
+    assert result[1]["revenueActual"] is None
+
+
+def test_finnhub_quarterly_earnings_api_error_returns_empty(mocker):
+    """P2: Error de API devuelve [] sin propagar la excepción."""
+    mocker.patch(
+        "due_diligence.tools.finnhub.settings",
+        finnhub_api_key="test-key",
+    )
+    mock_client = mocker.MagicMock()
+    mock_client.company_earnings.side_effect = Exception("API rate limit")
+    mocker.patch("finnhub.Client", return_value=mock_client)
+
+    from due_diligence.tools.finnhub import FinnhubAdapter
+    result = FinnhubAdapter.fetch_quarterly_earnings("CGNX")
+    assert result == []
+
+
+def test_market_agent_wires_quarterly_eps_actuals(mocker, minimal_state):
+    """P2: market_agent llama a fetch_quarterly_earnings y popula quarterly_eps_actuals."""
+    mocker.patch(
+        "due_diligence.agents.market.PolygonAdapter.fetch_market_data",
+        return_value=_POLYGON_DATA_FULL,
+    )
+    mocker.patch(
+        "due_diligence.agents.market.FinnhubAdapter.fetch_company_news",
+        return_value=[],
+    )
+    mocker.patch(
+        "due_diligence.agents.market.FinnhubAdapter.fetch_quarterly_earnings",
+        return_value=[{"period": "2025-10-01", "actual": 0.17, "estimate": 0.15}],
+    )
+
+    result = market_agent(minimal_state)
+    report: MarketReport = result["market"]
+
+    assert len(report.quarterly_eps_actuals) == 1
+    assert report.quarterly_eps_actuals[0]["actual"] == 0.17
+
+
+def test_market_agent_quarterly_eps_actuals_empty_when_finnhub_fails(mocker, minimal_state):
+    """P2: quarterly_eps_actuals es [] cuando Finnhub falla, sin interrumpir el agente."""
+    mocker.patch(
+        "due_diligence.agents.market.PolygonAdapter.fetch_market_data",
+        return_value=_POLYGON_DATA_FULL,
+    )
+    mocker.patch(
+        "due_diligence.agents.market.FinnhubAdapter.fetch_company_news",
+        return_value=[],
+    )
+    mocker.patch(
+        "due_diligence.agents.market.FinnhubAdapter.fetch_quarterly_earnings",
+        return_value=[],
+    )
+
+    result = market_agent(minimal_state)
+    assert result["market"].quarterly_eps_actuals == []
+
+
+# --- Tests: P4 — Tavily fallback cuando 8-K extraction falla ---
+
+def test_market_agent_tavily_fallback_when_earnings_text_missing(mocker, minimal_state):
+    """P4: Si EDGAR no devuelve press release, Tavily busca earnings recientes."""
+    mocker.patch(
+        "due_diligence.agents.market.PolygonAdapter.fetch_market_data",
+        return_value=_POLYGON_DATA_FULL,
+    )
+    mocker.patch(
+        "due_diligence.agents.market.FinnhubAdapter.fetch_company_news",
+        return_value=[],
+    )
+    mocker.patch(
+        "due_diligence.agents.market.FinnhubAdapter.fetch_quarterly_earnings",
+        return_value=[],
+    )
+    mocker.patch(
+        "due_diligence.agents.market.EdgarEventsAdapter.fetch_earnings_press_release",
+        return_value=None,  # EDGAR no encuentra el filing
+    )
+    mocker.patch(
+        "due_diligence.agents.market.EdgarEventsAdapter.fetch_8k_events",
+        return_value=[],
+    )
+    tavily_spy = mocker.patch(
+        "due_diligence.agents.market.TavilyAdapter.search",
+        return_value=[
+            {"title": "CGNX Q1 2026 earnings", "url": "url1", "content": "Revenue $226M..."},
+        ],
+    )
+    mocker.patch(
+        "due_diligence.agents.market.settings",
+        market_news_include_tavily=True,
+        market_news_drawdown_threshold=0.70,
+        events_lookback_months=12,
+        edgar_8k_items="1.01,2.02,4.02,5.02,7.01,8.01",
+    )
+
+    result = market_agent(minimal_state)
+    # Tavily fue llamado (una vez por el fallback trimestral — drawdown no aplica aquí)
+    assert tavily_spy.call_count >= 1
+    # El texto de earnings debe estar populado desde Tavily
+    assert result["market"].quarterly_earnings_text is not None
+
+
+def test_market_agent_no_tavily_fallback_when_8k_text_sufficient(mocker, minimal_state):
+    """P4: Si 8-K devuelve texto suficiente (>500 chars), NO se invoca Tavily para earnings."""
+    mocker.patch(
+        "due_diligence.agents.market.PolygonAdapter.fetch_market_data",
+        return_value=_POLYGON_DATA_FULL,
+    )
+    mocker.patch(
+        "due_diligence.agents.market.FinnhubAdapter.fetch_company_news",
+        return_value=[],
+    )
+    mocker.patch(
+        "due_diligence.agents.market.FinnhubAdapter.fetch_quarterly_earnings",
+        return_value=[],
+    )
+    mocker.patch(
+        "due_diligence.agents.market.EdgarEventsAdapter.fetch_earnings_press_release",
+        return_value={"filing_date": "2026-05-06", "text": "A" * 600, "filing_url": ""},
+    )
+    mocker.patch(
+        "due_diligence.agents.market.EdgarEventsAdapter.fetch_8k_events",
+        return_value=[],
+    )
+    tavily_fallback_spy = mocker.patch(
+        "due_diligence.agents.market._fetch_quarterly_earnings_tavily",
+    )
+
+    result = market_agent(minimal_state)
+    # Con texto suficiente, el fallback NO se invoca
+    assert tavily_fallback_spy.call_count == 0
+    assert result["market"].quarterly_earnings_text == "A" * 600
+
+
 # ---------------------------------------------------------------------------
 # Tests: Competitive Agent
 # ---------------------------------------------------------------------------
@@ -870,3 +1056,134 @@ def test_competitive_peer_roic_empty_from_llm_parse():
     })
     report = _parse_competitive_response(raw, "AAPL")
     assert report.peer_roic_comparison == []  # vacío aquí — se rellena en peers_node
+
+
+# ---------------------------------------------------------------------------
+# Tests: _word_in_text — word boundary regex (EC-59, MCE-28)
+# ---------------------------------------------------------------------------
+
+class TestWordInText:
+    """
+    _word_in_text usa \b para que "fall" no matchee "falls" o "falling".
+    Esto elimina el false positive del thesis-break self-check (EC-59).
+    """
+
+    def _import(self):
+        from due_diligence.agents.value_expert import _word_in_text
+        return _word_in_text
+
+    def test_exact_word_matches(self):
+        """La palabra exacta (en infinitivo) sí hace match."""
+        _word_in_text = self._import()
+        assert _word_in_text("fall", "revenue will fall below threshold") is True
+
+    def test_inflected_form_no_match(self):
+        """PATH false positive: 'fall' NO debe matchear 'falling'."""
+        _word_in_text = self._import()
+        assert _word_in_text("fall", "revenue growth falling toward double digits") is False
+
+    def test_third_person_no_match(self):
+        """'fall' NO debe matchear 'falls'."""
+        _word_in_text = self._import()
+        assert _word_in_text("fall", "revenue falls below 10%") is False
+
+    def test_compress_no_match_compressing(self):
+        """CGNX EC-45 pattern: 'compress' NO debe matchear 'compressing'."""
+        _word_in_text = self._import()
+        assert _word_in_text("compress", "margins compressing due to pricing pressure") is False
+
+
+# ---------------------------------------------------------------------------
+# Tests: _thesis_break_self_check — dos etapas (EC-59, MCE-28)
+# ---------------------------------------------------------------------------
+
+class TestThesisBreakSelfCheck:
+    """
+    El thesis-break self-check tiene dos etapas:
+    1. Python word-boundary pre-filter (_word_in_text): verifica frases de
+       negative_condition_phrases en decision_frame Y en own_text (financial_quality/risks/growth).
+    2. LLM semantic validation (solo si Stage 1 dispara).
+
+    PATH false positive (EC-59): no debe disparar cuando decision_frame solo tiene
+    formas progresivas ("falling"), no la raíz exacta ("fall").
+
+    Firma: _thesis_break_self_check(report: ValueExpertReport, context: str) -> ValueExpertReport
+    """
+
+    def _make_report(
+        self,
+        decision_frame: str,
+        financial_quality: str = "",
+        risks: str = "",
+    ) -> "ValueExpertReport":
+        from due_diligence.schemas.reports import ValueExpertReport
+        return ValueExpertReport(
+            ticker="TEST",
+            stub=False,
+            decision_frame=decision_frame,
+            financial_quality=financial_quality or None,
+            risks=risks or None,
+        )
+
+    def test_no_warning_when_inflected_form_only(self, mocker):
+        """
+        PATH: decision_frame dice 'falling' y 'falls' (formas inflectadas).
+        Word boundary impide Stage 1 — LLM ni se invoca, decision_frame sin warning.
+
+        Stage 1 requiere que las palabras exactas de negative_condition_phrases estén
+        en decision_frame. "fall" no matchea "falling" con \b — el trigger no dispara.
+        """
+        from due_diligence.agents.value_expert import _thesis_break_self_check
+
+        # decision_frame con formas progresivas — "falling" no matchea la frase "revenue fall"
+        decision_frame = (
+            "§4 Revenue growing +13% YoY in FY2026. Strong demand signals.\n"
+            "§7 Revenue growth falling toward double digits is a forward risk.\n"
+            "§9 Thesis break: if FY2027 quarterly revenue falls below 10% growth.\n"
+        )
+        # own_text también con formas inflectadas — Stage 1 no puede completar el match
+        report = self._make_report(
+            decision_frame=decision_frame,
+            risks="Revenue growth is falling toward double digits.",
+        )
+
+        llm_spy = mocker.patch(
+            "due_diligence.agents.value_expert._validate_thesis_break_with_llm",
+            return_value=False,
+        )
+
+        result = _thesis_break_self_check(report, context="")
+
+        # Sin word-boundary exact match, el LLM no se invoca
+        assert llm_spy.call_count == 0
+        assert "THESIS-BREAK SELF-CHECK WARNING" not in (result.decision_frame or "")
+
+    def test_warning_added_when_llm_confirms_currently_true(self, mocker):
+        """
+        Cuando Stage 1 dispara (frases exactas en decision_frame + own_text)
+        Y el LLM confirma is_currently_true=True, el warning se añade al decision_frame.
+
+        Stage 1: "margin decline" está en decision_frame (§9) y en risks (own_text) → trigger.
+        Stage 2: LLM mock devuelve True → warning añadido.
+        """
+        from due_diligence.agents.value_expert import _thesis_break_self_check
+
+        # decision_frame contiene "margin decline" como frase exacta
+        decision_frame = (
+            "§4 Operating margin: FY2024=12%, FY2025=8%, FY2026=7%.\n"
+            "§9 Thesis break: if margin decline below 10%.\n"
+        )
+        # risks también menciona "margin decline" → own_text tiene ambas palabras
+        report = self._make_report(
+            decision_frame=decision_frame,
+            risks="Margin decline has accelerated — operating leverage has inverted.",
+        )
+
+        mocker.patch(
+            "due_diligence.agents.value_expert._validate_thesis_break_with_llm",
+            return_value=True,  # LLM confirma: condición actualmente cumplida
+        )
+
+        result = _thesis_break_self_check(report, context="")
+
+        assert "THESIS-BREAK SELF-CHECK WARNING" in (result.decision_frame or "")

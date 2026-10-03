@@ -49,21 +49,47 @@ _MAX_NEAR_TERM_GROWTH = 0.30   # 30% máximo
 _MIN_NEAR_TERM_GROWTH = -0.15  # -15% mínimo
 
 
+def _fcf_cagr_with_window(fcf_series: list[MetricValue]) -> tuple[Optional[float], int]:
+    """
+    Calcula el CAGR del FCF usando la ventana válida más larga disponible (EC-60).
+
+    Problema del enfoque full-span anterior (_fcf_cagr): usaba siempre el punto más
+    antiguo como denominador. Si ese año tenía FCF negativo (empresa en turnaround o
+    early stage), devolvía None aunque los años recientes fueran perfectamente positivos.
+    Ejemplo PATH: FCF negativo FY2022-2023, positivo FY2024-2026 → caída al revenue
+    CAGR fallback (15%) cuando el FCF real crecía al ~9.8%.
+
+    Algoritmo: escanea desde el extremo más antiguo hacia el más reciente buscando
+    el primer punto con FCF positivo. Calcula el CAGR desde ese punto.
+    Ejemplo: [352M, 310M, 292M, -50M, -100M] → i=2 (FY2024=292M>0) → CAGR 2y ≈ 9.8%.
+
+    Returns:
+        (cagr, n_periods_used) — CAGR como fracción y períodos reales usados.
+        (None, 0) si no existe ninguna ventana válida (newest negativo, o solo 1 punto).
+    """
+    if len(fcf_series) < 2:
+        return None, 0
+    newest = fcf_series[0].value
+    if newest is None or newest <= 0:
+        return None, 0
+    # Escanear desde más antiguo (i = len-1) hacia adelante buscando punto de inicio positivo
+    for i in range(len(fcf_series) - 1, 0, -1):
+        oldest = fcf_series[i].value
+        if oldest is not None and oldest > 0:
+            cagr = (newest / oldest) ** (1 / i) - 1
+            return cagr, i
+    return None, 0
+
+
 def _fcf_cagr(fcf_series: list[MetricValue]) -> Optional[float]:
     """
     Calcula el CAGR del FCF desde la serie histórica.
 
-    Requiere ≥ 2 puntos con el más antiguo > 0 (FCF negativo hace el CAGR sin sentido).
-    Devuelve None si los datos no son suficientes o válidos.
+    Wrapper de compatibilidad retroactiva sobre _fcf_cagr_with_window.
+    Devuelve solo el CAGR sin el número de períodos utilizados.
     """
-    if len(fcf_series) < 2:
-        return None
-    newest = fcf_series[0].value
-    oldest = fcf_series[-1].value
-    if oldest <= 0 or newest <= 0:
-        return None
-    n = len(fcf_series) - 1
-    return (newest / oldest) ** (1 / n) - 1
+    cagr, _ = _fcf_cagr_with_window(fcf_series)
+    return cagr
 
 
 def _three_stage_dcf(
@@ -240,6 +266,55 @@ def _normalized_fcf_proxy(ebit: float, net_income: Optional[float]) -> Optional[
     return ebit * (1 - tax_rate)
 
 
+def _fcf_quality_flag(
+    fcf_latest: float,
+    revenue_latest: float,
+    gross_profit_latest: Optional[float],
+) -> Optional[str]:
+    """
+    Detecta FCF posiblemente inflado por advance payments o timing de proyectos (EC-65).
+
+    Patrón SYM: FCF margin 36.7% con gross margin ~20% es imposible desde operaciones
+    normalizadas. La diferencia proviene de cobros anticipados de clientes (advance
+    payments) que entran como caja pero no como revenue hasta commissioning. Este FCF
+    es "FCF de ciclo de proyecto" — no FCF libre recurrente.
+
+    Lógica de detección:
+        1. Si FCF/Revenue > 25% Y gross_profit disponible:
+             flag si FCF margin > gross margin × 1.3
+             (FCF no puede superar sistemáticamente el gross profit sin cobros anticipados)
+        2. Si FCF/Revenue > 30% sin gross_profit:
+             flag genérico (FCF margin anómalamente alto sin contexto de margen)
+
+    No modifica el DCF — solo emite una advertencia textual para el analista.
+
+    Returns:
+        Mensaje de advertencia, o None si no hay anomalía.
+    """
+    if revenue_latest <= 0:
+        return None
+    fcf_margin = fcf_latest / revenue_latest
+    if fcf_margin < 0.25:
+        return None
+    if gross_profit_latest is not None and gross_profit_latest > 0:
+        gross_margin = gross_profit_latest / revenue_latest
+        if fcf_margin > gross_margin * 1.3:
+            return (
+                f"⚠️ FCF quality: FCF margin ({fcf_margin:.0%}) exceeds gross margin "
+                f"({gross_margin:.0%}) × 1.3×. FCF may be inflated by advance payments "
+                f"or favorable project timing — not necessarily recurrent free cash flow. "
+                f"DCF base may overstate normalized earnings power."
+            )
+    elif fcf_margin > 0.30:
+        return (
+            f"⚠️ FCF quality: FCF margin ({fcf_margin:.0%}) is unusually high (>30%). "
+            f"May reflect advance payments or deferred revenue. "
+            f"DCF base may overstate normalized earnings power."
+        )
+    return None
+
+
+
 # --- Constantes WACC advisory (ADR-029) ---
 # Rf: US 10y Treasury yield — actualizar manualmente cuando los tipos cambien significativamente.
 _RF_PCT: float = 4.2    # as of 2026-05
@@ -293,6 +368,7 @@ def _compute_epv(
     net_debt: float,
     shares: Optional[float],
     market_cap: Optional[float],
+    price_current: Optional[float] = None,  # EC-63: para calcular upside con precio real-time
 ) -> tuple:  # (Optional[MetricValue], Optional[MetricValue], Optional[float], Optional[str])
     """
     Earnings Power Value — Greenwald (ADR-029).
@@ -353,7 +429,10 @@ def _compute_epv(
             source=f"EPV ({source})",
         )
 
-    if market_cap is not None and market_cap > 0:
+    # EC-63: preferir cálculo per-share con price_current (real-time) sobre market_cap (stale).
+    if epv_ps_mv is not None and price_current is not None and price_current > 0:
+        epv_upside = round((epv_ps_mv.value - price_current) / price_current * 100, 1)
+    elif market_cap is not None and market_cap > 0:
         # upside enterprise-level: (EPV_enterprise - mkt_cap) / mkt_cap
         # mkt_cap sirve como proxy de enterprise value para este upside indicativo
         epv_upside = round((epv_enterprise - market_cap) / market_cap * 100, 1)
@@ -460,7 +539,11 @@ def _classify_ev_ebit_vs_peers(
     <0.7× mediana = cheap (descuento relevante vs comparables).
     >1.3× mediana = expensive (prima significativa sobre comparables).
     """
-    if subject_ev_ebit is None or peer_ev_ebit_median is None or peer_ev_ebit_median <= 0:
+    # EV/EBIT no tiene significado económico cuando el EBIT es negativo o cero (EC-62).
+    # Un ratio negativo vs peers positivo produce "cheap" incorrecto.
+    if subject_ev_ebit is None or subject_ev_ebit <= 0:
+        return "n/a"
+    if peer_ev_ebit_median is None or peer_ev_ebit_median <= 0:
         return "n/a"
     ratio = subject_ev_ebit / peer_ev_ebit_median
     if ratio < 0.70:
@@ -565,8 +648,8 @@ def _compute_near_term_growth(
         growth = user_override_pct / 100
         source = "user_override"
     elif financials is not None and financials.free_cash_flow:
-        raw_cagr = _fcf_cagr(financials.free_cash_flow)
-        n_periods = max(1, len(financials.free_cash_flow) - 1)  # periodos de diferencia
+        # _fcf_cagr_with_window devuelve la ventana real usada, no len-1 fijo (EC-60).
+        raw_cagr, n_periods = _fcf_cagr_with_window(financials.free_cash_flow)
 
         if raw_cagr is not None:
             if revenue_cagr is not None and raw_cagr > revenue_cagr:
@@ -597,10 +680,13 @@ def _sensitivity_table(
     fade_years: int = 0,
 ) -> list[dict]:
     """
-    Tabla 3×3: eje X = WACC ± 1%, eje Y = g1 (stage 1 growth) ± 5%.
+    Tabla 3×3: eje X = WACC ± 2%, eje Y = g1 (stage 1 growth) ± 5%.
 
-    Cada celda es el equity value total del DCF 3-stage. Permite ver el rango de
-    valores razonables sin tener que re-ejecutar el análisis. El fade se mantiene
+    EC-64: delta ampliado de ±1% a ±2% para cubrir empresas de alto riesgo donde el
+    WACC apropiado puede superar en 4-5pp el advisory (e.g. SYM: advisory 9.7%,
+    WACC razonable 14-17%). Con ±1% el analista veía solo 13-15%; con ±2% ve 12-16%.
+
+    Cada celda es el equity value total del DCF 3-stage. El fade se mantiene
     fijo en todas las celdas — solo g1 y WACC varían.
 
     stage1_years=0 + fade_years=0 equivale al comportamiento 2-stage original
@@ -614,7 +700,7 @@ def _sensitivity_table(
     for g_delta in (0.05, 0.0, -0.05):
         g = growth_center + g_delta
         row = {"near_term_growth_pct": round(g * 100, 1), "values": {}}
-        for w_delta in (-0.01, 0.0, 0.01):
+        for w_delta in (-0.02, 0.0, 0.02):
             w = wacc_center + w_delta
             val = _three_stage_dcf(base_fcf, g, terminal_growth, w,
                                    stage1_years=s1, fade_years=fd)
@@ -767,6 +853,9 @@ def valuation_agent(state: AnalysisState) -> dict:
     cash: Optional[float] = None
     fcf_period: str = "N/A"
 
+    revenue_latest: Optional[float] = None
+    gross_profit_latest: Optional[float] = None
+
     if financials is not None:
         if financials.free_cash_flow:
             base_fcf = financials.free_cash_flow[0].value
@@ -779,6 +868,10 @@ def valuation_agent(state: AnalysisState) -> dict:
             total_debt = financials.total_debt.value
         if financials.cash_and_equivalents is not None:
             cash = financials.cash_and_equivalents.value
+        if financials.revenue:
+            revenue_latest = financials.revenue[0].value
+        if financials.gross_profit:
+            gross_profit_latest = financials.gross_profit[0].value
 
     # --- 3. Extraer market cap y precio del MarketReport ---
     market_cap: Optional[float] = None
@@ -813,9 +906,9 @@ def valuation_agent(state: AnalysisState) -> dict:
     )
 
     # Detectar si se aplicaron caps (FCF_CAGR pre-cap puede calcularse desde el source)
-    raw_cagr: Optional[float] = (
-        _fcf_cagr(financials.free_cash_flow)
-        if financials is not None and financials.free_cash_flow else None
+    raw_cagr, _ = (
+        _fcf_cagr_with_window(financials.free_cash_flow)
+        if financials is not None and financials.free_cash_flow else (None, 0)
     )
     growth_was_capped = (
         raw_cagr is not None
@@ -880,6 +973,48 @@ def valuation_agent(state: AnalysisState) -> dict:
         )
         log.warning("valuation_dcf_growth_capped", ticker=ticker, raw_cagr=f"{raw_cagr:.0%}")
 
+    # EC-65: FCF quality flag — detecta FCF inflado por advance payments o project timing.
+    # No modifica el DCF; solo añade advertencia cuando FCF margin >> gross margin.
+    fcf_quality_warning: Optional[str] = None
+    if base_fcf is not None and base_fcf > 0 and revenue_latest is not None and revenue_latest > 0:
+        fcf_quality_warning = _fcf_quality_flag(base_fcf, revenue_latest, gross_profit_latest)
+        if fcf_quality_warning:
+            note_parts.append(fcf_quality_warning)
+            log.warning("valuation_fcf_quality_flag", ticker=ticker,
+                        fcf_margin=f"{base_fcf/revenue_latest:.0%}")
+
+    # --- P5: Cyclical peak base qualifier ---
+    # Si el revenue más reciente supera la mediana histórica en >15%, el CAGR está
+    # anclado a un año boom. Ejemplo: CGNX FY2022 (pico de automatización post-COVID)
+    # → CAGR 5y aparece -0.4%, pero desde trough es +9%. El LLM y el usuario deben
+    # saber que las proyecciones parten de una base potencialmente elevada.
+    if (
+        financials is not None
+        and financials.revenue is not None
+        and len(financials.revenue) >= 3
+        and assumptions.revenue_growth_yr1_pct is None  # no si el usuario ya overrideó
+    ):
+        rev_values = [r.value for r in financials.revenue if r.value and r.value > 0]
+        if len(rev_values) >= 3:
+            rev_median = sorted(rev_values)[len(rev_values) // 2]
+            rev_latest = rev_values[0]
+            if rev_median > 0 and rev_latest > rev_median * 1.15:
+                peak_ratio = rev_latest / rev_median
+                note_parts.append(
+                    f"⚠️ Cyclical peak base: current revenue is {peak_ratio:.1f}x the "
+                    f"historical median of the last {len(rev_values)} years. "
+                    f"The CAGR-derived growth rate may be anchored to a boom year — "
+                    f"forward DCF could overstate sustainable growth. "
+                    f"Consider using a normalized (mid-cycle) revenue base for projections."
+                )
+                log.info(
+                    "valuation_cyclical_peak_base_detected",
+                    ticker=ticker,
+                    rev_latest=f"{rev_latest/1e9:.2f}B",
+                    rev_median=f"{rev_median/1e9:.2f}B",
+                    ratio=f"{peak_ratio:.2f}",
+                )
+
     log.info(
         "valuation_agent_assumptions",
         ticker=ticker,
@@ -926,7 +1061,14 @@ def valuation_agent(state: AnalysisState) -> dict:
                 period=fcf_period,
                 source=f"calculated ({dcf_base_source})",
             )
-        if market_cap is not None and market_cap > 0:
+        # EC-63: preferir cálculo per-share usando price_current (real-time vía Finnhub quote()).
+        # market_cap de basicFinancials puede ser de la fecha del último filing (stale hasta
+        # 12-18 meses). price_current es siempre real-time → upside % coherente con dcf_per_share.
+        if dcf_per_share is not None and price_current_mv is not None and price_current_mv.value > 0:
+            dcf_upside = round(
+                (dcf_per_share.value - price_current_mv.value) / price_current_mv.value * 100, 1
+            )
+        elif market_cap is not None and market_cap > 0:
             dcf_upside = round((equity_value - market_cap) / market_cap * 100, 1)
     else:
         log.warning("valuation_agent_no_dcf_base", ticker=ticker,
@@ -1041,10 +1183,30 @@ def valuation_agent(state: AnalysisState) -> dict:
         net_debt=net_debt,
         shares=shares,
         market_cap=market_cap,
+        price_current=price_current_mv.value if price_current_mv is not None else None,
     )
 
     # --- 8c. WACC advisory (ADR-029) ---
     suggested_wacc, wacc_breakdown = _compute_suggested_wacc(market_cap=market_cap)
+
+    # EC-64: si el WACC usado difiere >3pp del advisory, añadir nota visible al analista.
+    # El advisory usa β=1 sin company-specific risk — para empresas de alto riesgo
+    # (concentración de clientes, SEC investigation, restatements) la diferencia puede
+    # ser estructural. La sensitivity table (±2%) cubre el rango relevante.
+    wacc_delta_pp = round(assumptions.wacc_pct - suggested_wacc, 1)
+    if abs(wacc_delta_pp) > 3.0:
+        direction = "above" if wacc_delta_pp > 0 else "below"
+        wacc_note = (
+            f"WACC used ({assumptions.wacc_pct}%) is {abs(wacc_delta_pp):.1f}pp {direction} "
+            f"advisory ({suggested_wacc}%). Advisory uses β=1.0 (no company-specific risk). "
+            f"For high-risk profiles (customer concentration >50%, active SEC investigation, "
+            f"restatements), consider adding 2-5pp. Sensitivity table covers "
+            f"{assumptions.wacc_pct - 2:.1f}%–{assumptions.wacc_pct + 2:.1f}%."
+        )
+        if dcf_reliability_note:
+            dcf_reliability_note = dcf_reliability_note + " | " + wacc_note
+        else:
+            dcf_reliability_note = wacc_note
 
     # --- 9. Magic Formula rank (MCE-18) ---
     # peer_valuations populated by peers_node; mf_rank=None there, computed here.
@@ -1118,6 +1280,7 @@ def valuation_agent(state: AnalysisState) -> dict:
         suggested_wacc_pct=suggested_wacc,
         suggested_wacc_breakdown=wacc_breakdown,
         valuation_methods_summary=methods_summary,
+        fcf_quality_warning=fcf_quality_warning,
     )
 
     log.info(

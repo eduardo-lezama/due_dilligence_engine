@@ -50,6 +50,14 @@ RULES:
 - Base every claim ONLY on the provided 10-K text. Never invent facts.
 - For each qualitative claim, include a citation with the section name and an exact excerpt.
 - REGULATORY EVENTS: If Item 1A or Item 7 mentions ANY specific government action — entity list addition, export restriction, BIS/OFAC/SEC enforcement, sanctions, going-concern language — report it verbatim in key_regulatory_events with the entity name and date. Do NOT generalize these into "regulatory risk" — name the specific event.
+- GOVERNANCE RED FLAGS (EC-66): You MUST check for and separately report ALL of the following if mentioned ANYWHERE in the provided text:
+    1. Active SEC investigations or formal inquiries targeting the company itself (not industry-wide)
+    2. Material weaknesses or significant deficiencies in internal controls over financial reporting
+    3. Non-reliance on previously issued financial statements (restatements)
+    4. Class action lawsuits or securities fraud allegations
+    5. Whistleblower interference or obstruction allegations
+  Report these in governance_red_flags with the specific event, date if available, and verbatim excerpt.
+  If NONE of the above are found, set governance_red_flags to null. Do NOT skip this field.
 - If information is not available in the provided text, say "Not available in provided sources."
 - Return ONLY valid JSON matching the schema below. No markdown, no explanation outside JSON.
 
@@ -61,7 +69,8 @@ OUTPUT SCHEMA:
   "backlog_usd": <float or null — contracted backlog in USD if mentioned in Item 7, e.g. 1270000000.0>,
   "revenue_guidance": "<string or null — management's stated guidance for next period, e.g. '$1.1B–$1.2B revenue in 2026, 21-30% growth'>",
   "geographic_revenue_breakdown": "<string or null — revenue split by geography if disclosed, e.g. 'China: 85%, US: 8%, Other: 7%'>",
-  "key_regulatory_events": "<string or null — SPECIFIC government actions: entity list additions, export restrictions, enforcement with dates/entities. Null if none found. Example: 'December 2, 2024: BIS added ACM Research (Shanghai) to Entity List, restricting access to US-origin technology.'>",
+  "key_regulatory_events": "<string or null — SPECIFIC external government actions: entity list additions, export restrictions, BIS/OFAC/SEC enforcement orders with dates/entities. Null if none found. Example: 'December 2, 2024: BIS added ACM Research (Shanghai) to Entity List, restricting access to US-origin technology.'>",
+  "governance_red_flags": "<string or null — CRITICAL INTERNAL governance failures: active SEC investigations of the company, material weaknesses, restatements, class action lawsuits, whistleblower interference. Null if none found. Example: 'November 2024: Company restated 3 quarters of FY2024 financials due to revenue recognition errors (~$30-40M). SEC is investigating potential whistleblower interference. Class action filed covering Feb 8 – Nov 26, 2024.'>",
   "citations": [
     {
       "claim": "<exact claim being cited>",
@@ -117,6 +126,14 @@ Answer each question using ONLY the sources above:
 5. Has the company been subject to any SPECIFIC government action — entity list, export restriction, BIS/OFAC/SEC action, sanctions — in the last 12-24 months? If so, name the entity, date, and scope VERBATIM from the filing.
 6. What does management highlight as key challenges in MD&A?
 
+§ Governance Red Flags (MANDATORY — do not skip):
+10. Does the filing disclose an ACTIVE SEC investigation or formal inquiry targeting this specific company (not a general industry risk)? Quote the exact language.
+11. Does the filing mention material weaknesses or significant deficiencies in internal controls over financial reporting? Quote the exact language with dates.
+12. Does the filing reference any financial restatement, non-reliance on previously issued statements, or revenue recognition errors? Quote the exact language.
+13. Does the filing mention any pending or threatened class action securities lawsuits? Provide the claim period and allegations if available.
+14. Is there any mention of whistleblower-related issues, obstruction, or retaliation allegations?
+If NONE of questions 10-14 apply, explicitly state "No governance red flags found in provided text."
+
 § Operational Metrics (from Item 7):
 7. Is there a contracted backlog figure? If so, what is it in USD?
 8. Does management provide revenue or growth guidance for the next period? Quote it exactly.
@@ -167,6 +184,7 @@ def _parse_llm_response(response_text: str, ticker: str) -> FilingsRAGReport:
             revenue_guidance=data.get("revenue_guidance"),
             geographic_revenue_breakdown=data.get("geographic_revenue_breakdown"),
             key_regulatory_events=data.get("key_regulatory_events"),
+            governance_red_flags=data.get("governance_red_flags"),
             citations=citations,
         )
 

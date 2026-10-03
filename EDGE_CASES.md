@@ -352,6 +352,18 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 
 ## Conocidos — pendientes de fix
 
+### Pendientes tras H1 (2026-10)
+
+- **Crecimiento de stage 1 frágil**: derivado del CAGR histórico del FCF. AZO −4,6 % por capex en expansión vs revenue +8,4 %; BBW 15,7 % por una ventana que arranca en el valle COVID. Solución prevista: base rates (H3-4).
+- **Revenue sin `merge_annual`**: `annual_series` de revenue aún no fusiona la cadena año a año; un cambio de concepto antes de 2018 deja años antiguos sin dato (la ventana de 5 años no se ve afectada hoy).
+- **Validación semántica claim↔excerpt** (H2-5, MCE-31): la validación de citas prueba que el texto existe, no que sostenga el claim.
+- **Déficit de pensiones fuera del bridge** (H3); LTI puede incluir participaciones operativas; leases operativos no capitalizados (H3).
+- **Prima de tamaño OFF** hasta tener β por industria (H3-5).
+- **Tabla de spreads del rating sintético** pendiente de verificar contra Damodaran `ratings.htm`; Kd usa deuda contable como proxy del valor de mercado.
+- **`cash_series` vs `cash_and_equivalents`**: `cash_series` se define como caja + STI mientras `cash_and_equivalents` es solo caja — revisar consistencia.
+- **Restatements** en `backfill_gaps`/`EdgarFactsLookup` (toman el filing más reciente); `operating_income` trimestral solo con `OperatingIncomeLoss`.
+- **Inputs FCFF ausentes en fixtures legacy**: ya regenerados en T14 para los 4 arquetipos; cualquier fixture antiguo restante cae a OCF − capex con nota de reliability.
+
 ### EC-11 — Foreign private issuers (ADRs no-US, 20-F filers)
 - **Tickers afectados**: GRVY (Corea), ONON (Suiza), BABA (China), TSM (Taiwan), NMM (Marshall Islands), cualquier 20-F filer.
 - **Síntoma original**: crash críptico (`AttributeError: NoneType has no attribute period_of_report`) envuelto en mensaje engañoso "could not resolve ticker".
@@ -384,7 +396,7 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
   3. El sistema tiene mecanismo de staleness para earnings (>90 días desde 10-K) pero no para cambios estructurales de capital post-10-K.
 - **Fix**:
   1. En `value_expert.py` `_format_context()`: detección de Item 1.01 con M&A keywords (`"purchase agreement"`, `"acquisition"`, `"merger agreement"`, etc.). Cuando detectado: bloque `## POST-10-K ACQUISITION DETECTED` con texto completo (800 chars) + ⚠️ balance sheet staleness warning. Patrón auto-flag del proyecto.
-  2. Rule #18 en `_SYSTEM_PROMPT` del value_expert: cuando el bloque está presente, §4 MUST flag balance sheet stale, §5 MUST distinguir orgánico/inorgánico, §6 MUST cavetar EV multiples, §9 MUST nominar pending 10-Q como evento resolutor.
+  2. Rule #19 (numeración corregida en H1; la 18 es PEER RELATIVE VALUATION) en `_SYSTEM_PROMPT` del value_expert: cuando el bloque está presente, §4 MUST flag balance sheet stale, §5 MUST distinguir orgánico/inorgánico, §6 MUST cavetar EV multiples, §9 MUST nominar pending 10-Q como evento resolutor.
 - **Aplicabilidad sistemática**: cualquier empresa que haya hecho una adquisición material entre el 10-K y la fecha del análisis. Especialmente crítico para small/mid caps con M&A frecuente donde el 10-K puede tener 3-6 meses de antigüedad.
 - **Commit**: pendiente
 
@@ -536,11 +548,139 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Síntoma**: `complete()` caía a OpenAI ante cualquier `Exception` de Anthropic, incluidos bugs propios; `_complete_anthropic` no registraba el uso; `_MODEL_PRICING` no tenía modelos Claude (coste ≈ 0); `RunStats` no decía qué modelo había respondido. Además, los modelos Claude actuales (Opus 4.7+, Sonnet 5.5, Fable) devuelven 400 si se envía `temperature`, y con thinking activo `content[0]` no es texto.
 - **Causa raíz**: wrapper diseñado para un único caso feliz; sin errores tipados (`LLMError` nunca se lanzaba).
 - **Fix**: `llm/errors.py` con jerarquía tipada; `LLMClient.structured()` con fallback solo ante `LLMProviderError(fallback_eligible=True)`; `_record_usage` único (incluye Claude); precios Claude con resolución por prefijo (exacto primero); `RunStats.calls_by_model` + `LLMClient.last_model_used`; `temperature` solo a familias que la aceptan; texto del primer bloque `type == "text"`. Ver ADR-032.
-- **Commit**: H1 Task 1
+- **Commit**: `3f4388f`
 
 ### EC-89 — Tests con llamadas de red reales ocultas por el `.env` local
 - **Síntoma**: en un checkout sin `.env` fallaban 4 tests; con `.env` pasaban haciendo llamadas reales a OpenAI (end-to-end de grafo, validador de thesis-break) y a Finnhub/EDGAR (agente de mercado). La suite tampoco arrancaba sin `.env` porque `Settings()` exige `SEC_USER_AGENT` al importar.
 - **Causa raíz**: mocks incompletos del fan-out de especialistas y del validador ADR-031; `set_test_env` corría después de importar `due_diligence.config`.
 - **Fix**: `tests/conftest.py` fija `SEC_USER_AGENT` a nivel de módulo y añade el fixture autouse `block_real_network_clients` (constructores de `openai.OpenAI`, `anthropic.Anthropic` y `tavily.TavilyClient` lanzan error); helper `_mock_specialists` en `tests/test_graph_1a.py`; validador mockeado en los tests de thesis-break.
-- **Commit**: H1 Task 1
+- **Commit**: `3f4388f`
 
+
+### EC-68 — Fallos de parseo del LLM disfrazados de contenido real ("HOLD fantasma")
+- **Síntoma**: cuando el LLM devolvía JSON truncado o mal formado, el report del especialista salía con `stub=False` y el texto `"[Parse error] Raw LLM response: ..."` dentro de `mda_highlights` (filings) o campos vacíos (management, competitive, critic). El Value Expert, ante el mismo fallo, producía un `verdict="HOLD"` de relleno y el archivo se llamaba `...-HOLD.md` / `...-PENDING.md`. Un fallo técnico se archivaba como una decisión de inversión.
+- **Causa raíz**: (1) `complete()` devolvía texto libre y cada agente recortaba el JSON con `find("{")`/`rfind("}")` + `json.loads` dentro de un `except Exception` que nunca propagaba; (2) el report no tenía forma de expresar "corrió y falló" (solo `stub`); (3) `complete()` hacía fallback de proveedor ante cualquier excepción, incluidas truncaciones.
+- **Fix**: `LLMClient.structured()` con structured outputs nativos y errores tipados (`llm/errors.py`, T1); schemas de salida estrictos en `schemas/llm_outputs.py` (T2a); cada agente captura `LLMError` y devuelve `stub=True, error="<Clase>: msg"` (T2b filings, T2c management/competitive/critic, T2d Value Expert sin VERDICT y con un único reintento solo ante `LLMSchemaError`); el archiver nombra el report `-INCOMPLETE.md` y lista los fallos; la CLI muestra panel rojo "ANALYSIS INCOMPLETE" (T2e). ADR-032.
+- **Commit**: `2213879` (T2b), `cb3f4b4` (T2c), `d32a753` (T2d), `cb5b04b` (T2e)
+
+### EC-69 — Citas nunca validadas y números del LLM presentados como dato
+- **Síntoma**: el invariante 2 (CLAUDE.md) y ADR-005 decían que toda cita se validaba por substring-match contra el filing; en el código no existía ningún validador. Las citas llegaban al report y al contexto del Value Expert tal como las emitía el LLM (incluidas paráfrasis y excerpts inventados). Además `insider_ownership_pct`, `ceo_tenure_years`, `form4_transactions_12m` y `backlog_usd` los generaba el LLM y se presentaban como datos ("Insider ownership (DEF 14A)"), y `insider_transaction_pattern` —texto libre del LLM— se etiquetaba "(Form 4)" (origen del caso KBR CEO/CFO).
+- **Causa raíz**: la validación post-hoc se diseñó en Fase 0 (ADR-005) pero nunca se implementó; los agentes construían `Citation` directamente desde el JSON del LLM, y los schemas permitían al LLM rellenar campos numéricos sin evidencia. Durante ~6 meses la documentación afirmó una validación inexistente.
+- **Fix**: `validation/citations.py` (T3a): substring normalizado (NFKC, comillas/guiones tipográficos, minúsculas, espacios) o `rapidfuzz.partial_ratio ≥ 90`; todos los números del excerpt deben estar en la ventana alineada; excerpt < 20 caracteres → rechazado; corpus vacío → todas rechazadas con nota. Rechazadas: `verified=False`, `confidence=0`, `verification_note`. `gate_llm_value`: un número del LLM solo se conserva si su cita se verifica Y contiene el número (a escala ×1/×1e3/×1e6/×1e9). T3b: validación dentro de cada nodo con el corpus local; `form4_transactions_12m = len(form4_transactions)` (determinista); ownership y tenure solo contra fuentes primarias (DEF 14A, 10-K Item 10, Form 4), nunca Tavily/transcripts; `source_url` normalizado a la etiqueta real del corpus. T3c: el contexto del Expert y la sección "Sources & Citations" solo muestran citas verificadas; las rechazadas van a "## Unverified citations (excluded from synthesis)"; narrativa LLM etiquetada "(LLM summary, unverified)". Corrección en ADR-005.
+- **Pendiente (H2)**: validación semántica claim↔excerpt (un excerpt real puede no sostener el claim, p.ej. CEO vs CFO).
+- **Commit**: `fbcce66` (T3a), `61eea27` (T3b), `bd7fbe9` (T3c)
+
+### EC-70 — Datos extraídos que nunca llegaban a la síntesis
+- **Síntoma**: `governance_red_flags` (EC-66: investigaciones SEC, material weaknesses, restatements, class actions) se extraía del 10-K pero ningún consumidor lo leía: ni el Value Expert, ni el Critic, ni el report. Las respuestas socráticas del checkpoint 1 (`answers`) no llegaban al Expert, y `growth_justification` (checkpoint 2) solo aparecía si existía `historical_cagr_5y`, mezclada con la evidencia en el bloque HISTORICAL CONTEXT.
+- **Causa raíz**: sin contrato productor→consumidor: un campo nuevo en un report no obliga a nadie a consumirlo, y ningún test lo detectaba. Las reglas de prompt (23/24) no tenían check determinista.
+- **Fix**: T4a — bloque `## GOVERNANCE RED FLAGS (from 10-K)` en el contexto del Expert y en el prompt del Critic, sección `## Governance Red Flags (10-K)` en el report, regla 23 en el prompt; `FilingsLLMOutput.active_sec_investigation`/`material_weakness` + `governance_citation`: los flags `True` solo sobreviven con cita verificada y activan un tope determinista `verdict_confidence ≤ 0.6`; check post-output: si §7 no nombra un flag verificado → caveat "⚠️ §7 omits governance flag". T4b — `_format_investor_hypotheses`: bloque `## INVESTOR'S OWN HYPOTHESES (evaluate critically, do not adopt)` al final del contexto con respuestas no vacías y `growth_justification` (aunque no haya CAGR); regla 24 + check determinista de etiquetas SUPPORTED/CONTRADICTED/UNTESTABLE en §8. T4c — guard test `tests/test_schema_consumers.py`: todo campo de los reports especialistas y de `FinancialsReport`/`CriticReport` tiene consumidor (value_expert, critic, archiver, cli) o una excusa documentada en `_ALLOWLIST`; numeración "Rule 18" → "Rule 19" corregida (ver EC-53).
+- **Commit**: `4dde992` (T4a), `6ce615c` (T4b), `61fac3f` (T4c)
+
+### EC-72 — DCF descontaba FCF apalancado al WACC sin bridge
+- **Síntoma**: valor por acción del DCF +18 % en una empresa apalancada (ejemplo A: $222,22 vs $195,37 correcto) y −21 % en una con caja neta (ejemplo C: $24,79 vs $31,35); `_mv_val(financials.diluted_shares)` sobre una lista habría dado `AttributeError` en cada run.
+- **Causa raíz**: `FCF = OCF − capex` (ya neto de intereses) descontado a una tasa llamada WACC y presentado como equity sin restar deuda ni sumar caja/STI/LTI; acciones = portada sin dilución.
+- **Fix**: `valuation_agent` → FCFF normalizado (mediana del margen 3 años) → `dcf_components` con valor terminal con reinversión → EV capitalizado a la fecha de valoración → `equity_bridge` (deuda, NCI, preferentes, caja, STI, LTI + participaciones) → `resolve_share_count` (portada × diluidas/básicas) → upside por acción. `ValuationInputError` capturado → `ValuationReport(stub=True, error=...)`. Test de integración `parse_financials → valuation_agent` con STI > 0.
+- **Commit**: `a547e9a` (T12a)
+
+### EC-73 — EPV upside comparaba EV con market cap sin precio
+- **Síntoma**: sin precio (o con shares ausentes) el upside del EPV se calculaba como (EPV_enterprise − market cap)/market cap: EV contra equity, sesgado por toda la deuda neta. El EPV además restaba solo deuda − caja (sin STI/LTI/NCI/preferentes) y usaba `1 − NI/EBIT` como tipo.
+- **Causa raíz**: fallback "indicativo" que mezclaba planos; bridge del EPV distinto del (inexistente) del DCF.
+- **Fix**: `_compute_epv(ebit_series, wacc, net_claims, shares, price_current, mid_year, *, capitalization)` → mismo `net_claims` que el DCF, tipo marginal, misma capitalización a fecha de valoración, upside solo por acción (None + nota sin precio), `epv_growth_premium = 1 − EPV/sh ÷ precio` (Greenwald).
+- **Commit**: `fe510d2` (T12b)
+
+### EC-74 — Reverse DCF buscaba el market cap con un modelo de EV
+- **Síntoma**: el growth implícito salía infraestimado en empresas apalancadas y sobreestimado con caja neta; los múltiplos EV usaban `market_cap + deuda − caja` (STI ignorada) y EV/FCF apalancado; peers con otra definición de EV.
+- **Causa raíz**: target equity (market cap) frente a un DCF que produce EV; cada consumidor tenía su "net debt".
+- **Fix**: target = market EV (precio × acciones + `net_claims`), deshecha la capitalización, misma función `dcf_components` (incluida la reinversión terminal y mid-year) que el DCF directo; None si la solución toca los bordes de búsqueda o market EV ≤ 0 ("net-net", múltiplos n/m). EV/EBIT, EV/FCFF, earnings yield, P/E (equity de mercado / NI), `peers.py` y `critic.py` usan `net_claims`.
+- **Commit**: `fe510d2` (T12b)
+
+### EC-75 — "Histórico" de convergencia era near_term_growth (circular)
+- **Síntoma**: la fila Reverse DCF de la convergencia comparaba el growth implícito con el mismo FCF CAGR que alimentaba el DCF directo; además comparaba un g1 de stage 1 (con fade posterior) contra una CAGR plana, y el EPV marcaba "expensive" con cualquier upside < 0 (asimétrico). La sensibilidad mostraba "equity" total en USD B sin bridge.
+- **Causa raíz**: `historical_cagr_for_conv = near_term_growth`; umbral EPV `< 0`; `_sensitivity_table` sobre `_three_stage_dcf` sin bridge ni acciones.
+- **Fix**: histórico = `historical_cagr_5y` (CAGR de ingresos); clasificación del reverse sobre la CAGR equivalente a 10 años del camino implícito (`_ten_year_equivalent_cagr`, `reverse_dcf_10y_equivalent`); banda EPV ±10 % simétrica; sensibilidad en USD/share por el mismo camino que el titular (reinversión terminal, capitalización, bridge), celdas inválidas `None`, `sensitivity_unit="USD/share"`; ADR-030 con la tabla de umbrales corregida.
+- **Commit**: `b0d62ca` (T12c)
+
+### EC-76 — WACC ≤ g recortado en silencio
+- **Síntoma**: con WACC 3 % y g 2,5 % el DCF devolvía valores absurdos (TV ≈ 200× FCF) sin aviso; con WACC = g, el código recortaba g a WACC − 0,5 pp.
+- **Causa raíz**: `_three_stage_dcf` "arreglaba" el input inválido (`terminal_growth = wacc - 0.005`) en lugar de fallar.
+- **Fix**: `valuation_math.validate_dcf_rates` lanza `ValuationInputError` si WACC ≤ 0 o WACC − g < 1 pp (con `round(…, 9)` para tolerar coma flotante); `_sensitivity_table` convierte las celdas inválidas en `None`; el agente (T12a) captura y devuelve `ValuationReport(stub=True, error=...)`; checkpoint 2 y la CLI re-preguntan (T11).
+- **Commit**: `cbbdea7` (T10), `f91e677` (T11), `a547e9a` (T12a)
+
+### EC-77 — Sesgos de inputs del FCF y del tipo impositivo
+- **Síntoma**: FCF sobreestimado (SBC sumado como no-caja), caja contada dos veces (intereses cobrados dentro del OCF + caja sumada en el bridge), tipo impositivo sobreestimado (EBIT 300, int 40, NI 195 → 35 % en vez de 25 %); EPV inflado en cíclicas por descartar años con EBIT negativo.
+- **Causa raíz**: `t = 1 − NI/EBIT` mete intereses y NCI en el impuesto; el FCF apalancado no restaba SBC ni intereses cobrados; `_ebit_median` filtraba `value > 0`.
+- **Fix**: `fcff_breakdown` (SBC como coste, interest income neto restado, principal de leasing financiero restado); tipo canónico `effective_tax_rate_multi` y `MARGINAL_TAX_RATE` para perpetuidades; `_ebit_median` incluye negativos y devuelve None si la mediana ≤ 0. Los inputs (intereses, SBC, D&A, acciones ponderadas, principal de leasing) se extraen en T8.
+- **Commit**: `57e8c27` (T8), `cbbdea7` (T10)
+
+### EC-78 — `_get_point` devolvía un año antiguo etiquetado como el actual
+- **Síntoma**: un concepto de balance sin dato en el último ejercicio (columna `FY 2025` = NaN) aparecía en el report con el valor de FY2024 pero etiquetado `FY2025`. Deuda/caja/activos de un año antes presentados como actuales, sin aviso.
+- **Causa raíz**: `_get_point(df, concept, period)` iteraba las columnas FY y devolvía el primer valor no-NaN, poniéndole la etiqueta `period` pedida. El parámetro `period` solo se usaba como etiqueta, nunca para seleccionar.
+- **Fix**: `xbrl_extract.point_value(df, concepts, period, facts)` → `select_period_value` lee la columna EXACTA del periodo; si falta, raw facts emparejados por `period_end` (`EdgarFactsLookup`); si tampoco, `None` (nunca un año distinto). Test `test_point_value_respects_period_instead_of_returning_stale_year`.
+- **Commit**: `6d13f52` (T5)
+
+### EC-79 — "CAGR 5 años" calculado con 3 años: `periods=4` por defecto
+- **Síntoma**: `revenue_cagr_5y` y las series anuales nunca tenían más de 4 años; el "CAGR 5y" era en realidad de 3 intervalos.
+- **Causa raíz**: `facts.income_statement()/balance_sheet()/cashflow_statement()` tienen `periods: int = 4` por defecto en edgartools. El `n=10` de `_get_annual` nunca tuvo efecto porque el DataFrame ya venía recortado.
+- **Fix**: `fetch_raw` pide `periods=10` a los tres estados. T7 fija las ventanas de los consumidores con `max_years=5` para no cambiar silenciosamente los defaults a CAGRs de 9 años.
+- **Commit**: `6d13f52` (T5)
+
+### EC-80 — Deuda doble-contada o infravalorada
+- **Síntoma**: `total_debt` inflado en empresas que reportan a la vez `LongTermDebt` (que YA incluye la porción corriente) y `LongTermDebtCurrent`/`DebtCurrent`; o infravalorado cuando la deuda corriente venía solo como `CommercialPaper` (no estaba en la cadena) o cuando el LTD venía como `...AndCapitalLeaseObligations` y además se sumaban leasings.
+- **Causa raíz**: la cadena ST sumaba TODOS los conceptos presentes (`ShortTermBorrowings + LongTermDebtCurrent + ... + DebtCurrent`), mezclando un total (`DebtCurrent`) con sus componentes; la cadena LT tomaba `LongTermDebt` (total incl. corriente) como "largo plazo". Un total se sumaba con sus componentes.
+- **Fix**: `xbrl_extract.resolve_debt` con política exclusiva: LT = noncurrent explícito, si no `LongTermDebt − porción corriente` (inferida de `DebtCurrent − borrowings` si no hay `LongTermDebtCurrent`, con flag); ST = `DebtCurrent` si existe, si no primer borrowing (exclusivos) + porción corriente; leasing financiero solo si el concepto de deuda no lo incluye. Identidades (`LongTermDebt ≈ noncurrent + current`, `DebtCurrent ≥ LongTermDebtCurrent`) se reportan en `data_quality_flags`. `total_debt = LT + ST + finance_leases`. Ejemplo: LTD 90, noncurrent 78, current 12, CP 8 → antes ST = 12 (+ CP ausente) y LT = 90 → 102; ahora 78 + (12 + 8) = 98. Tras T14 (edgartools 5.59.1 + fixtures regenerados) AAPL pasa de 90,678B a 99,887B porque ahora entra el papel comercial.
+- **Commit**: `24e791d` (T6), `5a3000c` (T14, fixtures)
+
+### EC-81 — Caja = 0 en silencio, STI hardcodeado a 0 y doble resta de STI
+- **Síntoma**: (1) si ningún concepto de caja estaba en la vista curada, `cash_and_equivalents = 0.0` sin aviso → EV e IC sobrestimados; (2) `short_term_investments` siempre 0 (AAPL tiene ~$35B de valores negociables corrientes); (3) `cash_and_equivalents = cash + STI` en `parse_financials`, de modo que un bridge que restase STI aparte la habría restado dos veces.
+- **Causa raíz**: defaults silenciosos (`{"value": 0.0}`) en lugar de fail loud; STI marcado como "no aparece en el BS normalizado" sin buscar conceptos alternativos ni raw facts; semántica de `cash_and_equivalents` ambigua.
+- **Fix**: `resolve_cash` (estándar → restricted cash marcado en `source` → `DataUnavailableError`); STI/LTI extraídos con cadenas propias y raw facts; `cash_and_equivalents` = SOLO caja, `short_term_investments`/`long_term_investments` campos propios; consumidores actualizados (Value Expert "Cash (ex-STI)" + línea STI, CLI ídem, Critic `net_debt = deuda − caja − STI`); `balance_identity_flags` (Assets == L+SE estricta → raise; Assets ≈ L + E → flag). La CLI muestra `DataUnavailableError` como panel rojo "DATA UNAVAILABLE" (exit 1).
+- **Commit**: `24e791d` (T6)
+
+### EC-82 — FCF emparejaba OCF y capex de años distintos
+- **Síntoma**: con una serie con hueco (BBW: capex con FY2025 y OCF sin él, o viceversa), `FCF[FY2024] = OCF[FY2024] − capex[FY2025]`; márgenes brutos/operativos de Value Expert, Critic y Competitive con el mismo problema.
+- **Causa raíz**: `zip(ocf_list, capex_list)` empareja por POSICIÓN; asume que ambas series tienen exactamente los mismos años en el mismo orden.
+- **Fix**: `utils/periods.align_by_period` (empareja por etiqueta FY, omite periodos sin par) en `parse_financials` (FCF), `value_expert` y `critic` (margen bruto), `competitive` (márgenes bruto y operativo). Capex con `abs()` / `_mv_list_abs` (edgartools 5.5x lo devuelve con signo). Test `test_align_by_period_never_pairs_different_years`, `test_margins_aligned_by_period_not_position`.
+- **Commit**: `9a0a417` (T7)
+
+### EC-83 — CAGR por distancia de índice, no por años fiscales
+- **Síntoma**: BBW (falta FY2025): revenue `[FY2026, FY2024, FY2023, FY2022]` → el índice 3 se trataba como 3 años cuando son 4 → CAGR sobrestimado. Mismo patrón en el FCF CAGR (`valuation._fcf_cagr_with_window`) y en el criterio "Revenue 3y CAGR" de Competitive (`revenue[3]`).
+- **Causa raíz**: exponente `1/índice` en lugar de `1/(año_reciente − año_antiguo)`.
+- **Fix**: `utils/periods.cagr_by_fiscal_years(series, max_years, scan_for_positive_start)`; `financials._compute_revenue_cagr_5y` → ventana de 5 años fiscales reales (decisión de producto: antes era un "5y" de como mucho 4 intervalos); `_fcf_cagr_with_window` → `max_years=5` + scan EC-60; Competitive → ventana de 3 años fiscales exactos. Ventanas de consumidores fijadas por test (`tests/test_series_windows.py`).
+- **Commit**: `9a0a417` (T7)
+
+### EC-84 — El snapshot trimestral nunca se producía + test tautológico
+- **Síntoma**: `quarterly_snapshot` siempre ausente; log `quarterly_snapshot_no_quarters` en todos los runs; el contexto del Value Expert nunca tuvo datos del 10-Q aunque el 10-K tuviera > 45 días.
+- **Causa raíz**: `get_quarterly_financials()` devuelve el XBRL del 10-Q, cuyo DataFrame tiene `concept` como columna con prefijo (`us-gaap_Revenues`) y columnas de periodo `"2026-06-27 (Q3)"`/`"(YTD)"` (verificado en vivo). El código filtraba `c.startswith("Q")` y buscaba conceptos en el índice → siempre vacío. Secundario: orden por string (`'Q4 2025' > 'Q1 2026'`). El test `test_stale_10k_beyond_45_days_triggers_fetch` afirmaba `get_filings.called or result is None` → pasaba siempre.
+- **Fix**: `xbrl_extract.latest_quarter_column` (ordena por fecha, ignora YTD, acepta ambos formatos) + `quarter_value` (normaliza `concept` columna→índice sin prefijo, excluye filas dimensionales); revenue con la misma cadena que el anual (`REVENUE_CONCEPTS`). Test con el formato real; test tautológico reescrito. Efecto colateral: los tests que corrían `financials_node` con `fetch_raw` mockeado hacían una llamada REAL a EDGAR para el trimestral → `conftest.py` añade un autouse que mockea `fetch_quarterly_snapshot` salvo en tests marcados `@pytest.mark.real_quarterly_fetch`.
+- **Commit**: `9a0a417` (T7)
+
+### EC-85 — ROIC histórico con IC y tasa del último año
+- **Síntoma**: la serie ROIC de 4 años dividía el NOPAT de cada año entre el IC del ÚLTIMO balance y aplicaba la tasa impositiva del último año a todos: una empresa que duplicó su capital aparecía con ROIC histórico inflado (capital de hoy, beneficios de ayer) y la "tendencia" era casi solo la del EBIT. El contexto del Value Expert llamaba "marginal ROIC > average" a esa tendencia.
+- **Causa raíz**: el raw solo tenía el balance del último año (no había `balance_history`) y `parse_financials` calculaba un único `effective_tax_rate` local.
+- **Fix**: `build_raw` emite `balance_history` (un balance por columna FY con las mismas reglas de deuda/caja/STI); `parse_financials` calcula `ROIC_t = NOPAT_t / media(IC_t, IC_{t−1})` con la tasa del año (`effective_tax_rate` canónica importada de `xbrl_extract`); `edgar.invested_capital(...)`: primaria Equity + Debt − Cash − STI − LTI, operativa Assets − Cash − STI − LTI − ROU − NIBCL, un solo método por empresa (si algún año tiene equity ≤ 0 → operativa para toda la serie), IC < 5 % de activos → n/m; `incremental_roic` = ΔNOPAT/ΔIC ≤ 3 años (None si ΔIC ≤ 5 %); series `total_debt_series`, `cash_series` (caja + STI), `equity_series` para `suggest_wacc`. Regla 22 del Value Expert reescrita sobre el ROIC incremental real. AZO: IC operativo explícito (método `operating:`), 6,369B tras regenerar fixtures en T14; AAPL ROIC 272 % con IC 41,2B (sin caja ni valores negociables).
+- **Commit**: `b51c055` (T9), `5a3000c` (T14, fixtures)
+
+### EC-86 — `/1e9` residual en las pistas del checkpoint 2
+- **Síntoma**: las pistas del checkpoint 2 mostraban pequeñas capitalizaciones como `$0.0B`.
+- **Causa raíz**: remanente del patrón EC-14/EC-17 (`/1e9` manual en lugar de `fmt_usd`) que escapó a las auditorías anteriores.
+- **Fix**: las pistas usan `fmt_usd`; auditoría MCE-26 del patrón en `src/`.
+- **Commit**: `69ccc00`
+
+### EC-87 — `fetch_raw` podía usar un 10-K/A y una etiqueta FY distinta a la de las series
+- **Síntoma**: `source_filing`/etiquetas del balance calculadas como `FY{period_of_report[:4]}` desde `filings.latest()`, que incluye 10-K/A; con cierres a principios de enero (52/53 semanas) la etiqueta no coincidía con la columna de edgartools; nada comprobaba que el "último 10-K" y la columna más reciente de los estados fueran el mismo año.
+- **Causa raíz**: (1) `filings.latest()` en lugar de `_get_latest_full_10k` (EC-27 solo se aplicó a texto, no a números); (2) etiqueta FY por los 4 primeros caracteres del `period_of_report` en lugar de la regla de edgartools (cierre 1–7 enero → año anterior); (3) sin invariante entre ambos.
+- **Fix**: `_get_latest_full_10k` en `fetch_raw`; `fy_label_from_period_end` replica la regla de edgartools; `build_raw` lanza `DataUnavailableError` si la etiqueta del 10-K ≠ la columna más reciente del income statement. Tests `test_fy_label_from_period_end_mirrors_edgartools`, `test_build_raw_fails_loud_when_statements_latest_column_differs_from_10k`.
+- **Commit**: `6d13f52` (T5)
+
+### EC-88 — Huecos de años en series anuales (BBW sin FY2025)
+- **Síntoma**: series anuales con años interiores ausentes (BBW FY2025) aunque el dato existe en companyfacts.
+- **Causa raíz**: el validador fiscal_year/period_end de edgartools o el umbral de < 5 facts descartan la columna del año en la vista curada.
+- **Fix**: `xbrl_extract.backfill_gaps(series, facts)`: rellena solo años INTERIORES desde raw facts del mismo concepto emparejando por `period_end` (`EdgarFactsLookup`), con `source = "facts:<concepto>"`; no extrapola ni toca series derivadas. `build_raw` lo aplica a cada serie anual. Ampliado en EC-90 (rejilla tras el backfill).
+- **Pendiente conocido**: restatements — el backfill toma el filing más reciente y puede mezclar años re-expresados con no re-expresados.
+- **Commit**: `9a0a417` (T7), `3376586` (T14)
+
+### EC-90 — Cadena de conceptos XBRL elegía el primer concepto con ALGÚN dato aunque fuera de hace una década
+- **Síntoma**: PRDO capex solo tenía FY2016 (`PaymentsToAcquirePropertyPlantAndEquipment`); el capex reciente estaba en `PaymentsForCapitalImprovements` (solo en raw facts) → con alineación por periodo el FCF de PRDO quedaba en un único año, FY2016 (verificado en vivo 2026-10-03). Además la rejilla de etiquetas de OCF/capex se tomaba antes de rellenar el revenue: BBW FY2025 aparecía en revenue pero no en OCF/capex/FCF ni en `balance_history`.
+- **Causa raíz**: `annual_series` devolvía el primer concepto de la cadena con algún dato; la rejilla se calculaba antes del backfill; `balance_history` recorría solo columnas curadas.
+- **Fix**: `xbrl_extract.merge_annual` fusiona la cadena año a año (curado → facts), usado por OCF, capex, recompras, dividendos e inputs FCFF; capex añade `PaymentsForCapitalImprovements` y `PaymentsToAcquireProductiveAssets`; la rejilla se calcula tras el backfill y `balance_history` recorre la misma rejilla. edgartools actualizado 5.30.0 → 5.59.1. Verificado en vivo: PRDO FCF FY2025 216,7M; BBW FY2025 presente.
+- **Commit**: `3376586`

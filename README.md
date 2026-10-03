@@ -2,7 +2,7 @@
 
 An agentic system for fundamental equity analysis, built on value investing principles. Given a US ticker, it runs a full multi-specialist analysis — from SEC filings to DCF valuation — and delivers a structured verdict with citations, a pre-mortem critique, and an archived report.
 
-> **Status:** Phase 1 + Phase 2 complete. Validated across large caps, small caps, buyback-heavy compounders, asset-light businesses, cyclicals with negative FCF, and foreign filers (detect-and-fail-loud). 377 tests, all green, 31 ADRs documenting every architectural decision. Next: re-analysis deltas (Phase 2.5) or multi-market support — Canada/EU (Phase 3).
+> **Status:** Phase 1 + Phase 2 + H1 Integridad complete. Validated across large caps, small caps, buyback-heavy compounders, asset-light businesses, cyclicals with negative FCF, and foreign filers (detect-and-fail-loud). 657 tests, all green, 33 ADRs documenting every architectural decision. Next: re-analysis deltas (Phase 2.5) or multi-market support — Canada/EU (Phase 3).
 
 ## Technical highlights
 
@@ -236,7 +236,7 @@ due_dilligence_engine/
 │   ├── config.py        # pydantic-settings: all env vars in one place
 │   └── cli.py           # typer CLI: interactive checkpoints, Socratic questions
 ├── tests/
-│   └── fixtures/        # cached API responses for offline testing (377 tests, zero real API calls)
+│   └── fixtures/        # cached API responses for offline testing (657 tests, zero real API calls)
 ├── docs/
 │   ├── adr/             # Architecture Decision Records (ADR-001 … ADR-031, 31 total)
 │   └── checklist-value-investing.md
@@ -257,6 +257,7 @@ due_dilligence_engine/
 | **1b** | 4 parallel specialists + Checkpoint 1 HITL | ✅ Complete |
 | **1c** | Valuation + Value Expert + Critic + Archiver + full CLI | ✅ Complete |
 | **2** | Peer ROIC (user-supplied), earnings transcripts, 8-K events, Expert prompt v2, Socratic checkpoints | ✅ Complete |
+| **H1** | Integridad (auditoría 2026-10-02): structured outputs + fail loud, citas realmente validadas, extracción XBRL testeable y correcta, valoración FCFF a WACC real con equity bridge | ✅ Complete |
 | **2.5** | RAG memory — re-analysis delta for same ticker (ADR-013, ChromaDB) | Planned |
 | **3** | Multi-market: CAD (SEDAR+) + EU (ESMA/CNMV) | Planned |
 | **4** | Screener module (quantitative filter → analyst pipeline) | Planned |

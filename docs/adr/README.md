@@ -45,6 +45,8 @@ Cada ADR sigue: Status · Context · Decision · Consequences · Alternatives.
 | [028](ADR-028-external-api-preflight-quota-check.md) | External API pre-flight quota check (Tavily) | Accepted | 2+ |
 | [029](ADR-029-three-stage-dcf-and-epv.md) | 3-Stage DCF con Damodaran Fade + EPV Anchor + WACC Advisory | Accepted (superseded in part by 033) | 2+ |
 | [030](ADR-030-valuation-convergence-signaling.md) | Valuation Methods Convergence Signaling (4-method tabla + Rule #21) | Accepted (thresholds amended by 033) | 2+ |
+| [031](ADR-031-llm-in-loop-validation.md) | LLM-in-the-Loop Validation para thesis-break self-check | Accepted | 2+ |
+| [032](ADR-032-structured-outputs-fail-loud.md) | Structured outputs nativos y fail-loud en la capa LLM | Accepted | H1 |
 | [033](ADR-033-fcff-wacc-equity-bridge.md) | FCFF a WACC real + equity bridge común a DCF, EPV y reverse DCF | Accepted | H1 |
 
 ## Cómo añadir un ADR

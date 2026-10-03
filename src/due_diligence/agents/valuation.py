@@ -545,17 +545,19 @@ def _classify_dcf_upside(upside_pct: Optional[float]) -> str:
 
 def _classify_epv_upside(upside_pct: Optional[float]) -> str:
     """
-    Clasifica EPV vs market cap.
+    Clasifica el upside del EPV por acción frente al precio (ADR-033 §8: banda ±10 % simétrica).
 
-    >10%: cheap (mercado paga menos que el valor sin crecimiento).
-    0-10%: fair (mercado paga algo por encima del EPV pero poco).
-    <0%: expensive (mercado valora el crecimiento; EPV no justifica el precio).
+    >10%: cheap (el precio está por debajo del valor sin crecimiento).
+    [-10%, 10%]: fair.
+    <-10%: expensive (el precio paga crecimiento; leer junto a epv_growth_premium y el moat).
+    Antes <0 % ya era "expensive": asimétrico frente al DCF (±20 %) y penalizaba cualquier
+    prima de crecimiento por pequeña que fuera.
     """
     if upside_pct is None:
         return "n/a"
     if upside_pct > 10:
         return "cheap"
-    if upside_pct < 0:
+    if upside_pct < -10:
         return "expensive"
     return "fair"
 
@@ -614,12 +616,17 @@ def _build_methods_summary(
     historical_cagr: Optional[float],
     ev_ebit,            # Optional[MetricValue]
     peer_ev_ebit_median: Optional[float],
+    reverse_10y_equivalent: Optional[float] = None,
 ) -> list[dict]:
     """
-    Tabla de 4 métodos de valoración con clasificación uniforme (ADR-030).
+    Tabla de 4 métodos de valoración con clasificación uniforme (ADR-030, umbrales ADR-033 §8).
 
     Cada fila: method, per_share, display_upside, classification.
     Consumida por Value Expert (_format_context) y Archiver.
+
+    Reverse DCF (revisión M2): si se pasa `reverse_10y_equivalent`, la clasificación compara la
+    CAGR equivalente a 10 años del camino implícito (stage1 + fade) con la CAGR histórica de
+    ingresos — un g1 del 8 % con fade no es comparable con una CAGR plana de 5 años.
 
     Los classifiers siguen umbrales simples: ver _classify_* functions.
     La síntesis de la convergencia la hace el LLM (Value Expert regla #21)
@@ -657,8 +664,14 @@ def _build_methods_summary(
             "upside_pct": None,
             "display_upside": (
                 f"implied {_fmt_pct(reverse_growth)} vs historical {_fmt_pct(historical_cagr)}"
+                if reverse_10y_equivalent is None else
+                f"implied g1 {_fmt_pct(reverse_growth)} (10y-equiv {_fmt_pct(reverse_10y_equivalent)}) "
+                f"vs historical {_fmt_pct(historical_cagr)} revenue CAGR"
             ),
-            "classification": _classify_reverse_vs_historical(reverse_growth, historical_cagr),
+            "classification": _classify_reverse_vs_historical(
+                reverse_10y_equivalent if reverse_10y_equivalent is not None else reverse_growth,
+                historical_cagr,
+            ),
         },
         {
             "method": "EV/EBIT vs peer median",
@@ -730,16 +743,25 @@ def _sensitivity_table(
     growth_center: float,
     stage1_years: int = 0,
     fade_years: int = 0,
+    *,
+    net_claims: float,
+    share_count: float,
+    mid_year: bool = False,
+    nopat_base: Optional[float] = None,
+    days_since_fye: int = 0,
 ) -> list[dict]:
     """
-    Tabla 3×3: eje X = WACC ± 2%, eje Y = g1 (stage 1 growth) ± 5%.
+    Tabla 3×3: eje X = WACC ± 2%, eje Y = g1 (stage 1 growth) ± 5%. Celdas en **USD/share**.
 
     EC-64: delta ampliado de ±1% a ±2% para cubrir empresas de alto riesgo donde el
     WACC apropiado puede superar en 4-5pp el advisory (e.g. SYM: advisory 9.7%,
     WACC razonable 14-17%). Con ±1% el analista veía solo 13-15%; con ±2% ve 12-16%.
 
-    Cada celda es el equity value total del DCF 3-stage. El fade se mantiene
-    fijo en todas las celdas — solo g1 y WACC varían.
+    Cada celda recorre el MISMO camino que el titular del DCF (ADR-033): dcf_components (con
+    reinversión terminal si nopat_base y mid-year si procede) → EV × (1+w)^(días/365) →
+    − net_claims → / share_count. Así la celda central reproduce el valor por acción del informe.
+    Antes era el "equity value" total en USD B sin bridge: no comparable con el precio.
+    Celda con WACC − g < 1pp → None ("n/m"). El fade se mantiene fijo; solo g1 y WACC varían.
 
     stage1_years=0 + fade_years=0 equivale al comportamiento 2-stage original
     (stage1=years, fade=0) para compatibilidad en tests.
@@ -756,14 +778,14 @@ def _sensitivity_table(
             w = wacc_center + w_delta
             key = f"wacc_{round(w*100,1)}pct"
             try:
-                val = _three_stage_dcf(base_fcf, g, terminal_growth, w,
-                                       stage1_years=s1, fade_years=fd)
+                ev = dcf_components(base_fcf, g, terminal_growth, w, s1, fd,
+                                    mid_year=mid_year, nopat_base=nopat_base).enterprise_value
+                ev *= (1 + w) ** (days_since_fye / 365)
+                row["values"][key] = round(per_share(ev - net_claims, share_count), 2)
             except ValuationInputError:
                 # WACC − 2pp puede caer por debajo de g + 1pp (p.ej. WACC 4.5 %, g 2.5 %):
                 # celda None ("n/m") en lugar de tumbar el nodo entero (revisión adversarial, T10).
                 row["values"][key] = None
-                continue
-            row["values"][key] = round(val / 1e9, 1)  # en USD B (legacy; T12c pasa a USD/share)
         rows.append(row)
     return rows
 
@@ -1404,10 +1426,19 @@ def _run_valuation(state: AnalysisState) -> dict:
         )
 
     # --- 8. Sensitivity table — usa dcf_base (FCF o NOPAT proxy según fallback EC-13) ---
+    # Celdas en USD/share por el mismo camino que el titular (bridge + capitalización + reinversión).
     sensitivity: list[dict] = []
     if dcf_base is not None and dcf_base > 0:
-        sensitivity = _sensitivity_table(dcf_base, terminal_growth, years, wacc, near_term_growth,
-                                          stage1_years=stage1_years, fade_years=fade_years)
+        if share_count:
+            sensitivity = _sensitivity_table(
+                dcf_base, terminal_growth, years, wacc, near_term_growth,
+                stage1_years=stage1_years, fade_years=fade_years,
+                net_claims=claims, share_count=share_count,
+                mid_year=assumptions.mid_year_convention, nopat_base=terminal_nopat,
+                days_since_fye=days_since_fye,
+            )
+        else:
+            note_parts.append("⚠️ Sensitivity table not computed: share count unavailable.")
 
     # --- 8b. EPV (Greenwald) — piso de valor sin crecimiento (ADR-029) ---
     # Mismo bridge (claims) y misma capitalización a fecha de valoración que el DCF (ADR-033):
@@ -1483,10 +1514,14 @@ def _run_valuation(state: AnalysisState) -> dict:
         n = len(sv)
         peer_ev_ebit_median = sv[n // 2] if n % 2 == 1 else (sv[n // 2 - 1] + sv[n // 2]) / 2
 
-    # El historical_cagr para la comparación reverse vs historical usa near_term_growth
-    # excepto cuando el usuario lo ha sobreescrito (en ese caso el CAGR histórico viene de revenue_cagr)
-    historical_cagr_for_conv = (
-        near_term_growth if near_term_growth_source != "user_override" else revenue_cagr
+    # Histórico de convergencia = CAGR de INGRESOS (ADR-033 §9, EC-75). Antes era
+    # near_term_growth, que ya es el input del DCF directo: comparar el reverse contra él era
+    # circular (el "histórico" salía del mismo FCF CAGR que alimentaba el modelo).
+    historical_cagr_for_conv = revenue_cagr
+    # Reverse comparable (revisión M2): CAGR media a 10 años del camino implícito stage1 + fade.
+    reverse_10y = (
+        _ten_year_equivalent_cagr(reverse_growth, terminal_growth, stage1_years, fade_years)
+        if reverse_growth is not None else None
     )
     methods_summary = _build_methods_summary(
         dcf_per_share=dcf_per_share,
@@ -1497,6 +1532,7 @@ def _run_valuation(state: AnalysisState) -> dict:
         historical_cagr=historical_cagr_for_conv,
         ev_ebit=ev_ebit_mv,
         peer_ev_ebit_median=peer_ev_ebit_median,
+        reverse_10y_equivalent=reverse_10y,
     )
 
     # --- 10. Construir el report ---
@@ -1508,6 +1544,7 @@ def _run_valuation(state: AnalysisState) -> dict:
         price_current=price_current_mv,
         dcf_upside_pct=dcf_upside,
         reverse_dcf_implied_growth=reverse_growth,
+        reverse_dcf_10y_equivalent=reverse_10y,
         ev_ebit_multiple=ev_ebit_mv,
         ev_fcf_multiple=ev_fcf_mv,
         pe_multiple=pe_mv,
@@ -1546,6 +1583,7 @@ def _run_valuation(state: AnalysisState) -> dict:
         share_count_source=share_source,
         terminal_value_share=comps.terminal_value_share if comps is not None else None,
         mid_year_convention_used=assumptions.mid_year_convention,
+        sensitivity_unit="USD/share" if sensitivity else None,
     )
 
     log.info(

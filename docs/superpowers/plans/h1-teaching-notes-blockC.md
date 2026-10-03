@@ -57,3 +57,11 @@ El sistema hacía una mezcla: flujo apalancado (OCF − capex) descontado a un "
 **Net-net.** Si la caja neta supera al equity de mercado, el EV de mercado es ≤ 0: los múltiplos EV no significan nada (n/m) y el reverse DCF no tiene solución.
 
 **Ejemplo A.** EPV = 300 × 0,75 / 9 % = 2 500 − 450 = 2 050 → $205 (+36,7 %). Market EV = 1 500 + 450 = 1 950 → EV/EBIT 6,5×, EV/FCFF 9,29×.
+
+## T12c — Convergencia, umbrales y sensibilidad por acción
+
+**Circularidad eliminada.** El "histórico" con el que se compara el crecimiento implícito por el mercado es ahora la CAGR de **ingresos**, no el mismo FCF CAGR que alimenta el DCF.
+
+**Comparar peras con peras.** El reverse DCF devuelve un g1 de stage 1 que luego hace fade hasta g. Un 8 % con 5 + 5 años equivale a ≈ 6,33 % medio a 10 años: eso es lo que se compara con la CAGR histórica.
+
+**Sensibilidad por acción.** Cada celda es WACC × g1 → EV (mismo modelo) → − net claims → / acciones; la celda central coincide con el valor por acción del informe ($195,37 en el ejemplo A), así el lector puede leer directamente "a 11 % de WACC vale X por acción".

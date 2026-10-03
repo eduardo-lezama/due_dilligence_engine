@@ -1,6 +1,6 @@
 # ADR-030: Valuation Methods Convergence Signaling
 
-**Status**: Accepted  
+**Status**: Accepted — **thresholds amended by [ADR-033](ADR-033-fcff-wacc-equity-bridge.md)** (see the corrected table in §1; the original table did not match the code)  
 **Date**: 2026-05-17  
 **Deciders**: Eduardo (AI/Agentic Engineering Lead)  
 **Tags**: `valuation`, `convergence`, `epv`, `dcf`, `reverse-dcf`, `peer-multiples`, `value-expert`
@@ -24,12 +24,25 @@ The problem: these signals existed in isolation. The Value Expert received the r
 
 Each method produces a simple 3-level classification: `cheap` / `fair` / `expensive`. These are computed in Python, not by the LLM.
 
+**Corrected table (ADR-033, 2026-10-03)** — matches `valuation._classify_*`. All upsides are per share vs price; all EV figures share one equity bridge.
+
+| Method | Classification logic |
+|--------|---------------------|
+| DCF upside (per share vs price) | cheap: > +20%; fair: −20% … +20%; expensive: < −20% |
+| EPV upside (per share vs price) | cheap: > +10%; fair: −10% … +10% (symmetric; was "< 0 = expensive" in code); expensive: < −10% |
+| Reverse DCF vs historical **revenue** CAGR | spread = implied 10y-equivalent CAGR − historical revenue CAGR; cheap: < −3 pp; fair: ±3 pp; expensive: > +3 pp (target = market EV, not market cap) |
+| EV/EBIT vs peer median | cheap: < 0.7× median; fair: 0.7×–1.3×; expensive: > 1.3× (market EV = price × shares + net claims, same definition for peers) |
+
+<details><summary>Original table (2026-05-17, superseded — never matched the code)</summary>
+
 | Method | Classification logic |
 |--------|---------------------|
 | DCF upside | cheap: ≥20%; fair: 0–20%; expensive: <0% |
 | EPV upside | cheap: ≥10%; fair: -10–10%; expensive: <-10% |
 | Reverse DCF vs historical | cheap: implied < historical × 0.75; fair: within 25% of historical; expensive: implied > historical × 1.25 |
 | EV/EBIT vs peer median | cheap: discount ≥ 25% to peer; fair: within 25%; expensive: premium ≥ 25% |
+
+</details>
 
 Thresholds are intentionally coarse. The goal is not precision — it is directional agreement. Ambiguous cases are `fair`, not forced into cheap/expensive.
 

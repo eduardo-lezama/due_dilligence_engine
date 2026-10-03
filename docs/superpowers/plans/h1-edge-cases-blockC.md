@@ -31,3 +31,9 @@ Formato: síntoma → causa raíz → fix → commit.
 - **Causa raíz:** target equity (market cap) frente a un DCF que produce EV; cada consumidor tenía su "net debt".
 - **Fix:** target = market EV (precio × acciones + `net_claims`), deshecha la capitalización, misma función `dcf_components` (incluida la reinversión terminal y mid-year) que el DCF directo; None si la solución toca los bordes de búsqueda o market EV ≤ 0 ("net-net", múltiplos n/m). EV/EBIT, EV/FCFF, earnings yield, P/E (equity de mercado / NI), `peers.py` y `critic.py` usan `net_claims`.
 - **Commit:** feat(h1-T12b).
+
+## EC-75 — "Histórico" de convergencia era near_term_growth (circular)
+- **Síntoma:** la fila Reverse DCF de la convergencia comparaba el growth implícito con el mismo FCF CAGR que alimentaba el DCF directo; además comparaba un g1 de stage 1 (con fade posterior) contra una CAGR plana, y el EPV marcaba "expensive" con cualquier upside < 0 (asimétrico). La sensibilidad mostraba "equity" total en USD B sin bridge.
+- **Causa raíz:** `historical_cagr_for_conv = near_term_growth`; umbral EPV `< 0`; `_sensitivity_table` sobre `_three_stage_dcf` sin bridge ni acciones.
+- **Fix:** histórico = `historical_cagr_5y` (CAGR de ingresos); clasificación del reverse sobre la CAGR equivalente a 10 años del camino implícito (`_ten_year_equivalent_cagr`, `reverse_dcf_10y_equivalent`); banda EPV ±10 % simétrica; sensibilidad en USD/share por el mismo camino que el titular (reinversión terminal, capitalización, bridge), celdas inválidas `None`, `sensitivity_unit="USD/share"`; ADR-030 con la tabla de umbrales corregida.
+- **Commit:** feat(h1-T12c).

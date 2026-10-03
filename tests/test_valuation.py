@@ -87,9 +87,9 @@ def test_dcf_wacc_leq_terminal_growth_raises():
         _two_stage_dcf(100e9, 0.10, 0.09, 0.09, 10)  # wacc == terminal_growth
 
 
-def test_sensitivity_invalid_cell_is_none_in_legacy_units():
+def test_sensitivity_invalid_cell_none_but_valid_neighbours():
     """WACC centro 4.5 % − 2pp = 2.5 % = g → celda None ("n/m"), no excepción que tumbe el nodo."""
-    t = _sensitivity_table(100e6, 0.025, 10, 0.045, 0.10)
+    t = _sensitivity_table(100e6, 0.025, 10, 0.045, 0.10, net_claims=0.0, share_count=1e6)
     assert t[0]["values"]["wacc_2.5pct"] is None
     assert t[0]["values"]["wacc_4.5pct"] is not None   # spread exacto de 2pp: válido
 
@@ -139,7 +139,7 @@ def test_reverse_dcf_expensive_stock_implies_high_growth():
 # ---------------------------------------------------------------------------
 
 def test_sensitivity_table_shape():
-    table = _sensitivity_table(100e9, 0.025, 10, 0.09, 0.10)
+    table = _sensitivity_table(100e9, 0.025, 10, 0.09, 0.10, net_claims=0.0, share_count=1e9)
     assert len(table) == 3  # 3 filas de growth
     for row in table:
         assert "near_term_growth_pct" in row
@@ -149,7 +149,7 @@ def test_sensitivity_table_shape():
 
 def test_sensitivity_table_higher_growth_row_has_higher_values():
     """La fila de mayor growth debe tener valores DCF más altos."""
-    table = _sensitivity_table(100e9, 0.025, 10, 0.09, 0.10)
+    table = _sensitivity_table(100e9, 0.025, 10, 0.09, 0.10, net_claims=0.0, share_count=1e9)
     # table[0] = growth_center + 0.05 (mayor), table[2] = growth_center - 0.05 (menor)
     high_row_values = list(table[0]["values"].values())
     low_row_values = list(table[2]["values"].values())
@@ -1261,3 +1261,60 @@ def test_reverse_dcf_none_at_search_bounds():
     # Target inalcanzable (EV de mercado 1 000× el FCFF) → la búsqueda se pega al borde 2.0 → None
     from due_diligence.agents.valuation import _reverse_dcf
     assert _reverse_dcf(1e6, 1e15, 0.025, 0.09, 10, stage1_years=5, fade_years=5) is None
+
+
+# ---------------------------------------------------------------------------
+# T12c — Convergencia, umbrales y sensibilidad por acción (ADR-033 §8-9)
+# ---------------------------------------------------------------------------
+
+def test_epv_classifier_symmetric_band():
+    from due_diligence.agents.valuation import _classify_epv_upside
+    assert _classify_epv_upside(-5.0) == "fair"        # antes: < 0 → expensive
+    assert _classify_epv_upside(-10.1) == "expensive"
+
+
+def test_convergence_historical_is_revenue_cagr():
+    st = _levered_state(); st["historical_cagr_5y"] = 0.04
+    r = valuation_agent(st)["valuation"]
+    assert "historical 4.0%" in r.valuation_methods_summary[2]["display_upside"]
+
+
+def test_reverse_dcf_reports_ten_year_equivalent():
+    # g1 8 % durante 5 años y fade lineal a 2.5 % en 5: 6.9, 5.8, 4.7, 3.6, 2.5 %.
+    # Π = 1.08^5 (1.469328) × 1.069 × 1.058 × 1.047 × 1.036 × 1.025 (1.257458) = 1.847618
+    # → 1.847618^(1/10) − 1 = 6.33 % (el plan decía ≈ 6.35 %: dentro de ±0.05 pp)
+    from due_diligence.agents.valuation import _ten_year_equivalent_cagr
+    assert _ten_year_equivalent_cagr(0.08, 0.025, 5, 5) == pytest.approx(0.0633, abs=5e-4)
+
+
+def test_reverse_classification_uses_ten_year_equivalent():
+    # Ejemplo A: el reverse da g1 implícito < 0; con historical revenue CAGR 4 % → "cheap"
+    st = _levered_state(); st["historical_cagr_5y"] = 0.04
+    r = valuation_agent(st)["valuation"]
+    row = r.valuation_methods_summary[2]
+    assert r.reverse_dcf_10y_equivalent is not None
+    assert "10y-equiv" in row["display_upside"] and row["classification"] == "cheap"
+
+
+def test_sensitivity_per_share_and_tv_share():
+    # Centro (WACC 9 %, g1 0 %) = el DCF del titular: misma base FCFF 210, misma reinversión
+    # terminal con NOPAT 225 → (2 403.735 − 450) / 10 = $195.37. (El plan fijaba 188.33, que es el
+    # DCF SIN reinversión terminal; la revisión adversarial manda: la tabla debe reproducir el titular.)
+    r = valuation_agent(_levered_state())["valuation"]
+    assert r.sensitivity_unit == "USD/share"
+    center = r.sensitivity_table[1]["values"]["wacc_9.0pct"]
+    assert center == pytest.approx(195.37, abs=0.01) == r.dcf_intrinsic_per_share.value
+    assert 0 < r.terminal_value_share < 1
+
+
+def test_sensitivity_invalid_cell_is_none():
+    t = _sensitivity_table(100e6, 0.025, 10, 0.045, 0.10, net_claims=0.0, share_count=1e6)
+    assert t[0]["values"]["wacc_2.5pct"] is None
+
+
+def test_sensitivity_empty_without_share_count_with_note():
+    st = _levered_state()
+    st["financials"] = st["financials"].model_copy(update={"shares_outstanding": None})
+    st["market"] = st["market"].model_copy(update={"price_current": None, "market_cap": None})
+    r = valuation_agent(st)["valuation"]
+    assert r.sensitivity_table == [] and "Sensitivity table not computed" in r.dcf_reliability_note

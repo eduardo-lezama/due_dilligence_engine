@@ -118,3 +118,20 @@ Excerpts de menos de 20 caracteres se rechazan (con 6 caracteres partial_ratio e
 **Relación con la arquitectura.** ADR-005 (zero hallucination numérica), ADR-011 (primary-source-first), ADR-032 decisión 7.
 
 **Ejemplo.** DEF 14A: "...as a group beneficially own 12.5% of outstanding shares." LLM dice 12.5 con esa cita → se conserva. LLM dice 30.0 con la misma cita → `None` ("value not present in excerpt"). LLM dice 12.5 citando un blog → `None`: el blog no es fuente primaria.
+
+---
+
+## T3c — Lo no verificado se ve, pero no decide
+
+**Concepto.** Separar *auditoría* de *decisión*: una cita rechazada debe seguir visible para el lector humano (para que pueda juzgar al sistema), pero no debe llegar al LLM que decide el VERDICT.
+
+**Por qué.** Tras T3b las citas llevan `verified`, pero los consumidores seguían mostrándolas todas: el contexto del Expert incluía las 3 primeras citas de management como "evidencia" sin mirar si existían, y la narrativa libre del LLM aparecía como "Insider transaction pattern (Form 4)" — una etiqueta de fuente primaria para un texto generado (caso KBR, CEO/CFO confundidos).
+
+**Cómo.**
+- Contexto del Expert: solo `[c for c in mgmt.citations if c.verified]`; etiquetas honestas: "Insider ownership (DEF 14A, citation-verified)", "CEO tenure (citation-verified)", "Form 4 open-market transactions (12m, deterministic): N", el resumen determinista `form4_summary` (tabla de `format_form4_for_prompt`, nuevo campo de `ManagementReport`) como "(Form 4, deterministic)", y "(LLM summary, unverified)" / "(LLM summary)" para `insider_transaction_pattern`, compensación, capital allocation y MD&A.
+- Archiver: "## Sources & Citations" solo con verificadas; "## Unverified citations (excluded from synthesis)" con `claim — _verification_note_`, fuente declarada y excerpt.
+- MCE-26: `grep '\.citations' src/` → los únicos consumidores (archiver, value_expert) filtran por `verified`.
+
+**Relación con la arquitectura.** Invariante 2 ("claim sin cita válida → excluido de síntesis") cumplido en el consumidor, no solo en el productor. ADR-014 (trail de auditoría) intacto: nada se borra.
+
+**Ejemplo.** Management con una cita verificada ("CEO bought 5,000 shares at $10.00") y una rechazada ("CEO is selling everything", fuzzy=40): el Expert solo ve la primera; el report muestra la segunda en la sección de no verificadas con el motivo.

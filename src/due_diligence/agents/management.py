@@ -353,6 +353,8 @@ def management_agent(state: AnalysisState) -> dict:
         "Transcripts": transcripts_text or "",
     }
     report = _build_report(out, ticker, corpus, form4_count=len(form4_transactions))
+    # Evidencia Form 4 determinista para el Expert (T3c): la tabla tal cual, sin LLM.
+    report = report.model_copy(update={"form4_summary": form4_text})
     n_ok, n_bad = count_verified(report.citations)
     log.info("management_citations_validated", ticker=ticker, verified=n_ok, unverified=n_bad)
     report = report.model_copy(update={"model_used": model_used(client)})

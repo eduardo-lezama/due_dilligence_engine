@@ -320,6 +320,7 @@ def test_format_context_surfaces_mgmt_citations_for_section_3():
                     excerpt="Sharon Price John (CEO) | SELL | 15,288 shares @ $73.21 | 2025-09-16",
                     source_url="form4.html",
                     confidence=1.0,
+                    verified=True,   # T3c: solo la evidencia verificada llega al Expert
                 )
             ],
         ),
@@ -620,3 +621,40 @@ def test_system_prompt_requires_dcf_growth_reflexion():
     """El system prompt debe exigir reflexión sobre el growth assumption en §6."""
     from due_diligence.agents.value_expert import _SYSTEM_PROMPT
     assert "DCF GROWTH ASSUMPTION" in _SYSTEM_PROMPT or "growth assumption" in _SYSTEM_PROMPT.lower()
+
+
+# ---------------------------------------------------------------------------
+# Tests: los consumidores solo muestran evidencia verificada (H1-T3c, EC-69)
+# ---------------------------------------------------------------------------
+
+def _mgmt_with_cits():
+    from due_diligence.schemas.base import Citation
+    from due_diligence.schemas.reports import ManagementReport
+    ok = Citation(claim="c", source_url="Form 4", excerpt="CEO bought 5,000 shares at $10.00",
+                  confidence=0.9, verified=True)
+    bad = Citation(claim="c", source_url="Tavily", excerpt="CEO is selling everything", confidence=0.0,
+                   verified=False, verification_note="excerpt not found in source (fuzzy=40)")
+    return ManagementReport(ticker="TST", stub=False, form4_transactions_12m=3, citations=[ok, bad],
+                            insider_ownership_pct=12.5, ceo_tenure_years=11.0,
+                            insider_transaction_pattern="CEO net buyer",
+                            capital_allocation_summary="Buybacks below intrinsic value.",
+                            form4_summary="OFFICER/DIRECTOR discretionary transactions:\n  Jane Doe (CEO) | BUY | 5,000 shares @ $10.00 | 2026-03-01")
+
+
+def test_value_expert_context_shows_only_verified_evidence():
+    ctx = _format_context({"ticker": "TST", "mgmt": _mgmt_with_cits()})
+    assert "CEO bought 5,000 shares" in ctx and "selling everything" not in ctx
+    assert "Form 4 open-market transactions (12m, deterministic): 3" in ctx
+    assert "Insider ownership (DEF 14A, citation-verified): 12.5%" in ctx
+    assert "CEO tenure (citation-verified): 11 years" in ctx
+
+
+def test_context_labels_llm_narrative_as_unverified():
+    from due_diligence.schemas.reports import FilingsRAGReport
+    ctx = _format_context({"ticker": "TST", "mgmt": _mgmt_with_cits(),
+                           "filings": FilingsRAGReport(ticker="TST", stub=False, mda_highlights="Revenue up.")})
+    assert "Insider transaction pattern (LLM summary, unverified): CEO net buyer" in ctx
+    assert "Insider transaction pattern (Form 4)" not in ctx
+    assert "Form 4 transactions (Form 4, deterministic):" in ctx and "Jane Doe (CEO) | BUY" in ctx
+    assert "Capital allocation (LLM summary): Buybacks" in ctx
+    assert "MDA highlights (LLM summary): Revenue up." in ctx

@@ -246,6 +246,7 @@ def test_render_markdown_includes_citations_section():
                     source_url="https://sec.gov/Archives/edgar/data/320193/DEF14A.htm",
                     excerpt="Timothy D. Cook beneficially owns 3,279,321 shares",
                     confidence=0.95,
+                    verified=True,   # T3c: "Sources & Citations" solo lista verificadas
                 ),
             ],
         ),
@@ -433,3 +434,25 @@ def test_archiver_reading_guide_shown_for_spread_note():
     }
     md = _render_markdown(state)
     assert "Reading guide" in md
+
+
+# ---------------------------------------------------------------------------
+# Tests: verificadas vs no verificadas en el report (H1-T3c, EC-69)
+# ---------------------------------------------------------------------------
+
+def _mgmt_with_cits():
+    ok = Citation(claim="c", source_url="Form 4", excerpt="CEO bought 5,000 shares at $10.00",
+                  confidence=0.9, verified=True)
+    bad = Citation(claim="c", source_url="Tavily", excerpt="CEO is selling everything", confidence=0.0,
+                   verified=False, verification_note="excerpt not found in source (fuzzy=40)")
+    return ManagementReport(ticker="TST", stub=False, form4_transactions_12m=3, citations=[ok, bad])
+
+
+def test_archiver_lists_unverified_separately():
+    md = "\n".join(_render_citations_section({"ticker": "TST", "mgmt": _mgmt_with_cits()}))
+    assert "### Management" in md and "CEO bought 5,000 shares" in md
+    assert "## Unverified citations (excluded from synthesis)" in md
+    assert "selling everything" in md and "fuzzy=40" in md
+    # Las no verificadas NO aparecen en la sección principal
+    main = md.split("## Unverified citations")[0]
+    assert "selling everything" not in main

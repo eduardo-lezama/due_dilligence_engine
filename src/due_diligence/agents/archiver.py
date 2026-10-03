@@ -601,32 +601,48 @@ def _render_peer_relative_valuation(state: AnalysisState) -> list[str]:
 
 def _render_citations_section(state: AnalysisState) -> list[str]:
     """
-    Agrupa todas las citas de los agentes LLM por agente y las renderiza.
+    Agrupa las citas de los agentes LLM por agente: verificadas y no verificadas aparte.
 
-    Cada cita muestra: claim, excerpt verbatim, confidence y URL clickable.
-    Solo incluye agentes con citas reales (stub=False y citations no vacío).
-    Referencia ADR-014: auditoría del trail de claims cualitativos.
+    - "## Sources & Citations": solo citas verified=True (validation/citations.py) con
+      claim, excerpt verbatim, confidence y fuente.
+    - "## Unverified citations (excluded from synthesis)": las rechazadas, con el motivo
+      (verification_note). Se muestran para auditoría, pero no decidieron nada (EC-69).
+    Referencia ADR-014 (trail de auditoría) y ADR-005 (invariante 2).
     """
-    groups: list[tuple[str, list]] = []
+    verified_groups: list[tuple[str, list]] = []
+    unverified: list[tuple[str, object]] = []
     for field, label in [
         ("mgmt", "Management"),
         ("filings", "Filings (10-K)"),
         ("competitive", "Competitive & Moat"),
     ]:
         rep = state.get(field)  # type: ignore[literal-required]
-        if rep is not None and not rep.stub and getattr(rep, "citations", None):
-            groups.append((label, rep.citations))
-    if not groups:
-        return []
-    lines: list[str] = ["## Sources & Citations", ""]
-    for label, cits in groups:
-        lines.append(f"### {label}")
-        lines.append("")
-        for c in cits:
-            conf = f"{c.confidence:.0%}"
-            lines.append(f"- **{c.claim}** (confidence: {conf})")
+        if rep is None or rep.stub or not getattr(rep, "citations", None):
+            continue
+        ok = [c for c in rep.citations if c.verified]
+        if ok:
+            verified_groups.append((label, ok))
+        unverified += [(label, c) for c in rep.citations if not c.verified]
+
+    lines: list[str] = []
+    if verified_groups:
+        lines += ["## Sources & Citations", ""]
+        for label, cits in verified_groups:
+            lines.append(f"### {label}")
+            lines.append("")
+            for c in cits:
+                conf = f"{c.confidence:.0%}"
+                lines.append(f"- **{c.claim}** (confidence: {conf})")
+                lines.append(f"  > {c.excerpt}")
+                lines.append(f"  Source: [{c.source_url}]({c.source_url})")
+                lines.append("")
+    if unverified:
+        lines += ["## Unverified citations (excluded from synthesis)", "",
+                  "These citations could not be found in the source text the model saw. "
+                  "They are listed for audit only and did not inform the verdict.", ""]
+        for label, c in unverified:
+            lines.append(f"- **{c.claim}** — _{c.verification_note or 'not verified'}_ ({label}, claimed source: {c.source_url})")
             lines.append(f"  > {c.excerpt}")
-            lines.append(f"  Source: [{c.source_url}]({c.source_url})")
             lines.append("")
     return lines
 

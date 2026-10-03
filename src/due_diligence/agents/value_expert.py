@@ -354,26 +354,33 @@ def _format_context(state: AnalysisState) -> str:
     mgmt = state.get("mgmt")  # type: ignore[typeddict-item]
     if mgmt is not None and not mgmt.stub:
         lines.append("## MANAGEMENT REPORT")
+        # Etiquetas honestas (T3c, EC-69): cada línea dice de dónde sale el dato.
+        # ownership y tenure solo existen si su cita se verificó contra fuente primaria (T3b).
         if mgmt.insider_ownership_pct is not None:
-            lines.append(f"Insider ownership (total insiders): {mgmt.insider_ownership_pct:.1f}%")
+            lines.append(f"Insider ownership (DEF 14A, citation-verified): {mgmt.insider_ownership_pct:.1f}%")
         if mgmt.founder_ceo is not None:
             lines.append(f"Founder-CEO: {'Yes' if mgmt.founder_ceo else 'No'}")
         if mgmt.ceo_tenure_years is not None:
-            lines.append(f"CEO tenure: {mgmt.ceo_tenure_years:.0f} years")
+            lines.append(f"CEO tenure (citation-verified): {mgmt.ceo_tenure_years:.0f} years")
+        if mgmt.form4_transactions_12m is not None:
+            lines.append(f"Form 4 open-market transactions (12m, deterministic): {mgmt.form4_transactions_12m}")
+        if mgmt.form4_summary:
+            lines.append(f"Form 4 transactions (Form 4, deterministic):\n{mgmt.form4_summary}")
+        # Narrativa libre del LLM: antes se etiquetaba "(Form 4)" y presentaba como dato
+        # primario una lectura que podía confundir CEO y CFO (caso KBR).
         if mgmt.insider_transaction_pattern:
-            lines.append(f"Insider transaction pattern (Form 4): {mgmt.insider_transaction_pattern}")
+            lines.append(f"Insider transaction pattern (LLM summary, unverified): {mgmt.insider_transaction_pattern}")
         if mgmt.compensation_structure_notes:
-            lines.append(f"Compensation: {mgmt.compensation_structure_notes}")
+            lines.append(f"Compensation (LLM summary): {mgmt.compensation_structure_notes}")
         if mgmt.capital_allocation_summary:
-            lines.append(f"Capital allocation: {mgmt.capital_allocation_summary}")
+            lines.append(f"Capital allocation (LLM summary): {mgmt.capital_allocation_summary}")
 
-        # Insider transaction citations — surface evidence verbatim for §3 reconciliation
-        # (Fix C / EC-23). El Value Expert §3 MUST tiene regla de comparar precio insider
-        # vs precio actual, pero no podía ejecutarse sin los precios. Aquí los exponemos
-        # desde las citations validadas (Form 4 sin alteración).
-        if mgmt.citations:
-            lines.append("Insider transaction evidence (use for §3 price reconciliation):")
-            for c in mgmt.citations[:3]:  # top 3 más relevantes
+        # Evidencia verbatim para la reconciliación de precios de §3 (Fix C / EC-23).
+        # SOLO citas verificadas (invariante 2): una no verificada no entra en la síntesis.
+        verified = [c for c in mgmt.citations if c.verified]
+        if verified:
+            lines.append("Insider transaction evidence (verified citations; use for §3 price reconciliation):")
+            for c in verified[:3]:  # top 3 más relevantes
                 excerpt = c.excerpt[:400].replace("\n", " ")
                 lines.append(f"  - {excerpt}")
         lines.append("")
@@ -392,7 +399,7 @@ def _format_context(state: AnalysisState) -> str:
             # Eventos regulatorios concretos — críticos para §7 y VERDICT
             lines.append(f"SPECIFIC REGULATORY EVENTS: {filings.key_regulatory_events}")
         if filings.mda_highlights:
-            lines.append(f"MDA highlights: {filings.mda_highlights}")
+            lines.append(f"MDA highlights (LLM summary): {filings.mda_highlights}")
         if filings.backlog_usd is not None:
             lines.append(f"Contracted backlog: {_fmt_usd(filings.backlog_usd)}")
         if filings.revenue_guidance:

@@ -53,7 +53,10 @@ class ManagementReport(LLMAgentReport):
     insider_ownership_pct: Optional[float] = None  # % total de acciones owned por insiders (directivos + board)
     founder_ceo: Optional[bool] = None             # True si el CEO fundó la empresa
     ceo_tenure_years: Optional[float] = None       # Años del CEO en el cargo
-    form4_transactions_12m: Optional[int] = None   # Número de transacciones Form 4 en 12m
+    form4_transactions_12m: Optional[int] = None   # Nº de transacciones Form 4 en 12m — determinista (len, H1)
+    # Resumen determinista de las transacciones Form 4 (tools.edgar.format_form4_for_prompt).
+    # Es la evidencia primaria de §3; insider_transaction_pattern es solo la lectura del LLM.
+    form4_summary: Optional[str] = None
     insider_transaction_pattern: Optional[str] = None  # Patrón: quién compra/vende, volumen neto, señal
     compensation_structure_notes: Optional[str] = None  # Notas sobre estructura de compensación
     capital_allocation_summary: Optional[str] = None  # Resumen de allocation de capital

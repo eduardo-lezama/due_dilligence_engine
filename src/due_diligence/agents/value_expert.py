@@ -26,6 +26,12 @@ ADR-009 — VERDICT obligatorio:
     Cuando stub=False, el campo verdict debe contener "BUY", "HOLD" o "SELL"
     con justificación. Un report sin VERDICT no es un análisis completo.
 
+ADR-032 — Structured outputs y fail loud:
+    La salida se pide con LLMClient.structured(ValueExpertLLMOutput). Si el LLM falla
+    (truncación, proveedor, schema dos veces) el report es stub=True + error y SIN
+    verdict: nunca un HOLD de relleno (EC-68). Solo LLMSchemaError se reintenta una vez
+    (es estocástico); truncación y proveedor no mejoran repitiendo la misma llamada.
+
 Checklist cubierto (docs/checklist-value-investing.md):
     §1  Business understanding   ← filings_report
     §2  Moat analysis            ← competitive_report
@@ -40,16 +46,17 @@ Checklist cubierto (docs/checklist-value-investing.md):
 
 from __future__ import annotations
 
-import json
 import re
 import statistics
-from typing import Any
 
 import structlog
 
 from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
+from due_diligence.agents.llm_support import error_label, model_used
 from due_diligence.llm.client import get_client
+from due_diligence.llm.errors import LLMError, LLMSchemaError
+from due_diligence.schemas.llm_outputs import ThesisBreakCheck, ValueExpertLLMOutput
 from due_diligence.schemas.reports import ValueExpertReport
 
 from due_diligence.utils.formatting import fmt_usd as _fmt_usd
@@ -80,7 +87,7 @@ RULES — NON-NEGOTIABLE:
     - ABSENCE OF BUYING during drawdown >30% from 52w high: this is itself a signal — when insiders had the opportunity to add at depressed prices and chose not to, that is a negative information signal, not "neutral." State this explicitly when the stock is in drawdown AND no material buying by CEO/CFO/COO appears in the last 12 months.
 12. SEGMENT-AWARE RISK ANALYSIS (§7): if the business has multiple distinct segments (multi-segment 10-K, named in business_description), analyze the named risks PER SEGMENT, not at company level. The same risk (e.g. tariff, regulatory, commodity price) often has opposite signs across segments. Example: a fertilizer producer's potash segment may absorb a tariff via pricing while the phosphate segment is hit by input-cost inflation — naming "tariff risk" generically misses the real direction. Identify which segment carries which risk and quantify when data allows.
 13. QUARTERLY DATA INTEGRATION (§4/§5/§7): if news flow mentions specific quarterly metrics ('Q1 2026 net loss $258M', 'gross margin compressed 140bps QoQ', 'guidance withdrawn for FY2026') that are more recent than the 10-K, you MUST integrate them into §4 Financial Quality and §5 Growth conclusions — not just mention them as factoids in §7. If a management guidance withdrawal or cut appears in news, treat it as a material red flag in §7 with explicit weight in the verdict, regardless of whether 10-K Item 1A mentions it.
-14. Return ONLY valid JSON. No markdown fences, no preamble, no commentary outside the JSON.
+14. OUTPUT FORMAT: the response format is enforced by the API schema. Put each section's content in its matching field (see SECTION GUIDANCE below); never leave verdict_rationale empty.
 15. THESIS-BREAK SELF-CHECK (§9): BEFORE finalizing the verdict, verify that the thesis-breaker condition you define in §9 is NOT ALREADY TRUE in the data you just analyzed. If the condition IS already met (e.g., you state "thesis breaks if gross margin falls below 30%" but §4 shows gross margin is already 28%), you MUST either (a) revise the verdict to reflect the already-broken thesis, or (b) choose a DIFFERENT thesis-breaker that is forward-looking. A verdict that contradicts its own thesis-breaker is a critical logical error.
 16. BACKLOG & BOOK-TO-BILL (§5): for defense, aerospace, industrial, government-contract, or long-cycle businesses, backlog and book-to-bill ratio are CRITICAL forward indicators. If the QUARTERLY UPDATE, press release, or filings report mentions backlog, orders, or book-to-bill, you MUST: (a) extract the absolute backlog figure and YoY change, (b) compute book-to-bill if orders and revenue are both available (orders/revenue; >1.0 = growing, <1.0 = shrinking), (c) integrate into §5 Growth as the PRIMARY growth signal (more reliable than revenue CAGR for contract businesses). If backlog is declining while revenue appears stable, flag this as a LEADING INDICATOR of future revenue decline in §7.
 17. 10b5-1 PLAN SALES (§3): transactions explicitly marked as "10b5-1 PRE-ARRANGED PLAN" in the insider activity data are NOT informative about current management sentiment. These sales were programmed months before execution — the decision date is the plan adoption date, not the execution date. Do NOT use them as evidence of insider distribution, bearish sentiment, or value trap signals. Instead, note them factually as "pre-arranged plan sale" and EXCLUDE them from your insider sentiment assessment. The relevant signals from insiders are: (a) discretionary open-market purchases (bullish), (b) ABSENCE of buying during drawdowns (mildly bearish per rule 11), (c) discretionary sales NOT under a plan (bearish). A CEO with a 10b5-1 for estate planning who also owns 15%+ is demonstrating alignment through ownership magnitude, not trading activity.
@@ -126,22 +133,21 @@ SIZING DISCIPLINE — NON-NEGOTIABLE:
 - Never recommend sizing > 10% unless confidence > 0.85 AND verdict is BUY.
 - If signals conflict and you adjudicate as HOLD, sizing reflects the unresolved uncertainty — keep small.
 
-OUTPUT SCHEMA:
-{
-  "business_understanding": "<§1: 3-4 sentences. What does it do, how does it make money, circle of competence>",
-  "moat_analysis": "<§2: integrate ROIC evidence with qualitative moat classification. If peer ROIC data is available in context, explicitly compare the subject's ROIC against peers — name the numbers. If they conflict with the moat label, adjudicate with reasoning.>",
-  "management_assessment": "<§3: skin in the game (insider %) + capital allocation track record + earnings call Q&A tone if available. Quote one verbatim phrase from transcripts if available. MUST reconcile insider sale prices vs current market price when both are in context — name the gap explicitly. MUST classify insider buying by TOTAL DOLLAR MAGNITUDE per rule 11: token (<$50K) is cosmetic, NOT conviction. ABSENCE of CEO/CFO open-market buying during drawdown >30% is itself a negative signal.>",
-  "financial_quality": "<§4: FCF conversion, balance sheet, margin trends, earnings quality. If 'Capital returned to shareholders' is in context, you MUST report it explicitly: how much was returned, what % of FCF, split between buybacks/dividends. Capital allocation is core to value investing thesis. If quarterly news data is more recent than 10-K, update conclusions accordingly (rule 13).>",
-  "growth_reinvestment": "<§5: reinvestment rate (capex/OCF — MUST report the precomputed value if available) + ROIC trend label + the precomputed incremental ROIC (ΔNOPAT/ΔIC; if n/m say so — rule 22). State whether the company is in invest/balanced/harvest mode AND whether marginal returns are positive or negative based on the incremental ROIC figure. Integrate quarterly news data when more recent than 10-K (rule 13).>",
-  "valuation_section": "<§6: MUST contrast reverse-DCF implied growth vs historical 5y revenue CAGR. State the spread and what it implies about market expectations.>",
-  "risks": "<§7: include any 8-K material events (especially Item 4.02) PLUS top risks from 10-K Item 1A. MUST cross-check news flow + insider activity + margin trends — if multiple signals point negative, name the value trap pattern explicitly. MUST analyze named risks PER SEGMENT when company is multi-segment (rule 12) — same tariff/regulatory/commodity risk often has opposite signs across segments. MUST integrate any quarterly news data more recent than the 10-K (Q1/Q2/Q3 metrics, guidance changes) and weigh them in the verdict, not just mention as factoids (rule 13).>",
-  "psychological_lens": "<§8: why might this be mispriced? Contrarian thesis or consensus trap?>",
-  "decision_frame": "<§9: MUST state the thesis-breaker as a concrete observable condition. No vague placeholders.>",
-  "verdict": "BUY" | "HOLD" | "SELL",
-  "verdict_confidence": <0.0 to 1.0>,
-  "suggested_sizing_pct": <0.0 to 20.0>,
-  "verdict_rationale": "<2-3 sentences: WHY this verdict. Reference specific numbers and name the key adjudicated conflict that drove the decision.>"
-}"""
+SECTION GUIDANCE (content of each field — the format is enforced by the schema):
+- business_understanding: §1: 3-4 sentences. What does it do, how does it make money, circle of competence
+- moat_analysis: §2: integrate ROIC evidence with qualitative moat classification. If peer ROIC data is available in context, explicitly compare the subject's ROIC against peers — name the numbers. If they conflict with the moat label, adjudicate with reasoning.
+- management_assessment: §3: skin in the game (insider %) + capital allocation track record + earnings call Q&A tone if available. Quote one verbatim phrase from transcripts if available. MUST reconcile insider sale prices vs current market price when both are in context — name the gap explicitly. MUST classify insider buying by TOTAL DOLLAR MAGNITUDE per rule 11: token (<$50K) is cosmetic, NOT conviction. ABSENCE of CEO/CFO open-market buying during drawdown >30% is itself a negative signal.
+- financial_quality: §4: FCF conversion, balance sheet, margin trends, earnings quality. If 'Capital returned to shareholders' is in context, you MUST report it explicitly: how much was returned, what % of FCF, split between buybacks/dividends. Capital allocation is core to value investing thesis. If quarterly news data is more recent than 10-K, update conclusions accordingly (rule 13).
+- growth_reinvestment: §5: reinvestment rate (capex/OCF — MUST report the precomputed value if available) + ROIC trend label + the precomputed incremental ROIC (ΔNOPAT/ΔIC; if n/m say so — rule 22). State whether the company is in invest/balanced/harvest mode AND whether marginal returns are positive or negative based on the incremental ROIC figure. Integrate quarterly news data when more recent than 10-K (rule 13).
+- valuation_section: §6: MUST contrast reverse-DCF implied growth vs historical 5y revenue CAGR. State the spread and what it implies about market expectations.
+- risks: §7: include any 8-K material events (especially Item 4.02) PLUS top risks from 10-K Item 1A. MUST cross-check news flow + insider activity + margin trends — if multiple signals point negative, name the value trap pattern explicitly. MUST analyze named risks PER SEGMENT when company is multi-segment (rule 12) — same tariff/regulatory/commodity risk often has opposite signs across segments. MUST integrate any quarterly news data more recent than the 10-K (Q1/Q2/Q3 metrics, guidance changes) and weigh them in the verdict, not just mention as factoids (rule 13).
+- psychological_lens: §8: why might this be mispriced? Contrarian thesis or consensus trap?
+- decision_frame: §9: MUST state the thesis-breaker as a concrete observable condition. No vague placeholders.
+- verdict: one of BUY, HOLD, SELL
+- verdict_confidence: 0.0 to 1.0
+- suggested_sizing_pct: 0.0 to 20.0
+- verdict_rationale: 2-3 sentences: WHY this verdict. Reference specific numbers and name the key adjudicated conflict that drove the decision.
+"""
 
 
 def _format_context(state: AnalysisState) -> str:
@@ -690,84 +696,43 @@ def _format_context(state: AnalysisState) -> str:
     return "\n".join(lines)
 
 
-def _parse_response(response_text: str, ticker: str) -> ValueExpertReport:
+def _to_report(out: ValueExpertLLMOutput, ticker: str) -> ValueExpertReport:
+    """Post-validación de negocio sobre la salida ya tipada (ADR-032).
+
+    El Literal del schema ya garantiza BUY/HOLD/SELL; la normalización se mantiene
+    como defensa en profundidad. Clamps deterministas: confidence [0,1], sizing [0,20]
+    y sizing ≤ confidence×10 (Fix D / EC-24). Los topes de confianza por huecos de
+    datos y por governance se aplican en value_expert_agent, que conoce el estado.
     """
-    Parsea la respuesta JSON del LLM en un ValueExpertReport.
+    verdict = out.verdict if out.verdict in ("BUY", "HOLD", "SELL") else "HOLD"
+    confidence = max(0.0, min(1.0, out.verdict_confidence))
+    sizing = max(0.0, min(20.0, out.suggested_sizing_pct))
+    # Sizing discipline post-hoc clamp (Fix D / EC-24): aunque el prompt instruye
+    # "max sizing ≤ confidence × 10", el LLM puede ignorarlo; aquí se impone en código.
+    ceiling = confidence * 10.0
+    if sizing > ceiling:
+        log.info("value_expert_sizing_clamped", ticker=ticker, original_sizing=sizing,
+                 clamped_to=ceiling, confidence=confidence)
+        sizing = ceiling
+    return ValueExpertReport(
+        ticker=ticker, stub=False,
+        business_understanding=out.business_understanding, moat_analysis=out.moat_analysis,
+        management_assessment=out.management_assessment, financial_quality=out.financial_quality,
+        growth_reinvestment=out.growth_reinvestment, valuation_section=out.valuation_section,
+        risks=out.risks, psychological_lens=out.psychological_lens, decision_frame=out.decision_frame,
+        verdict=verdict, verdict_confidence=confidence, suggested_sizing_pct=sizing,
+        verdict_rationale=out.verdict_rationale,
+    )
 
-    Si el parsing falla, devuelve un report parcial con el texto crudo en
-    decision_frame para que el output no se pierda completamente.
+
+def _failed_synthesis(ticker: str, e: LLMError) -> ValueExpertReport:
+    """Síntesis fallida: stub=True, error explícito y SIN VERDICT.
+
+    Nunca un HOLD de relleno (ADR-009 + ADR-032, EC-68): el archiver nombra el report
+    -INCOMPLETE y la CLI muestra el panel rojo.
     """
-    try:
-        start = response_text.find("{")
-        end = response_text.rfind("}") + 1
-        if start == -1 or end == 0:
-            raise ValueError("No JSON object in response")
-
-        data: dict[str, Any] = json.loads(response_text[start:end])
-
-        verdict_raw = data.get("verdict", "HOLD")
-        verdict = verdict_raw if verdict_raw in ("BUY", "HOLD", "SELL") else "HOLD"
-
-        confidence_raw = data.get("verdict_confidence", 0.5)
-        try:
-            confidence = max(0.0, min(1.0, float(confidence_raw)))
-        except (TypeError, ValueError):
-            confidence = 0.5
-
-        sizing_raw = data.get("suggested_sizing_pct", 0.0)
-        try:
-            sizing = max(0.0, min(20.0, float(sizing_raw)))
-        except (TypeError, ValueError):
-            sizing = 0.0
-
-        # Sizing discipline post-hoc clamp (Fix D / EC-24): defensa en profundidad.
-        # Aunque el system prompt instruye "max sizing ≤ confidence × 10", el LLM puede
-        # ignorar la regla. Aquí clampamos programáticamente para que el output siempre
-        # respete la consistencia entre sizing y confidence.
-        sizing_ceiling = confidence * 10.0
-        if sizing > sizing_ceiling:
-            log.info(
-                "value_expert_sizing_clamped",
-                ticker=ticker,
-                original_sizing=sizing,
-                clamped_to=sizing_ceiling,
-                confidence=confidence,
-            )
-            sizing = sizing_ceiling
-
-        return ValueExpertReport(
-            ticker=ticker,
-            stub=False,
-            business_understanding=data.get("business_understanding"),
-            moat_analysis=data.get("moat_analysis"),
-            management_assessment=data.get("management_assessment"),
-            financial_quality=data.get("financial_quality"),
-            growth_reinvestment=data.get("growth_reinvestment"),
-            valuation_section=data.get("valuation_section"),
-            risks=data.get("risks"),
-            psychological_lens=data.get("psychological_lens"),
-            decision_frame=data.get("decision_frame"),
-            verdict=verdict,
-            verdict_confidence=confidence,
-            suggested_sizing_pct=sizing,
-            verdict_rationale=data.get("verdict_rationale"),
-        )
-
-    except Exception as e:
-        log.error(
-            "value_expert_parse_failed",
-            ticker=ticker,
-            error=str(e),
-            response=response_text[:300],
-        )
-        return ValueExpertReport(
-            ticker=ticker,
-            stub=False,
-            decision_frame=f"[Parse error — raw response preserved] {response_text[:500]}",
-            verdict="HOLD",
-            verdict_confidence=0.0,
-            suggested_sizing_pct=0.0,
-        )
+    log.error("value_expert_failed", ticker=ticker, error_type=type(e).__name__, error=str(e))
+    return ValueExpertReport(ticker=ticker, stub=True, error=error_label(e))
 
 
 def _word_in_text(word: str, text: str) -> bool:
@@ -787,7 +752,7 @@ def _validate_thesis_break_with_llm(
     own_text: str,
     triggered_phrases: list[str],
     ticker: str,
-) -> bool:
+) -> bool | None:
     """
     Valida semánticamente si un thesis-breaker Python-triggered es verdadero ahora (ADR-031).
 
@@ -796,13 +761,14 @@ def _validate_thesis_break_with_llm(
     - "thesis breaks if revenue falls below 10%" (condición FUTURA) vs
     - "revenue fell 8% YoY in Q3 2026" (hecho ACTUAL ya ocurrido)
 
-    Usa modelo barato (gpt-4o-mini, settings.openai_validation_model) — prompt estrecho,
-    respuesta JSON ~50 tokens. Coste marginal: ~$0.0001 por invocación.
+    Usa modelo barato (settings.openai_validation_model) con salida estructurada
+    ThesisBreakCheck (ADR-032). Coste marginal: ~$0.0001 por invocación.
 
     Returns:
-        True si el LLM confirma que la condición ES ACTUALMENTE VERDADERA.
-        False (default conservador) si no confirmado, o en cualquier error de parsing/red.
-        El default False garantiza que no añadimos warnings por errores técnicos.
+        True  → el LLM confirma que la condición ES ACTUALMENTE VERDADERA.
+        False → el LLM dice que es solo un riesgo futuro.
+        None  → el validador falló (LLMError). Antes devolvía False, lo que ocultaba el
+                fallo como "tesis no rota"; ahora el llamador añade un caveat visible.
     """
     prompt = (
         f"THESIS-BREAKER CONDITION (from §9 of investment analysis):\n"
@@ -811,40 +777,31 @@ def _validate_thesis_break_with_llm(
         f"{own_text[:800]}\n\n"
         f"Python pre-filter detected word overlap in: {triggered_phrases}\n\n"
         f"Is the THESIS-BREAKER condition CURRENTLY TRUE based on the excerpts?\n"
-        f"Answer YES only if the excerpts contain CLEAR EVIDENCE that the condition "
+        f"Answer true only if the excerpts contain CLEAR EVIDENCE that the condition "
         f"IS ALREADY HAPPENING NOW (past/present tense facts, not future risk).\n"
-        f"Answer NO if the excerpts only describe it as a FORWARD-LOOKING RISK or "
-        f"FUTURE POSSIBILITY.\n\n"
-        f'Return JSON only: {{"is_currently_true": true_or_false, "reason": "one sentence"}}'
+        f"Answer false if the excerpts only describe it as a FORWARD-LOOKING RISK or "
+        f"FUTURE POSSIBILITY. Give a one-sentence reason."
     )
     try:
-        response = get_client().complete(
+        check = get_client().structured(
+            ThesisBreakCheck,
             messages=[{"role": "user", "content": prompt}],
-            system="You are a precise financial analyst. Return valid JSON only.",
+            system="You are a precise financial analyst.",
             model=settings.openai_validation_model,
-            max_tokens=120,
+            max_tokens=200,
         )
-        start = response.find("{")
-        end = response.rfind("}") + 1
-        if start == -1 or end == 0:
-            return False
-        data = json.loads(response[start:end])
-        result = bool(data.get("is_currently_true", False))
-        log.info(
-            "thesis_break_llm_validation",
-            ticker=ticker,
-            is_currently_true=result,
-            reason=data.get("reason", ""),
-            triggered_phrases=triggered_phrases,
-        )
-        return result
-    except Exception as e:
-        log.warning(
-            "thesis_break_llm_validation_failed",
-            ticker=ticker,
-            error=str(e),
-        )
-        return False  # Default conservador: ningún warning si hay error de red/parsing
+    except LLMError as e:
+        log.warning("thesis_break_llm_validation_failed", ticker=ticker,
+                    error_type=type(e).__name__, error=str(e))
+        return None
+    log.info(
+        "thesis_break_llm_validation",
+        ticker=ticker,
+        is_currently_true=check.is_currently_true,
+        reason=check.reason,
+        triggered_phrases=triggered_phrases,
+    )
+    return check.is_currently_true
 
 
 def _thesis_break_self_check(
@@ -915,6 +872,15 @@ def _thesis_break_self_check(
         ticker=report.ticker,
     )
 
+    if confirmed is None:
+        # Validador caído: el check no se pudo completar. Se dice explícitamente en vez
+        # de dar la tesis por no rota (revisión funcional H1, ADR-032).
+        report.decision_frame = (report.decision_frame or "") + (
+            f"\n\n⚠️ Thesis-break validator unavailable; manual check required "
+            f"(pre-filter matched: {', '.join(triggered[:3])})."
+        )
+        return report
+
     if not confirmed:
         log.info(
             "thesis_break_python_trigger_llm_rejected",
@@ -955,38 +921,34 @@ def value_expert_agent(state: AnalysisState) -> dict:
 
     context = _format_context(state)
     user_prompt = (
-        f"Analyze {ticker} based on the specialist reports below and return the JSON.\n\n"
-        f"{context}\n\n"
-        "Return valid JSON only."
+        f"Analyze {ticker} based on the specialist reports below.\n\n"
+        f"{context}"
     )
 
     log.info("value_expert_llm_call", ticker=ticker, model=settings.openai_expert_model)
-    # 8192 tokens: el prompt v2 genera respuestas más largas que el original
-    # (9 secciones con adjudicación de conflictos + thesis-breaker concreto).
-    # 4096 era insuficiente para empresas con contexto rico (ej. DRS con 20+ páginas de 10-K).
-    # response_format=json_object forces the model to produce valid JSON and
-    # prevents mid-JSON truncation (gpt-5.4-mini sometimes stops early otherwise).
-    response_text = get_client().complete(
-        messages=[{"role": "user", "content": user_prompt}],
-        system=_SYSTEM_PROMPT,
-        model=settings.openai_expert_model,
-        max_tokens=8192,
-        response_format={"type": "json_object"},
-    )
+    # 8192 tokens: 9 secciones con adjudicación de conflictos + thesis-breaker concreto.
+    # La truncación ya no es silenciosa: structured() lanza LLMTruncatedError (ADR-032).
+    client = get_client()
+    out: ValueExpertLLMOutput | None = None
+    for attempt in (1, 2):
+        try:
+            out = client.structured(ValueExpertLLMOutput,
+                                    messages=[{"role": "user", "content": user_prompt}],
+                                    system=_SYSTEM_PROMPT, model=settings.openai_expert_model,
+                                    max_tokens=8192)
+            break
+        except LLMSchemaError as e:
+            # Solo el error de schema justifica reintento: es estocástico. Truncación y
+            # proveedor no mejoran repitiendo la misma llamada.
+            if attempt == 1:
+                log.warning("value_expert_retry", ticker=ticker, reason=str(e))
+                continue
+            return {"synthesis": _failed_synthesis(ticker, e)}
+        except LLMError as e:
+            return {"synthesis": _failed_synthesis(ticker, e)}
 
-    report = _parse_response(response_text, ticker)
-
-    # Retry once if parse failed (defense-in-depth against model quirks).
-    if report.verdict_confidence == 0.0 and report.decision_frame and "[Parse error" in report.decision_frame:
-        log.warning("value_expert_retry", ticker=ticker, reason="parse_failed_first_attempt")
-        response_text = get_client().complete(
-            messages=[{"role": "user", "content": user_prompt}],
-            system=_SYSTEM_PROMPT,
-            model=settings.openai_expert_model,
-            max_tokens=8192,
-            response_format={"type": "json_object"},
-        )
-        report = _parse_response(response_text, ticker)
+    report = _to_report(out, ticker)
+    report = report.model_copy(update={"model_used": model_used(client)})
 
     # --- Thesis-break self-check (EC-45) — defense-in-depth ---
     # Detect if the thesis-breaker mentions a condition that the LLM's own

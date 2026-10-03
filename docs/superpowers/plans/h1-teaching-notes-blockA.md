@@ -45,3 +45,21 @@ Formato: concepto → por qué → cómo → relación con la arquitectura → e
 **Relación con la arquitectura.** ADR-032; invariante 3 (los agentes solo importan `llm.errors`, nunca el SDK); invariante 6 (los prompts mantienen las preguntas de §3 y §2; solo pierden el bloque de formato JSON).
 
 **Ejemplo.** `critic_agent({"ticker": "T", "synthesis": ValueExpertReport(ticker="T", stub=True)})` → `CriticReport(stub=True, error="skipped: synthesis unavailable")` y `structured` nunca se llama.
+
+---
+
+## T2d — Sin VERDICT es mejor que un HOLD inventado (Value Expert + validador ADR-031)
+
+**Concepto.** Un veredicto es una decisión de inversión; un fallo técnico no lo es. Cuando el LLM no produce una síntesis válida, el sistema debe decir "no hay veredicto", no "HOLD".
+
+**Por qué.** `_parse_response` devolvía `verdict="HOLD", verdict_confidence=0.0` ante cualquier JSON inválido. En la auditoría 44/51 veredictos eran HOLD: parte eran fallos de parseo archivados como decisiones (EC-68). Además el validador de thesis-break (ADR-031) devolvía `False` ante un error, lo que equivalía a "la tesis no está rota" sin haberlo comprobado.
+
+**Cómo.**
+- `structured(ValueExpertLLMOutput, ...)` con un bucle de 2 intentos: **solo `LLMSchemaError` se reintenta** (es estocástico); `LLMTruncatedError` y `LLMProviderError` no mejoran repitiendo y van directos a `_failed_synthesis` (`stub=True`, `error`, `verdict=None`).
+- `_to_report(out, ticker)` conserva los clamps deterministas: confidence [0,1], sizing [0,20] y sizing ≤ confidence×10 (EC-24).
+- `_validate_thesis_break_with_llm` usa `structured(ThesisBreakCheck)` y devuelve `bool | None`; con `None` `_thesis_break_self_check` añade "⚠️ Thesis-break validator unavailable; manual check required".
+- El prompt pierde el "OUTPUT SCHEMA" en JSON, que pasa a "SECTION GUIDANCE" (contenido por campo). La regla 14 se reescribe (formato impuesto por la API) **sin renumerar**: la numeración la referencian tests, EC y la propia regla 19.
+
+**Relación con la arquitectura.** ADR-009 (VERDICT obligatorio cuando `stub=False` — ahora también: nunca VERDICT cuando `stub=True`), ADR-031, ADR-032.
+
+**Ejemplo.** `structured.side_effect = [LLMSchemaError("bad"), _ve_out()]` → 2 llamadas y `verdict="BUY"`; `side_effect = LLMTruncatedError("t")` → 1 llamada, `stub=True`, `verdict is None`.

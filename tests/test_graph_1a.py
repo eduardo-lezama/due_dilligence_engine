@@ -93,7 +93,12 @@ def _mock_specialists(mocker):
     mocker.patch("due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_risk_factors", return_value="")
     mocker.patch("due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_mda", return_value="")
     mock_filings = mocker.MagicMock()
-    mock_filings.complete.return_value = '{"citations":[]}'
+    from due_diligence.schemas.llm_outputs import FilingsLLMOutput
+    mock_filings.structured.return_value = FilingsLLMOutput(
+        business_description=None, risk_factors_summary=None, mda_highlights=None,
+        backlog_usd=None, backlog_citation=None, revenue_guidance=None,
+        geographic_revenue_breakdown=None, key_regulatory_events=None,
+        governance_red_flags=None, citations=[])
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_filings)
 
     mocker.patch("due_diligence.agents.market.PolygonAdapter.fetch_market_data",

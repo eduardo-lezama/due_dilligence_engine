@@ -25,10 +25,9 @@ import json
 import pytest
 
 from due_diligence.agents.management import management_agent, _parse_llm_response
-from due_diligence.agents.filings import (
-    filings_agent,
-    _parse_llm_response as _parse_filings_response,
-)
+from due_diligence.agents.filings import filings_agent
+from due_diligence.llm.errors import LLMTruncatedError
+from due_diligence.schemas.llm_outputs import CitationOut, FilingsLLMOutput
 from due_diligence.agents.market import market_agent
 from due_diligence.agents.competitive import (
     competitive_agent,
@@ -273,23 +272,31 @@ def test_tavily_skips_when_no_api_key(mocker):
 # Fixtures — Filings Agent
 # ---------------------------------------------------------------------------
 
+def _filings_out(**over) -> FilingsLLMOutput:
+    """Salida LLM tipada (ADR-032) mínima para el filings agent; `over` sobrescribe campos."""
+    base = dict(business_description="Makes widgets.", risk_factors_summary="Customer concentration.",
+                mda_highlights="Revenue up 5%.", backlog_usd=None, backlog_citation=None,
+                revenue_guidance=None, geographic_revenue_breakdown=None,
+                key_regulatory_events=None, governance_red_flags=None, citations=[])
+    base.update(over)
+    return FilingsLLMOutput(**base)
+
+
 @pytest.fixture
 def filings_llm_response_valid():
-    """Respuesta JSON bien formada que el LLM devuelve para el filings agent."""
-    return json.dumps({
-        "business_description": "Apple designs, manufactures and sells smartphones, personal computers, tablets, wearables and accessories. Revenue comes from product sales and services (App Store, iCloud, Apple Music). Hardware accounts for ~80% of revenue, services ~20% and growing.",
-        "risk_factors_summary": "Key risks: intense competition in all product categories; reliance on third-party manufacturers in Asia (supply chain concentration); regulatory scrutiny of App Store practices in EU and US; dependence on iPhone revenue (~50% of total).",
-        "mda_highlights": "FY2024 revenue of $391B, up 2% YoY, driven by services growth (+13%) offsetting flat iPhone revenue. Gross margin expanded to 45.9% on services mix shift. Management flagged FX headwinds and macroeconomic uncertainty in Greater China as key risks.",
-        "citations": [
-            {
-                "claim": "Services revenue grew 13% YoY in FY2024",
-                "source_url": "10-K Item 7",
-                "excerpt": "Net sales for Services were $96.2 billion, representing an increase of 13% compared to 2023",
-                "confidence": 0.95,
-                "gaap_vs_nongaap_flag": None,
-            }
-        ],
-    })
+    """Salida estructurada que structured() devuelve para el filings agent (antes: JSON en texto)."""
+    return _filings_out(
+        business_description="Apple designs, manufactures and sells smartphones, personal computers, tablets, wearables and accessories. Revenue comes from product sales and services (App Store, iCloud, Apple Music). Hardware accounts for ~80% of revenue, services ~20% and growing.",
+        risk_factors_summary="Key risks: intense competition in all product categories; reliance on third-party manufacturers in Asia (supply chain concentration); regulatory scrutiny of App Store practices in EU and US; dependence on iPhone revenue (~50% of total).",
+        mda_highlights="FY2024 revenue of $391B, up 2% YoY, driven by services growth (+13%) offsetting flat iPhone revenue. Gross margin expanded to 45.9% on services mix shift. Management flagged FX headwinds and macroeconomic uncertainty in Greater China as key risks.",
+        citations=[CitationOut(
+            claim="Services revenue grew 13% YoY in FY2024",
+            source_url="10-K Item 7",
+            excerpt="Net sales for Services were $96.2 billion, representing an increase of 13% compared to 2023",
+            confidence=0.95,
+            gaap_vs_nongaap_flag=None,
+        )],
+    )
 
 
 # --- Tests: filings_agent nodo LangGraph ---
@@ -309,7 +316,7 @@ def test_filings_agent_returns_filings_key(mocker, minimal_state, filings_llm_re
         return_value="MDA text...",
     )
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = filings_llm_response_valid
+    mock_client.structured.return_value = filings_llm_response_valid
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_client)
 
     result = filings_agent(minimal_state)
@@ -332,7 +339,7 @@ def test_filings_agent_stub_false(mocker, minimal_state, filings_llm_response_va
         return_value="",
     )
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = filings_llm_response_valid
+    mock_client.structured.return_value = filings_llm_response_valid
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_client)
 
     result = filings_agent(minimal_state)
@@ -355,7 +362,7 @@ def test_filings_agent_populates_fields(mocker, minimal_state, filings_llm_respo
         return_value="MDA text",
     )
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = filings_llm_response_valid
+    mock_client.structured.return_value = filings_llm_response_valid
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_client)
 
     result = filings_agent(minimal_state)
@@ -384,7 +391,7 @@ def test_filings_agent_calls_all_three_edgar_methods(mocker, minimal_state, fili
         return_value="",
     )
     mock_client = mocker.MagicMock()
-    mock_client.complete.return_value = filings_llm_response_valid
+    mock_client.structured.return_value = filings_llm_response_valid
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_client)
 
     filings_agent(minimal_state)
@@ -394,69 +401,38 @@ def test_filings_agent_calls_all_three_edgar_methods(mocker, minimal_state, fili
     mock_mda.assert_called_once_with("AAPL")
 
 
-# --- Tests: _parse_llm_response del filings agent ---
+# --- Tests: structured() + fail loud (H1-T2b, ADR-032, EC-68) ---
 
-def test_filings_parse_valid_json():
-    """Parsea correctamente un JSON válido con todos los campos."""
-    raw = json.dumps({
-        "business_description": "Sells software subscriptions to enterprises.",
-        "risk_factors_summary": "Competition from cloud giants; customer churn.",
-        "mda_highlights": "ARR grew 25% YoY; gross margin stable at 72%.",
-        "citations": [
-            {
-                "claim": "ARR grew 25% YoY",
-                "source_url": "10-K Item 7",
-                "excerpt": "Annual Recurring Revenue increased 25% year-over-year",
-                "confidence": 0.9,
-                "gaap_vs_nongaap_flag": None,
-            }
-        ],
-    })
-
-    report = _parse_filings_response(raw, "CRM")
-
-    assert report.stub is False
-    assert report.business_description == "Sells software subscriptions to enterprises."
-    assert len(report.citations) == 1
+@pytest.fixture
+def edgar_texts(mocker):
+    """Textos 10-K sintéticos para filings_agent (sin red)."""
+    p = "due_diligence.agents.filings.EdgarFilingsAdapter."
+    mocker.patch(p + "fetch_10k_business", return_value="We make widgets for industrial customers.")
+    mocker.patch(p + "fetch_10k_risk_factors", return_value="One customer accounts for 40% of revenue.")
+    mocker.patch(p + "fetch_10k_mda", return_value="Revenue increased 5% to $1,200 million.")
 
 
-def test_filings_parse_json_with_surrounding_text():
-    """El parser extrae el JSON aunque el LLM añada texto antes o después."""
-    raw = "Here is my analysis:\n" + json.dumps({
-        "business_description": "Makes semiconductors.",
-        "risk_factors_summary": "Cyclicality, supply chain.",
-        "mda_highlights": "Revenue down 12% on memory pricing.",
-        "citations": [],
-    }) + "\nEnd of analysis."
-
-    report = _parse_filings_response(raw, "MU")
-
-    assert report.stub is False
-    assert "semiconductor" in report.business_description.lower()
+def test_filings_agent_uses_structured_output(mocker, edgar_texts):
+    client = mocker.MagicMock()
+    client.structured.return_value = _filings_out()
+    client.last_model_used = "gpt-4.1"
+    mocker.patch("due_diligence.agents.filings.get_client", return_value=client)
+    report = filings_agent({"ticker": "WID"})["filings"]
+    assert report.stub is False and report.error is None
+    assert report.business_description == "Makes widgets."
+    assert report.model_used == "gpt-4.1"
+    assert client.structured.call_args.args[0] is FilingsLLMOutput
+    client.complete.assert_not_called()
 
 
-def test_filings_parse_invalid_json_returns_fallback():
-    """Si el JSON es inválido, devuelve FilingsRAGReport parcial sin lanzar excepción."""
-    raw = "I cannot analyze this filing."
-
-    report = _parse_filings_response(raw, "UNKNOWN")
-
-    assert isinstance(report, FilingsRAGReport)
-    assert report.stub is False
-    assert report.mda_highlights is not None  # contiene el mensaje de error
-
-
-def test_filings_parse_missing_optional_fields():
-    """Campos opcionales ausentes en el JSON se mapean a None sin error."""
-    raw = json.dumps({
-        "citations": [],
-    })
-
-    report = _parse_filings_response(raw, "TSLA")
-
-    assert report.business_description is None
-    assert report.risk_factors_summary is None
-    assert report.mda_highlights is None
+def test_filings_agent_fails_loud_on_llm_error(mocker, edgar_texts):
+    client = mocker.MagicMock()
+    client.structured.side_effect = LLMTruncatedError("gpt-4.1: truncated")
+    mocker.patch("due_diligence.agents.filings.get_client", return_value=client)
+    report = filings_agent({"ticker": "WID"})["filings"]
+    assert report.stub is True
+    assert report.error.startswith("LLMTruncatedError")
+    assert report.mda_highlights is None        # nada de "[Parse error]" disfrazado de contenido
 
 
 # ---------------------------------------------------------------------------

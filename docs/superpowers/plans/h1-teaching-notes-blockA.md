@@ -16,3 +16,17 @@ Formato: concepto → por qué → cómo → relación con la arquitectura → e
 **Relación con la arquitectura.** ADR-032 (structured outputs + fail loud) y ADR-005: una cita nace no verificada; solo `validation/citations.py` (T3) puede marcarla `verified=True`.
 
 **Ejemplo.** `CitationOut(confidence=1.4).to_citation().confidence == 1.0`; `FilingsRAGReport(ticker="X").error is None` (un checkpoint antiguo sigue cargando).
+
+---
+
+## T2b — Fail-loud en agentes LLM (`filings_agent`)
+
+**Concepto.** *Fail loud* significa que un fallo se representa como fallo en los datos (y por tanto en la UI), no como un valor por defecto que parece legítimo.
+
+**Por qué.** Antes, si el JSON del LLM no se podía parsear, `_parse_llm_response` devolvía `FilingsRAGReport(stub=False, mda_highlights="[Parse error] ...")`. Para el resto del grafo eso era un análisis real: el Value Expert lo leía como "highlights del MD&A" y el informe no avisaba de nada (EC-68).
+
+**Cómo.** `client.structured(FilingsLLMOutput, ...)` devuelve un objeto ya validado o lanza un `LLMError` tipado. El nodo hace `try/except LLMError` y en el `except` devuelve `FilingsRAGReport(stub=True, error="LLMTruncatedError: ...")`. `_build_report(out, ticker)` es una función pura de mapeo (sin parseo). `model_used` se lee de `client.last_model_used` (helper `agents/llm_support.model_used`). El prompt pierde el bloque "OUTPUT SCHEMA" en JSON: el formato lo impone el schema; el prompt solo describe el contenido de cada campo y exige `backlog_citation` literal.
+
+**Relación con la arquitectura.** Invariante 5 (tools fallan loud) aplicado a la capa LLM; ADR-032. El grafo NO se detiene: el report con `error` viaja hasta el Value Expert (bloque DATA GAPS, T2e), el archiver (sección "Analysis incomplete") y la CLI (panel rojo).
+
+**Ejemplo.** `client.structured.side_effect = LLMTruncatedError("trunc")` → `filings_agent(...)["filings"]` tiene `stub=True`, `error.startswith("LLMTruncatedError")` y `mda_highlights is None`.

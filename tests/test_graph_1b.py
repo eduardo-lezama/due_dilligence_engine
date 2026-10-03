@@ -119,12 +119,16 @@ def _make_management_response():
 
 
 def _make_filings_response():
-    return json.dumps({
-        "business_description": "Apple designs and sells consumer electronics.",
-        "risk_factors_summary": "Competition, supply chain concentration.",
-        "mda_highlights": "Revenue grew 2% YoY.",
-        "citations": [],
-    })
+    """Salida tipada de structured() para filings (ADR-032)."""
+    from due_diligence.schemas.llm_outputs import FilingsLLMOutput
+    return FilingsLLMOutput(
+        business_description="Apple designs and sells consumer electronics.",
+        risk_factors_summary="Competition, supply chain concentration.",
+        mda_highlights="Revenue grew 2% YoY.",
+        backlog_usd=None, backlog_citation=None, revenue_guidance=None,
+        geographic_revenue_breakdown=None, key_regulatory_events=None,
+        governance_red_flags=None, citations=[],
+    )
 
 
 def test_graph_1b_fanout_pauses_at_checkpoint1(mocker):
@@ -183,7 +187,7 @@ def test_graph_1b_fanout_pauses_at_checkpoint1(mocker):
         return_value="",
     )
     mock_filings_client = mocker.MagicMock()
-    mock_filings_client.complete.return_value = _make_filings_response()
+    mock_filings_client.structured.return_value = _make_filings_response()
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_filings_client)
 
     # Mock Market (tool-lane: no LLM)
@@ -276,7 +280,7 @@ def test_graph_1b_state_has_all_four_reports_after_fanout(mocker):
         return_value="",
     )
     mock_filings_client = mocker.MagicMock()
-    mock_filings_client.complete.return_value = _make_filings_response()
+    mock_filings_client.structured.return_value = _make_filings_response()
     mocker.patch("due_diligence.agents.filings.get_client", return_value=mock_filings_client)
 
     # Mock Market

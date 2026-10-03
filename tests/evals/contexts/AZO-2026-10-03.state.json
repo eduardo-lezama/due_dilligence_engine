@@ -1,0 +1,794 @@
+{
+  "ticker": "AZO",
+  "cik": "0000866787",
+  "as_of_date": "2025-08-30",
+  "run_id": "08525ed7-8bd",
+  "financials": {
+    "ticker": "AZO",
+    "cik": "0000866787",
+    "as_of_date": "2025-08-30",
+    "revenue": [
+      {
+        "value": 18938717000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 18490268000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 17457209000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 16252230000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "gross_profit": [
+      {
+        "value": 9966474000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 9817052000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 9070422000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 8472650000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_income": [
+      {
+        "value": 3610156000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3788708000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3473986000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3270729000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "net_income": [
+      {
+        "value": 2498247000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2662427000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2528426000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2429604000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_cash_flow": [
+      {
+        "value": 3117337000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3004116000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2940788000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3211135000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "capex": [
+      {
+        "value": 1327257000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1072696000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 796657000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 672391000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "free_cash_flow": [
+      {
+        "value": 1790080000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1931420000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2144131000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2538744000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "buybacks": [
+      {
+        "value": 1578186000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3140917000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3699552000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 4359991000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "dividends": [],
+    "total_assets": {
+      "value": 19355324000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt": {
+      "value": 8799775000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "cash_and_equivalents": {
+      "value": 271803000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "shares_outstanding": {
+      "value": 16325355.0,
+      "unit": "shares",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "roic_series": [
+      {
+        "value": 0.5627,
+        "unit": "ratio",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.5905,
+        "unit": "ratio",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.5415,
+        "unit": "ratio",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.5098,
+        "unit": "ratio",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "invested_capital": {
+      "value": 5113659000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "equity+debt-cash",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "stockholders_equity": {
+      "value": -3414313000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "source_filing": "10-K FY2025",
+    "citations": []
+  },
+  "mgmt": {
+    "ticker": "AZO",
+    "stub": false,
+    "insider_ownership_pct": 2.6,
+    "founder_ceo": false,
+    "ceo_tenure_years": 0.83,
+    "form4_transactions_12m": 18,
+    "insider_transaction_pattern": "CEO Philip B. Daniele net seller: sold 1,000 shares in October 2025, no open-market purchases in 12m. Director Brian Hannasch net buyer: purchased 312 shares in December 2025. Overall insider sentiment: slightly negative.",
+    "compensation_structure_notes": "Management compensation is tied to performance metrics such as Economic Profit (EBIT and ROIC), aligning incentives with long-term shareholder value creation. The structure includes stock options, which further incentivize management to focus on long-term performance.",
+    "capital_allocation_summary": "The company has demonstrated disciplined capital allocation, focusing on expansion through the opening of Mega Hubs and maintaining a strong balance sheet. There is no mention of dividends or buybacks in the provided sources, indicating a focus on reinvestment for growth.",
+    "citations": [
+      {
+        "claim": "Philip B. Daniele, III became AutoZone’s CEO on January 2, 2024.",
+        "source_url": "SOURCE 1: DEF 14A",
+        "excerpt": "the selection of Phil Daniele, who on January 2 nd, 2024, became AutoZone’s fifth CEO in our rich history.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Insider ownership is 2.6%.",
+        "source_url": "SOURCE 1: DEF 14A",
+        "excerpt": "All current directors and executive officers as a group (26 persons) ... 435,783 2.6%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Management compensation is aligned with long-term shareholder value creation.",
+        "source_url": "SOURCE 7: Jamere Jackson - Chief Financial Officer | AUTOZONE (AZO) Executive Profile & Compensation",
+        "excerpt": "AutoZone’s pay‑for‑performance design ties annual incentives to Economic Profit (a function of EBIT and ROIC), with options‑only LTI aligned to TSR and long‑term value creation.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "The company has a disciplined capital allocation strategy.",
+        "source_url": "SOURCE 4: Web Research",
+        "excerpt": "led long-term value creation, international and DC/Mega Hub expansion, and disciplined capital allocation supporting ~20% annualized TSR over 20 years.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "filings": {
+    "ticker": "AZO",
+    "stub": false,
+    "business_description": "AutoZone, Inc. is a leading retailer and distributor of automotive replacement parts and accessories in the Americas. The company operates 6,627 stores in the U.S., 883 in Mexico, and 147 in Brazil, selling a wide range of products for cars, SUVs, vans, and light-duty trucks. Revenue is generated primarily through the sale of automotive hard parts, maintenance items, accessories, and non-automotive products, with a significant portion coming from commercial sales to repair garages and service stations.",
+    "risk_factors_summary": "Key risks include regulatory uncertainties stemming from global trade tariffs and geopolitical tensions, competitive pressures from other retailers with greater resources, and technological advancements that may reduce demand for traditional automotive parts. Additionally, economic factors such as inflation and consumer spending habits pose risks to sales.",
+    "mda_highlights": "For fiscal 2025, AutoZone reported net sales of $18.9 billion, a 2.4% increase from the previous year, with domestic commercial sales rising by 6.7%. However, operating profit and net income decreased due to unfavorable foreign currency exchange rates and increased costs. The company continues to focus on the aging vehicle population and miles driven as key drivers of demand.",
+    "backlog_usd": null,
+    "revenue_guidance": null,
+    "geographic_revenue_breakdown": null,
+    "key_regulatory_events": null,
+    "governance_red_flags": "No governance red flags found in provided text.",
+    "citations": [
+      {
+        "claim": "AutoZone operates 6,627 stores in the U.S., 883 in Mexico, and 147 in Brazil, selling a wide range of products for cars, SUVs, vans, and light-duty trucks.",
+        "source_url": "10-K Item 1",
+        "excerpt": "At August 30, 2025, operated 6,627 stores in the United States (“U.S.”), 883 stores in Mexico and 147 stores in Brazil.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Key risks include regulatory uncertainties stemming from global trade tariffs and geopolitical tensions.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "The current global economic and geopolitical landscape has increased uncertainty about key areas of doing business internationally and may have a negative impact on our business.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "For fiscal 2025, AutoZone reported net sales of $18.9 billion, a 2.4% increase from the previous year.",
+        "source_url": "10-K Item 7",
+        "excerpt": "For fiscal 2025, net sales increased to $18.9 billion, a 2.4% increase over the prior year.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "market": {
+    "ticker": "AZO",
+    "stub": false,
+    "price_current": {
+      "value": 2792.03,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_high": {
+      "value": 4252.54,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_low": {
+      "value": 2756.13,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "market_cap": {
+      "value": 45155501190.0,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] AutoZone hones in on domestic distribution network\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=ded55dafa3cb8198988df85078f08fa341b7ae91a7b64de9bf483b871c87fdd9\n    The auto parts retailer opened 16 mega hubs this quarter and 39 this year in total as it advances its inventory replenishment strategy.\n\n[2] O’Reilly Automotive’s Stock Slump Hides a Stronger Business\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=75ac82d15a0305b7e3425511877630b9f296b43c24407b2a2a79c3522703471a\n    O'Reilly Automotive shows steady sales and earnings growth, but its stock is down over the past year amid softer DIY demand and a premium valuation compared with rivals like AutoZone.\n\n[3] Used Cars Are the New Luxury Vehicles: 3-Year Old Beaters Now Cost Over $32,400\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=a267aff3a125e1512ea017d4d9ba91466709de0e977d5bd76f1dee471c9ebc08\n    For generations of American drivers, the used-car lot was the escape hatch. New vehicles became too expensive, so buyers let somebody else eat the depreciation and picked up a three-year-old car at a reasonable discount. That bargain is disappearing. Pandemic production disruptions reduced the suppl\n\n[4] 4 Stocks That Could Split Next—and Why Investors Are Watching\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=a5b7c64c8bb6385c768246cde6b9e374a14152874e957c763ab5fead9d6593de\n    AutoZone, Eli Lilly, Meta Platforms, and Costco all trade at high share prices, making them candidates for stock splits as analysts raise price targets and cite strong fundamentals.\n\n[5] Should Investors Buy AZO Stock as Growth Meets Margin Concerns?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=b762a9db44d0a4c73c97e5523e5f9909046150bb7c250639dfc322e46d992c00\n    AutoZone balances record expansion and commercial growth with margin pressure, consumer trends and leverage concerns as investors weigh its outlook.\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\n[1] Financial Analysis for AZO\nURL: https://finance.yahoo.com/quote/AZO/\nStock: AZO\nFinancial Analysis:\nLatest Open Price: 2840.00 Latest Close Price: 2792.03 Highest Close Price: 4354.54 Lowest Close Price: 2792.03 Average Close Price (2 years): 3497.40 Standard Deviation of Close Price: 361.51 Volume Traded (2 years): 91720700 Total Return (2 years): -8.96% Annualized Return (2 years): -4.59% CAGR (2 years): -4.59% Sharpe Ratio (2 years): -0.01 Max Drawdown (2 years): -0.00% \n\n[2] autozone.com\nURL: https://www.autozone.com\nBonaire, Sint Eustatius and Saba. Heard Island and McDonald Islands. Korea (the Democratic People's Republic of). South Georgia and the South Sandwich Islands. St Helena, Ascension and Tristan da Cunha. United States Minor Outlying Islands.\n\n[3] AutoZone Brunswick, OH (Updated: September 2026) - The Weekly Ad\nURL: https://www.theweeklyad.com/autozone-brunswick-oh\nHours ... AutoZone Brunswick, OH See the normal opening and closing hours and phone number for AutoZone Brunswick, OH.\n\n[4] Should Investors Buy AZO Stock as Growth Meets Margin Concerns?\nURL: https://finance.yahoo.com/markets/stocks/articles/investors-buy-azo-stock-growth-131400596.html\n[Sign in](https://login.yahoo.com/?done=https%3A%2F%2Ffinance.yahoo.com%2Fmarkets%2Fstocks%2Farticles%2Finvestors-buy-azo-stock-growth-131400596.html&intl=us&lang=en-US&activity=ybar-signin&pspid=1183300100&src=finance). 1. [My Portfolio](https://finance.yahoo.com/portfolios/). [Stocks](https://finance.yahoo.com/markets/stocks/). 1. [Most Active](https://finance.yahoo.com/markets/stocks/most-active/). 2. [Day Gainers](https://finance.yahoo.com/markets/stocks/gainers/). 3. [Day Losers](https://finance.yahoo.com/markets/stocks/losers/). 4. [Trending](https://finance.yahoo.com/markets/stocks/tren\n\n[5] Why AutoZone (AZO) Is Down 9.7% After Earnings Fell Despite Higher Sales And What's Next\nURL: https://finance.yahoo.com/news/why-autozone-azo-down-9-001339155.html\n2. Best 0% APR cards. 2. Best high-yield savings accounts. 3. Best money market accounts. * Behind the headline miss, management pointed to a US$98 million non-cash LIFO inventory charge, tariff-related cost pressures, and higher expenses from opening 53 new stores and upgrading the supply chain, factors that weighed on margins even as same-store and commercial sales grew. * With earnings pressured by a sizable non-cash LIFO charge and heavier growth spending, we'll now assess how this reshapes AutoZone's investment narrative. That level of expansion, alongside a planned US$1.6 billion in capi\n\n[6] Did Record Q4 Results and Store Expansion Just Shift AutoZone’s (AZO) Investment Narrative?\nURL: https://finance.yahoo.com/markets/stocks/articles/did-record-q4-results-store-021032781.html\n*   [Finance](https://finance.yahoo.com/). *   [Finance](https://finance.yahoo.com/). *   [My portfolio](https://finance.yahoo.com/portfolios/). *   [News](https://finance.yahoo.com/news/). *   [Markets](https://finance.yahoo.com/markets/). *   [Community](https://finance.yahoo.com/community/). *   [Personal finance](https://finance.yahoo.com/personal-finance/). *   [Videos](https://finance.yahoo.com/videos/). 1.   [My Portfolio](https://finance.yahoo.com/portfolios/). 2.   [Markets](https://finance.yahoo.com/markets/). 1.   [Stocks](https://finance.yahoo.com/markets/stocks/). 1.   [Most Activ\n\n[7] Westport Fuel's Increasing Market Presence to Boost Revenues\nURL: https://finance.yahoo.com/news/westport-fuels-increasing-market-presence-123612356.html\nAdditionally, legal costs stemming from SEC investigations as well as restructuring activities are likely to hurt Westport Fuel's bottom line in spite of\n\n[8] Rogers Communications Inc. -- Moody's assigns Baa1 ratings to Rogers' proposed unsecured notes; under review down\nURL: https://finance.yahoo.com/news/rogers-communications-inc-moodys-assigns-144407821.html\n*   [Finance](https://finance.yahoo.com/). *   [Finance](https://finance.yahoo.com/). *   [My portfolio](https://finance.yahoo.com/portfolios/). *   [News](https://finance.yahoo.com/news/). *   [Markets](https://finance.yahoo.com/markets/). *   [Community](https://finance.yahoo.com/community/). *   [Personal finance](https://finance.yahoo.com/personal-finance/). *   [Videos](https://finance.yahoo.com/videos/). 1.   [My Portfolio](https://finance.yahoo.com/portfolios/). 2.   [News](https://finance.yahoo.com/topic/latest-news/). 1.   [Markets](https://finance.yahoo.com/topic/stock-market-news/).\n\n[9] SEC Scrutinizes Jefferies Over First Brands Disclosures\nURL: https://finance.yahoo.com/news/sec-scrutinizes-jefferies-over-first-163700864.html\n3. Best balance transfer cards. 3. Best money market accounts. 4. Best free checking accounts. The U.S. Securities and Exchange Commission (SEC) is carrying out a probe into **Jefferies Financial Group Inc.** JEF over its connections with First Brands Group. The regulator is examining whether Jefferies adequately informed investors in its Point Bonita fund about their exposure to the auto business. ## Background of Jefferies & First Brands. In October 2025, Jefferies disclosed its indirect exposure to First Brands Group, LLC, which filed for Chapter 11 bankruptcy protection on Sept. Point Boni\n",
+    "material_events": [
+      {
+        "filing_date": "2026-09-22",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02. Results of Operations and Financial Condition.\n\nOn September 22, 2026, AutoZone, Inc. issued a press release announcing its earnings for the fiscal quarter ended August 29, 2026, which is furnished as Exhibit 99.1.\n\nItem 9.01. Financial Statements and Exhibits.\n\n(d) Exhibits.\n\n  Exhibit No.                                                                                   \n         99.1      Press Release, dated September 22, 2026                                      \n          104      Cover Page Interactive Data File (embedded within the Inline XBRL document)",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/866787/000117184326006159/f8k_092126.htm"
+      },
+      {
+        "filing_date": "2026-07-14",
+        "item_numbers": [
+          "Item 1.01"
+        ],
+        "summary_text": "[Item 1.01] Item 1.01.      Entry into a Material Definitive Agreement.  \n\nThe information provided in\nItem 2.03 of this report is incorporated by reference into this Item 1.01.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/866787/000110465926083528/tm2620403d1_8k.htm"
+      },
+      {
+        "filing_date": "2026-07-09",
+        "item_numbers": [
+          "Item 1.01"
+        ],
+        "summary_text": "[Item 1.01] Item 1.01.      Entry into a Material Definitive Agreement.  \n\nOn\nJuly 7, 2026, AutoZone, Inc. (the “Company”) entered into an underwriting agreement (the “Underwriting Agreement”),\nby and among the Company and BofA Securities, Inc., J.P. Morgan Securities LLC, Truist Securities, Inc., and U.S. Bancorp Investments,\nInc., as representatives of the several underwriters named therein (the “Underwriters”), pursuant to which the Company agreed\nto issue and sell to the Underwriters, and the Underwriters agreed to purchase, $850,000,000 aggregate principal amount of the Company’s\n4.950% Notes due 2031 (the “Notes”). The Underwriting Agreement contains customary representations, warranties and agreements\nof the Company and customary conditions to closing, indemnification rights and obligations of ",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/866787/000110465926082304/tm2619274d6_8k.htm"
+      },
+      {
+        "filing_date": "2026-06-16",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01. Other Events.\n\nOn June 16, 2026, AutoZone, Inc. issued a press release announcing that the Board has authorized the repurchase of an additional $1.5 billion of the Company’s common stock in connection with its ongoing share repurchase program. The press release is attached hereto as Exhibit 99.1 and is incorporated herein by reference.\n\nItem 9.01. Financial Statements and Exhibits.\n\n(d) Exhibits.\n\n  Exhibit No.      Description                                                                  \n         99.1      Press Release, dated June 16, 2026                                           \n ────────────────────────────────────────────────────────────────────────────────────────────────\n          104      Cover Page Interactive Data File (embedded within the Inline XBRL document)",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/866787/000117184326004150/f8k_061626.htm"
+      },
+      {
+        "filing_date": "2026-05-26",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02. Results of Operations and Financial Condition.\n\nOn May 26, 2026, AutoZone, Inc. issued a press release announcing its earnings for the fiscal quarter ended May 9, 2026 which is furnished as Exhibit 99.1.\n\nItem 9.01. Financial Statements and Exhibits.\n\n(d) Exhibits.\n\n  Exhibit No.      Description                                                                  \n         99.1      Press Release, dated May 26, 2026                                            \n ────────────────────────────────────────────────────────────────────────────────────────────────\n          104      Cover Page Interactive Data File (embedded within the Inline XBRL document)",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/866787/000117184326003674/f8k_052526.htm"
+      },
+      {
+        "filing_date": "2026-03-03",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02. Results of Operations and Financial Condition.\n\nOn March 3, 2026, AutoZone, Inc. issued a press release announcing its earnings for the fiscal quarter ended February 14, 2026 which is furnished as Exhibit 99.1.\n\nItem 9.01. Financial Statements and Exhibits.\n\n(d) Exhibits.\n\n  Exhibit No.      Description                                                                  \n         99.1      Press Release, dated March 3, 2026                                           \n ────────────────────────────────────────────────────────────────────────────────────────────────\n          104      Cover Page Interactive Data File (embedded within the Inline XBRL document)",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/866787/000117184326001288/f8k_030226.htm"
+      },
+      {
+        "filing_date": "2025-12-09",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02. Results of Operations and Financial Condition.\n\nOn December 9, 2025, AutoZone, Inc. issued a press release announcing its earnings for the fiscal quarter ended November 22, 2025 which is furnished as Exhibit 99.1.\n\nItem 9.01. Financial Statements and Exhibits.\n\n(d) Exhibits.\n\n  Exhibit No.      Description                                                                  \n         99.1      Press Release, dated December 9, 2025                                        \n ────────────────────────────────────────────────────────────────────────────────────────────────\n          104      Cover Page Interactive Data File (embedded within the Inline XBRL document)",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/866787/000117184325007831/f8k_120825.htm"
+      },
+      {
+        "filing_date": "2025-10-08",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01. Other Events.\n\nAlso on October 8, 2025, the Company issued a press release announcing that the Board has authorized the repurchase of an additional $1.5 billion of the Company’s common stock in connection with its ongoing share repurchase program. The press release is attached hereto as Exhibit 99.1 and is incorporated herein by reference.\n\nItem 9.01. Financial Statements and Exhibits.\n\n(d) Exhibits.\n\n  Exhibit No.      Description                                                                  \n         99.1      Press Release dated October 8, 2025                                          \n ────────────────────────────────────────────────────────────────────────────────────────────────\n          104      Cover Page Interactive Data File (embedded within the Inline XBRL documen",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/866787/000117184325006358/f8k_100825.htm"
+      }
+    ],
+    "quarterly_earnings_text": "EXHIBIT 99.1\n  AutoZone 4th Quarter Total Company Same Store Sales Increase 1.5%; Domestic  \n  Same Store Sales Increase 1.6%; 4th Quarter EPS of $56.05; Annual Sales of   \n                                 $20.3 Billion                                 \nMEMPHIS, Tenn., Sept. 22, 2026 (GLOBE NEWSWIRE) -- AutoZone, Inc. (NYSE: AZO)\ntoday reported net sales of $6.6 billion for its fourth quarter (16 weeks)\nended August 29, 2026, an increase of 5.6% from the fourth quarter of fiscal\n2025 (16 weeks). Same store sales, or sales for our domestic and international\nstores open at least one year, are as follows:\n                                                                               \n                             Constant                      Constant            \n                             Currency                      Currency            \n             16 Weeks       16 Weeks*       52 Weeks       52 Weeks*           \n  Domestic        1.6  %          1.6  %         3.3  %                3.3  %  \n  Internat…      10.7  %          1.3  %        13.5  %                2.2  %  \n  Total           2.7  %          1.5  %         4.5  %                3.2  %  \n  Company                                                                      \n  *                                                                            \n  Excludes                                                                     \n  impacts                                                                      \n  from                                                                         \n  fluctuat…                                                                    \n  of                                                                           \n  foreign                                                                      \n  exchange                                                                     \n  rates.                                                                       \n                                                                               \nFor the quarter, gross profit, as a percentage of sales, was 53.3%, an increase\nof 182 basis points versus the prior year. The increase in gross margin was\ndriven by a 145 basis point impact from tariff refunds and a 105 basis point\nnet non-cash LIFO impact, partially offset by higher commercial mix. Operating\nexpenses, as a percentage of sales, were 33.4% versus last year at 32.4% with\ndeleverage primarily driven by growth initiatives.\n\nOperating profit increased 10.1% to $1.3 billion. Net income for the quarter\nwas $931.6 million compared to $837.0 million in the same period last year,\nwhile diluted earnings per share were $56.05 compared to last year at $48.71.\n\nFor the fiscal year ended August 29, 2026, net sales were $20.3 billion, an\nincrease of 7.4% from the prior year. Gross profit, as a percentage of sales,\nwas 52.3% versus last year at 52.6%. The decrease in gross margin was impacted\nby a 61 basis point net non-cash LIFO impact, partially offset by a 48 basis\npoint benefit from tariff refunds. Operating expenses, as a percentage of\nsales, were 34.0% versus last year at 33.6%. Operating profit increased 3.1% to\n$3.7 billion, net income increased 3.0% to $2.6 billion and diluted earnings\nper share increased 5.3% to $152.55 from $144.87.\n\nUnder its share repurchase program, AutoZone repurchased 223 thousand shares of\nits common stock at an average price per share of $3,125, for a total\ninvestment of $697.5 million. For the fiscal year, the Company repurchased 579\nthousand shares of its common stock, at an average price of $3,496, for a total\ninvestment of $2.0 billion. At year end, the Company had $1.6 billion remaining\nunder its current share repurchase authorization.\n\nThe Company’s inventory increased 10.1% over the same period last year, driven\nprimarily by growth initiatives. Net inventory, defined as merchandise\ninventories less accounts payable, on a per store basis, was negative $107\nthousand versus negative $131 thousand last year and negative $107 thousand\nlast quarter.\n\n“I want to thank our entire organization for delivering another quarter of\nsales and earnings growth. In spite of a difficult selling environment the\nfirst eight weeks of our quarter, we remained committed to executing on our\nstrategies to grow both our domestic and international businesses. Over the\nlast eight weeks of the quarter our sales results strengthened, and we feel we\nare well positioned for sales growth in fiscal 2027. We opened 175 new stores\nthis past quarter, which included 16 new Mega Hub stores in the U.S. We\ncontinue to improve our inventory offering for both the do-it-yourself and\nprofessional customers. We continue to improve our speed of delivery and are\nintently focused on exceptional customer service. Based on the data we have, we\ncontinued to gain share and we expect sales in each of the three countries in\nwhich we operate to accelerate in the new fiscal year. As always, we will\nremain committed to a disciplined approach of driving shareholder value,” said\nPhil Daniele, President and Chief Executive Officer.\n\nDuring the quarter ended August 29, 2026, AutoZone opened 97 new stores in the\nU.S., 68 in Mexico and 10 in Brazil for a total of 175 new stores. For the\nfiscal year, the Company opened 374 new stores. As of August 29, 2026, the\nCompany had 6,863 stores in the U.S., 1,001 in Mexico and 167 in Brazil for a\ntotal store count of 8,031.\n\nAutoZone is a leading retailer and distributor of automotive replacement parts\nand accessories in the Americas. Each store carries an extensive product line\nfor cars, sport utility vehicles, vans and light duty trucks, including new and\nremanufactured automotive hard parts, maintenance items, accessories, and non-\nautomotive products. The majority of stores have a commercial sales program\nthat provides prompt delivery of parts and other products and commercial credit\nto local, regional and national repair garages, dealers, service stations,\nfleet owners and other accounts. AutoZone also sells automotive hard parts,\nmaintenance items, accessories and non-automotive products through\nwww.autozone.com, and our commercial customers can make purchases through\nwww.autozonepro.com. Additionally, we sell the ALLDATA brand of automotive\ndiagnostic, repair, collision and shop management software through\nwww.alldata.com. We also provide product information on our Duralast branded\nproducts through www.duralastparts.com. AutoZone does not derive revenue from\nautomotive repair or installation services.\n\nAutoZone will host a conference call this morning, Tuesday, September 22, 2026,\nbeginning at 10:00 a.m. (ET) to discuss its fourth quarter results. This call\nis being webcast and can be accessed, along with supporting slides, at\nAutoZone’s website at www.autozone.com by clicking on Investor Relations.\nInvestors may also listen to the call by dialing (888) 506-0062, passcode\nAUTOZONE. In addition, a telephone replay will be available by dialing (877)\n481-4010, replay passcode 54424 through October 20, 2026.\n\nThis release includes certain financial information not derived in accordance\nwith generally accepted accounting principles (“GAAP”). These non-GAAP measures\ninclude adjustments to reflect return on invested capital, adjusted debt and\nadjusted debt to earnings before interest, taxes, depreciation, amortization,\nrent and share-based expense (“EBITDAR”). The Company believes that the\npresentation of these non-GAAP measures provides information that is useful to\ninvestors as it indicates more clearly the Company’s comparative year-to-year\noperating results, but this information should not be considered a substitute\nfor any measures derived in accordance with GAAP. Management targets the\nCompany’s capital structure in order to maintain its investment grade credit\nratings. The Company believes this is important information for the management\nof its debt levels and share repurchases. We have included a reconciliation o",
+    "quarterly_earnings_date": "2026-09-22",
+    "quarterly_eps_actuals": [
+      {
+        "period": "2026-09-30",
+        "actual": 56.05,
+        "estimate": 54.4026,
+        "surprise": 1.6474,
+        "surprisePercent": 3.0282,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-06-30",
+        "actual": 38.07,
+        "estimate": 36.6474,
+        "surprise": 1.4226,
+        "surprisePercent": 3.8819,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-03-31",
+        "actual": 27.63,
+        "estimate": 27.4009,
+        "surprise": 0.2291,
+        "surprisePercent": 0.8361,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-12-31",
+        "actual": 31.04,
+        "estimate": 32.8338,
+        "surprise": -1.7938,
+        "surprisePercent": -5.4633,
+        "revenueActual": null,
+        "revenueEstimate": null
+      }
+    ]
+  },
+  "competitive": {
+    "ticker": "AZO",
+    "stub": false,
+    "moat_classification": "narrow",
+    "moat_sources": [
+      "brand",
+      "efficient_scale"
+    ],
+    "peer_roic_comparison": [],
+    "citations": [
+      {
+        "claim": "AutoZone has maintained a high ROIC consistently above 50%.",
+        "source_url": "Financial data: ROIC series",
+        "excerpt": "ROIC series: FY2025: 56.3%, FY2024: 59.1%, FY2023: 54.1%, FY2022: 51.0%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "AutoZone's gross margin has averaged over 52%.",
+        "source_url": "Financial data: margins",
+        "excerpt": "AutoZone's gross profit margin for fiscal years ending August 2021 to 2025 averaged 52.5%.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "AutoZone reported a 9% revenue growth in Q4.",
+        "source_url": "Web Research: AutoZone Q4 Earnings",
+        "excerpt": "AutoZone Q4 Earnings: 9% Revenue Growth, Opens 117 ...",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "AutoZone is expanding its store base and investing in faster delivery.",
+        "source_url": "Web Research: AutoZone Invests in Store Expansion",
+        "excerpt": "They have made a calculation that their competition is weakened following years of inflation and tariffs and so now is the time to expand their store base more.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "peers": [],
+  "peer_financials": [],
+  "historical_cagr_5y": 0.05231525172845841,
+  "historical_cagr_years": 3,
+  "checkpoint1_user_input": {
+    "proceed": true,
+    "peers": "",
+    "answers": {}
+  },
+  "checkpoint2_user_input": {
+    "wacc_pct": 9.0,
+    "terminal_growth_pct": 2.5,
+    "projection_years": 10
+  },
+  "valuation": {
+    "ticker": "AZO",
+    "stub": false,
+    "dcf_intrinsic_value": {
+      "value": 12994923820.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_intrinsic_per_share": {
+      "value": 796.0,
+      "unit": "USD/share",
+      "period": "FY2025",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_upside_pct": -71.5,
+    "price_current": {
+      "value": 2792.03,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "reverse_dcf_implied_growth": 0.1087,
+    "ev_ebit_multiple": {
+      "value": 14.87,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "ev_fcf_multiple": {
+      "value": 29.99,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "pe_multiple": {
+      "value": 18.07,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "earnings_yield_pct": 6.72,
+    "magic_formula_rank": null,
+    "sensitivity_table": [
+      {
+        "near_term_growth_pct": -6.0,
+        "values": {
+          "wacc_7.0pct": 24.3,
+          "wacc_9.0pct": 17.3,
+          "wacc_11.0pct": 13.6
+        }
+      },
+      {
+        "near_term_growth_pct": -11.0,
+        "values": {
+          "wacc_7.0pct": 17.8,
+          "wacc_9.0pct": 13.0,
+          "wacc_11.0pct": 10.4
+        }
+      },
+      {
+        "near_term_growth_pct": -16.0,
+        "values": {
+          "wacc_7.0pct": 13.0,
+          "wacc_9.0pct": 9.7,
+          "wacc_11.0pct": 8.0
+        }
+      }
+    ],
+    "assumptions": {
+      "checkpoint_id": "checkpoint2",
+      "user_notes": "",
+      "proceed": true,
+      "wacc_pct": 9.0,
+      "terminal_growth_pct": 2.5,
+      "projection_years": 10,
+      "stage1_years": null,
+      "fade_years": null,
+      "revenue_growth_yr1_pct": null,
+      "margin_assumption_pct": null
+    },
+    "dcf_reliability_note": "Near-term FCF growth: -11.0% (historical FCF CAGR, 3 years).",
+    "fcf_quality_warning": null,
+    "near_term_growth_used_pct": -0.10994295219257444,
+    "near_term_growth_source": "fcf_cagr_3y",
+    "stage1_years_used": 5,
+    "fade_years_used": 5,
+    "epv_enterprise": {
+      "value": 27234798009.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_per_share": {
+      "value": 1145.88,
+      "unit": "USD/share",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_upside_pct": -59.0,
+    "epv_source": "ebit_median_4y",
+    "suggested_wacc_pct": 9.2,
+    "suggested_wacc_breakdown": "Rf=4.2% + β=1.0×ERP=5.0% + size_premium=0.0% (large cap)",
+    "valuation_methods_summary": [
+      {
+        "method": "DCF (3-stage Damodaran fade)",
+        "per_share": "$796.00",
+        "upside_pct": -71.5,
+        "display_upside": "-71.5%",
+        "classification": "expensive"
+      },
+      {
+        "method": "EPV (Greenwald — zero growth)",
+        "per_share": "$1145.88",
+        "upside_pct": -59.0,
+        "display_upside": "-59.0%",
+        "classification": "expensive"
+      },
+      {
+        "method": "Reverse DCF (market-implied growth)",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "implied 10.9% vs historical -11.0%",
+        "classification": "expensive"
+      },
+      {
+        "method": "EV/EBIT vs peer median",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "14.9x vs peer median N/A",
+        "classification": "n/a"
+      }
+    ]
+  },
+  "citations": [],
+  "unverified_claims": [],
+  "cost_usd": 0.0
+}

@@ -1,0 +1,812 @@
+{
+  "ticker": "BBW",
+  "cik": "0001113809",
+  "as_of_date": "2026-01-31",
+  "run_id": "8586afbd-962",
+  "financials": {
+    "ticker": "BBW",
+    "cik": "0001113809",
+    "as_of_date": "2026-01-31",
+    "revenue": [
+      {
+        "value": 529832000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 486114000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 467937000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 411522000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "gross_profit": [
+      {
+        "value": 295629000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 264392000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 245872000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 217955000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_income": [
+      {
+        "value": 66426000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 65400000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 61943000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 50705000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "net_income": [
+      {
+        "value": 52203000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 52805000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 47985000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 47265000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_cash_flow": [
+      {
+        "value": 65052000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 64310000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 47276000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 28077000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "capex": [
+      {
+        "value": 25545000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 18295000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 13634000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 8130000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "free_cash_flow": [
+      {
+        "value": 39507000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 46015000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 33642000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 19947000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "buybacks": [
+      {
+        "value": 27735000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 20500000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 24172000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 4358000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "dividends": [
+      {
+        "value": 11533000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 22062000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 292000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 19933000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "total_assets": {
+      "value": 345453000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt": {
+      "value": 0.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "cash_and_equivalents": {
+      "value": 26755000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "shares_outstanding": {
+      "value": 12319335.0,
+      "unit": "shares",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "roic_series": [
+      {
+        "value": 0.4021,
+        "unit": "ratio",
+        "period": "FY2026",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.3959,
+        "unit": "ratio",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.375,
+        "unit": "ratio",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.3069,
+        "unit": "ratio",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "invested_capital": {
+      "value": 128273000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "equity+debt-cash",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "stockholders_equity": {
+      "value": 155028000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "source_filing": "10-K FY2026",
+    "citations": []
+  },
+  "mgmt": {
+    "ticker": "BBW",
+    "stub": false,
+    "insider_ownership_pct": 4.0,
+    "founder_ceo": false,
+    "ceo_tenure_years": 10.0,
+    "form4_transactions_12m": 2,
+    "insider_transaction_pattern": "CEO Chris Hurt net seller: sold 6,818 shares in August 2026, no open-market purchases in 12m. Director George Carrara net seller: sold 3,000 shares in June 2026. Overall insider sentiment: slightly negative.",
+    "compensation_structure_notes": "The executive compensation program is designed to align with shareholder interests, incorporating long-term equity incentives and performance-based metrics. However, the specifics of the alignment with ROIC targets are not detailed in the provided sources.",
+    "capital_allocation_summary": "The company has shown a disciplined approach to capital allocation, returning $31.3 million to shareholders through buybacks and dividends in fiscal 2024. They plan to invest in expanding their retail footprint and enhancing digital transformation, indicating a focus on long-term growth.",
+    "citations": [
+      {
+        "claim": "Sharon Price John intends to retire from her role effective June 11, 2026.",
+        "source_url": "SOURCE 3",
+        "excerpt": "On March 12, 2026, the Board of Directors of the Company announced that as part of a multi-year planned succession process, Sharon Price John intends to retire from her role effective June 11, 2026.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Insider ownership is 4.0%.",
+        "source_url": "SOURCE 1",
+        "excerpt": "All current Directors and executive officers as a group (11 persons) 502,388 4.0 %",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "CEO Chris Hurt net seller: sold 6,818 shares in August 2026.",
+        "source_url": "SOURCE 2",
+        "excerpt": "Sharon Price John (Director) | SELL | 6,818 shares @ $40.03 | 2026-08-24",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "The company returned $31.3 million to shareholders through buybacks and dividends in fiscal 2024.",
+        "source_url": "SOURCE 4",
+        "excerpt": "the company has returned $31.3 million to shareholders through buybacks and dividends in fiscal 2024",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "filings": {
+    "ticker": "BBW",
+    "stub": false,
+    "business_description": "Build-A-Bear Workshop, Inc. is a specialty retailer that allows guests to create personalized stuffed animals through an interactive experience. The company sells both custom-made and pre-stuffed plush toys, along with licensed and collectible characters, targeting families with children as well as teens and adults. Its business model includes corporately-managed stores, partner-operated locations, and franchise models, alongside a robust e-commerce platform.",
+    "risk_factors_summary": "The company faces significant risks from macroeconomic conditions, including inflation and geopolitical conflicts, which could reduce consumer discretionary spending. Additionally, changes in trade policies and tariffs, particularly those affecting imports from China and Vietnam, pose risks to profitability. The evolving consumer preferences and competition in the retail space also present ongoing challenges.",
+    "mda_highlights": "Management highlights the impact of inflation on operations, particularly through rising labor costs, and anticipates continued inflationary pressures in fiscal 2026. The company is also focused on expanding its omnichannel capabilities and leveraging its brand strength to drive growth across various consumer segments.",
+    "backlog_usd": null,
+    "revenue_guidance": null,
+    "geographic_revenue_breakdown": null,
+    "key_regulatory_events": "February 20, 2026: U.S. Supreme Court issued a ruling striking down certain tariffs previously imposed under the International Emergency Economic Powers Act ('IEEPA'). Following the Supreme Court’s decision, the U.S. presidential administration announced its intention to invoke other laws to collect tariffs and announced new tariffs on imports from all countries, in addition to any existing non-IEEPA tariffs.",
+    "governance_red_flags": "No governance red flags found in provided text.",
+    "citations": [
+      {
+        "claim": "Build-A-Bear Workshop, Inc. is a specialty retailer that allows guests to create personalized stuffed animals through an interactive experience.",
+        "source_url": "10-K Item 1",
+        "excerpt": "Build-A-Bear has evolved to become a leading global 'retailtainment' brand on a mission to add a little more heart to life.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "The company faces significant risks from macroeconomic conditions, including inflation and geopolitical conflicts.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Any uncertainty or decline in general global economic conditions, caused by inflation, rising interest rates, geo-political conflicts, or other external factors, could lead to disproportionately reduced discretionary consumer spending.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Management highlights the impact of inflation on operations, particularly through rising labor costs.",
+        "source_url": "10-K Item 7",
+        "excerpt": "Inflation had an adverse effect on our business operations in fiscal 2025, predominately through rising store labor costs.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "On February 20, 2026, the U.S. Supreme Court issued a ruling striking down certain tariffs previously imposed under the International Emergency Economic Powers Act ('IEEPA').",
+        "source_url": "10-K Item 1A",
+        "excerpt": "On February 20, 2026, the U.S. Supreme Court issued a ruling striking down certain tariffs previously imposed under the International Emergency Economic Powers Act ('IEEPA').",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "market": {
+    "ticker": "BBW",
+    "stub": false,
+    "price_current": {
+      "value": 25.56,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_high": {
+      "value": 72.19,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_low": {
+      "value": 24.15,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "market_cap": {
+      "value": 314882202.59999996,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Scholastic Posts Downbeat Q1 Results, Joins Legacy Education, Zscaler And Other Big Stocks Moving Lower In Friday’s Pre-Market Session\n    Source: Benzinga | URL: https://finnhub.io/api/news?id=1384adf3ac22ede769bf057dbc0ade768cff77843f11fb8790c2b46a467bec0b\n    U.S. stock futures rose, but Scholastic plunged 9.9% after missing Q1 loss and sales estimates; several other stocks also fell premarket.\n\n[2] Buy The Crash: 2 Dividend Bargains Down 50%+ With Massive Upside Potential\n    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=030f0851a1e6a92b794ffc6c235b6e22106252fe174ecc716c41b09ceb2143f8\n    Oracle (ORCL) and Build-A-Bear (BBW) are down big, but cloud growth and buybacks fuel 144%â225% upside. Read the full analysis here.\n\n[3] Michael Burry keeps pointing at unloved stocks for a reason\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=46e2870515e2ed1ba613b3921dd85801bfcf5e20d1c7fea93657957cb2944552\n    While shorting the market’s favorites, he’s quietly going all in on names most investors have written off.\n\n[4] Why Michael Burry Is Bullish on Build-A-Bear Workshop Stock\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=e85b699224b9353fc4e2ea99809cf106eb1e8fdfdb083a850cdc0857a11fea64\n    Michael Burry’s continued buying of Build-A-Bear’s shares despite its sharp selloff highlights his contrarian conviction in the company’s recovery.\n\n[5] Build-A-Bear Workshop Inc's Dividend Analysis\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=1b15262a7cc07e306d32737ab5f92239dd4ef46fefe8b30d20d054082a39ead0\n    This article first appeared on GuruFocus.  Build-A-Bear Workshop Inc (NYSE:BBW) recently announced a total dividend of $0.23 per share, with the ex-dividend date set for 2026-09-24.  This amount consists of a $0.23 per share cash dividend payable on 2026-10-08.\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\n[1] Financial Analysis for BBBY\nURL: https://finance.yahoo.com/quote/BBBY/\nStock: BBBY\nFinancial Analysis:\nLatest Open Price: 2.92 Latest Close Price: 2.76 Highest Close Price: 5.56 Lowest Close Price: 2.76 Average Close Price (2 years): 4.11 Standard Deviation of Close Price: 0.73 Volume Traded (2 years): 134924600 Total Return (2 years): -45.13% Annualized Return (2 years): -25.93% CAGR (2 years): -25.93% Sharpe Ratio (2 years): -35.56 Max Drawdown (2 years): -4.66% \n\n[2] Build-A-Bear Workshop Inc (BBW) (Q2 2026) Earnings Call Highlights: Revenue Miss and Guidance ...\nURL: https://finance.yahoo.com/markets/stocks/articles/build-bear-workshop-inc-bbw-210655699.html\n* **Revenue:** $115.3 million in Q2, a decrease of 7.2% year-over-year. * **Pre-Tax Income:** $11.6 million in Q2, down 24.1% from $15.3 million last year. * **Gross Margin:** 54.2%, a decrease of 340 basis points year-over-year. * **Full-Year Revenue Guidance:** Lowered to $500-$525 million, down from $530-$550 million. * **Full-Year Pre-Tax Income Guidance:** Lowered to $60-$68 million, down from $72-$78 million. **Q**: What were the primary drivers behind the company's weaker-than-expected second-quarter results and the subsequent reduction in full-year guidance?**A**: CEO Chris Hurt explai\n\n[3] Bear of the Day: BuildABear Workshop (BBW)\nURL: https://finance.yahoo.com/markets/stocks/articles/bear-day-buildabear-workshop-bbw-093000190.html\nThe guidance cut then sent the stock down roughly 15% at the open, with shares falling to $24.15. A stock that was making higher highs a\n\n[4] Skechers U.S.A., Inc. (SKX): A Bear Case Theory\nURL: https://finance.yahoo.com/news/skechers-u-inc-skx-bear-163605650.html\nOperating margins fell by 230 basis points to 11.0%, and gross margins dropped by 50 basis points to 52.0%.\n\n[5] Bath & Body Works, Inc. -- Moody's announces completion of a periodic review of ratings of Bath & Body Works, Inc.\nURL: https://finance.yahoo.com/news/bath-body-works-inc-moodys-152706931.html\nHowever, MOODY'S is not an auditorand cannot in every instance independently verify or validateinformation received in the rating process or in preparing itsPublications.To the extent permitted by law, MOODY'S and its directors, officers,employees, agents, representatives, licensors and suppliers disclaimliability to any person or entity for any indirect, special,consequential, or incidental losses or damages whatsoever arising fromor in connection with the information contained herein or the use of orinability to use any such information, even if MOODY'S or any of itsdirectors, officers, empl\n\n[6] BBW | Build-A-Bear Workshop Inc. Company Profile & Executives\nURL: https://www.wsj.com/market-data/quotes/BBW/company-people\nCompany profile for Build-A-Bear Workshop Inc. including key executives, insider trading, ownership, revenue and average growth rates. View detailed BBW\n\n[7] Bath & Body Works, Inc. -- Moody's changes Bath & Body Works' outlook to stable; affirms Ba2 CFR\nURL: https://finance.yahoo.com/news/bath-body-works-inc-moodys-163606514.html\n-- Moody's changes Bath & Body Works' outlook to stable; affirms Ba2 CFR. Rating Action: Moody's changes Bath & Body Works' outlook to stable;affirms Ba2 CFRGlobal Credit Research - 24 Aug 2022New York, August 24, 2022 -- Moody's Investors Service (\"Moody's\") todaychanged the outlook of Bath & Body Works, Inc. (\"BBW\") to stable frompositive and affirmed all other ratings including its Ba2 corporatefamily rating (\"CFR\"), its Ba2-PD probability of default rating (\"PDR\"),the Ba2 rating of its senior unsecured guaranteed notes and the B1rating of its senior unsecured unguaranteed notes. Senior Uns\n",
+    "material_events": [
+      {
+        "filing_date": "2026-09-09",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01\n\nOn September 9, 2026, the Board of Directors of Build-A-Bear Workshop, Inc. (the “Company”) declared a quarterly cash dividend of $0.23 per share to be paid on October 8, 2026, to all holders of record of issued and outstanding shares of the Company’s common stock as of the close of business on September 24, 2026.\n\nOn September 9, 2026, the Company issued a press release announcing the quarterly dividend. A copy of the press release has been filed as Exhibit 99.1 to this Current Report on Form 8-K and is incorporated herein by reference.\n\n  Item 9.01      Financial Statements and Exhibits.  \n  (d)            Exhibits                            \n\n  Exhibit Number      Description of Exhibit                                                       \n            99.1      Press release",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926029998/bbw20260904_8k.htm"
+      },
+      {
+        "filing_date": "2026-08-27",
+        "item_numbers": [
+          "Item 2.02",
+          "Item 5.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02.      Results of Operations and Financial Condition.  \n\nOn August 27, 2026, Build-A-Bear Workshop, Inc. (the “Company”) issued a press release setting forth results for the Company’s 2026 fiscal quarter ended August 1, 2026.\n\nThe Company reported that for the second quarter of 2026, total revenues were $115.3 million, compared to $124.2 million in the second quarter of 2026, pre-tax income was $11.6 million, compared to $15.3 million in the second quarter of 2026, and second-quarter diluted earnings per share (“EPS”) totaled $0.70, compared to $0.94 in the second quarter of 2026.\n\nFor the first half of the year, total revenues were $240.6 million, a decrease of 4.8% from the first half of the prior year, pre-tax income was $35.5 million, or 14.8% of total revenues, compared to $3",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926029054/bbw20260826_8k.htm"
+      },
+      {
+        "filing_date": "2026-06-11",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01      Other Events.  \n\nOn June 11, 2026, the Board of Directors of Build-A-Bear Workshop, Inc. (the “Company”) declared a quarterly cash dividend of $0.23 per share to be paid on July 9, 2026, to all holders of record of issued and outstanding shares of the Company’s common stock as of the close of business on June 25, 2026.\n\nOn June 11, 2026, the Company issued a press release announcing the quarterly dividend. A copy of the press release has been filed as Exhibit 99.1 to this Current Report on Form 8-K and is incorporated herein by reference.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926020299/bbw20260605_8k.htm"
+      },
+      {
+        "filing_date": "2026-03-11",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01\n\nOn March 11, 2026, the Board of Directors of Build-A-Bear Workshop, Inc. (the “Company”) declared a quarterly cash dividend of $0.23 per share to be paid on April 9, 2026, to all holders of record of issued and outstanding shares of the Company’s common stock as of the close of business on March 26, 2026.\n\nOn March 11, 2026, the Company issued a press release announcing the quarterly dividend. A copy of the press release has been filed as Exhibit 99.1 to this Current Report on Form 8-K and is incorporated herein by reference.\n\nItem 9.01 Financial Statements and Exhibits.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926007762/bbw20260311_8k.htm"
+      },
+      {
+        "filing_date": "2026-02-10",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01\n\nOn February 10, 2026, the Company issued a press release announcing the appointment of Mr. Goldman as an independent director. A copy of the press release has been filed as Exhibit 99.1 to this Current Report on Form 8-K and is incorporated herein by reference.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926003641/bbw20260209_8k.htm"
+      },
+      {
+        "filing_date": "2025-11-12",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01\n\nOn November 12, 2025, the Board of Directors of Build-A-Bear Workshop, Inc. (the “Company”) declared a quarterly cash dividend of $0.22 per share to be paid on January 8, 2026, to all holders of record of issued and outstanding shares of the Company’s common stock as of the close of business on November 26, 2025.\n\nOn November 12, 2025, the Company issued a press release announcing the quarterly dividend. A copy of the press release has been filed as Exhibit 99.1 to this Current Report on Form 8-K and is incorporated herein by reference.\n\nItem 9.01 Financial Statements and Exhibits.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774925034454/bbw20251112_8k.htm"
+      }
+    ],
+    "quarterly_earnings_text": "Exhibit 99.1                                                                 \n                                                                               \n       BUILD-A-BEAR WORKSHOP REPORTS FISCAL SECOND QUARTER 2026 RESULTS        \nST. LOUIS, MO (August 27, 2026) – Build-A-Bear Workshop, Inc. (NYSE: BBW) today\nannounced results for the second quarter of fiscal year 2026 ended August 1,\n2026.\n                                                                               \n  ●  Second-quarter total revenues were $115.3 million, compared to $124.2     \n     million                                                                   \n                                                                               \n                                                                               \n  ●  Second-quarter pre-tax income was $11.6 million, compared to $15.3        \n     million                                                                   \n                                                                               \n                                                                               \n  ●  Second-quarter diluted earnings per share (“EPS”) totaled $0.70,          \n     compared to $0.94                                                         \n                                                                               \n                                                                               \n  ●  For the first half of fiscal 2026, the Company returned $22.7 million to  \n     shareholders through share repurchases and quarterly dividends            \n                                                                               \n                                                                               \n     The Company updates its fiscal 2026 expectations, including lowering its  \n  ●  revenue outlook to a range of $500 million to $525 million and its        \n     pre-tax income outlook to a range of $60 million to $68 million           \n                                                                               \n\"While we expected fiscal 2026 to be back-half weighted, second-quarter results\nfell short of our expectations, and certain wholesale opportunities may take\nlonger to realize than previously anticipated. Accordingly, we have moderated\nour outlook for the balance of the year. That said, we continue to execute\nagainst our long-term strategic growth initiatives, including the planned\nacceleration in experience location openings during the remainder of the year.\nWe also look forward to the upcoming grand opening of our new, highly\nimmersive, multi-level, largest retail-tainment destination at ICON Park in\nOrlando, which will showcase an elevated expression of the Build-A-Bear\nexperience,\" commented Chris Hurt, Chief Executive Officer of Build-A-Bear\nWorkshop.\n\nVoin Todorovic, Chief Financial Officer and Chief Administrative Officer of\nBuild-A-Bear Workshop, concluded, “Our continued strong profitability and\ndisciplined capital allocation drove the return of $49 million to shareholders\nover the past 12 months through share repurchases and quarterly dividends,\nincluding almost $23 million in the first half of this year. Looking ahead, we\nexpect cash generation to increase through the remainder of the year, supported\nby continued profitability, prudent expense management, and the timing of\ncapital expenditures.”\n\nSecond Quarter Fiscal 2026 Results\n\n(13 weeks ended August 1, 2026, compared to the 13 weeks ended August 2, 2025)\n                                                            \n  ●  Total revenues were $115.3 million and decreased 7.2%  \n                                                            \n                                                              \n  ●  Net retail sales were $106.5 million and decreased 7.1%  \n                                                              \n                                                                               \n  ●  Consolidated e-commerce demand (online orders fulfilled from either the   \n     Company’s warehouses or its stores) decreased 15.6%                       \n                                                                               \n                                                                               \n  ●  Commercial and international franchise revenues were a combined $8.8      \n     million and decreased 9.0%                                                \n                                                                               \n                                                                               \n     Pre-tax income was $11.6 million, or 10.1% of total revenues, compared    \n     to $15.3 million, or 12.3% of total revenues. The Company incurred        \n     approximately $1 million in tariffs and related costs during both         \n     periods. The 220-basis-point decrease in pre-tax margin reflects a        \n  ●  340-basis-point decrease in gross margin due to occupancy cost            \n     deleverage and increased promotional activity, partially offset by a      \n     80-basis-point decrease in selling, general, and administrative expense   \n     (“SG&A”), driven mainly by lower incentive compensation expense, as well  \n     as higher interest income.                                                \n                                                                               \n                                                                               \n     Diluted EPS totaled $0.70, compared to $0.94, reflecting lower pre-tax    \n  ●  income and a higher tax rate, partially offset by a reduction in share    \n     count.                                                                    \n                                                                               \n                                                                               \n     Earnings before interest, taxes, depreciation and amortization            \n  ●  (“EBITDA”) was $15.2 million, or 13.2% of total revenues, compared to     \n     $18.8 million, or 15.1% of total revenues.                                \n                                                                               \nFirst Half Fiscal 2026 Results\n\n(26 weeks ended August 1, 2026, compared to the 26 weeks ended August 2, 2025)\n                                                             \n  ●  Total revenues were $240.6 million and decreased 4.8%.  \n                                                             \n                                                               \n  o  Net retail sales were $220.0 million and decreased 6.1%.  \n                                                               \n                                                                               \n  o  Consolidated e-commerce demand (online orders fulfilled from either the   \n     Company’s warehouses or its stores) decreased 21.2%.                      \n                                                                               \n                                                                               \n  o  Commercial and international franchise revenues were a combined $20.6     \n     million and increased 11.6%.                                              \n                                                                               \n                                                                               \n     Pre-tax income was $35.5 million, or 14.8% of total revenues, compared    \n     to $34.9 million, or 13.8% of total revenues. The Company incurred        \n     approximately $1.5 million in tariffs and related costs, compared to      \n     approximately $1.0 million in the prior-year period. The 100-basis-point  \n     increase in pre-tax margin reflects a 200-basis-point increase in gross   \n     margin, including a 330-basis-point benefit from the $7 million           \n     International Emergency Economic Powers Act (“IEEPA”) tariff refund       \n     related to",
+    "quarterly_earnings_date": "2026-08-27",
+    "quarterly_eps_actuals": [
+      {
+        "period": "2026-09-30",
+        "actual": 0.7,
+        "estimate": 0.6843,
+        "surprise": 0.0157,
+        "surprisePercent": 2.2943,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-06-30",
+        "actual": 1.03,
+        "estimate": 0.7575,
+        "surprise": 0.2725,
+        "surprisePercent": 35.9736,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-03-31",
+        "actual": 1.26,
+        "estimate": 1.2322,
+        "surprise": 0.0278,
+        "surprisePercent": 2.2561,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-12-31",
+        "actual": 0.62,
+        "estimate": 0.5959,
+        "surprise": 0.0241,
+        "surprisePercent": 4.0443,
+        "revenueActual": null,
+        "revenueEstimate": null
+      }
+    ]
+  },
+  "competitive": {
+    "ticker": "BBW",
+    "stub": false,
+    "moat_classification": "narrow",
+    "moat_sources": [
+      "brand",
+      "switching_costs"
+    ],
+    "peer_roic_comparison": [],
+    "citations": [
+      {
+        "claim": "ROIC has consistently exceeded industry averages.",
+        "source_url": "Financial data: ROIC series",
+        "excerpt": "ROIC series: FY2026: 40.2%, FY2024: 39.6%, FY2023: 37.5%, FY2022: 30.7%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Gross margin is strong compared to typical industry levels.",
+        "source_url": "Financial data: margins",
+        "excerpt": "Gross margin: FY2026: 55.8%, FY2024: 54.4%, FY2023: 52.5%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "The company has a strong brand recognition and customer loyalty.",
+        "source_url": "Web Research",
+        "excerpt": "Build-A-Bear operates 627 stores spanning 32 countries, with 100 new locations opened in just two years.",
+        "confidence": 0.9,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "peers": [],
+  "peer_financials": [],
+  "historical_cagr_5y": 0.08788179458162881,
+  "historical_cagr_years": 3,
+  "checkpoint1_user_input": {
+    "proceed": true,
+    "peers": "",
+    "answers": {}
+  },
+  "checkpoint2_user_input": {
+    "wacc_pct": 9.0,
+    "terminal_growth_pct": 2.5,
+    "projection_years": 10
+  },
+  "valuation": {
+    "ticker": "BBW",
+    "stub": false,
+    "dcf_intrinsic_value": {
+      "value": 887611752.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_intrinsic_per_share": {
+      "value": 72.05,
+      "unit": "USD/share",
+      "period": "FY2026",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_upside_pct": 181.9,
+    "price_current": {
+      "value": 25.56,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "reverse_dcf_implied_growth": -0.0938,
+    "ev_ebit_multiple": {
+      "value": 4.34,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "ev_fcf_multiple": {
+      "value": 7.29,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "pe_multiple": {
+      "value": 6.03,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "earnings_yield_pct": 23.05,
+    "magic_formula_rank": null,
+    "sensitivity_table": [
+      {
+        "near_term_growth_pct": 13.8,
+        "values": {
+          "wacc_7.0pct": 1.7,
+          "wacc_9.0pct": 1.2,
+          "wacc_11.0pct": 0.9
+        }
+      },
+      {
+        "near_term_growth_pct": 8.8,
+        "values": {
+          "wacc_7.0pct": 1.3,
+          "wacc_9.0pct": 0.9,
+          "wacc_11.0pct": 0.7
+        }
+      },
+      {
+        "near_term_growth_pct": 3.8,
+        "values": {
+          "wacc_7.0pct": 1.0,
+          "wacc_9.0pct": 0.7,
+          "wacc_11.0pct": 0.5
+        }
+      }
+    ],
+    "assumptions": {
+      "checkpoint_id": "checkpoint2",
+      "user_notes": "",
+      "proceed": true,
+      "wacc_pct": 9.0,
+      "terminal_growth_pct": 2.5,
+      "projection_years": 10,
+      "stage1_years": null,
+      "fade_years": null,
+      "revenue_growth_yr1_pct": null,
+      "margin_assumption_pct": null
+    },
+    "dcf_reliability_note": "Near-term FCF growth: 8.8% (FCF CAGR 3y, capped by revenue CAGR 8.8% — FCF growing faster than revenue is unsustainable long-term). ⚠️ DCF spread note: forward DCF uses 8.8% near-term growth (historical CAGR) but the market currently prices only -9.4% (spread: 18pp). The DCF upside is conditional on the analyst's growth assumption being correct vs what the market discounts — not a free margin of safety. Reverse DCF is the more informative valuation anchor.",
+    "fcf_quality_warning": null,
+    "near_term_growth_used_pct": 0.08788179458162881,
+    "near_term_growth_source": "fcf_cagr_3y_rev_capped",
+    "stage1_years_used": 5,
+    "fade_years_used": 5,
+    "epv_enterprise": {
+      "value": 555980977.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_per_share": {
+      "value": 47.3,
+      "unit": "USD/share",
+      "period": "FY2026",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_upside_pct": 85.1,
+    "epv_source": "ebit_median_4y",
+    "suggested_wacc_pct": 10.7,
+    "suggested_wacc_breakdown": "Rf=4.2% + β=1.0×ERP=5.0% + size_premium=1.5% (small cap)",
+    "valuation_methods_summary": [
+      {
+        "method": "DCF (3-stage Damodaran fade)",
+        "per_share": "$72.05",
+        "upside_pct": 181.9,
+        "display_upside": "+181.9%",
+        "classification": "cheap"
+      },
+      {
+        "method": "EPV (Greenwald — zero growth)",
+        "per_share": "$47.30",
+        "upside_pct": 85.1,
+        "display_upside": "+85.1%",
+        "classification": "cheap"
+      },
+      {
+        "method": "Reverse DCF (market-implied growth)",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "implied -9.4% vs historical 8.8%",
+        "classification": "cheap"
+      },
+      {
+        "method": "EV/EBIT vs peer median",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "4.3x vs peer median N/A",
+        "classification": "n/a"
+      }
+    ]
+  },
+  "citations": [],
+  "unverified_claims": [],
+  "cost_usd": 0.0
+}

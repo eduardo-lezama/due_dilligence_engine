@@ -1,0 +1,828 @@
+{
+  "ticker": "AAPL",
+  "cik": "0000320193",
+  "as_of_date": "2025-09-27",
+  "run_id": "2904679e-9e4",
+  "financials": {
+    "ticker": "AAPL",
+    "cik": "0000320193",
+    "as_of_date": "2025-09-27",
+    "revenue": [
+      {
+        "value": 416161000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 391035000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 383285000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 394328000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "gross_profit": [
+      {
+        "value": 195201000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 180683000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 169148000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 170782000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_income": [
+      {
+        "value": 133050000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 123216000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 114301000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 119437000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "net_income": [
+      {
+        "value": 112010000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 93736000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 96995000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 99803000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_cash_flow": [
+      {
+        "value": 111482000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 118254000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 110543000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 122151000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "capex": [
+      {
+        "value": 12715000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 9447000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 10959000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 10708000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "free_cash_flow": [
+      {
+        "value": 98767000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 108807000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 99584000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 111443000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "buybacks": [
+      {
+        "value": 90711000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 94949000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 77550000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 89402000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "dividends": [
+      {
+        "value": 15421000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 15234000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 15025000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 14841000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "total_assets": {
+      "value": 359241000000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt": {
+      "value": 103028000000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "cash_and_equivalents": {
+      "value": 35934000000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "shares_outstanding": {
+      "value": 14594180000.0,
+      "unit": "shares",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "roic_series": [
+      {
+        "value": 0.7973,
+        "unit": "ratio",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.7384,
+        "unit": "ratio",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.6849,
+        "unit": "ratio",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.7157,
+        "unit": "ratio",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "invested_capital": {
+      "value": 140827000000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "equity+debt-cash",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "stockholders_equity": {
+      "value": 73733000000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "source_filing": "10-K FY2025",
+    "citations": []
+  },
+  "mgmt": {
+    "ticker": "AAPL",
+    "stub": false,
+    "insider_ownership_pct": 6.3e-05,
+    "founder_ceo": false,
+    "ceo_tenure_years": 0.0,
+    "form4_transactions_12m": 15,
+    "insider_transaction_pattern": "CEO Tim Cook net seller: sold 60K shares in April 2026, no open-market purchases in 12m. Director Arthur D Levinson net seller: sold 300K shares in May 2026. Overall insider sentiment: negative.",
+    "compensation_structure_notes": "John Ternus, the new CEO, has a compensation package that includes a $3 million base salary and a performance-based equity award valued at $55 million. This structure aligns his interests with long-term shareholder value through performance metrics.",
+    "capital_allocation_summary": "Apple has a disciplined approach to capital allocation, focusing on share buybacks and dividends. The company has consistently returned capital to shareholders while also investing in growth opportunities, particularly in technology and product development.",
+    "citations": [
+      {
+        "claim": "Tim Cook transitioned from CEO to Executive Chair effective September 1, 2026, and John Ternus was appointed as CEO.",
+        "source_url": "SOURCE 6",
+        "excerpt": "On April 20, 2026, Apple Inc. announced that Tim Cook will transition from his role as Chief Executive Officer to Executive Chair of Apple’s Board of Directors, effective September 1, 2026.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Insider ownership is approximately 0.000063% of shares.",
+        "source_url": "SOURCE 1",
+        "excerpt": "All current directors and executive officers as a group (12 persons) own 9,079,765 shares.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "John Ternus' compensation includes a $3 million base salary and a $55 million equity award.",
+        "source_url": "SOURCE 8",
+        "excerpt": "Ternus will also receive a prorated restricted stock unit award with a target value of $2.5 million for fiscal 2026, while Apple has approved an annual equity award for him with a target value of $55 million for fiscal 2027.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Tim Cook sold 60K shares in April 2026.",
+        "source_url": "SOURCE 2",
+        "excerpt": "Timothy D Cook (Chief Executive Officer) | SELL | 5,087 shares @ $251.25 | 2026-04-01.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "filings": {
+    "ticker": "AAPL",
+    "stub": false,
+    "business_description": "Apple Inc. designs, manufactures, and markets a range of consumer electronics, software, and services. Its product lines include smartphones (iPhone), personal computers (Mac), tablets (iPad), wearables, and various accessories. The company generates revenue through direct sales to consumers and businesses, as well as through services such as advertising, AppleCare, and cloud services.",
+    "risk_factors_summary": "Apple faces significant risks from macroeconomic conditions, including inflation and currency fluctuations, which can adversely affect consumer spending and demand for its products. Additionally, the company is exposed to geopolitical tensions and trade disputes that may disrupt its supply chain. Competitive pressures from other technology firms also pose a risk to its market share and pricing strategies.",
+    "mda_highlights": "Management highlights that macroeconomic conditions, including inflation and interest rates, have impacted the company's financial performance. The introduction of new tariffs on imports from various countries is expected to affect costs and supply chain dynamics. Despite these challenges, Apple continues to focus on innovation and expanding its market opportunities.",
+    "backlog_usd": null,
+    "revenue_guidance": null,
+    "geographic_revenue_breakdown": "Americas: 43%, Europe: 27%, Greater China: 15%, Japan: 7%, Rest of Asia Pacific: 8%",
+    "key_regulatory_events": "Beginning in the second quarter of 2025, new U.S. Tariffs were announced, including additional tariffs on imports from China, India, Japan, South Korea, Taiwan, Vietnam and the EU, among others. The U.S. Department of Commerce has initiated an investigation under Section 232 of the Trade Expansion Act of 1962, into, among other things, imports of semiconductors, semiconductor manufacturing equipment, and their derivative products.",
+    "governance_red_flags": "No governance red flags found in provided text.",
+    "citations": [
+      {
+        "claim": "Apple Inc. designs, manufactures, and markets a range of consumer electronics, software, and services.",
+        "source_url": "10-K Item 1",
+        "excerpt": "The Company designs, manufactures and markets smartphones, personal computers, tablets, wearables and accessories, and sells a variety of related services.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Management highlights that macroeconomic conditions, including inflation and interest rates, have impacted the company's financial performance.",
+        "source_url": "10-K Item 7",
+        "excerpt": "Macroeconomic conditions, including inflation, interest rates and currency fluctuations, have directly and indirectly impacted, and could in the future materially impact, the Company’s results of operations and financial condition.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Beginning in the second quarter of 2025, new U.S. Tariffs were announced, including additional tariffs on imports from China, India, Japan, South Korea, Taiwan, Vietnam and the EU, among others.",
+        "source_url": "10-K Item 7",
+        "excerpt": "Beginning in the second quarter of 2025, new U.S. Tariffs were announced, including additional tariffs on imports from China, India, Japan, South Korea, Taiwan, Vietnam and the EU, among others.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "market": {
+    "ticker": "AAPL",
+    "stub": false,
+    "price_current": {
+      "value": 333.69,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_high": {
+      "value": 345.34,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_low": {
+      "value": 243.42,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "market_cap": {
+      "value": 4869931924200.0,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Mag 7 Voices: Huang Defends AI Spending, Pichai Ramps Up Gemini, Nadella Calls Copilot A ‘New OS For Work’ This Week\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=46d3c6a7d717e97fd24c883d9bfe1437bda2f3237c110f4776dbe0b335daddb1\n    Nvidia, Alphabet and Meta signed the White House’s voluntary AI safety accord, while Microsoft and Amazon attended the White House lunch without signing.\n\n[2] Apple Says Some AT&T iPhone 18 Pro Max Users Must Replace Phones After Service-Loss Bug\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=b2ec6db80654f30ce9067f1222936b7d089b4da354105c79b1332cb495d5aa60\n    Apple (AAPL) said \"a small number\" of AT&T Inc. (T) customers who recently upgraded to the iPhone 18\n\n[3] Apple (AAPL) Exceeds Market Returns: Some Facts to Consider\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=5525bbf69ce9c31bb490097c79bbba52e4d40fe5adae0bcc0c4226d2cb9d4927\n    Apple (AAPL) concluded the recent trading session at $333.69, signifying a +1.02% move from its prior day's close.\n\n[4] Microsoft Entered the Smart Home Through Your Washing Machine, Not Your Phone\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=0f2d1c3d53eedfae80145cee9847b938daf52ad0d758e9803e034794d9215f82\n    Microsoft has finally found a way into the consumer smart home, and it isn’t through a smartphone or a dedicated smart speaker. Instead, the tech giant is bypassing the traditional entry points that have defined the industry for a decade by partnering with LG Electronics to embed intelligence direct\n\n[5] Buy, Hold, or Fade Tesla Stock After Its Q3 Delivery Beat?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=807c7554f720bbe4ad548479325252125bd404bb419334342f274310763a67b7\n    Tesla stock is jumping on Friday after the EV giant delivered 486,532 vehicles during Q3, easily surpassing expectations of roughly 461,000 vehicles.",
+    "material_events": [
+      {
+        "filing_date": "2026-09-01",
+        "item_numbers": [
+          "Item 5.02"
+        ],
+        "summary_text": "[Item 5.02] Item 5.02      Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers.  \n\nApple Inc. (“Apple”) previously announced its Chief Executive Officer transition plan in its Current Report on Form 8-K filed on April 20, 2026 (the “Original\nForm 8-K”). This Amendment to the Original Form 8-K (the “Form 8-K/A”) is being filed to disclose John Ternus’ new compensation arrangement in connection with his appointment to the role\nof CEO, and Tim Cook’s new compensation arrangement in connection with his appointment to the role of Executive Chair of Apple’s Board of Directors (the “Board”), in each case effective as of September 1, 2026 (the “Transition Date”). Other than\nas set forth in this Form 8-K/A, all inform",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126035325/ef20081427_8ka.htm"
+      },
+      {
+        "filing_date": "2026-07-30",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn July 30, 2026, Apple Inc. (“Apple”) issued a press release regarding Apple’s financial results for its third fiscal quarter ended June 27, 2026. A copy of Apple’s press release is attached hereto as Exhibit 99.1.\n\nThe information contained in this Current Report shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or incorporated by reference in any filing under the Securities Act of 1933, as amended, or the Exchange Act, except as shall be expressly set forth by specific reference in such a filing.\n\nItem 9.01 Financial Statements and Exhibits.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000018/aapl-20260730.htm"
+      },
+      {
+        "filing_date": "2026-04-30",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn April 30, 2026, Apple Inc. (“Apple”) issued a press release regarding Apple’s financial results for its second fiscal quarter ended March 28, 2026. A copy of Apple’s press release is attached hereto as Exhibit 99.1.\n\nThe information contained in this Current Report shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or incorporated by reference in any filing under the Securities Act of 1933, as amended, or the Exchange Act, except as shall be expressly set forth by specific reference in such a filing.\n\nItem 9.01 Financial Statements and Exhibits.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000011/aapl-20260430.htm"
+      },
+      {
+        "filing_date": "2026-04-20",
+        "item_numbers": [
+          "Item 5.02"
+        ],
+        "summary_text": "[Item 5.02] Item 5.02      Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain  \n\nOn April 20, 2026, Apple Inc. (“Apple”) announced that Tim Cook will transition from his role as Chief Executive Officer to Executive Chair of Apple’s Board of Directors\n(the “Board”), effective September 1, 2026 (the “Transition Date”). On April 17, 2026, the Board appointed John Ternus, Apple’s Senior Vice President of Hardware Engineering, as Chief Executive Officer and a member of the Board, in each case\neffective on the Transition Date. Art Levinson, current Chair of the Board, will become Lead Independent Director on the Transition Date.\n\nMr. Ternus, 50, joined Apple in 2001 and assumed his current position in 2021. Mr. Ternus’s pr",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126015711/ef20071035_8k.htm"
+      },
+      {
+        "filing_date": "2026-01-29",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn January 29, 2026, Apple Inc. (“Apple”) issued a press release regarding Apple’s financial results for its first fiscal quarter ended December 27, 2025. A copy of Apple’s press release is attached hereto as Exhibit 99.1.\n\nThe information contained in this Current Report shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or incorporated by reference in any filing under the Securities Act of 1933, as amended, or the Exchange Act, except as shall be expressly set forth by specific reference in such a filing.\n\nItem 9.01 Financial Statements and Exhibits.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000005/aapl-20260129.htm"
+      },
+      {
+        "filing_date": "2026-01-02",
+        "item_numbers": [
+          "Item 5.02"
+        ],
+        "summary_text": "[Item 5.02] Item 5.02      Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers.  \n\nAs part of Apple Inc.’s\n(“Apple’s”) previously announced Principal Accounting Officer transition plan, Apple’s Board of Directors appointed Ben Borders, 45, as Apple’s Principal Accounting Officer, effective January 1, 2026. Mr. Borders succeeds Chris Kondo in the\nrole of Principal Accounting Officer.\n\nMr. Borders joined Apple in\nNovember 2010 and assumed his current position in January 2026. Mr. Borders’ previous positions at Apple include Director of Technical Accounting.\n\nThere are no family\nrelationships between Mr. Borders and any director or executive officer of Apple that would be required to be disclosed pursuant to Ite",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126000199/ef20060722_8k.htm"
+      },
+      {
+        "filing_date": "2025-12-05",
+        "item_numbers": [
+          "Item 5.02"
+        ],
+        "summary_text": "[Item 5.02] Item 5.02      Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers.  \n\nOn December 4, 2025, Apple Inc. (“Apple”) announced that Jennifer Newstead will become Apple’s general counsel on March 1, 2026, following a transition of\nduties from Kate Adams, who has served as Apple’s general counsel since 2017. Ms. Newstead will join Apple as senior vice president in January, reporting to CEO Tim Cook and serving on Apple’s executive team. Ms. Adams will remain at Apple and\noversee Apple’s government affairs organization until her retirement in late 2026, after which it will be led by Ms. Newstead.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/320193/000114036125044561/ef20060722_8k.htm"
+      },
+      {
+        "filing_date": "2025-10-30",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn October 30, 2025, Apple Inc. (“Apple”) issued a press release regarding Apple’s financial results for its fourth fiscal quarter ended September 27, 2025. A copy of Apple’s press release is attached hereto as Exhibit 99.1.\n\nThe information contained in this Current Report shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or incorporated by reference in any filing under the Securities Act of 1933, as amended, or the Exchange Act, except as shall be expressly set forth by specific reference in such a filing.\n\nItem 9.01 Financial Statements and Exhibits.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000077/aapl-20251030.htm"
+      }
+    ],
+    "quarterly_earnings_text": "Exhibit 99.1                                                                 \n                                                                               \n                                                                               \n   Apple reports third quarter results                                         \n                                                                               \nJune quarter records for total company revenue and EPS\n\niPhone, Mac and Services revenue set new June quarter records\n\nCUPERTINO, CALIFORNIA — Apple ® today announced financial results for its\nfiscal 2026 third quarter ended June 27, 2026. The Company posted quarterly\nrevenue of $109.4 billion, up 16 percent year over year. Company gross margin\nwas 50.1 percent, including a favorable impact of approximately 2 percentage\npoints from tariff refunds. Diluted earnings per share was $2.02, up 29 percent\nyear over year, and included a favorable impact of $0.11 from tariff refunds.\n\n“Today, Apple is proud to report our strongest June quarter ever, with double-\ndigit revenue growth across iPhone, Mac and Services, and in every geographic\nsegment,” said Tim Cook, Apple’s CEO. “At WWDC26, we were thrilled to introduce\nthe all-new Siri AI, alongside all of Apple’s latest software innovations and\nimportant new child safety features.”\n\n“We are very pleased with our record business performance during the quarter,\nwhich set new June quarter records for both EPS and operating cash flow,” said\nKevan Parekh, Apple’s CFO. “Our installed base of active devices also reached a\nnew all-time high across all major product categories and geographic segments.”\n\nApple’s board of directors has declared a cash dividend of $0.27 per share of\nthe Company’s common stock. The dividend is payable on August 13, 2026, to\nshareholders of record as of the close of business on August 10, 2026.\n\nApple will provide live streaming of its Q3 2026 financial results conference\ncall beginning at 2:00 p.m. PT on July 30, 2026, at\napple.com/investor/earnings-call. The webcast will be available for replay for\napproximately two weeks thereafter.\n\nApple periodically provides information for investors on its corporate website,\napple.com, and its investor relations website, investor.apple.com. This\nincludes press releases and other information about financial performance,\nreports filed or furnished with the SEC, information on corporate governance,\nand details related to its annual meeting of shareholders.\n\nThis press release contains forward-looking statements, within the meaning of\nthe Private Securities Litigation Reform Act of 1995. These forward-looking\nstatements include without limitation those about payment of the Company’s\nquarterly dividend and future business plans. These statements involve risks\nand uncertainties, and actual results may differ materially from any future\nresults expressed or implied by the forward-looking statements. Risks and\nuncertainties include without limitation: effects of global and regional\neconomic conditions, including as a result of government policies, trade and\nother international disputes, geopolitical tensions, conflict, terrorism,\nnatural disasters, and public health issues; risks relating to the design,\nmanufacture, introduction, and transition of products and services in highly\ncompetitive and rapidly changing markets, including from reliance on third\nparties for components, technology, manufacturing, applications, services,\nsupport, and content; risks relating to information technology system failures,\nnetwork disruptions, and failure to protect, loss of, or unauthorized access\nto, or release of, data; and effects of unfavorable legal proceedings,\ngovernment investigations, and complex and changing laws and regulations. More\ninformation on these risks and other potential factors that could affect the\nCompany’s business, reputation, results of operations, financial condition, and\nstock price is included in the Company’s filings with the SEC, including in the\n“Risk Factors” and “Management’s Discussion and Analysis of Financial Condition\nand Results of Operations” sections of the Company’s most recently filed\nperiodic reports on Form 10-K and Form 10-Q and subsequent filings. The Company\nassumes no obligation to update any forward-looking statements, which speak\nonly as of the date they are made.\n\nApple revolutionized personal technology with the introduction of the Macintosh\nin 1984. Today, Apple leads the world in innovation with iPhone, iPad, Mac,\nAirPods, Apple Watch, and Apple Vision Pro. Apple’s six software platforms —\niOS, iPadOS, macOS, watchOS, visionOS, and tvOS — provide seamless experiences\nacross all Apple devices and empower people with breakthrough services\nincluding the App Store, Apple Music, Apple Pay, iCloud, and Apple TV. Apple’s\nmore than 150,000 employees are dedicated to making the best products on earth\nand to leaving the world better than we found it.\n\nPress Contact:\n\nJosh Rosenstock\n\nApple\n\njrosenstock@apple.com\n\n(408) 862-1142\n\nInvestor Relations Contact:\n\nSuhasini Chandramouli\n\nApple\n\nsuhasini@apple.com\n\n(408) 974-3123\n\nNOTE TO EDITORS: For additional information visit Apple Newsroom\n(www.apple.com/newsroom), or email Apple’s Media Helpline at\nmedia.help@apple.com.\n\n© 2026 Apple Inc. All rights reserved. Apple and the Apple logo are trademarks\nof Apple. Other company and product names may be trademarks of their respective\nowners.\n                                                                               \n                                  Apple Inc.                                   \n                                                                               \n                                                                               \n          CONDENSED CONSOLIDATED STATEMENTS OF OPERATIONS (Unaudited)          \n                                                                               \n (In millions, except number of shares, which are reflected in thousands, and  \n                              per-share amounts)                               \n                                                                               \n            Three       June          June    Nine                       June  \n            Months       27,           28,    Months   June 27,           28,  \n            Ended       2026          2025    Ended        2026          2025  \n ───────────────────────────────────────────────────────────────────────────── \n  Net                                                                          \n  sales:                                                                       \n  Produ…    $         78,678    $   66,613    $         272,629    $  233,287  \n  Servi…              30,739        27,423               91,728        80,408  \n  Total                                                                        \n  net                109,417        94,036              364,357       313,695  \n  sales…                                                                       \n  Cost                                                                         \n  of                                                                           \n  sales:                                                                       \n  Produ…              47,153        43,620              163,810       147,097  \n  Servi…               7,494         6,698               21,765        19,738  \n  Total                                                                        \n  cost                54,647        50,318              185,575       166,835  \n  of                                                                           \n  sales                                                                        \n  Gross               54,770        43,718              178,782       146,860  \n  margin                                                                       \n  Opera…                                                                      ",
+    "quarterly_earnings_date": "2026-07-30",
+    "quarterly_eps_actuals": [
+      {
+        "period": "2026-06-30",
+        "actual": 1.91,
+        "estimate": 1.9271,
+        "surprise": -0.0171,
+        "surprisePercent": -0.8873,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-03-31",
+        "actual": 2.01,
+        "estimate": 1.9884,
+        "surprise": 0.0216,
+        "surprisePercent": 1.0863,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-12-31",
+        "actual": 2.84,
+        "estimate": 2.7257,
+        "surprise": 0.1143,
+        "surprisePercent": 4.1934,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-09-30",
+        "actual": 1.85,
+        "estimate": 1.8075,
+        "surprise": 0.0425,
+        "surprisePercent": 2.3513,
+        "revenueActual": null,
+        "revenueEstimate": null
+      }
+    ]
+  },
+  "competitive": {
+    "ticker": "AAPL",
+    "stub": false,
+    "moat_classification": "narrow",
+    "moat_sources": [
+      "brand",
+      "network_effects",
+      "switching_costs"
+    ],
+    "peer_roic_comparison": [],
+    "citations": [
+      {
+        "claim": "Apple has a strong competitive advantage characterized by its brand loyalty and ecosystem.",
+        "source_url": "https://sg.finance.yahoo.com/news/why-businesses-thrive-secret-building-034252924.html",
+        "excerpt": "Apple has built a comprehensive network of products, services and solutions to encourage",
+        "confidence": 0.9,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Apple's ROIC has averaged over 70% for the past four years.",
+        "source_url": "Financial data: ROIC series",
+        "excerpt": "ROIC series: FY2025: 79.7%, FY2024: 73.8%, FY2023: 68.5%, FY2022: 71.6%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Apple's gross margin exceeds 46%.",
+        "source_url": "Financial data: margins",
+        "excerpt": "Gross margin: FY2025: 46.9%, FY2024: 46.2%, FY2023: 44.1%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Apple faces credible disruption threats in the AI space.",
+        "source_url": "https://finance.yahoo.com/news/siri-ous-problem-could-biggest-185200314.html",
+        "excerpt": "If Apple can't successfully add the AI features that customers desire... that could be enough to pull some of Apple's loyal customers away from its ecosystem.",
+        "confidence": 0.8,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "peers": [],
+  "peer_financials": [],
+  "historical_cagr_5y": 0.01812535743479393,
+  "historical_cagr_years": 3,
+  "checkpoint1_user_input": {
+    "proceed": true,
+    "peers": "",
+    "answers": {}
+  },
+  "checkpoint2_user_input": {
+    "wacc_pct": 9.0,
+    "terminal_growth_pct": 2.5,
+    "projection_years": 10
+  },
+  "valuation": {
+    "ticker": "AAPL",
+    "stub": false,
+    "dcf_intrinsic_value": {
+      "value": 1077051530959.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_intrinsic_per_share": {
+      "value": 73.8,
+      "unit": "USD/share",
+      "period": "FY2025",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_upside_pct": -77.9,
+    "price_current": {
+      "value": 333.69,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "reverse_dcf_implied_growth": 0.233,
+    "ev_ebit_multiple": {
+      "value": 37.11,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "ev_fcf_multiple": {
+      "value": 49.99,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "pe_multiple": {
+      "value": 43.48,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "earnings_yield_pct": 2.69,
+    "magic_formula_rank": null,
+    "sensitivity_table": [
+      {
+        "near_term_growth_pct": 1.1,
+        "values": {
+          "wacc_7.0pct": 2062.5,
+          "wacc_9.0pct": 1434.5,
+          "wacc_11.0pct": 1101.5
+        }
+      },
+      {
+        "near_term_growth_pct": -3.9,
+        "values": {
+          "wacc_7.0pct": 1521.5,
+          "wacc_9.0pct": 1077.1,
+          "wacc_11.0pct": 840.1
+        }
+      },
+      {
+        "near_term_growth_pct": -8.9,
+        "values": {
+          "wacc_7.0pct": 1117.0,
+          "wacc_9.0pct": 807.1,
+          "wacc_11.0pct": 640.7
+        }
+      }
+    ],
+    "assumptions": {
+      "checkpoint_id": "checkpoint2",
+      "user_notes": "",
+      "proceed": true,
+      "wacc_pct": 9.0,
+      "terminal_growth_pct": 2.5,
+      "projection_years": 10,
+      "stage1_years": null,
+      "fade_years": null,
+      "revenue_growth_yr1_pct": null,
+      "margin_assumption_pct": null
+    },
+    "dcf_reliability_note": "Near-term FCF growth: -3.9% (historical FCF CAGR, 3 years).",
+    "fcf_quality_warning": null,
+    "near_term_growth_used_pct": -0.039450634871626145,
+    "near_term_growth_source": "fcf_cagr_3y",
+    "stage1_years_used": 5,
+    "fade_years_used": 5,
+    "epv_enterprise": {
+      "value": 1134893420602.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_per_share": {
+      "value": 73.17,
+      "unit": "USD/share",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_upside_pct": -78.1,
+    "epv_source": "ebit_median_4y",
+    "suggested_wacc_pct": 9.2,
+    "suggested_wacc_breakdown": "Rf=4.2% + β=1.0×ERP=5.0% + size_premium=0.0% (large cap)",
+    "valuation_methods_summary": [
+      {
+        "method": "DCF (3-stage Damodaran fade)",
+        "per_share": "$73.80",
+        "upside_pct": -77.9,
+        "display_upside": "-77.9%",
+        "classification": "expensive"
+      },
+      {
+        "method": "EPV (Greenwald — zero growth)",
+        "per_share": "$73.17",
+        "upside_pct": -78.1,
+        "display_upside": "-78.1%",
+        "classification": "expensive"
+      },
+      {
+        "method": "Reverse DCF (market-implied growth)",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "implied 23.3% vs historical -3.9%",
+        "classification": "expensive"
+      },
+      {
+        "method": "EV/EBIT vs peer median",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "37.1x vs peer median N/A",
+        "classification": "n/a"
+      }
+    ]
+  },
+  "citations": [],
+  "unverified_claims": [],
+  "cost_usd": 0.0
+}

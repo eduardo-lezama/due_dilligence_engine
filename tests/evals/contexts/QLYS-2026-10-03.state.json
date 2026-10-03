@@ -1,0 +1,785 @@
+{
+  "ticker": "QLYS",
+  "cik": "0001107843",
+  "as_of_date": "2025-12-31",
+  "run_id": "2a7977ce-1f9",
+  "financials": {
+    "ticker": "QLYS",
+    "cik": "0001107843",
+    "as_of_date": "2025-12-31",
+    "revenue": [
+      {
+        "value": 669125000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 607571000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 554458000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 489723000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "gross_profit": [
+      {
+        "value": 554357000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 496089000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 446973000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 386935000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_income": [
+      {
+        "value": 221952000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 187196000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 163069000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 130547000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "net_income": [
+      {
+        "value": 198320000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 173680000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 151595000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 107992000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_cash_flow": [
+      {
+        "value": 309400000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 244094000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 244605000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 198854000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "capex": [
+      {
+        "value": 4990000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 12334000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 8786000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 15361000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "free_cash_flow": [
+      {
+        "value": 304410000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 231760000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 235819000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 183493000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "buybacks": [
+      {
+        "value": 183425000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 139875000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 170800000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 317344000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "dividends": [],
+    "total_assets": {
+      "value": 1095081000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt": {
+      "value": 0.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "cash_and_equivalents": {
+      "value": 250258000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "shares_outstanding": {
+      "value": 34595001.0,
+      "unit": "shares",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "roic_series": [
+      {
+        "value": 0.5736,
+        "unit": "ratio",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.4838,
+        "unit": "ratio",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.4214,
+        "unit": "ratio",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.3374,
+        "unit": "ratio",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "invested_capital": {
+      "value": 310895000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "equity+debt-cash",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "stockholders_equity": {
+      "value": 561153000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "source_filing": "10-K FY2025",
+    "citations": []
+  },
+  "mgmt": {
+    "ticker": "QLYS",
+    "stub": false,
+    "insider_ownership_pct": 0.73,
+    "founder_ceo": false,
+    "ceo_tenure_years": 2.5,
+    "form4_transactions_12m": 0,
+    "insider_transaction_pattern": "CEO Sumedh Thakar net seller: sold 10,000 shares on June 30, 2026, and multiple other sales throughout the year. CFO Joo Mi Kim and Chief Legal Officer Bruce K. Posey also net sellers. Overall insider sentiment: negative.",
+    "compensation_structure_notes": "Management compensation is linked to performance metrics such as revenue growth, adjusted EBITDA margin, and non-GAAP earnings per diluted share, indicating a pay-for-performance philosophy. However, the focus on short-term adjusted metrics may not fully align with long-term shareholder interests.",
+    "capital_allocation_summary": "The company has not disclosed specific details regarding M&A discipline, buybacks, or dividends in the provided sources. However, the focus on revenue growth suggests a commitment to reinvestment in the business.",
+    "citations": [
+      {
+        "claim": "Sumedh S. Thakar is the CEO & President.",
+        "source_url": "SOURCE 3",
+        "excerpt": "Sumedh S. Thakar (CEO & PRESIDENT)",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Insider ownership percentage is 0.73%.",
+        "source_url": "SOURCE 1",
+        "excerpt": "All current directors and executive officers as a group (9 persons) 255,155 *",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "No discretionary officer/director open-market transactions in the last 12 months.",
+        "source_url": "SOURCE 2",
+        "excerpt": "No discretionary officer/director open-market transactions in the last 12 months.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Management compensation is linked to performance metrics.",
+        "source_url": "SOURCE 1",
+        "excerpt": "we have determined that revenues is the most important financial performance measure",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "filings": {
+    "ticker": "QLYS",
+    "stub": false,
+    "business_description": "Qualys is a leading provider of a cloud-based platform delivering IT, security, and compliance solutions. Their integrated suite of solutions helps organizations identify and manage their IT and operational technology assets, collect and analyze security data, and achieve compliance with regulations. The company operates on a software-as-a-service model, primarily through renewable annual subscriptions, serving a diverse customer base including large enterprises and small businesses globally.",
+    "risk_factors_summary": "Qualys faces several material risks including variability in operating results due to demand fluctuations, competitive pressures from new technologies, and regulatory uncertainties that could impact their business. Additionally, macroeconomic factors such as inflation and geopolitical conflicts may lead to reduced customer spending on IT security solutions.",
+    "mda_highlights": "Management highlights the importance of adapting to evolving customer needs and technological advancements as key challenges. They emphasize the need for continuous investment in research and development to enhance existing solutions and introduce new ones. The current macroeconomic environment poses risks that could adversely affect long-term business performance.",
+    "backlog_usd": null,
+    "revenue_guidance": null,
+    "geographic_revenue_breakdown": "US: 56%, Other: 44%",
+    "key_regulatory_events": null,
+    "governance_red_flags": "No governance red flags found in provided text.",
+    "citations": [
+      {
+        "claim": "Qualys is a leading provider of a cloud-based platform delivering IT, security, and compliance solutions.",
+        "source_url": "10-K Item 1",
+        "excerpt": "We are a leading provider of a cloud-based platform delivering information technology (IT), security and compliance solutions.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "The company operates on a software-as-a-service model, primarily through renewable annual subscriptions.",
+        "source_url": "10-K Item 1",
+        "excerpt": "We provide our solutions through a software-as-a-service model, primarily with renewable annual subscriptions.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Management highlights the importance of adapting to evolving customer needs and technological advancements as key challenges.",
+        "source_url": "10-K Item 7",
+        "excerpt": "Our future success will depend on our ability to enhance existing solutions, introduce new solutions on a timely and cost-effective basis, meet changing customer needs...",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Qualys faces several material risks including variability in operating results due to demand fluctuations.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Our quarterly and annual operating results may vary from period to period, which could result in our failure to meet expectations...",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "The current macroeconomic environment poses risks that could adversely affect long-term business performance.",
+        "source_url": "10-K Item 7",
+        "excerpt": "The uncertainty surrounding macroeconomic factors in the U.S. and globally characterized by inflationary pressure, high interest rates...",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "In 2025, 56%, 58% and 60%, respectively, of our revenues were derived from customers in the United States.",
+        "source_url": "10-K Item 7",
+        "excerpt": "In 2025, 2024 and 2023, 56%, 58% and 60%, respectively, of our revenues were derived from customers in the United States...",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "market": {
+    "ticker": "QLYS",
+    "stub": false,
+    "price_current": {
+      "value": 193.0,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_high": {
+      "value": 201.54,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_low": {
+      "value": 74.51,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "market_cap": {
+      "value": 6676835193.0,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] 1 Software Stock with Exciting Potential and 2 We Ignore\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=1ea30286a43c3b0098beaaab34838aecec40742f60396d3e5158a3ff913caeca\n    Software is eating the world, and virtually no business is left untouched by it. Companies bringing it to life have been rewarded with explosive earnings growth, and the upward trend shows no signs of stopping as the industry has posted a 45.2% gain over the past six months, beating the S&P 500 by 2\n\n[2] These Telltale Clues Shine A Spotlight On Palo Alto Networks\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=6680d02796409369dc86b96052c309281c974d896bf3c949ad7e45f069f15a5b\n    As Palo Alto stock looks to safeguard a new breakout, investors should monitor these indicators in the cybersecurity juggernaut.\n\n[3] What Happens If You Don't Pay Your Stock Trading Taxes?\n    Source: Benzinga | URL: https://finnhub.io/api/news?id=b6cd46fe13464accc7cf7c0fce50409578fdc436b11235be3754d7ab90f8a41c\n    (no summary)\n\n[4] Qualys, Okta, Palo Alto Networks, Rapid7, and SentinelOne Shares Plummet, What You Need To Know\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=a4a3209cf72656db90c8cafdbb0199d3af24570c52b742040fd73c7e87a54368\n    A number of stocks fell in the afternoon session after elevated valuation multiples led investors and analysts to question whether the sector's sharp artificial intelligence-fueled gains can last.\n\n[5] Qualys (QLYS) Stock May Be 21% Undervalued On Strong Cash Flow\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=99dce937cb059c11297d82124478e34c1fb428500bfdd210b904fc0928500ecc\n    Qualys has delivered a solid run for long term holders. For anyone looking at the stock today, the bigger issue is whether the current share price lines up with the cash the business is expected to produce over time. Over the past 5 years, Qualys has returned 64.4%. This puts real weight on the ques",
+    "material_events": [
+      {
+        "filing_date": "2026-08-04",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn August 4, 2026, Qualys, Inc. (“Qualys”) issued a press release announcing its financial results for the quarter ended June 30, 2026. In the press release, Qualys also announced that it will hold a conference call on August 4, 2026, to discuss its financial results for the quarter ended June 30, 2026. The full text of the press release is attached hereto as Exhibit 99.1 and is incorporated herein by reference.\n\nThis information is intended to be furnished under Item 2.02 of Form 8-K, “Results of Operations and Financial Condition” and shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or incorporated by reference in any filing under the Securities Act of ",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1107843/000110784326000034/qlys-20260804.htm"
+      },
+      {
+        "filing_date": "2026-06-11",
+        "item_numbers": [
+          "Item 5.02"
+        ],
+        "summary_text": "[Item 5.02] Item 5.02 Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers.\n\nApproval of Qualys, Inc. 2012 Equity Incentive Plan, as amended and restated\n\nOn June 10, 2026, the stockholders of Qualys, Inc. (the “Company”) approved the Company’s 2012 Equity Incentive Plan, as amended and restated (the “Plan”). A description of the material terms of the Plan is incorporated herein by reference to “Proposal No. 4 - Approval of the Qualys, Inc. 2012 Equity Incentive Plan, as Amended and Restated” contained in the Company’s definitive proxy statement onSchedule 14A filed with the Securities and Exchange Commission on April 22, 2026 (the \"Proxy Statement\"). A copy of the Plan is filed as Exhibit 10.1 hereto and inco",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1107843/000110784326000024/qlys-20260610.htm"
+      },
+      {
+        "filing_date": "2026-05-05",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn May 5, 2026, Qualys, Inc. (“Qualys”) issued a press release announcing its financial results for the quarter ended March 31, 2026. In the press release, Qualys also announced that it will hold a conference call on May 5, 2026, to discuss its financial results for the quarter ended March 31, 2026. The full text of the press release is attached hereto as Exhibit 99.1 and is incorporated herein by reference.\n\nThis information is intended to be furnished under Item 2.02 of Form 8-K, “Results of Operations and Financial Condition” and shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or incorporated by reference in any filing under the Securities Act of 1933",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1107843/000110784326000013/qlys-20260505.htm"
+      },
+      {
+        "filing_date": "2026-02-05",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn February 5, 2026, Qualys, Inc. (“Qualys”) issued a press release announcing its financial results for the quarter and fiscal year ended December 31, 2025. In the press release, Qualys also announced that it will hold a conference call on February 5, 2026, to discuss its financial results for the quarter and fiscal year ended December 31, 2025. The full text of the press release is attached hereto as Exhibit 99.1 and is incorporated herein by reference.\n\nThis information is intended to be furnished under Item 2.02 of Form 8-K, “Results of Operations and Financial Condition” and shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or incorporated by referenc",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1107843/000110784326000004/qlys-20260205.htm"
+      },
+      {
+        "filing_date": "2025-11-04",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn November 4, 2025, Qualys, Inc. (“Qualys”) issued a press release announcing its financial results for the quarter ended September 30, 2025. In the press release, Qualys also announced that it will hold a conference call on November 4, 2025, to discuss its financial results for the quarter ended September 30, 2025. The full text of the press release is attached hereto as Exhibit 99.1 and is incorporated herein by reference.\n\nThis information is intended to be furnished under Item 2.02 of Form 8-K, “Results of Operations and Financial Condition” and shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or incorporated by reference in any filing under the Secu",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1107843/000110784325000037/qlys-20251104.htm"
+      }
+    ],
+    "quarterly_earnings_text": "Exhibit 99.1                                                                 \n                                                                               \n                                                                               \n            Qualys Announces Second Quarter 2026 Financial Results             \n                                                                               \n                    Q2 Revenue Growth of 11% Year-Over-Year                    \n                                                                               \n             Raises 2026 Revenue Guidance to $732.0-$738.0 million             \n                                                                               \n  FOSTER CITY, Calif.,                                                         \n                                                                               \n–\n                                                                               \n  August 4, 2026                                                               \n                                                                               \n– Qualys, Inc. (NASDAQ: QLYS ), a leading provider of disruptive cloud-based\nIT, security and compliance solutions, today announced financial results for\nthe second quarter ended June 30, 2026. For the quarter, the Company reported\nrevenues of $182.2 million, net income under United States Generally Accepted\nAccounting Principles (“GAAP”) of $52.4 million, non-GAAP net income of $69.2\nmillion, Adjusted EBITDA of $83.8 million, GAAP net income per diluted share of\n$1.50, and non-GAAP net income per diluted share of $1.98.\n\n“In Q2, we continued to execute well, demonstrated by another quarter of solid\nrevenue growth and profitability,” said Sumedh Thakar, Qualys’ president and\nCEO. “Qualys’ continuous innovation spanning AI for security and security for\nAI, growing AI-native Risk Operations Center adoption powered by our Enterprise\nTruRisk Management solution, a growing federal pipeline of new business\nopportunity, strong partner-led execution, and promising early QFlex engagement\ncontinue to reinforce the demand we’re seeing for a unified risk management\nplatform that autonomously moves beyond theoretical exposure to validated,\nquantified, and remediated risk at the speed of modern attacks in multi-vendor\nenvironments. We believe these achievements not only advance our strong\ncompetitive differentiation but also sharpen the market opportunity ahead of us\nand bolster our confidence in reaccelerating long-term growth in the business.”\n                                                                               \n   Second Quarter 2026 Financial Highlights                                    \n                                                                               \nRevenues: Revenues for the second quarter of 2026 increased by 11% to $182.2\nmillion compared to $164.1 million for the same quarter in 2025.\n\nGross Profit: GAAP gross profit for the second quarter of 2026 increased by 12%\nto $151.9 million compared to $135.2 million for the same quarter in 2025. GAAP\ngross margin was 83% for the second quarter of 2026 compared to 82% for the\nsame quarter in 2025. Non-GAAP gross profit for the second quarter of 2026\nincreased by 12% to $154.5 million compared to $137.8 million for the same\nquarter in 2025. Non-GAAP gross margin was 85% for the second quarter of 2026\ncompared to 84% for the same quarter in 2025.\n\nOperating Income: GAAP operating income for the second quarter of 2026\nincreased by 20% to $61.9 million compared to $51.4 million for the same\nquarter in 2025. As a percentage of revenues, GAAP operating income was 34% for\nthe second quarter of 2026 compared to 31% for the same quarter in 2025. Non-\nGAAP operating income for the second quarter of 2026 increased by 16% to $81.4\nmillion compared to $70.1 million for the same quarter in 2025. As a percentage\nof revenues, non-GAAP operating income was 45% for the second quarter of 2026\ncompared to 43% for the same quarter in 2025.\n\nNet Income: GAAP net income for the second quarter of 2026 increased by 11% to\n$52.4 million, or $1.50 per diluted share, compared to $47.3 million, or $1.29\nper diluted share, for the same quarter in 2025. As a percentage of revenues,\nGAAP net income was 29% for both the second quarter of 2026 and for the same\nquarter in 2025. Non-GAAP net income for the second quarter of 2026 increased\nby 13% to $69.2 million, or $1.98 per diluted share, compared to $61.2 million,\nor $1.68 per diluted share, for the same quarter in 2025. As a percentage of\nrevenues, non-GAAP net income was 38% for the second quarter of 2026 compared\nto 37% for the same quarter in 2025.\n\nAdjusted EBITDA: Adjusted EBITDA (a non-GAAP financial measure) for the second\nquarter of 2026 increased by 14% to $83.8 million compared to $73.4 million for\nthe same quarter in 2025. As a percentage of revenues, Adjusted EBITDA was 46%\nfor the second quarter of 2026 compared to 45% for the same quarter in 2025.\n\nOperating Cash Flow: Operating cash flow for the second quarter of 2026\nincreased by 77% to $59.6 million compared to $33.8 million for the same\nquarter in 2025. As a percentage of revenues, operating cash flow was 33% for\nthe second quarter of 2026 compared to 21% for the same quarter in 2025.\n                                                                               \n   Second Quarter 2026 Business Highlights                                     \n                                                                               \n• Qualys’ TotalCloud solution achieved FedRAMP High Authorization, sponsored by\nthe U.S. Drug Enforcement Administration (DEA). This extends the Qualys\nGovernment Platform's authorization to include Cloud-Native Application\nProtection Platform (CNAPP) capabilities and makes TotalCloud available through\nthe FedRAMP Marketplace for federal agencies and other highly regulated\norganizations.\n\n• Qualys collaborated with leading AI and cybersecurity organizations,\nAnthropic Project Glasswing and Open AI’s Trusted Access for Cyber program, to\nhelp advance the secure and responsible deployment of frontier AI technologies.\n\n• Qualys was recognized by Frost & Sullivan in two 2026 Frost Radar™ reports as\na Visionary Leader in Cloud and Application Runtime Security and a Leading\nTechnology Player in Cloud-Native Application Protection Platforms (CNAPP).\n\n• Qualys and Converge announced a joint offering that rewards organizations for\ndemonstrated cybersecurity compliance. The collaboration allows Qualys\ncustomers who actively manage and prove strong security hygiene with Enterprise\nTruRisk Management (ETM) to potentially qualify for reduced cyber insurance\npremiums from Converge.\n\n• Hosted ROCon user conferences in London, Milan, Sydney, and Washington, D.C.,\nbringing together security leaders to explore strategies for translating cyber\nrisk into measurable business outcomes in the age of frontier AI.\n                                                                               \n   Financial Performance Outlook                                               \n                                                                               \nBased on information as of today, August 4, 2026, Qualys is issuing the\nfollowing financial guidance for the third quarter and full year fiscal 2026.\nThe Company emphasizes that the guidance is subject to various important\ncautionary factors referenced in the sections entitled “Legal Notice Regarding\nForward-Looking Statements” and “Non-GAAP Financial Measures” below.\n\nThird Quarter 2026 Guidance: Management expects revenues for the third quarter\nof 2026 to be in the range of $185.5 million to $187.5 million, representing 9%\nto 10% growth over the same quarter in 2025. GAAP net income per diluted share\nis expected to be in the range of $1.43 to $1.50, which assumes an effective\nincome tax rate of 21%. Non-GAAP net income per diluted share is expected to be\nin the ra",
+    "quarterly_earnings_date": "2026-08-04",
+    "quarterly_eps_actuals": [
+      {
+        "period": "2026-06-30",
+        "actual": 1.98,
+        "estimate": 1.8195,
+        "surprise": 0.1605,
+        "surprisePercent": 8.8211,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-03-31",
+        "actual": 1.95,
+        "estimate": 1.837,
+        "surprise": 0.113,
+        "surprisePercent": 6.1513,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-12-31",
+        "actual": 1.87,
+        "estimate": 1.8185,
+        "surprise": 0.0515,
+        "surprisePercent": 2.832,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-09-30",
+        "actual": 1.86,
+        "estimate": 1.5921,
+        "surprise": 0.2679,
+        "surprisePercent": 16.8268,
+        "revenueActual": null,
+        "revenueEstimate": null
+      }
+    ]
+  },
+  "competitive": {
+    "ticker": "QLYS",
+    "stub": false,
+    "moat_classification": "wide",
+    "moat_sources": [
+      "brand",
+      "switching_costs",
+      "network_effects"
+    ],
+    "peer_roic_comparison": [],
+    "citations": [
+      {
+        "claim": "Qualys has a strong competitive advantage through its impressive ROIC.",
+        "source_url": "Financial data: ROIC series",
+        "excerpt": "ROIC series: FY2025: 57.4%, FY2024: 48.4%, FY2023: 42.1%, FY2022: 33.7%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "The company's gross margin is significantly high.",
+        "source_url": "Financial data: margins",
+        "excerpt": "Gross margin: FY2025: 82.8%, FY2024: 81.7%, FY2023: 80.6%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "The moat is widening due to increasing demand for cybersecurity solutions.",
+        "source_url": "https://finance.yahoo.com/markets/stocks/articles/zacks-industry-outlook-highlights-crowdstrike-125700839.html",
+        "excerpt": "The Zacks Security industry is experiencing robust demand for cybersecurity products, driven by the increasing need for secure networks and cloud-based applications.",
+        "confidence": 0.9,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "peers": [],
+  "peer_financials": [],
+  "historical_cagr_5y": 0.10964889505445607,
+  "historical_cagr_years": 3,
+  "checkpoint1_user_input": {
+    "proceed": true,
+    "peers": "",
+    "answers": {}
+  },
+  "checkpoint2_user_input": {
+    "wacc_pct": 9.0,
+    "terminal_growth_pct": 2.5,
+    "projection_years": 10
+  },
+  "valuation": {
+    "ticker": "QLYS",
+    "stub": false,
+    "dcf_intrinsic_value": {
+      "value": 7717619733.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_intrinsic_per_share": {
+      "value": 223.08,
+      "unit": "USD/share",
+      "period": "FY2025",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_upside_pct": 15.6,
+    "price_current": {
+      "value": 193.0,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "reverse_dcf_implied_growth": 0.0836,
+    "ev_ebit_multiple": {
+      "value": 28.95,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "ev_fcf_multiple": {
+      "value": 21.11,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "pe_multiple": {
+      "value": 33.67,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "earnings_yield_pct": 3.45,
+    "magic_formula_rank": null,
+    "sensitivity_table": [
+      {
+        "near_term_growth_pct": 16.0,
+        "values": {
+          "wacc_7.0pct": 15.2,
+          "wacc_9.0pct": 10.1,
+          "wacc_11.0pct": 7.5
+        }
+      },
+      {
+        "near_term_growth_pct": 11.0,
+        "values": {
+          "wacc_7.0pct": 11.4,
+          "wacc_9.0pct": 7.7,
+          "wacc_11.0pct": 5.8
+        }
+      },
+      {
+        "near_term_growth_pct": 6.0,
+        "values": {
+          "wacc_7.0pct": 8.5,
+          "wacc_9.0pct": 5.8,
+          "wacc_11.0pct": 4.4
+        }
+      }
+    ],
+    "assumptions": {
+      "checkpoint_id": "checkpoint2",
+      "user_notes": "",
+      "proceed": true,
+      "wacc_pct": 9.0,
+      "terminal_growth_pct": 2.5,
+      "projection_years": 10,
+      "stage1_years": null,
+      "fade_years": null,
+      "revenue_growth_yr1_pct": null,
+      "margin_assumption_pct": null
+    },
+    "dcf_reliability_note": "Near-term FCF growth: 11.0% (FCF CAGR 3y, capped by revenue CAGR 11.0% — FCF growing faster than revenue is unsustainable long-term).",
+    "fcf_quality_warning": null,
+    "near_term_growth_used_pct": 0.10964889505445607,
+    "near_term_growth_source": "fcf_cagr_3y_rev_capped",
+    "stage1_years_used": 5,
+    "fade_years_used": 5,
+    "epv_enterprise": {
+      "value": 1738728163.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_per_share": {
+      "value": 57.49,
+      "unit": "USD/share",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_upside_pct": -70.2,
+    "epv_source": "ebit_median_4y",
+    "suggested_wacc_pct": 9.7,
+    "suggested_wacc_breakdown": "Rf=4.2% + β=1.0×ERP=5.0% + size_premium=0.5% (mid cap)",
+    "valuation_methods_summary": [
+      {
+        "method": "DCF (3-stage Damodaran fade)",
+        "per_share": "$223.08",
+        "upside_pct": 15.6,
+        "display_upside": "+15.6%",
+        "classification": "fair"
+      },
+      {
+        "method": "EPV (Greenwald — zero growth)",
+        "per_share": "$57.49",
+        "upside_pct": -70.2,
+        "display_upside": "-70.2%",
+        "classification": "expensive"
+      },
+      {
+        "method": "Reverse DCF (market-implied growth)",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "implied 8.4% vs historical 11.0%",
+        "classification": "fair"
+      },
+      {
+        "method": "EV/EBIT vs peer median",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "28.9x vs peer median N/A",
+        "classification": "n/a"
+      }
+    ]
+  },
+  "citations": [],
+  "unverified_claims": [],
+  "cost_usd": 0.0
+}

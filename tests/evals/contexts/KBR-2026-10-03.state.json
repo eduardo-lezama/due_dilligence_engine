@@ -1,0 +1,824 @@
+{
+  "ticker": "KBR",
+  "cik": "0001357615",
+  "as_of_date": "2026-01-02",
+  "run_id": "e1ef2326-f14",
+  "financials": {
+    "ticker": "KBR",
+    "cik": "0001357615",
+    "as_of_date": "2026-01-02",
+    "revenue": [
+      {
+        "value": 7786000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 7742000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 6956000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 6564000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "gross_profit": [
+      {
+        "value": 1150000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1103000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 977000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 828000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_income": [
+      {
+        "value": 778000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 662000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 448000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 343000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "net_income": [
+      {
+        "value": 415000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 375000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -265000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 190000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_cash_flow": [
+      {
+        "value": 462000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 331000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 396000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "capex": [
+      {
+        "value": 42000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 77000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 80000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 71000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "free_cash_flow": [
+      {
+        "value": 420000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 254000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 316000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "buybacks": [
+      {
+        "value": 329000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 218000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 138000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 203000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "dividends": [
+      {
+        "value": 84000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 79000000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 72000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 66000000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "total_assets": {
+      "value": 6584000000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt": {
+      "value": 2645000000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "cash_and_equivalents": {
+      "value": 500000000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "shares_outstanding": {
+      "value": 126067755.0,
+      "unit": "shares",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "roic_series": [
+      {
+        "value": 0.1591,
+        "unit": "ratio",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.1354,
+        "unit": "ratio",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0916,
+        "unit": "ratio",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0701,
+        "unit": "ratio",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "invested_capital": {
+      "value": 3648000000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "equity+debt-cash",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "stockholders_equity": {
+      "value": 1503000000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "source_filing": "10-K FY2026",
+    "citations": []
+  },
+  "mgmt": {
+    "ticker": "KBR",
+    "stub": false,
+    "insider_ownership_pct": 1.154,
+    "founder_ceo": false,
+    "ceo_tenure_years": 6.0,
+    "form4_transactions_12m": 4,
+    "insider_transaction_pattern": "CFO Shad E. Evans net buyer: bought 8,375 shares in May 2026. Directors Carlos A. Sabater, Jack B. Moore, and Lewis Von Thaer also net buyers. Overall insider sentiment: positive.",
+    "compensation_structure_notes": "Management compensation is linked to performance metrics such as Adjusted EPS, Adjusted OCF, and Relative TSR, indicating alignment with shareholder interests. However, the focus on adjusted metrics suggests a potential short-term bias.",
+    "capital_allocation_summary": "KBR has demonstrated disciplined capital allocation, prioritizing investments in high-value projects while maintaining flexibility for the upcoming spin-off. The company has also engaged in share repurchases, reflecting a commitment to returning value to shareholders.",
+    "citations": [
+      {
+        "claim": "Stuart Bradie has been the CEO for 6 years.",
+        "source_url": "SOURCE 3",
+        "excerpt": "Stuart J. B. Bradie(7)",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Insider ownership is 1.154%.",
+        "source_url": "SOURCE 1",
+        "excerpt": "All Directors and Executive Officers as a Group (21 Persons) 1,459,870 1.154 %",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "CFO Shad E. Evans bought 8,375 shares in May 2026.",
+        "source_url": "SOURCE 2",
+        "excerpt": "Shad E. Evans (EVP & Chief Financial Officer) | BUY | 8,375 shares @ $30.60 | 2026-05-13",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Management compensation is linked to performance metrics.",
+        "source_url": "SOURCE 1",
+        "excerpt": "the most important financial performance measures... are as follows, listed on an unranked basis: Adjusted EPS, Adjusted OCF, Relative TSR",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "KBR has engaged in share repurchases.",
+        "source_url": "SOURCE 5",
+        "excerpt": "Capital allocation strategy prioritizes maintaining flexibility for the separation while continuing disciplined share repurchases",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "filings": {
+    "ticker": "KBR",
+    "stub": false,
+    "business_description": "KBR, Inc. delivers science, technology, engineering, and logistics support solutions primarily to the U.S. federal government, allied nations, and commercial clients. The company focuses on national security, defense systems engineering, sustainable energy, and advanced digital solutions. KBR's business model leverages its deep domain expertise and full-life cycle capabilities to address complex challenges faced by its clients.",
+    "risk_factors_summary": "KBR faces significant risks related to its dependence on large contracts with government entities, particularly the U.S. government, which accounted for 57% of its revenues in fiscal 2025. Budget uncertainties, potential government shutdowns, and acquisition reforms pose threats to its financial performance. Additionally, geopolitical conditions and trade restrictions could adversely impact operations and profitability.",
+    "mda_highlights": "Management highlights challenges such as delays in project execution and contract awards due to government shutdowns and budgetary uncertainties. The company anticipates continued opportunities in defense spending, driven by geopolitical factors and the need for technology advancements. KBR is also monitoring macroeconomic conditions that could affect its operations and client investments in energy transition solutions.",
+    "backlog_usd": null,
+    "revenue_guidance": null,
+    "geographic_revenue_breakdown": null,
+    "key_regulatory_events": "January 20, 2025: Executive order signed to create an advisory commission, DOGE, to reform federal government processes and reduce expenditures. April 15, 2025: Executive Order 14275 signed, directing revisions to the FAR for more efficient procurement. November 7, 2025: U.S. DoW released a memorandum on defense acquisition reform.",
+    "governance_red_flags": "No governance red flags found in provided text.",
+    "citations": [
+      {
+        "claim": "KBR delivers science, technology, engineering, and logistics support solutions primarily to the U.S. federal government, allied nations, and commercial clients.",
+        "source_url": "10-K Item 1",
+        "excerpt": "KBR, Inc., a Delaware corporation ('KBR' or, the 'Company'), delivers science, technology, engineering and logistics support solutions to the U.S. federal government, allied nations and commercial clients around the world.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "57% of our total consolidated revenues for fiscal 2025 came from the U.S. government.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Revenues from the U.S. government represented 57% of our total consolidated revenues for fiscal 2025.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Management highlights challenges such as delays in project execution and contract awards due to government shutdowns.",
+        "source_url": "10-K Item 7",
+        "excerpt": "From October 1, 2025 through November 11, 2025 the U.S. government was shut down... we experienced delays in project execution, collection of payments and contract awards.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "January 20, 2025: Executive order signed to create an advisory commission, DOGE, to reform federal government processes and reduce expenditures.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "For example, on January 20, 2025, an executive order was signed to create an advisory commission, DOGE, to reform federal government processes and reduce expenditures.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "April 15, 2025: Executive Order 14275 signed, directing revisions to the FAR for more efficient procurement.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "on April 15, 2025, Executive Order 14275, 'Restoring Common Sense to Federal Procurement,' was signed, directing major revisions to the FAR to make the government’s procurement process more efficient.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "November 7, 2025: U.S. DoW released a memorandum on defense acquisition reform.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "on November 7, 2025, the U.S. DoW released a memorandum and strategy on defense acquisition reform titled 'Transforming the Warfighting Acquisition System' that aims to overhaul the procurement landscape.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "market": {
+    "ticker": "KBR",
+    "stub": false,
+    "price_current": {
+      "value": 34.24,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_high": {
+      "value": 48.13,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_low": {
+      "value": 29.94,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "market_cap": {
+      "value": 4316559931.2,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] KBR Appoints Rami Qasem to Board of Directors\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=e6aa9b1010f5f2a52b10c3d9956aa006ccf1d92fd9ddb05f10c1aee283958621\n    HOUSTON, Oct. 01, 2026 (GLOBE NEWSWIRE) -- KBR (NYSE: KBR) announced today the appointment of Rami Qasem to its board of directors effective October 1, 2026. Mr. Qasem, 59, is a global energy, technology, and industrial executive with nearly 30 years of international leadership experience across oil\n\n[2] 3 Reasons KBR is Risky and 1 Stock to Buy Instead\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=8dcf7f9a4edd6e99dcb3ad68ac6e9c1bd749ec90ad6f691c7570581c321846f8\n    Over the last six months, KBR’s shares have sunk to $35.16, producing a disappointing 6.3% loss - a stark contrast to the S&P 500’s 16.6% gain. This might have investors contemplating their next move.\n\n[3] Is Sterling's Texas Strength Becoming a Bigger Growth Differentiator?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=174aba6b4bf1abaade2c3d52bdc431d4d040a7a503f5a6340bf3ab6451977787\n    STRL's Texas footprint, rising E-Infrastructure backlog and strong data-center demand are fueling rapid growth and expanding its infrastructure opportunity.\n\n[4] KBR Publicly Files Form 10 Registration Statement for Planned Spin-off Company Trinzic\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=9674c68dea654ac735468f68ac4adb2927b4a591a3703cdebbe9cf24ff19af78\n    HOUSTON, Sept. 30, 2026 (GLOBE NEWSWIRE) -- KBR (NYSE: KBR) announced the filing of a Form 10 registration statement with the U.S. Securities and Exchange Commission (SEC) in connection with the planned spin-off of its Mission Technology Solutions (MTS) business, which is expected to operate as Trin\n\n[5] KBR vs. ALFVY: Which Stock Should Value Investors Buy Now?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=35ffb477613babae590b691aec7ae67f37115f50ded5e1e65e51aed3d7b41fd2\n    KBR vs. ALFVY: Which Stock Is the Better Value Option?",
+    "material_events": [
+      {
+        "filing_date": "2026-10-01",
+        "item_numbers": [
+          "Item 5.02"
+        ],
+        "summary_text": "[Item 5.02] ITEM 5.02 Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers.\n\n(d) Election of Director.\n\nKBR, Inc. (“KBR”) announced on October 1, 2026, the appointment of Rami Qasem to its Board of Directors (the “Board”) effective on the same day. Mr. Qasem is a global energy, technology, and industrial executive with nearly 30 years of international leadership experience across oil and gas, industrial technology, digital transformation, artificial intelligence, and government partnerships. Mr. Qasem will serve a term expiring at KBR’s 2027 annual meeting of stockholders. As of the date of this Current Report on Form 8-K, the Board has not determined the committees of the Board to which Mr. Qasem will be appo",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1357615/000135761526000177/kbr-20260928.htm"
+      },
+      {
+        "filing_date": "2026-07-30",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn July 30, 2026, KBR, Inc. issued a press release titled, “KBR Reports Second Quarter Fiscal 2026 Results.” The full text of the press release is attached hereto as Exhibit 99.1.\n\nItem 9.01 Financial Statements and Exhibits.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1357615/000135761526000170/kbr-20260730.htm"
+      },
+      {
+        "filing_date": "2026-07-10",
+        "item_numbers": [
+          "Item 5.02"
+        ],
+        "summary_text": "[Item 5.02] ITEM 5.02 Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers.\n\n(e) Compensatory Arrangements of Certain Officers.\n\nOn July 10, 2026, KBR, Inc. (“KBR”) and each of the executive officers of KBR with an existing severance and change in control agreement with KBR (including Mr. Stuart Bradie, President and Chief Executive Officer; Mr. Shad Evans, Executive Vice President and Chief Financial Officer; Mr. Mark W. Sopp, Executive Vice President, Strategic Transactions and Interim CEO, Mission Technology Solutions; Mr. J. Jay Ibrahim, President, Sustainable Technology Solutions; Ms. Sonia Galindo, Executive Vice President, General Counsel and Corporate Secretary; and Ms. Jenni C. Myles, Executive Vice P",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1357615/000135761526000157/kbr-20260710.htm"
+      },
+      {
+        "filing_date": "2026-05-05",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn May 5, 2026, KBR, Inc. issued a press release titled, “KBR Reports First Quarter Fiscal 2026 Results.” The full text of the press release is attached hereto as Exhibit 99.1.\n\nItem 9.01 Financial Statements and Exhibits.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1357615/000135761526000138/kbr-20260505.htm"
+      },
+      {
+        "filing_date": "2026-02-26",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn February 26, 2026, KBR, Inc. issued a press release titled, “KBR Reports Fourth Quarter and Fiscal 2025 Results.” The full text of the press release is attached hereto as Exhibit 99.1.\n\nItem 9.01 Financial Statements and Exhibits.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1357615/000135761526000049/kbr-20260226.htm"
+      },
+      {
+        "filing_date": "2025-10-30",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn October 30, 2025, KBR, Inc. issued a press release titled, “KBR Reports Third Quarter Fiscal 2025 Results.” The full text of the press release is attached hereto as Exhibit 99.1.\n\nItem 9.01 Financial Statements and Exhibits.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1357615/000135761525000063/kbr-20251030.htm"
+      },
+      {
+        "filing_date": "2025-10-22",
+        "item_numbers": [
+          "Item 5.02"
+        ],
+        "summary_text": "[Item 5.02] ITEM 5.02 Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers.\n\n(c) Appointment of Officers.\n\nAs previously disclosed, Shad E. Evans will assume the position of Chief Financial Officer (“CFO”) of KBR, Inc. (“KBR”), effective January 5, 2026.\n\nIn connection with Mr. Evans’ appointment as CFO, on October 22, 2025, Mr. Evans entered into a severance and change-in-control agreement (the “Agreement”), a form of which was previously filed as Exhibit 10.54 to KBR’s Annual Report on Form 10-K for the year ended December 31, 2020. The following summary of the terms of the Agreement is qualified in its entirety by reference to Exhibit 10.54.\n\nThe Agreement provides for (i) severance termination benefits (pr",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1357615/000135761525000059/kbr-20250924.htm"
+      }
+    ],
+    "quarterly_earnings_text": "Exhibit 99.1  \n                \n                                                                               \n                KBR Reports Second Quarter Fiscal 2026 Results                 \n                                                                               \n                                                                               \n  Second Quarter Fiscal 2026 Results                                           \n                                                                               \n(All comparisons against the second quarter fiscal 2025 unless noted.)\n• Revenues of $2.0 billion, up 2%\n\n• Net income attributable to KBR of $96 million, up 32%; Operating income of\n$172 million, down 11% with an Operating income margin of 8.7%\n\n• Adjusted EBITDA 2 of $258 million, up 7% with an Adjusted EBITDA 2 margin of\n13.0%\n                                                                               \n  •                                                                            \n                                                                               \nDiluted EPS attributable to KBR of $0.75, up 34%\n\n• Adjusted EPS 2 of $0.99, up 9%\n                                                                               \n  •                                                                            \n                                                                               \nBookings and options 1 of $1.8 billion with 1.1x book-to-bill 1\n                                                                               \n  Second Quarter YTD Fiscal 2026 Results                                       \n                                                                               \n(All comparisons against the second quarter YTD fiscal 2025 unless noted.)\n• Revenues of $3.9 billion, down 2% due to expected EUCOM contingency runoff\n\n• Net income attributable to KBR of $198 million, up 5%; Operating income of\n$352 million, down 11% with an Operating income margin of 9.0%\n\n• Adjusted EBITDA 2 of $509 million, up 4% with an Adjusted EBITDA 2 margin of\n13.0%\n                                                                               \n  •                                                                            \n                                                                               \nDiluted EPS attributable to KBR of $1.55, up 8%\n\n• Adjusted EPS 2 of $1.95, up 2%\n                                                                               \n  •                                                                            \n                                                                               \nBookings and options 1 of $3.7 billion with 1.1x book-to-bill 1\n                                                                               \n  HOUSTON, TX - July 30, 2026                                                  \n                                                                               \n- KBR, Inc. (NYSE: KBR) today announced its second quarter fiscal 2026 results.\n\n“We delivered a strong first half while continuing to position both businesses\nfor long-term success as we advance toward separation,” said Stuart Bradie,\nPresident and Chief Executive Officer. “Demand remains healthy across our core\nmarkets, supported by strong customer relationships, disciplined execution and\ngrowing visibility into future performance. In STS, we delivered another strong\nquarter of bookings, driving record backlog levels and reinforcing the\ndurability of demand across our portfolio. In MTS, customer demand remains\nstrong, and awarded work under protest continues to provide visibility beyond\nreported backlog. As we prepare for separation, we are taking actions to\nsimplify our cost structure, improve efficiency and position both companies to\ncompete more effectively as focused, standalone businesses. We remain confident\nin the opportunities ahead and our ability to create long-term value for\nshareholders.”\n\n1 As used throughout this release, book-to-bill and bookings and options\nexclude long-term UK PFIs. In the prior quarter, these metrics also excluded\nthe Plaquemines LNG project.\n\n2 As used throughout this earnings release, Adjusted EBITDA, Adjusted EBITDA\nmargin, Adjusted earnings per share, Adjusted operating cash flow, and Adjusted\noperating cash conversion are non-GAAP financial measures. All non-GAAP\nfinancial measures reflect results from continuing operations. See additional\ninformation at the end of this release regarding non-GAAP financial\ninformation, including reconciliations to the nearest GAAP measures\n\n1\n\nSummarized Second Quarter Fiscal 2026 Consolidated Results\n                                                                               \n  Do…                                                                          \n  in                                                                           \n  mi…    Thr…                               Six                                \n  ex…    mon…                              mon…                                \n  sh…    end…  July             July       end…  July               July       \n  da…    2026    3,       2025    4,       2026    3,          20…    4,       \n ───────────────────────────────────────────────────────────────────────────── \n  Re…    $     1,9…       $     1,9…          $  3,9…            $  3,9…       \n  Op…           172              194              352                396       \n  in…                                                                          \n  Net                                                                          \n  in…                                                                          \n  at…            96               73              198                189       \n  to                                                                           \n  KBR                                                                          \n  Net                                                                          \n  in…                                                                          \n  at…                                                                          \n  to             95              105              198                225       \n  KBR                                                                          \n  fr…                                                                          \n  co…                                                                          \n  op…                                                                          \n  Ad…           258              242              509                490       \n  EB…                                                                          \n  Op…                                                                          \n  in…           8.7  %           9.9  %           9.0     %         10.0    %  \n  ma…                                                                          \n  Ad…          13.0  %          12.4  %          13.0     %         12.3    %  \n  EB…                                                                          \n  Ea…                                                                          \n  per                                                                          \n  sh…                                                                          \n  Di…                                                                          \n  ea…                                                                          \n  per                                                                          \n  sh…          0.75             0.56             1.55               1.44       \n  at…                                                                          \n  to                                                                           \n  KBR                                                                          \n  Di…                                                      ",
+    "quarterly_earnings_date": "2026-07-30",
+    "quarterly_eps_actuals": [
+      {
+        "period": "2026-06-30",
+        "actual": 0.99,
+        "estimate": 0.9127,
+        "surprise": 0.0773,
+        "surprisePercent": 8.4694,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-03-31",
+        "actual": 0.96,
+        "estimate": 0.9182,
+        "surprise": 0.0418,
+        "surprisePercent": 4.5524,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-12-31",
+        "actual": 0.99,
+        "estimate": 0.9584,
+        "surprise": 0.0316,
+        "surprisePercent": 3.2972,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-09-30",
+        "actual": 1.02,
+        "estimate": 0.9647,
+        "surprise": 0.0553,
+        "surprisePercent": 5.7324,
+        "revenueActual": null,
+        "revenueEstimate": null
+      }
+    ]
+  },
+  "competitive": {
+    "ticker": "KBR",
+    "stub": false,
+    "moat_classification": "narrow",
+    "moat_sources": [
+      "regulatory",
+      "intangibles"
+    ],
+    "peer_roic_comparison": [],
+    "citations": [
+      {
+        "claim": "KBR secured a contract from NASA worth $719 million.",
+        "source_url": "https://finance.yahoo.com/news/intuitive-machines-jv-lands-719m-145239408.html",
+        "excerpt": "KBR, has secured a contract from the National Aeronautics and Space Administration (NASA).",
+        "confidence": 0.9,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "KBR's ROIC series shows fluctuations with FY2025 at 15.9%.",
+        "source_url": "Financial data: ROIC series",
+        "excerpt": "ROIC series: FY2025: 15.9%, FY2024: 13.5%, FY2023: 9.2%, FY2022: 7.0%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "KBR's revenue growth was 1.6% year on year.",
+        "source_url": "https://finance.yahoo.com/markets/stocks/articles/spotting-winners-kbr-nyse-kbr-161020296.html",
+        "excerpt": "KBR reported revenues of $1.98 billion, up 1.6% year on year.",
+        "confidence": 0.9,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "peers": [],
+  "peer_financials": [],
+  "historical_cagr_5y": 0.05855950390285991,
+  "historical_cagr_years": 3,
+  "checkpoint1_user_input": {
+    "proceed": true,
+    "peers": "",
+    "answers": {}
+  },
+  "checkpoint2_user_input": {
+    "wacc_pct": 9.0,
+    "terminal_growth_pct": 2.5,
+    "projection_years": 10
+  },
+  "valuation": {
+    "ticker": "KBR",
+    "stub": false,
+    "dcf_intrinsic_value": {
+      "value": 8007214216.0,
+      "unit": "USD",
+      "period": "FY2024",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_intrinsic_per_share": {
+      "value": 63.52,
+      "unit": "USD/share",
+      "period": "FY2024",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_upside_pct": 85.5,
+    "price_current": {
+      "value": 34.24,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "reverse_dcf_implied_growth": -0.0497,
+    "ev_ebit_multiple": {
+      "value": 8.31,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "ev_fcf_multiple": {
+      "value": 15.38,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "pe_multiple": {
+      "value": 10.4,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "earnings_yield_pct": 12.04,
+    "magic_formula_rank": null,
+    "sensitivity_table": [
+      {
+        "near_term_growth_pct": 10.9,
+        "values": {
+          "wacc_7.0pct": 15.6,
+          "wacc_9.0pct": 10.6,
+          "wacc_11.0pct": 7.9
+        }
+      },
+      {
+        "near_term_growth_pct": 5.9,
+        "values": {
+          "wacc_7.0pct": 11.7,
+          "wacc_9.0pct": 8.0,
+          "wacc_11.0pct": 6.1
+        }
+      },
+      {
+        "near_term_growth_pct": 0.9,
+        "values": {
+          "wacc_7.0pct": 8.7,
+          "wacc_9.0pct": 6.0,
+          "wacc_11.0pct": 4.6
+        }
+      }
+    ],
+    "assumptions": {
+      "checkpoint_id": "checkpoint2",
+      "user_notes": "",
+      "proceed": true,
+      "wacc_pct": 9.0,
+      "terminal_growth_pct": 2.5,
+      "projection_years": 10,
+      "stage1_years": null,
+      "fade_years": null,
+      "revenue_growth_yr1_pct": null,
+      "margin_assumption_pct": null
+    },
+    "dcf_reliability_note": "Near-term FCF growth: 5.9% (FCF CAGR 2y, capped by revenue CAGR 5.9% — FCF growing faster than revenue is unsustainable long-term). ⚠️ DCF spread note: forward DCF uses 5.9% near-term growth (historical CAGR) but the market currently prices only -5.0% (spread: 11pp). The DCF upside is conditional on the analyst's growth assumption being correct vs what the market discounts — not a free margin of safety. Reverse DCF is the more informative valuation anchor.",
+    "fcf_quality_warning": null,
+    "near_term_growth_used_pct": 0.05855950390285991,
+    "near_term_growth_source": "fcf_cagr_2y_rev_capped",
+    "stage1_years_used": 5,
+    "fade_years_used": 5,
+    "epv_enterprise": {
+      "value": 3700000000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_per_share": {
+      "value": 12.33,
+      "unit": "USD/share",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_upside_pct": -64.0,
+    "epv_source": "ebit_median_4y",
+    "suggested_wacc_pct": 9.7,
+    "suggested_wacc_breakdown": "Rf=4.2% + β=1.0×ERP=5.0% + size_premium=0.5% (mid cap)",
+    "valuation_methods_summary": [
+      {
+        "method": "DCF (3-stage Damodaran fade)",
+        "per_share": "$63.52",
+        "upside_pct": 85.5,
+        "display_upside": "+85.5%",
+        "classification": "cheap"
+      },
+      {
+        "method": "EPV (Greenwald — zero growth)",
+        "per_share": "$12.33",
+        "upside_pct": -64.0,
+        "display_upside": "-64.0%",
+        "classification": "expensive"
+      },
+      {
+        "method": "Reverse DCF (market-implied growth)",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "implied -5.0% vs historical 5.9%",
+        "classification": "cheap"
+      },
+      {
+        "method": "EV/EBIT vs peer median",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "8.3x vs peer median N/A",
+        "classification": "n/a"
+      }
+    ]
+  },
+  "citations": [],
+  "unverified_claims": [],
+  "cost_usd": 0.0
+}

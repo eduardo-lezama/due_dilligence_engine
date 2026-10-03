@@ -1,0 +1,744 @@
+{
+  "ticker": "PATH",
+  "cik": "0001734722",
+  "as_of_date": "2026-01-31",
+  "run_id": "19ece2bc-2e4",
+  "financials": {
+    "ticker": "PATH",
+    "cik": "0001734722",
+    "as_of_date": "2026-01-31",
+    "revenue": [
+      {
+        "value": 1610572000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1429664000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1308072000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1058581000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "gross_profit": [
+      {
+        "value": 1339588000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1182722000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1112148000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 878530000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_income": [
+      {
+        "value": 56760000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -162569000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -164720000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -348283000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "net_income": [
+      {
+        "value": 282330000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -73694000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -89883000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -328352000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_cash_flow": [
+      {
+        "value": 371208000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 320565000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 299082000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -9981000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "capex": [
+      {
+        "value": 19048000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 14923000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 7342000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 23815000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "free_cash_flow": [
+      {
+        "value": 352160000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 305642000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 291740000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -33796000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "buybacks": [
+      {
+        "value": 329101000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 390751000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 102615000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "dividends": [],
+    "total_assets": {
+      "value": 3179200000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt": {
+      "value": 0.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "cash_and_equivalents": {
+      "value": 871157000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "shares_outstanding": null,
+    "roic_series": [
+      {
+        "value": 0.0469,
+        "unit": "ratio",
+        "period": "FY2026",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -0.1342,
+        "unit": "ratio",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -0.136,
+        "unit": "ratio",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -0.2875,
+        "unit": "ratio",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "invested_capital": {
+      "value": 1211430000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "equity+debt-cash",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "stockholders_equity": {
+      "value": 2082587000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "source_filing": "10-K FY2026",
+    "citations": []
+  },
+  "mgmt": {
+    "ticker": "PATH",
+    "stub": false,
+    "insider_ownership_pct": null,
+    "founder_ceo": false,
+    "ceo_tenure_years": 2.5,
+    "form4_transactions_12m": 12,
+    "insider_transaction_pattern": "CEO Daniel Dines net seller: sold 1,402,347 shares in August 2026, no open-market purchases in 12m. Other executives also net sellers. Overall insider sentiment: negative.",
+    "compensation_structure_notes": "Not available in provided sources.",
+    "capital_allocation_summary": "Not available in provided sources.",
+    "citations": [
+      {
+        "claim": "Daniel Dines is the current CEO of UiPath.",
+        "source_url": "SOURCE 3",
+        "excerpt": "The information required by this item is incorporated by reference to the definitive Proxy Statement for the 2026 Annual Meeting of Stockholders.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Daniel Dines has been in the CEO position since February 1, 2024.",
+        "source_url": "SOURCE 6",
+        "excerpt": "Mr. Robert Enslin... resigned from his position as Chief Executive Officer... effective June 1, 2024.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Daniel Dines sold 1,402,347 shares in August 2026.",
+        "source_url": "SOURCE 2",
+        "excerpt": "Daniel Dines (CEO and Chairman) | SELL | 1,402,347 shares @ $16.07 | 2026-08-19",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "filings": {
+    "ticker": "PATH",
+    "stub": false,
+    "business_description": "UiPath is a company focused on building and managing automation solutions, particularly through its platform that combines AI agents and automation to help organizations scale their operations. The company sells software licenses, SaaS products, and professional services to enterprises looking to enhance their operational efficiency. Its competitive edge lies in its pioneering approach to intelligent agentic automation, which integrates advanced AI capabilities with user-friendly automation tools.",
+    "risk_factors_summary": "UiPath faces several material risks including the potential for continued net losses and significant operating expenses, challenges in customer acquisition and retention, and macroeconomic uncertainties that could impact demand for its products. Additionally, the company must navigate competitive pressures and the need for ongoing innovation to maintain its market position.",
+    "mda_highlights": "For fiscal year 2026, UiPath reported revenue of $1,610.6 million, a 13% increase year-over-year, and an ARR of $1,852.6 million, growing 11% year-over-year. Management highlights the importance of attracting new customers and expanding sales to existing ones as key drivers for future growth, while also acknowledging the impact of macroeconomic factors on their operations.",
+    "backlog_usd": null,
+    "revenue_guidance": null,
+    "geographic_revenue_breakdown": "Sales outside the U.S. accounted for 54% of our revenue for fiscal year 2026.",
+    "key_regulatory_events": null,
+    "governance_red_flags": "No governance red flags found in provided text.",
+    "citations": [
+      {
+        "claim": "UiPath is a company focused on building and managing automation solutions.",
+        "source_url": "10-K Item 1",
+        "excerpt": "First established in Bucharest, Romania in 2005, UiPath was incorporated in Delaware in 2015 as a company principally focused on building and managing automations.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Sales outside the U.S. accounted for 54% of our revenue for fiscal year 2026.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "sales outside the U.S. accounted for 54% of our revenue for fiscal year 2026.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "UiPath reported revenue of $1,610.6 million, a 13% increase year-over-year.",
+        "source_url": "10-K Item 7",
+        "excerpt": "Revenue of $1,610.6 million increased 13% year-over-year.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "ARR of $1,852.6 million increased 11% year-over-year.",
+        "source_url": "10-K Item 7",
+        "excerpt": "ARR of $1,852.6 million increased 11% year-over-year.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "market": {
+    "ticker": "PATH",
+    "stub": false,
+    "price_current": {
+      "value": 13.12,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_high": {
+      "value": 19.84,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_low": {
+      "value": 9.2002,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "market_cap": {
+      "value": 6837558966.08,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] IBM Jumps 5% as Bob Coding Agent Gains Self-Hosted Deployment; Salesforce Rises 3%, Palantir Inches Higher\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=c73f12d1b8236f045daa64eb17a4e6e06969d9e0dbe728e4141e73235930ff25\n    IBM stock surged far ahead of the broader software sector after quietly extending its Bob coding agent into a corner of the market most AI platforms cannot reach. Whether the move signals a lasting repricing or a one-day pop depends on details IBM has not yet disclosed.\n\n[2] UiPath Joins NCQA AI Learning Collaborative to Advance Responsible AI in Healthcare\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=98eaac3103e7ffd11bc7379150cc67f176336cf88e1d1868ffcdf489373de8a5\n    NEW YORK, October 01, 2026--UiPath announces its participation in the National Committee for Quality Assurance's (NCQA) AI Learning Collaborative for Prior Authorization.\n\n[3] UiPath: AI Orchestration Leader With Deep-Value Price Tag - Reiterate Buy\n    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=7d5afb9db7762a002baae5fd0d26a658986983c7a3c75a3d6855655f233efb63\n    (no summary)\n\n[4] UiPath: Large Account Growth Is Compelling\n    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=424d261316ca02d63eb9734edad72cb4c51e59a83695cc1749f469dd6f91de26\n    UiPath remains starkly undervalued, trading at less than 3x forward revenue despite strong enterprise demand and a robust upmarket push. Learn more about PATH stock here.\n\n[5] Does UiPath’s New Map of Work and Snowflake Tie-Up Redraw the Bull Case for PATH?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=70fe2b4a1f751fbc962bcc65a53fcc584c62bb18db3b22ca3b50734a0176cd56\n    In late September 2026, UiPath, Inc. unveiled a wave of platform enhancements and deeper partnerships with Snowflake and BDO USA, extending its automation, governance, and AI agent capabilities across data, testing, and risk functions while keeping enterprise data and workflows within tightly contro\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\n[1] PATH Stock Down 38%: Genuine Bargain or Value Trap?\nURL: https://finance.yahoo.com/markets/stocks/articles/path-stock-down-38-genuine-121734086.html\nAfter a steep decline, the stock trades about 38% below its 52-week high, raising forward guidance are not signs of a failing enterprise. A\n\n[2] UiPath (PATH) Is Up 19.9% After First GAAP Profit And Higher 2027 Guidance - Has The Bull Case Changed?\nURL: https://finance.yahoo.com/markets/stocks/articles/uipath-path-19-9-first-061109266.html\n* In late May 2026, UiPath, Inc. reported first-quarter revenue of US$418.38 million versus US$356.62 million a year earlier, swinging from a net loss of US$22.56 million to net income of US$22.53 million and issuing revenue guidance of US$395 million to US$400 million for the second quarter and US$1.78 billion for fiscal 2027. * The results marked UiPath's first quarter of GAAP profitability, with management attributing performance to growing adoption of its AI-powered automation products and stronger customer expansion. * Next, we'll examine how UiPath's first-ever GAAP profitability and hig\n\n[3] UiPath and Pegasystems Sink 7% as Price Target Hikes Arrive Without a Single Buy Rating\nURL: https://finance.yahoo.com/markets/stocks/articles/uipath-pegasystems-sink-7-price-171550775.html\n# UiPath and Pegasystems Sink 7% as Price Target Hikes Arrive Without a Single Buy Rating. Our analysts combed the entire stock market and named the ten best stocks to buy right now, and UiPath didn't make the cut. Enter your email to see the names that beat PATH. Enter your email and see if any of your stocks made the cut. The enterprise AI automation cohort is selling off Tuesday as Wall Street's response to **UiPath**'s (NYSE:PATH) fiscal second-quarter report crystallizes into a chorus of higher price targets paired with non-buy ratings. 24/7 Wall St has helped investors make money for ove\n\n[4] Tariff Driven Supply Chain Shift Puts Flex Stock And Factory Reshoring In Focus\nURL: https://finance.yahoo.com/economy/policy/articles/tariff-driven-supply-chain-shift-130836058.html\n1. [My Portfolio](https://finance.yahoo.com/portfolios/). [Markets](https://finance.yahoo.com/topic/stock-market-news/). 1. [Stock market](https://finance.yahoo.com/topic/stock-market-news/). 2. [Crypto](https://finance.yahoo.com/markets/crypto/). 5. [Private markets](https://finance.yahoo.com/topic/private-markets/). 4. [Tariffs](https://finance.yahoo.com/topic/tariffs/). 4. [Cybersecurity](https://finance.yahoo.com/technology/cybersecurity/). [Stocks](https://finance.yahoo.com/markets/stocks/). 1. [Most active](https://finance.yahoo.com/markets/stocks/most-active/). 2. [Day gainers](https://\n\n[5] Under Armour (UAA): Do Tariff Rollbacks Mark a Turning Point in Its Margin Reset Strategy?\nURL: https://finance.yahoo.com/news/under-armour-uaa-tariff-rollbacks-170706347.html\n2. Best 0% APR cards. 2. Best high-yield savings accounts. # Under Armour (UAA): Do Tariff Rollbacks Mark a Turning Point in Its Margin Reset Strategy? * For Under Armour, the rollback of these trade barriers could ease a key source of margin pressure that has weighed on its cost base. * We'll now explore how this tariff relief might influence Under Armour's evolving brand-reset narrative, particularly its margin recovery efforts. Tariff relief now has the potential to work alongside ongoing cost and assortment efforts, but investors are still weighing whether that is enough to support a convi\n\n[6] Tariffs Are Reshaping American Manufacturing, For Better ...\nURL: https://www.forbes.com/sites/ethankarp/2025/11/19/tariffs-are-reshaping-american-manufacturing-for-better-and-worse\nThey'll diversify customers, strengthen supply chains, automate relentlessly, and keep innovating even when margins tighten. For smaller\n\n[7] How the SEC is clearing the path for more companies to go ...\nURL: https://finance.yahoo.com/markets/article/how-the-sec-is-clearing-the-path-for-more-companies-to-go-public-195256159.html\nSEC has proposed new rules this year intended to reduce regulations and encourage more companies to go public. no risk disclosures, a massive\n\n[8] The SEC Should Fix Risk Factors, Not Gut Them\nURL: https://www.forbes.com/sites/shivaramrajgopal/2026/06/23/the-sec-should-fix-risk-factors-not-gut-them\nThe SEC wants to cut corporate risk disclosures. That's the wrong fix. The answer isn't less information — it's smarter, financially-mapped\n\n[9] Zcash Foundation in the Clear: SEC Ends Years-Long Probe With No Enforcement Action\nURL: https://finance.yahoo.com/news/zcash-foundation-clear-sec-ends-205059906.html\n2. Best 0% APR cards. 2. Best high-yield savings accounts. 3. Best money market accounts. # Zcash Foundation in the Clear: SEC Ends Years-Long Probe With No Enforcement Action. The Zcash Foundation said this week that a years-long investigation by the US Securities and Exchange Commission has ended without any enforcement action, bringing regulatory clarity to one of the crypto industry's most closely watched privacy projects at a time of heightened volatility for the token. In a notice published Wednesday, the foundation confirmed that the SEC had \"concluded its review\" of an inquiry tied to \n",
+    "material_events": [
+      {
+        "filing_date": "2026-09-03",
+        "item_numbers": [
+          "Item 2.02",
+          "Item 5.02",
+          "Item 7.01",
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn September 3, 2026, UiPath, Inc. (“UiPath” or the “Company”) issued a press release announcing its financial results for the fiscal second quarter 2027. A copy of the press release is attached hereto as Exhibit 99.1 and is incorporated herein by reference.\n\nThe information contained in this Item 2.02 and Item 9.01 in this Current Report on Form 8-K, including the accompanying Exhibit 99.1 hereto, shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or otherwise subject to the liabilities of that section, nor shall it be deemed incorporated by reference in any filing made by the Company under the Securities Act of 1933, as amended, regardless of any general ",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1734722/000173472226000047/path-20260901.htm"
+      },
+      {
+        "filing_date": "2026-05-28",
+        "item_numbers": [
+          "Item 2.02",
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn May 28, 2026, UiPath, Inc. (“UiPath” or the “Company”) issued a press release announcing its financial results for the fiscal first quarter 2027. A copy of the press release is attached hereto as Exhibit 99.1 and is incorporated herein by reference.\n\nThe information contained in this Item 2.02 and Item 9.01 in this Current Report on Form 8-K, including the accompanying Exhibit 99.1 hereto, shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended, or otherwise subject to the liabilities of that section, nor shall it be deemed incorporated by reference in any filing made by the Company under the Securities Act of 1933, as amended, regardless of any general incorporation language in s",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1734722/000173472226000037/path-20260528.htm"
+      },
+      {
+        "filing_date": "2026-03-25",
+        "item_numbers": [
+          "Item 5.02",
+          "Item 7.01"
+        ],
+        "summary_text": "[Item 5.02] Item 5.02 Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers.\n\nOn March 24, 2026, the Compensation Committee of the Board of Directors (the “Board”) of UiPath, Inc. (the “Company”) appointed Raghavendra Malpani, the Company’s current Chief Technology Officer, as the Company’s Chief Product and Technology Officer, effective March 25, 2026 (the “Effective Date”).\n\nMr. Malpani, 48, has served as the Company’s Chief Technology Officer since May 2024. Before joining the Company, he served as Corporate Vice President at Microsoft Corporation from March 2022 to May 2024 and as Engineering Director at Meta Platforms, Inc. from September 2019 to March 2022. Prior to these roles, Mr. Malpani held various e",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1734722/000173472226000015/path-20260324.htm"
+      },
+      {
+        "filing_date": "2026-03-11",
+        "item_numbers": [
+          "Item 2.02",
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn March 11, 2026, UiPath, Inc. (“UiPath” or the “Company”) issued a press release announcing its financial results for the fiscal fourth quarter and full year fiscal 2026. A copy of the press release is attached hereto as Exhibit 99.1 and is incorporated herein by reference.\n\nThe information contained in this Item 2.02 and Item 9.01 in this Current Report on Form 8-K, including the accompanying Exhibit 99.1 hereto, shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended, or otherwise subject to the liabilities of that section, nor shall it be deemed incorporated by reference in any filing made by the Company under the Securities Act of 1933, as amended, regardless of any general inc",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1734722/000173472226000007/path-20260305.htm"
+      },
+      {
+        "filing_date": "2025-12-03",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02 Results of Operations and Financial Condition.\n\nOn December 3, 2025, UiPath, Inc. (“UiPath” or the “Company”) issued a press release announcing its financial results for the fiscal third quarter 2026. A copy of the press release is attached hereto as Exhibit 99.1 and is incorporated herein by reference.\n\nThe information contained in this Item 2.02 and Item 9.01 in this Current Report on Form 8-K, including the accompanying Exhibit 99.1 hereto, shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended, or otherwise subject to the liabilities of that section, nor shall it be deemed incorporated by reference in any filing made by the Company under the Securities Act of 1933, as amended, regardless of any general incorporation language ",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1734722/000173472225000046/path-20251203.htm"
+      }
+    ],
+    "quarterly_earnings_text": "UiPath Reports Second Quarter Fiscal 2027 Financial Results          \n                                                                               \n          Revenue of $410 million increased 13 percent year-over-year          \n                                                                               \n           ARR of $1.938 billion increased 12 percent year-over-year           \n                                                                               \n   GAAP operating income of $32 million and non-GAAP operating income of $89   \n                                    million                                    \n                                                                               \n Announces leadership changes to drive next phase of growth and appointment of \n                               new Board member                                \n                                                                               \n  NEW YORK, NY – September 3, 2026                                             \n                                                                               \n– UiPath, Inc. (NYSE: PATH), a leader in business orchestration and automation,\ntoday announced financial results for its second quarter fiscal 2027 ended July\n31, 2026.\n\n\"I am pleased with our second quarter results, demonstrating disciplined\nexecution and the growing momentum across our platform,” said Daniel Dines,\nUiPath Founder and Chief Executive Officer. \"AI is expanding what enterprises\ncan automate, while increasing the need for the orchestration, governance, and\nexactness that deterministic automation provides. Our ability to bring AI\nagents, robots, systems, and people together to execute end-to-end business\nprocesses positions UiPath at the center of this opportunity. We have spent the\npast two years transforming our platform and strengthening our execution, and I\nam excited about the opportunity ahead.”\n                                                                               \n   Second Quarter Fiscal 2027 Financial Highlights                             \n                                                                               \n•\n                                                                               \n  Revenue                                                                      \n                                                                               \nof $410 million increased 13 percent year-over-year.\n\n•\n                                                                               \n  ARR                                                                          \n                                                                               \nof $1.938 billion as of July 31, 2026 increased 12 percent year-over-year.\n\n•\n                                                                               \n  Net new ARR                                                                  \n                                                                               \nof $37 million.\n\n•\n                                                                               \n  Dollar based net retention rate                                              \n                                                                               \nof 109 percent.\n\n•\n                                                                               \n  GAAP gross margin                                                            \n                                                                               \nwas 80 percent.\n\n•\n                                                                               \n  Non-GAAP gross margin                                                        \n                                                                               \nwas 82 percent.\n\n•\n                                                                               \n  GAAP operating income                                                        \n                                                                               \nwas $32 million.\n\n•\n                                                                               \n  Non-GAAP operating income                                                    \n                                                                               \nwas $89 million.\n\n•\n                                                                               \n   Net cash flow from operations                                               \n                                                                               \nwas $31 million.\n\n•\n                                                                               \n  Non-GAAP adjusted free cash flow                                             \n                                                                               \nwas $31 million.\n\n•\n                                                                               \n  Cash, cash equivalents, and marketable securities                            \n                                                                               \nwere $1.405 billion as of July 31, 2026.\n\n“We delivered another strong quarter, exceeding guidance across all key\nfinancial metrics,” said Ashim Gupta, UiPath Chief Operating Officer. “Our\nresults reflect the operating discipline we’ve instilled across the business,\nand the momentum we’re seeing from customers and partners around our platform\ngives us confidence as we head into the second half of the year.”\n                                                                               \n  Leadership and Board of Directors Changes                                    \n                                                                               \nAs UiPath enters its next phase of growth, the Company is sharpening leadership\nfocus and accountability across its executive team. Ashim Gupta will focus\nexclusively on his role as Chief Operating Officer, concentrating his\nleadership on driving execution across sales, demand generation, and delivery.\nHitesh Ramani has been promoted to Chief Financial Officer, building on his\nrole as Deputy CFO and Chief Accounting Officer since 2021. Brad Brubaker has\nbeen named Chief Legal & Administrative Officer, expanding his oversight to\ninclude the People organization. Together, these changes sharpen accountability\nacross finance, operations, and legal, positioning UiPath's leadership team for\nthis next chapter of growth.\n\nIn addition, UiPath appointed Yazdi Bagli, Executive Vice President, IT and\nEnterprise Business Services at Kaiser Permanente (currently on a leave of\nabsence while pursuing a fellowship at Harvard University), to its Board of\nDirectors, bringing deep technology, enterprise transformation, and operational\nleadership experience to the Board.\n\n“UiPath has the opportunity to help define business orchestration and\nautomation by fundamentally transforming how work gets done,” said Hitesh\nRamani, UiPath Chief Financial Officer. “Having partnered with Ashim, our\nleadership team, and our employees since 2021, I am excited to turn that\nopportunity into sustainable growth and long term value creation, through\ndisciplined execution.”\n                                                                               \n   Financial Outlook                                                           \n                                                                               \nFor th e third quarter fiscal 2027, UiPath expects:\n\n• Revenue in the range of $440 million to $445 million\n\n• ARR in the range of $1.992 billion to $1.997 billion as of October 31, 2026\n\n• Non-GAAP operating income of approximately $100 million\n\nFor the full year fiscal 2027, UiPath expects:\n\n• Revenue in the range of $1.789 billion to $1.794 billion\n\n• ARR in the range of $2.065 billion to $2.070 billion as of January 31, 2027\n\n• Non-GAAP operating income of approximately $445 million.\n\nReconciliation of non-GAAP operating income guid",
+    "quarterly_earnings_date": "2026-09-03",
+    "quarterly_eps_actuals": [
+      {
+        "period": "2026-09-30",
+        "actual": 0.15,
+        "estimate": 0.1517,
+        "surprise": -0.0017,
+        "surprisePercent": -1.1206,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-06-30",
+        "actual": 0.15,
+        "estimate": 0.1628,
+        "surprise": -0.0128,
+        "surprisePercent": -7.8624,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-03-31",
+        "actual": 0.3,
+        "estimate": 0.2597,
+        "surprise": 0.0403,
+        "surprisePercent": 15.5179,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-12-31",
+        "actual": 0.16,
+        "estimate": 0.149,
+        "surprise": 0.011,
+        "surprisePercent": 7.3826,
+        "revenueActual": null,
+        "revenueEstimate": null
+      }
+    ]
+  },
+  "competitive": {
+    "ticker": "PATH",
+    "stub": false,
+    "moat_classification": "none",
+    "moat_sources": [],
+    "peer_roic_comparison": [],
+    "citations": [
+      {
+        "claim": "The company has a declining ROIC, with negative values for three consecutive years.",
+        "source_url": "Financial data: ROIC series",
+        "excerpt": "ROIC series: FY2026: 4.7%, FY2025: -13.4%, FY2024: -13.6%, FY2023: -28.7%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "There are no identifiable structural advantages.",
+        "source_url": "Financial data: margins",
+        "excerpt": "Gross margin: FY2026: 83.2%, FY2025: 82.7%, FY2024: 85.0%",
+        "confidence": 0.8,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "peers": [],
+  "peer_financials": [],
+  "historical_cagr_5y": 0.15014346616969476,
+  "historical_cagr_years": 3,
+  "checkpoint1_user_input": {
+    "proceed": true,
+    "peers": "",
+    "answers": {}
+  },
+  "checkpoint2_user_input": {
+    "wacc_pct": 9.0,
+    "terminal_growth_pct": 2.5,
+    "projection_years": 10
+  },
+  "valuation": {
+    "ticker": "PATH",
+    "stub": false,
+    "dcf_intrinsic_value": {
+      "value": 8401899550.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_intrinsic_per_share": {
+      "value": 16.12,
+      "unit": "USD/share",
+      "period": "FY2026",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_upside_pct": 22.9,
+    "price_current": {
+      "value": 13.12,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "reverse_dcf_implied_growth": 0.0618,
+    "ev_ebit_multiple": {
+      "value": 105.12,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "ev_fcf_multiple": {
+      "value": 16.94,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "pe_multiple": {
+      "value": 24.22,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "earnings_yield_pct": 0.95,
+    "magic_formula_rank": null,
+    "sensitivity_table": [
+      {
+        "near_term_growth_pct": 14.9,
+        "values": {
+          "wacc_7.0pct": 16.5,
+          "wacc_9.0pct": 11.1,
+          "wacc_11.0pct": 8.2
+        }
+      },
+      {
+        "near_term_growth_pct": 9.9,
+        "values": {
+          "wacc_7.0pct": 12.4,
+          "wacc_9.0pct": 8.4,
+          "wacc_11.0pct": 6.3
+        }
+      },
+      {
+        "near_term_growth_pct": 4.9,
+        "values": {
+          "wacc_7.0pct": 9.2,
+          "wacc_9.0pct": 6.4,
+          "wacc_11.0pct": 4.8
+        }
+      }
+    ],
+    "assumptions": {
+      "checkpoint_id": "checkpoint2",
+      "user_notes": "",
+      "proceed": true,
+      "wacc_pct": 9.0,
+      "terminal_growth_pct": 2.5,
+      "projection_years": 10,
+      "stage1_years": null,
+      "fade_years": null,
+      "revenue_growth_yr1_pct": null,
+      "margin_assumption_pct": null
+    },
+    "dcf_reliability_note": "Near-term FCF growth: 9.9% (historical FCF CAGR, 2 years).",
+    "fcf_quality_warning": null,
+    "near_term_growth_used_pct": 0.09868203512226614,
+    "near_term_growth_source": "fcf_cagr_2y",
+    "stage1_years_used": 5,
+    "fade_years_used": 5,
+    "epv_enterprise": {
+      "value": 473000000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "EPV (ebit_latest)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_per_share": {
+      "value": 2.58,
+      "unit": "USD/share",
+      "period": "FY2026",
+      "source": "EPV (ebit_latest)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_upside_pct": -80.3,
+    "epv_source": "ebit_latest",
+    "suggested_wacc_pct": 9.7,
+    "suggested_wacc_breakdown": "Rf=4.2% + β=1.0×ERP=5.0% + size_premium=0.5% (mid cap)",
+    "valuation_methods_summary": [
+      {
+        "method": "DCF (3-stage Damodaran fade)",
+        "per_share": "$16.12",
+        "upside_pct": 22.9,
+        "display_upside": "+22.9%",
+        "classification": "cheap"
+      },
+      {
+        "method": "EPV (Greenwald — zero growth)",
+        "per_share": "$2.58",
+        "upside_pct": -80.3,
+        "display_upside": "-80.3%",
+        "classification": "expensive"
+      },
+      {
+        "method": "Reverse DCF (market-implied growth)",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "implied 6.2% vs historical 9.9%",
+        "classification": "cheap"
+      },
+      {
+        "method": "EV/EBIT vs peer median",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "105.1x vs peer median N/A",
+        "classification": "n/a"
+      }
+    ]
+  },
+  "citations": [],
+  "unverified_claims": [],
+  "cost_usd": 0.0
+}

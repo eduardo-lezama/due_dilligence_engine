@@ -12,8 +12,8 @@ los dos interrupt() con defaults y se detiene ANTES de value_expert
 tests/evals/contexts/: el texto de `_format_context` (.md) y el AnalysisState
 serializado (.state.json). Coste ≈ especialistas LLM por ticker (~0,02 €).
 
-Uso (requiere .env con API keys):
-    uv run python scripts/freeze_contexts.py AAPL BBW AZO PRDO KBR PATH MOS QLYS
+Uso (requiere .env con API keys; PYTHONUTF8=1 en Windows: structlog imprime "≥"):
+    PYTHONUTF8=1 uv run python scripts/freeze_contexts.py AAPL BBW AZO PRDO KBR PATH MOS QLYS
 """
 from __future__ import annotations
 

@@ -1,0 +1,857 @@
+{
+  "ticker": "MOS",
+  "cik": "0001285785",
+  "as_of_date": "2025-12-31",
+  "run_id": "fa6639ce-bb8",
+  "financials": {
+    "ticker": "MOS",
+    "cik": "0001285785",
+    "as_of_date": "2025-12-31",
+    "revenue": [
+      {
+        "value": 12052400000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 11122800000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 13696100000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 19125200000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "gross_profit": [
+      {
+        "value": 1901900000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1511900000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2210600000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5755800000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_income": [
+      {
+        "value": 821500000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 621500000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1338100000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 4785300000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "net_income": [
+      {
+        "value": 540700000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 174900000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1164900000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3582800000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_cash_flow": [
+      {
+        "value": 824800000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1299200000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2407200000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3935800000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "capex": [
+      {
+        "value": 1359400000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1251800000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1402400000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1247300000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "free_cash_flow": [
+      {
+        "value": -534600000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 47400000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1004800000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2688500000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "buybacks": [
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 235400000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 756000000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1665200000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "dividends": [
+      {
+        "value": 280400000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 270700000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 351600000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 197700000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "total_assets": {
+      "value": 24480100000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt": {
+      "value": 5053900000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "cash_and_equivalents": {
+      "value": 276600000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "shares_outstanding": {
+      "value": 317895646.0,
+      "unit": "shares",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "roic_series": [
+      {
+        "value": 0.0244,
+        "unit": "ratio",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0184,
+        "unit": "ratio",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0397,
+        "unit": "ratio",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.1419,
+        "unit": "ratio",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "invested_capital": {
+      "value": 16862200000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "equity+debt-cash",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "stockholders_equity": {
+      "value": 12084900000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "source_filing": "10-K FY2025",
+    "citations": []
+  },
+  "mgmt": {
+    "ticker": "MOS",
+    "stub": false,
+    "insider_ownership_pct": 5.57,
+    "founder_ceo": null,
+    "ceo_tenure_years": null,
+    "form4_transactions_12m": 2,
+    "insider_transaction_pattern": "CEO not identified; Walter F. Precourt III net seller: sold 23,000 shares in August 2026. Jody Lynne Kuzenko net buyer: purchased 685 shares in November 2025. Overall insider sentiment: mixed.",
+    "compensation_structure_notes": "Mosaic's compensation program for NEOs is designed to align with strong financial performance and operational excellence, suggesting a focus on long-term shareholder value. The program includes an advisory vote on compensation, indicating responsiveness to shareholder input.",
+    "capital_allocation_summary": "Mosaic has demonstrated a disciplined capital allocation strategy, returning significant capital to shareholders through buybacks and maintaining a commitment to reinvestment in the business. The company has also shown a focus on managing costs effectively amid market challenges.",
+    "citations": [
+      {
+        "claim": "Insider ownership is approximately 5.57%.",
+        "source_url": "SOURCE 1",
+        "excerpt": "The following table shows the number of shares of common stock owned beneficially... by all of our directors and executive officers as a group.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Walter F. Precourt III sold 23,000 shares in August 2026.",
+        "source_url": "SOURCE 2",
+        "excerpt": "Walter F. Precourt III (SVP - Chief Admin Officer) | SELL | 23,000 shares @ $22.12 | 2026-08-19",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Jody Lynne Kuzenko purchased 685 shares in November 2025.",
+        "source_url": "SOURCE 2",
+        "excerpt": "Jody Lynne Kuzenko (Director) | BUY | 685 shares @ $25.53 | 2025-11-11",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Mosaic's compensation program for NEOs is designed to align with strong financial performance.",
+        "source_url": "SOURCE 1",
+        "excerpt": "We believe our compensation program for the NEOs is instrumental in helping Mosaic achieve strong financial performance...",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Mosaic has demonstrated a disciplined capital allocation strategy.",
+        "source_url": "SOURCE 4",
+        "excerpt": "Capital allocation strategy remains disciplined, with $893 million returned to shareholders through Q3...",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "filings": {
+    "ticker": "MOS",
+    "stub": false,
+    "business_description": "The Mosaic Company is the world’s leading producer and marketer of concentrated phosphate and potash crop nutrients, serving customers in approximately 40 countries. The company operates through three segments: Phosphate, Potash, and Mosaic Fertilizantes, with significant production in North America and Brazil. Mosaic mines phosphate rock and potash, processes these into finished products, and sells them primarily as fertilizers and animal feed ingredients.",
+    "risk_factors_summary": "Mosaic faces operational risks from fluctuating agricultural conditions, international market dynamics, and governmental policies affecting the agricultural industry. Specific risks include the impact of tariffs on potash imports from Canada, countervailing duty orders on phosphate fertilizers from Morocco and Russia, and adverse economic conditions such as inflation and supply chain challenges.",
+    "mda_highlights": "Management highlights challenges related to seasonal demand for crop nutrients, which can lead to inventory excesses or shortages. They also note the impact of rising production costs due to raw material prices and supply chain issues. The company is focused on maintaining operational efficiency amidst these challenges.",
+    "backlog_usd": null,
+    "revenue_guidance": null,
+    "geographic_revenue_breakdown": null,
+    "key_regulatory_events": "February 2025: The U.S. imposed a 25% tariff on most imports from Canada, including potash crop nutrients.",
+    "governance_red_flags": "No governance red flags found in provided text.",
+    "citations": [
+      {
+        "claim": "Mosaic is the world’s leading producer and marketer of concentrated phosphate and potash crop nutrients.",
+        "source_url": "10-K Item 1",
+        "excerpt": "The Mosaic Company is the world’s leading producer and marketer of concentrated phosphate and potash crop nutrients.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "In 2021, the U.S. Department of Commerce (“DOC”) issued countervailing duty (“CVD”) orders on imports of phosphate fertilizers from Morocco and Russia.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "In 2021, the U.S. Department of Commerce (“DOC”) issued countervailing duty (“CVD”) orders on imports of phosphate fertilizers from Morocco and Russia, in response to petitions filed by Mosaic.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "In February 2025, the U.S. imposed a 25% tariff on most imports from Canada, including potash crop nutrients.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "In February 2025, the U.S. imposed a 25% tariff on most imports from Canada, including potash crop nutrients.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "market": {
+    "ticker": "MOS",
+    "stub": false,
+    "price_current": {
+      "value": 21.07,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_high": {
+      "value": 36.0,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_low": {
+      "value": 19.795,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "market_cap": {
+      "value": 6698061261.22,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Which S&P500 stocks are moving on Thursday?\n    Source: ChartMill | URL: https://finnhub.io/api/news?id=b20e08d06594043d73774dff90800dc69a3fc3d1ae58095ba1758b392220c4e2\n    Stay updated with the movements of the S&P500 index in the middle of the day on Thursday. Discover which stocks are leading as top gainers and losers in today's session.\n\n[2] These S&P500 stocks are gapping in today's session\n    Source: ChartMill | URL: https://finnhub.io/api/news?id=59a342f752939553f2e3d8e29e06764b348e36d80fb4ad00f938a1f983b96856\n    Looking for the S&P500 stocks that are experiencing notable gaps on Thursday? Find out which stocks are gapping up and gapping down in the S&P500 index during today's session.\n\n[3] Wall Street's Most Accurate Analysts Give Their Take On 3 Materials Stocks Delivering High-Dividend Yields\n    Source: Benzinga | URL: https://finnhub.io/api/news?id=9fc8eb67de66706731e38810d9307f67702b0529cae3316a744e573377ba5b9e\n    Analysts updated ratings and price targets for high-yield materials stocks Westlake, FMC and Mosaic, yielding 3.15%, 3.34% and 3.82%.\n\n[4] Discover which S&P500 stocks are making waves on Friday.\n    Source: ChartMill | URL: https://finnhub.io/api/news?id=934105b468350b5d32bbeacccbde6d0bf0f602402f2458bf63ad1cd8b5c90e5c\n    Get insights into the S&P500 index performance on Friday. Explore the top gainers and losers within the S&P500 index in today's session.\n\n[5] Canpotex Invests C$500M In Neptune Bulk Terminals At Port Of Vancouver; Project To Support 400-500 Jobs With Majority Spending To Canadian Suppliers\n    Source: Benzinga | URL: https://finnhub.io/api/news?id=eddc3a0313b79e0dcfaad8d0f5e6488cc3d7d08edde3f1fc2318bc2f50433ac9\n    https://www.canpotex.com/news/canpotex-announces-500-million-investment-in-neptune-bulk-terminals/\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\n[1] Financial Analysis for MOS\nURL: https://finance.yahoo.com/quote/MOS/\nStock: MOS\nFinancial Analysis:\nLatest Open Price: 21.64 Latest Close Price: 21.07 Highest Close Price: 36.22 Lowest Close Price: 19.65 Average Close Price (2 years): 26.47 Standard Deviation of Close Price: 4.09 Volume Traded (2 years): 3335126400 Total Return (2 years): -15.99% Annualized Return (2 years): -8.34% CAGR (2 years): -8.34% Sharpe Ratio (2 years): -2.04 Max Drawdown (2 years): -0.23% \n\n[2] Mosaic Q4 Earnings Call Highlights\nURL: https://finance.yahoo.com/news/mosaic-q4-earnings-call-highlights-173547051.html\nMosaic (NYSE:MOS) executives said they are entering 2026 with improving demand signals and stronger operating momentum, even after a weaker-than\n\n[3] Can Mosaic’s (MOS) Recent Setbacks Reshape Its Edge in Global Fertilizer Markets?\nURL: https://finance.yahoo.com/news/mosaic-mos-recent-setbacks-reshape-100813361.html\n* We'll look at how recent mechanical disruptions to phosphate production may influence Mosaic's outlook for margins and long-term competitiveness. For investors considering Mosaic, the fundamental thesis rests on global fertilizer demand, steady sales volumes in key markets, and the company's ability to manage costs and maintain robust margins despite commodity price swings. This specific disruption appears to be a short-term event and does not materially alter the broader catalyst of strong farmer demand, but it does highlight the risk posed by reliability issues that can weigh on margins.Mo\n\n[4] The Mosaic Co (MOS) Q1 2026 Earnings Call Highlights\nURL: https://finance.yahoo.com/markets/stocks/articles/mosaic-co-mos-q1-2026-070506807.html\nMosaic is experiencing compressed margins in its phosphate segment due to high sulfur and ammonia costs.\n\n[5] Nucor Gives Downbeat Q3 Guidance, Sees Lower ...\nURL: https://finance.yahoo.com/news/nucor-gives-downbeat-q3-guidance-162600198.html\nThe steel mills segment is expected to witness decreased earnings due to lower volumes and margin compression, MOS' shares have gained 31.6% in\n\n[6] The Mosaic Company Q1 2026 Earnings Call Summary\nURL: https://finance.yahoo.com/markets/stocks/articles/mosaic-company-q1-2026-earnings-123000703.html\nResponse to Supply Chain Volatility. Performance was driven by … severely compressed stripping margins. marginal costs of $1,200 per tonne. low\n\n[7] U.S. SEC investigates Citi over unapproved employee ...\nURL: https://ca.finance.yahoo.com/news/u-sec-investigates-citi-over-203435914.html\nThe company said the SEC was investigating Citigroup Global Markets Inc's record-keeping compliance and that it was cooperating with the\n\n[8] Exclusive: SEC probes Schwab, Merrill, for anti-money ...\nURL: https://ca.finance.yahoo.com/news/exclusive-schwab-merrill-face-sec-probe-anti-money-205109825--sector.html\nUBS fined $125 million by US regulators for money laundering violations · SEC asks investment firms to prove they have access to shares in\n\n[9] US SEC will not defend climate rule in court\nURL: https://ca.finance.yahoo.com/news/u-market-watchdog-aims-pause-162555694.html\nUnder former chair Gary Gensler, the SEC last March required companies to disclose a variety of climate-related risks to their businesses,\n",
+    "material_events": [
+      {
+        "filing_date": "2026-09-25",
+        "item_numbers": [
+          "Item 5.02"
+        ],
+        "summary_text": "[Item 5.02] Item 5.02 - Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers.\n\nOn September 23, 2026, Ms. Karen A. Swager informed The Mosaic Company (\"Mosaic\") of her intention to retire from Mosaic. In connection with her retirement, Ms. Swager will resign as the Executive Vice President - Operations effective December 1, 2026, and will continue as a Senior Advisor to Mosaic until her retirement in the second quarter of 2027. Ms. Swager will continue to receive her current cash compensation and be eligible to participate in benefit plans generally available to management-level employees after her transition to Senior Advisor through her remaining period of employment with Mosaic.\n\nOn September 23, 2026, Mosa",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1285785/000128578526000125/formxchangeofofficerssepte.htm"
+      },
+      {
+        "filing_date": "2026-08-17",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01.      Other Events.  \n\nOn August 17, 2026, The Mosaic Company (the “Company”) closed its sale of $1,000,000,000 aggregate principal amount of the Company’s 5.350% senior notes due 2031 (the “2031 Notes”), $500,000,000 aggregate principal amount of the Company’s 5.650% senior notes due 2034 (the “2034 Notes”) and $500,000,000 aggregate principal amount of the Company’s 5.900% senior notes due 2036 (the “2036 Notes” and, together with the 2031 Notes and the 2034 Notes, the “Offered Securities”) pursuant to an Underwriting Agreement dated August 10, 2026, among the Company and Citigroup Global Markets Inc., BofA Securities, Inc., J.P. Morgan Securities LLC and Wells Fargo Securities, LLC, as representatives of the several underwriters named in Schedule A thereto (the “Underwriting A",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1285785/000119312526354095/d168739d8k.htm"
+      },
+      {
+        "filing_date": "2026-08-17",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01.      Other Events.  \n\nOn August 17, 2026, The Mosaic Company issued a press release announcing the expiration and results of the previously announced cash tender offers for certain of its debt securities. A copy of the press release is attached hereto as Exhibit 99.1 and is incorporated by reference herein.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1285785/000119312526353193/d172855d8k.htm"
+      },
+      {
+        "filing_date": "2026-08-14",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01.      Other Events.  \n\nOn August 14, 2026, The Mosaic Company issued a press release announcing the pricing terms of the previously announced cash tender offers for certain of its debt securities. A copy of the press release is attached hereto as Exhibit 99.1 and is incorporated by reference herein.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1285785/000119312526352365/d178370d8k.htm"
+      },
+      {
+        "filing_date": "2026-08-10",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01.      Other Events.  \n\nOn August 10, 2026, The Mosaic Company issued a press release announcing the launch of cash tender offers for certain of its debt securities. A copy of the press release is attached hereto as Exhibit 99.1 and is incorporated by reference herein.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1285785/000119312526341391/d319503d8k.htm"
+      },
+      {
+        "filing_date": "2026-08-04",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02.      Results of Operations and Financial Condition.  \n\nThe following information is being “furnished” in accordance with General Instruction B.2. of Form 8-K and shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or otherwise subject to the liabilities of that section, nor shall it be deemed to be incorporated by reference in any filing under the Securities Act of 1933, as amended (the “Securities Act”), or the Exchange Act, except as expressly set forth by specific reference in such filing:\n\nFurnished herewith as Exhibit 99.1 and incorporated by reference herein is the text of The Mosaic Company’s (“Mosaic,” and Mosaic and its subsidiaries, individually or in any combination, “we,” “us” or “our”) annou",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1285785/000128578526000109/mos-20260804.htm"
+      },
+      {
+        "filing_date": "2026-06-15",
+        "item_numbers": [
+          "Item 7.01"
+        ],
+        "summary_text": "[Item 7.01] Item 7.01.      Regulation FD Disclosure.  \n\nThe following information is being “furnished” in accordance with General Instruction B.2. of Form 8-K and shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or otherwise subject to the liabilities of that section, nor shall it be deemed to be incorporated by reference in any filing under the Securities Act of 1933, as amended, or the Exchange Act, except as expressly set forth by specific reference in such filing:\n\nOn June 10, 2026, The Mosaic Company (the “Company”) entered into a credit agreement, providing for a committed delayed draw term loan credit facility in an aggregate principal amount of up to $1,000,000,000. The loan includes a 364-day tranche of $500,000,0",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1285785/000128578526000093/mos-20260610.htm"
+      },
+      {
+        "filing_date": "2026-05-11",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02.      Results of Operations and Financial Condition.  \n\nThe following information is being “furnished” in accordance with General Instruction B.2. of Form 8-K and shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or otherwise subject to the liabilities of that section, nor shall it be deemed to be incorporated by reference in any filing under the Securities Act of 1933, as amended (the “Securities Act”), or the Exchange Act, except as expressly set forth by specific reference in such filing:\n\nFurnished herewith as Exhibit 99.1 and incorporated by reference herein is the text of The Mosaic Company’s (“Mosaic,” and Mosaic and its subsidiaries, individually or in any combination, “we,” “us” or “our”) annou",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1285785/000128578526000063/mos-20260511.htm"
+      },
+      {
+        "filing_date": "2026-02-24",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02.      Results of Operations and Financial Condition.  \n\nThe following information is being “furnished” in accordance with General Instruction B.2. of Form 8-K and shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or otherwise subject to the liabilities of that section, nor shall it be deemed to be incorporated by reference in any filing under the Securities Act of 1933, as amended (the “Securities Act”), or the Exchange Act, except as expressly set forth by specific reference in such filing:\n\nFurnished herewith as Exhibit 99.1 and incorporated by reference herein is the text of The Mosaic Company’s (“Mosaic,” and Mosaic and its subsidiaries, individually or in any combination, “we,” “us” or “our”) annou",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1285785/000128578526000013/mos-20260224.htm"
+      },
+      {
+        "filing_date": "2026-01-16",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02.      Results of Operations and Financial Condition.  \n\nThe following information is being “furnished” in accordance with General Instruction B.2. of Form 8-K and shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or otherwise subject to the liabilities of that section, nor shall it be deemed to be incorporated by reference in any filing under the Securities Act of 1933, as amended (the “Securities Act”), or the Exchange Act, except as expressly set forth by specific reference in such filing:\n\nFurnished herewith as Exhibit 99.1 and incorporated by reference herein is the text of The Mosaic Company’s (“Mosaic,” and Mosaic and its subsidiaries, individually or in any combination, “we,” “us” or “our”) annou",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1285785/000128578526000007/mos-20260116.htm"
+      },
+      {
+        "filing_date": "2025-11-13",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01.      Other Events.  \n\nOn November 13, 2025, The Mosaic Company (the “Company”) closed its sale of $500,000,000 aggregate principal amount of the Company’s 4.350% senior notes due 2029 (the “2029 Notes”) and $400,000,000 aggregate principal amount of the Company’s 4.600% senior notes due 2030 (the “2030 Notes” and, together with the 2029 Notes, the “Offered Securities”) pursuant to an Underwriting Agreement dated November 10, 2025, among the Company and J.P. Morgan Securities LLC, Citigroup Global Markets Inc., BMO Capital Markets Corp. and Goldman Sachs & Co. LLC as representatives of the several underwriters named in Schedule A thereto (the “Underwriting Agreement”). The Offered Securities were issued pursuant to an Indenture dated as of October 24, 2011 between the Company and",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1285785/000119312525280145/d809351d8k.htm"
+      },
+      {
+        "filing_date": "2025-11-04",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02.      Results of Operations and Financial Condition.  \n\nThe following information is being “furnished” in accordance with General Instruction B.2. of Form 8-K and shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or otherwise subject to the liabilities of that section, nor shall it be deemed to be incorporated by reference in any filing under the Securities Act of 1933, as amended (the “Securities Act”), or the Exchange Act, except as expressly set forth by specific reference in such filing:\n\nFurnished herewith as Exhibit 99.1 and incorporated by reference herein is the text of The Mosaic Company’s (“Mosaic,” and Mosaic and its subsidiaries, individually or in any combination, “we,” “us” or “our”) annou",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1285785/000162828025048961/mos-20251104.htm"
+      },
+      {
+        "filing_date": "2025-10-10",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02.      Results of Operations and Financial Condition.  \n\nThe following information is being “furnished” in accordance with General Instruction B.2. of Form 8-K and shall not be deemed “filed” for purposes of Section 18 of the Securities Exchange Act of 1934, as amended (the “Exchange Act”), or otherwise subject to the liabilities of that section, nor shall it be deemed to be incorporated by reference in any filing under the Securities Act of 1933, as amended (the “Securities Act”), or the Exchange Act, except as expressly set forth by specific reference in such filing:\n\nFurnished herewith as Exhibit 99.1 and incorporated by reference herein is the text of The Mosaic Company’s (“Mosaic,” and Mosaic and its subsidiaries, individually or in any combination, “we,” “us” or “our”) annou",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1285785/000128578525000071/mos-20251010.htm"
+      }
+    ],
+    "quarterly_earnings_text": "Exhibit 99.1                                                                 \n                                                                               \n                                    \n  The Mosaic Company                \n  101 E. Kennedy Blvd., Suite 2500  \n  Tampa, FL 33602                   \n  www.mosaicco.com                  \n                                    \n                         \n  FOR IMMEDIATE RELEASE  \n                         \n                                                                               \n            THE MOSAIC COMPANY REPORTS SECOND QUARTER 2026 RESULTS             \n                                                                               \n                                                                               \n  •                                                                            \n                                                                               \nSecond quarter results included revenues of $2.8 billion, an operating loss of\n$36 million and a net loss of $273 million; excluding notable items, adjusted\nEBITDA (1)\n                                                                               \n  totaled $407 million                                                         \n                                                                               \n• Second quarter sales volumes totaled 1.4 million tonnes for Phosphates, 2.0\nmillion tonnes for Potash and 1.5 million tonnes for Mosaic Fertilizantes\n                                                                               \n  •                                                                            \n                                                                               \nThird-quarter sulfur contracts were settled at $705/long ton\n                                                                               \n  •                                                                            \n                                                                               \n2026 outlook for capital expenditures reduced to $1.2 billion\n\nTAMPA, FL, August 4, 2026 - The Mosaic Company (NYSE: MOS), reported a net loss\nof $273 million and diluted loss per share of $0.86 for the second quarter of\n2026. Adjusted EBITDA (1) was $407 million and adjusted EPS (1) was $0.13.\n\n“Business conditions remained challenging in the second quarter, driven\nprimarily by sulfur availability and affordability challenges,\" said President\nand CEO Bruce Bodine. \"At Mosaic, we are focused on the things we can control.\nWe've reduced phosphate production, cut costs, reduced capital expenditures and\nstrengthened our financial flexibility while maintaining the ability to resume\nfull production rates when markets improve. We also continue to reallocate\nunderperforming capital in pursuit of stronger shareholder returns.\"\n\nConsolidated Results:\n                                                                             \n  In millions $ except as noted below         Q2 2026    Q1 2026    Q2 2025  \n  Net Sales - billions $                         $2.8       $3.0       $3.0  \n  Selling, General and Administrative            $132       $136       $167  \n  Expenses                                                                   \n  Operating Earnings (Loss)                     $(36)     $(373)       $244  \n  Operating Earnings (Loss) – Phosphate        $(104)      $(48)       $(8)  \n  Operating Earnings (Loss) – Potash             $195       $177       $194  \n  Operating Earnings (Loss) – Mosaic            $(41)     $(422)       $109  \n  Fertilizantes                                                              \n  Operating Earnings (Loss) – Corporate         $(86)      $(79)      $(51)  \n  and Other                                                                  \n  Net Income (Loss)                            $(273)     $(258)       $411  \n  Adjusted EBITDA(1)                             $407       $416       $566  \n  Adjusted EBITDA - Phosphate(1)                 $128       $115       $217  \n  Adjusted EBITDA - Potash(1)                    $278       $275       $278  \n  Adjusted EBITDA – Mosaic                        $60        $79       $159  \n  Fertilizantes(1)                                                           \n  Adjusted EBITDA – Corporate and Other(1)      $(59)      $(53)      $(88)  \n                                                                             \n(1) See “Non-GAAP Financial Measures” for additional information and\nreconciliation.\n                                                                              1\nMosaic reported a second quarter net loss of $273 million, compared to net\nincome of $411 million in the same quarter of 2025. Second quarter results were\nnegatively impacted by $351 million of pre-tax notable items, primarily\nconsisting of $162 million in mark-to-market adjustments related to the value\nof Mosaic’s holding of Ma’aden shares, $69 million of non-cash project write-\noffs, and $49 million related to foreign currency transactions.\n\nSecond quarter adjusted EBITDA (1) totaled $407 million, down from $566 million\nin the same quarter last year. Results primarily reflected lower sales volumes\nand higher raw material costs in Phosphate and Mosaic Fertilizante s, which\nwere partially offset by higher phosphate and potash prices.\n\nSelling, general, and administrative (SG&A) expenses were $132 million in the\nsecond quarter, down from $167 million in the prior year period, reflecting\nlower bad debt expenses and the impact of cost saving initiatives. For the full\nyear, SG&A is now expected to be in the range of $510 to $530 million.\n\nThe effective tax rate for the second quarter was 11.2%. The adjusted effective\ntax rate was 4.5% excluding the impacts from notable items. Cash taxes paid\nwere $45 million in the second quarter.\n\nCash flow from operations totaled $167 million in the second quarter, compared\nto $610 million in the second quarter of 2025. The decrease was primarily\ndriven by lower adjusted EBITDA and c ustomer prepayments in Brazil. Free cash\nflow (1) in the second quarter of 2026 was $(153) million compared to $305\nmillion in the same quarter a year ago, reflecting the timing of capital\nexpenditures. Free cash flow is expected to improve through the remainder of\nthe year as a result of lower capital expenditures and an expected release of\nworking capital, primarily in Brazil.\n                                                                               \n  Capital Allocation Update                                                    \n                                                                               \n• Capital expenditures in 2026 are now expected to be $1.20 billion, down from\nthe previous expectation of $1.25 billion.\n\n• Mosaic completed the sale of its Carlsbad, New Mexico, potash mine in the\nsecond quarter.\n\n• Progress continued on strategic alternatives for the Araxa and Patrocinio\nassets in Brazil.\n\n• A $1 billion term loan transaction was established to refinance and extend\nshort-term commercial paper maturities.\n\n• The company paid a regular common dividend of $0.22 per share in the second\nquarter.\n\n(1) See “Non-GAAP Financial Measures” for additional information and\nreconciliation.\n                                                                              2\nPotash Results and Outlook:\n                                                                             \n                                              Q2 2026    Q1 2026    Q2 2025  \n  Net Sales - millions $                         $650       $667       $711  \n  Sales Volumes - million tonnes*                 2.0        2.2        2.3  \n  MOP Selling Price FOB mine - $ per tonne       $275       $265       $261  \n  MOP Cash Cost of Production(1)- $ per           $84        $84        $75  \n  tonne                                                                      \n  Gross Margin - $ per tonne                     $103        $88  ",
+    "quarterly_earnings_date": "2026-08-04",
+    "quarterly_eps_actuals": [
+      {
+        "period": "2026-06-30",
+        "actual": 0.13,
+        "estimate": 0.1259,
+        "surprise": 0.0041,
+        "surprisePercent": 3.2566,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-03-31",
+        "actual": 0.05,
+        "estimate": 0.2396,
+        "surprise": -0.1896,
+        "surprisePercent": -79.1319,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-12-31",
+        "actual": 0.22,
+        "estimate": 0.4707,
+        "surprise": -0.2507,
+        "surprisePercent": -53.2611,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-09-30",
+        "actual": 1.04,
+        "estimate": 0.9953,
+        "surprise": 0.0447,
+        "surprisePercent": 4.4911,
+        "revenueActual": null,
+        "revenueEstimate": null
+      }
+    ]
+  },
+  "competitive": {
+    "ticker": "MOS",
+    "stub": false,
+    "moat_classification": "none",
+    "moat_sources": [],
+    "peer_roic_comparison": [],
+    "citations": [
+      {
+        "claim": "ROIC has declined from 14.2% in FY2022 to 2.4% in FY2025.",
+        "source_url": "Financial data: ROIC series",
+        "excerpt": "ROIC series: FY2025: 2.4%, FY2024: 1.8%, FY2023: 4.0%, FY2022: 14.2%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Gross margin has remained low, peaking at 16.1%.",
+        "source_url": "Financial data: margins",
+        "excerpt": "Gross margin: FY2025: 15.8%, FY2024: 13.6%, FY2023: 16.1%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Free cash flow turned negative in FY2025.",
+        "source_url": "Financial data: Free cash flow",
+        "excerpt": "Free cash flow: FY2025: $-535M, FY2024: $47M, FY2023: $1.0B",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "peers": [],
+  "peer_financials": [],
+  "historical_cagr_5y": -0.1426545439066701,
+  "historical_cagr_years": 3,
+  "checkpoint1_user_input": {
+    "proceed": true,
+    "peers": "",
+    "answers": {}
+  },
+  "checkpoint2_user_input": {
+    "wacc_pct": 9.0,
+    "terminal_growth_pct": 2.5,
+    "projection_years": 10
+  },
+  "valuation": {
+    "ticker": "MOS",
+    "stub": false,
+    "dcf_intrinsic_value": {
+      "value": 3250233711.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "calculated (NOPAT proxy (EBIT × (1-tax)))",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_intrinsic_per_share": {
+      "value": 10.22,
+      "unit": "USD/share",
+      "period": "FY2025",
+      "source": "calculated (NOPAT proxy (EBIT × (1-tax)))",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_upside_pct": -51.5,
+    "price_current": {
+      "value": 21.07,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "reverse_dcf_implied_growth": -0.0173,
+    "ev_ebit_multiple": {
+      "value": 13.97,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "ev_fcf_multiple": null,
+    "pe_multiple": {
+      "value": 12.39,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "earnings_yield_pct": 7.16,
+    "magic_formula_rank": null,
+    "sensitivity_table": [
+      {
+        "near_term_growth_pct": -9.3,
+        "values": {
+          "wacc_7.0pct": 6.0,
+          "wacc_9.0pct": 4.3,
+          "wacc_11.0pct": 3.4
+        }
+      },
+      {
+        "near_term_growth_pct": -14.3,
+        "values": {
+          "wacc_7.0pct": 4.4,
+          "wacc_9.0pct": 3.3,
+          "wacc_11.0pct": 2.6
+        }
+      },
+      {
+        "near_term_growth_pct": -19.3,
+        "values": {
+          "wacc_7.0pct": 3.2,
+          "wacc_9.0pct": 2.4,
+          "wacc_11.0pct": 2.0
+        }
+      }
+    ],
+    "assumptions": {
+      "checkpoint_id": "checkpoint2",
+      "user_notes": "",
+      "proceed": true,
+      "wacc_pct": 9.0,
+      "terminal_growth_pct": 2.5,
+      "projection_years": 10,
+      "stage1_years": null,
+      "fade_years": null,
+      "revenue_growth_yr1_pct": null,
+      "margin_assumption_pct": null
+    },
+    "dcf_reliability_note": "⚠️ Near-term FCF growth: -14.3% (revenue CAGR proxy — FCF CAGR unavailable because reported FCF is negative or <2 periods). Less direct signal than FCF CAGR. ⚠️ DCF computed on NORMALIZED NOPAT ($541M = EBIT × (1-tax)) because reported FCF was negative ($-535M in FY2025). This is appropriate for cyclical troughs or heavy reinvestment but ignores working capital and maintenance vs growth capex split — treat as directional, not point estimate. Reverse DCF implied growth uses same NOPAT base.",
+    "fcf_quality_warning": null,
+    "near_term_growth_used_pct": -0.1426545439066701,
+    "near_term_growth_source": "revenue_cagr_fallback",
+    "stage1_years_used": 5,
+    "fade_years_used": 5,
+    "epv_enterprise": {
+      "value": 7896772300.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_per_share": {
+      "value": 9.81,
+      "unit": "USD/share",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_upside_pct": -53.4,
+    "epv_source": "ebit_median_4y",
+    "suggested_wacc_pct": 9.7,
+    "suggested_wacc_breakdown": "Rf=4.2% + β=1.0×ERP=5.0% + size_premium=0.5% (mid cap)",
+    "valuation_methods_summary": [
+      {
+        "method": "DCF (3-stage Damodaran fade)",
+        "per_share": "$10.22",
+        "upside_pct": -51.5,
+        "display_upside": "-51.5%",
+        "classification": "expensive"
+      },
+      {
+        "method": "EPV (Greenwald — zero growth)",
+        "per_share": "$9.81",
+        "upside_pct": -53.4,
+        "display_upside": "-53.4%",
+        "classification": "expensive"
+      },
+      {
+        "method": "Reverse DCF (market-implied growth)",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "implied -1.7% vs historical -14.3%",
+        "classification": "expensive"
+      },
+      {
+        "method": "EV/EBIT vs peer median",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "14.0x vs peer median N/A",
+        "classification": "n/a"
+      }
+    ]
+  },
+  "citations": [],
+  "unverified_claims": [],
+  "cost_usd": 0.0
+}

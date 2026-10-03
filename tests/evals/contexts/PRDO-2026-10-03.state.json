@@ -1,0 +1,709 @@
+{
+  "ticker": "PRDO",
+  "cik": "0001046568",
+  "as_of_date": "2025-12-31",
+  "run_id": "d04965b0-4dd",
+  "financials": {
+    "ticker": "PRDO",
+    "cik": "0001046568",
+    "as_of_date": "2025-12-31",
+    "revenue": [
+      {
+        "value": 846096000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 681263000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 710004000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 695208000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "gross_profit": [],
+    "operating_income": [
+      {
+        "value": 196000000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 174253000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 150446000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 129637000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "net_income": [
+      {
+        "value": 159914000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 147590000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 147652000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 95867000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_cash_flow": [
+      {
+        "value": 225240000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 161594000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 112025000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 148186000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "capex": [],
+    "free_cash_flow": [
+      {
+        "value": 225240000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "calculated-no-capex",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 161594000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "calculated-no-capex",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 112025000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "calculated-no-capex",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 148186000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "calculated-no-capex",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "buybacks": [
+      {
+        "value": 120793000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 6769000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 8301000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 23117000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "dividends": [
+      {
+        "value": 14417000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "total_assets": {
+      "value": 1247717000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt": {
+      "value": 0.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "cash_and_equivalents": {
+      "value": 110970000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "shares_outstanding": {
+      "value": 62577055.0,
+      "unit": "shares",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "roic_series": [
+      {
+        "value": 0.1706,
+        "unit": "ratio",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.1517,
+        "unit": "ratio",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.131,
+        "unit": "ratio",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.1129,
+        "unit": "ratio",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "invested_capital": {
+      "value": 861442000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "equity+debt-cash",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "stockholders_equity": {
+      "value": 972412000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "source_filing": "10-K FY2025",
+    "citations": []
+  },
+  "mgmt": {
+    "ticker": "PRDO",
+    "stub": false,
+    "insider_ownership_pct": null,
+    "founder_ceo": false,
+    "ceo_tenure_years": 1.0,
+    "form4_transactions_12m": 15,
+    "insider_transaction_pattern": "CEO Todd Nelson net seller: sold 46,199 shares in September 2026, no open-market purchases in 12m. Several directors and officers also net sellers. Overall insider sentiment: negative.",
+    "compensation_structure_notes": "Management compensation is tied to performance metrics, with a significant portion linked to the company's financial performance and strategic goals, indicating alignment with shareholder interests.",
+    "capital_allocation_summary": "The company has shown a disciplined approach to capital allocation, focusing on reinvestment in growth areas while maintaining a strong balance sheet. There is no mention of recent M&A activity or dividends.",
+    "citations": [
+      {
+        "claim": "Todd Nelson has been appointed as President and Chief Executive Officer of the Company effective November 16, 2023.",
+        "source_url": "SOURCE 6",
+        "excerpt": "On November 17, 2023, Perdoceo Education Corporation (the “ Company”) announced that, effective November 16, 2023 (the “ Transition Date”), Todd Nelson has been appointed as President and Chief Executive Officer of the Company.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Todd Nelson sold 46,199 shares in September 2026.",
+        "source_url": "SOURCE 2",
+        "excerpt": "Todd S Nelson (President and CEO) | SELL | 46,199 shares @ $32.89 | 2026-09-15",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Management compensation is tied to performance metrics.",
+        "source_url": "SOURCE 1",
+        "excerpt": "a significant portion of the total compensation opportunity for each of our executives is directly related to the Company’s financial performance and to other performance factors that measure our progress against the goals of our strategic and operating plans.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "filings": {
+    "ticker": "PRDO",
+    "stub": false,
+    "business_description": "Perdoceo Education Corporation offers accredited postsecondary education through its institutions, including Colorado Technical University, American InterContinental University System, and University of St. Augustine for Health Sciences. The company provides fully online, campus-based, and hybrid learning programs, focusing on industry-relevant and career-focused academic offerings. Its business model targets a diverse student population, particularly non-traditional adult learners seeking career advancement.",
+    "risk_factors_summary": "The company faces significant regulatory risks due to extensive compliance requirements that could lead to financial penalties or operational restrictions. Additionally, changes in federal student aid programs and accountability regulations pose challenges to its revenue and enrollment. Competitive pressures in the education sector and the need for technological innovation further complicate its operational landscape.",
+    "mda_highlights": "Management emphasizes the importance of enhancing student experiences and academic outcomes, with a focus on retention and engagement. The company reported a 7.3% increase in total student enrollments year-over-year, driven by strategic investments in technology and marketing. Management is also concerned about the evolving regulatory environment and its potential impact on operations.",
+    "backlog_usd": null,
+    "revenue_guidance": null,
+    "geographic_revenue_breakdown": null,
+    "key_regulatory_events": null,
+    "governance_red_flags": "No governance red flags found in provided text.",
+    "citations": [
+      {
+        "claim": "Perdoceo Education Corporation offers accredited postsecondary education through its institutions, including Colorado Technical University, American InterContinental University System, and University of St. Augustine for Health Sciences.",
+        "source_url": "10-K Item 1",
+        "excerpt": "Perdoceo’s accredited academic institutions offer a quality postsecondary education to a diverse student population, with fully online, campus-based and hybrid learning programs.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "The company faces significant regulatory risks due to extensive compliance requirements that could lead to financial penalties or operational restrictions.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Compliance with the extensive regulatory requirements applicable to our business can be costly and time consuming, and failure to comply could result in substantial financial penalties, severe restrictions on or closure of our operations.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "Management emphasizes the importance of enhancing student experiences and academic outcomes, with a focus on retention and engagement.",
+        "source_url": "10-K Item 7",
+        "excerpt": "During the year ended December 31, 2025, our academic institutions remained focused on enhancing student experiences and academic outcomes while aligning their academic programs with the current demands of the workforce.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "market": {
+    "ticker": "PRDO",
+    "stub": false,
+    "price_current": {
+      "value": 31.91,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_high": {
+      "value": 38.5,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_low": {
+      "value": 26.655,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "market_cap": {
+      "value": 1996833825.05,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Is Perdoceo’s Education (PRDO) Healthcare Bet the Ultimate Value Play?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=7a626042269661bb54acc20ae038dbd2ef2a34f0b7ac6e24156b3e6a18be2cd0\n    At the intersection of shifting workforce demographics and career-focused higher education lies Perdoceo Education Corp. (NASDAQ:PRDO), a company demonstrating robust fundamental health anchored by a formidable balance sheet carrying $734.8 million in cash and cash equivalents as of June 30, 2026. T\n\n[2] Perdoceo Education: USAHS Growth And Cost Discipline Support The Bull Case\n    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=875bcab17fc475d3f37b0c6c64c2b3c7ccb0278ef5280d29bd85aa65de758448\n    Perdoceoâs presence in health education is a sector where USAHS has demonstrated that it can improve its profitability. Read why PRDO stock is a buy.\n\n[3] For-profit Perdoceo Education to acquire South University for $140M\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=40984bf095674c3aabfeb4e49bae66d79a5da3caff0c0f5c2f4a71694e03f8a2\n    The healthcare-focused university will convert to a for-profit institution after having changed hands multiple times over the past decade.\n\n[4] Perdoceo Education Corporation Signs Definitive Agreement to Acquire South University\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=ab965027402d08f4ea5d9d85f2d4edeade6d917839cf8337a5ba8262e744e456\n    SCHAUMBURG, Ill., September 14, 2026--Perdoceo Education Corporation Signs Definitive Agreement to Acquire South University\n\n[5] Perdoceo Education Corp (NASDAQ:PRDO) Screens as a Discounted Value Stock With Strong Fundamentals\n    Source: ChartMill | URL: https://finnhub.io/api/news?id=d50e4bd32f4c3bb4fc8528629dfeeec8c20cb3c253cd41488d0109a45f663e0f\n    PRDO scores 9/10 on valuation, 9/10 on health, and 8/10 on profitability and growth—a cheap, high-quality value stock with strong fundamentals.",
+    "material_events": [
+      {
+        "filing_date": "2026-09-14",
+        "item_numbers": [
+          "Item 1.01",
+          "Item 7.01"
+        ],
+        "summary_text": "[Item 1.01] Item 1.01.      Entry into a Material Definitive Agreement.  \n\nOn September 14, 2026, Perdoceo Education Corporation, a Delaware corporation (the “Company”), entered into a Membership Interest Purchase Agreement (the “Purchase Agreement”) with South University - Member, Inc., a Delaware nonprofit, nonstock corporation (“Seller”), providing for the acquisition by the Company of 100% of the membership interests of South University Savannah, LLC, a Georgia limited liability company (“South” or “South University” and such acquisition, the “Transaction”).\n\nSouth, together with its subsidiaries, is one of the nation’s leading universities offering postsecondary training and licensing programs, primarily in nursing, healthcare, pharmacy, business & technology, legal studies, public administration",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1046568/000119312526389857/d61984d8k.htm"
+      },
+      {
+        "filing_date": "2026-08-06",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02. Results of Operations and Financial Condition.\n\nOn August 6, 2026, Perdoceo Education Corporation (the “Company”) issued a press release describing the Company’s financial results for the quarter and year to date ended June 30, 2026 and providing the Company’s third quarter and full year 2026 outlook. A copy of the press release is being furnished as Exhibit 99.1, and the information contained therein is incorporated herein by reference. Following the issuance of the press release, the Company will host a conference call and webcast on which its financial results for the quarter and year to date ended June 30, 2026 and third quarter and full year 2026 outlook will be discussed.\n\nThe information contained in Item 2.02 of this Form 8-K, including Exhibit 99.1, shall not be deemed ",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1046568/000119312526337919/prdo-20260806.htm"
+      },
+      {
+        "filing_date": "2026-05-07",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02. Results of Operations and Financial Condition.\n\nOn May 7, 2026, Perdoceo Education Corporation (the “Company”) issued a press release describing the Company’s financial results for the quarter ended March 31, 2026 and providing an update to the Company’s second quarter and full year 2026 outlook. A copy of the press release is being furnished as Exhibit 99.1, and the information contained therein is incorporated herein by reference. Following the issuance of the press release, the Company will host a conference call and webcast on which its financial results for the quarter ended March 31, 2026 and second quarter and full year 2026 outlook will be discussed.\n\nThe information contained in Item 2.02 of this Form 8-K, including Exhibit 99.1, shall not be deemed “filed” for purposes",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1046568/000119312526211824/prdo-20260507.htm"
+      },
+      {
+        "filing_date": "2026-02-19",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02. Results of Operations and Financial Condition.\n\nOn February 19, 2026, Perdoceo Education Corporation (the “Company”) issued a press release describing the Company’s financial results for the fiscal quarter and year ended December 31, 2025 and providing the Company’s 2026 outlook. A copy of the press release is being furnished as Exhibit 99.1, and the information contained therein is incorporated herein by reference. Following the issuance of the press release, the Company will host a conference call and webcast on which its financial results for the quarter and year ended December 31, 2025 and 2026 outlook will be discussed.\n\nThe information contained in Item 2.02 of this Form 8-K, including Exhibit 99.1, shall not be deemed “filed” for purposes of Section 18 of the Securities E",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1046568/000119312526059326/prdo-20260219.htm"
+      },
+      {
+        "filing_date": "2026-01-05",
+        "item_numbers": [
+          "Item 7.01",
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 7.01] Item 7.01 Regulation FD Disclosure.\n\nOn January 5, 2026, Perdoceo Education Corporation (the “Company”) reaffirmed its full year adjusted operating income outlook of $234 million to $236 million, as disclosed in the Company's previous quarterly earnings release filed on November 4, 2025, subject to the assumptions and factors set forth therein.\n\nThe information contained in Item 7.01 of this Form 8-K shall not be deemed \"filed\" for purposes of Section 18 of the Securities Exchange Act of 1934, as amended, or otherwise subject to the liabilities of that section, nor shall the information be deemed incorporated by reference into any filing under the Securities Act of 1933 or Securities Exchange Act of 1934, each as amended, except as shall be expressly set forth by specific reference in such",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1046568/000119312526001582/prdo-20260105.htm"
+      },
+      {
+        "filing_date": "2025-11-04",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02. Results of Operations and Financial Condition.\n\nOn November 4, 2025, Perdoceo Education Corporation (the “Company”) issued a press release describing the Company’s financial results for the quarter and year to date ended September 30, 2025 and providing the Company’s 2025 outlook. A copy of the press release is being furnished as Exhibit 99.1, and the information contained therein is incorporated herein by reference. Following the issuance of the press release, the Company will host a conference call and webcast on which its financial results for the quarter and year to date ended September 30, 2025 and outlook will be discussed.\n\nThe information contained in Item 2.02 of this Form 8-K, including Exhibit 99.1, shall not be deemed “filed” for purposes of Section 18 of the Securit",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1046568/000119312525264617/prdo-20251104.htm"
+      }
+    ],
+    "quarterly_earnings_text": "PRDO ANNOUNCES 2Q26 RESULTS PG1                                                \n                                                                   Exhibit 99.1\n           PERDOCEO EDUCATION CORPORATION REPORTS SECOND QUARTER AND           \n                           YEAR TO DATE 2026 RESULTS                           \n                                                                               \n           Increases quarterly dividend by 13.3% to $0.17 per share            \nSchaumburg, IL. (August 6, 2026) – Perdoceo Education Corporation (NASDAQ:     \nPRDO), a provider of postsecondary education programs through its academic     \ninstitutions, today reported operating and financial results for the second    \nquarter and year to date ended June 30, 2026.                                  \n                                                                               \n\"We delivered another quarter of strong operating performance while building on\nthe sustainable growth we have achieved over the past two years,\" said Todd    \nNelson, President and Chief Executive Officer. \"The breadth of program         \nofferings across the portfolio of our academic institutions has allowed us to  \nexecute against our objective of sustainable and responsible growth. Our       \nbalance sheet remains strong, providing us with the flexibility to invest      \norganically while also evaluating incremental investment strategies and return \ncapital to shareholders.\"                                                      \n         Second Quarter 2026 Results as Compared to Prior Year Quarter         \nEarnings per diluted share increased 21.0% to $0.75 as compared to $0.62, while\nadjusted earnings per diluted share grew by 19.4% to $0.80 as compared to      \n$0.67*.                                                                        \n                                                                               \nOperating income increased 6.8% to $54.9 million, while adjusted operating     \nincome increased 4.4% to $64.2 million*.                                       \n                                                                               \nRevenue increased 1.8% to $213.4 million as compared to $209.6 million.        \n                                                                               \nTotal student enrollments at June 30, 2026 increased by 0.7%.                  \n          Year to Date 2026 Results as Compared to Prior Year to Date          \nEarnings per diluted share was $1.60 as compared to $1.27, while adjusted      \nearnings per diluted share was $1.70 as compared to $1.37*.                    \n                                                                               \nOperating income increased 14.4% to $118.0 million, while adjusted operating   \nincome increased 9.3% to $136.7 million*.                                      \n                                                                               \nRevenue increased 3.0% to $435.1 million as compared to $422.6 million.        \n                                                                               \n*See GAAP (U.S. generally accepted accounting principles) to non-GAAP          \nreconciliations attached to this press release.                                \n                                                                               \nPRDO ANNOUNCES 2Q26 RESULTS PG2                                                \nTOTAL STUDENT ENROLLMENTS • As of June 30, 2026, total student enrollments were\n46,830, an increase of 0.7% as compared to 46,500 total student enrollments as\nof June 30, 2025 . • Total student enrollments at AIUS was impacted due to a\nmodest decrease in student enrollments at Trident University .\n                                                                               \n                      As of June                                               \n                             30,                                               \n  Total Student             2026            2025            % Change           \n  Enrollments                                                                  \n  CTU                             32,110          31,910               0.6  %  \n  AIUS (1)                        10,510          10,620              -1.0  %  \n  USAHS                            4,210           3,970               6.0  %  \n  Total                           46,830          46,500               0.7  %  \n                                                                               \n(1) Total student enrollments do not include learners participating in: a) non-\ndegree seeking and professional development programs, and b) degree seeking,\nnon-Title IV, self-paced programs at our universities. REVENUE • For the\nquarter ended June 30, 2026, revenue increased 1.8% to $213.4 million as\ncompared to revenue of $209.6 million for the prior year quarter. • For the\nyear to date ended June 30, 2026, revenue increased 3.0% to $435.1 million as\ncompared to revenue of $422.6 million for the prior year to date. • The\ndecrease in revenue at AIUS was primarily due to non-Title IV and professional\ndevelopment programs.\n                                                                               \n                                                 For                           \n                                                 the                           \n             For                                 Ye…                           \n             the                                  to                           \n  R…         Qu…                                 Da…                           \n  ($         En…                                 En…                           \n  in         Ju…               %                 Ju…               %           \n  t…    20…  30,    2…         C…            2…  30,    2…         C…          \n ───────────────────────────────────────────────────────────────────────────── \n  C…    $    11…    $   11…        0.9  %    $   23…    $   23…        2.5  %  \n  A…         57…        58…        -1…  %        11…        11…        -0…  %  \n  U…         40…        36…        10…  %        83…        75…        10…  %  \n  C…                                                                           \n  a…         189        191    NM                352        374    NM          \n  O…                                                                           \n  T…    $    21…    $   20…        1.8  %    $   43…    $   42…        3.0  %  \n                                                                               \nPRDO ANNOUNCES 2Q26 RESULTS PG3                                                \nOPERATING INCOME • For the quarter ended June 30, 2026, operating income of\n$54.9 million increased 6.8% from $51.4 million for the prior year quarter. •\nFor the year to date ended June 30, 2026, operating income of $118.0 million\nincreased 14.4% from $103.1 million for the prior year to date.\n                                                                               \n                                                 …                             \n                                                 …                             \n           F…                                    …                             \n  …        t…                                    …                             \n  …        Q…                                    …                             \n  …        E…                                    …                             \n  …        J…                    %               …                   %         \n  …    2…  3…       2…           C…          2…  …       2…          C…        \n ───────────────────────────────────────────────────────────────────────────── \n  …    $   4…       $   4…           …  %    $   …       $   …           …  %  \n  …                                                                            \n  …        1…           1…           …  %        …      ",
+    "quarterly_earnings_date": "2026-08-06",
+    "quarterly_eps_actuals": [
+      {
+        "period": "2026-06-30",
+        "actual": 0.8,
+        "estimate": 0.5508,
+        "surprise": 0.2492,
+        "surprisePercent": 45.2433,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-03-31",
+        "actual": 0.9,
+        "estimate": 0.8568,
+        "surprise": 0.0432,
+        "surprisePercent": 5.042,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-12-31",
+        "actual": 0.59,
+        "estimate": 0.5508,
+        "surprise": 0.0392,
+        "surprisePercent": 7.1169,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-09-30",
+        "actual": 0.65,
+        "estimate": 0.6222,
+        "surprise": 0.0278,
+        "surprisePercent": 4.468,
+        "revenueActual": null,
+        "revenueEstimate": null
+      }
+    ]
+  },
+  "competitive": {
+    "ticker": "PRDO",
+    "stub": false,
+    "moat_classification": "narrow",
+    "moat_sources": [
+      "brand",
+      "switching_costs"
+    ],
+    "peer_roic_comparison": [],
+    "citations": [
+      {
+        "claim": "Perdoceo Education has a 5-year average ROE of 17.1%. High Operating Margins (compared to peers) - the measure of a company with pricing power.",
+        "source_url": "https://uk.finance.yahoo.com/news/four-signs-competitive-moat-perdoceo-081009240.html",
+        "excerpt": "Perdoceo Education has a 5-year average ROE of 17.1%. High Operating Margins (compared to peers) - the measure of a company with pricing power.",
+        "confidence": 0.9,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "ROIC has shown an upward trend, with a recent figure of 17.1% in FY2025.",
+        "source_url": "Financial data: ROIC series",
+        "excerpt": "ROIC series: FY2025: 17.1%, FY2024: 15.2%, FY2023: 13.1%, FY2022: 11.3%",
+        "confidence": 0.95,
+        "gaap_vs_nongaap_flag": null
+      },
+      {
+        "claim": "The company has made strategic acquisitions to diversify its offerings.",
+        "source_url": "https://finance.yahoo.com/news/perdoceo-prdo-expands-health-sciences-152900680.html",
+        "excerpt": "This strategic acquisition is expected to support PRDO's further growth and diversification of academic programs, particularly in health sciences.",
+        "confidence": 0.85,
+        "gaap_vs_nongaap_flag": null
+      }
+    ]
+  },
+  "peers": [],
+  "peer_financials": [],
+  "historical_cagr_5y": 0.06766488761665546,
+  "historical_cagr_years": 3,
+  "checkpoint1_user_input": {
+    "proceed": true,
+    "peers": "",
+    "answers": {}
+  },
+  "checkpoint2_user_input": {
+    "wacc_pct": 9.0,
+    "terminal_growth_pct": 2.5,
+    "projection_years": 10
+  },
+  "valuation": {
+    "ticker": "PRDO",
+    "stub": false,
+    "dcf_intrinsic_value": {
+      "value": 4519571495.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_intrinsic_per_share": {
+      "value": 72.22,
+      "unit": "USD/share",
+      "period": "FY2025",
+      "source": "calculated (FCF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_upside_pct": 126.3,
+    "price_current": {
+      "value": 31.91,
+      "unit": "USD",
+      "period": "2026-10-03",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "reverse_dcf_implied_growth": -0.0754,
+    "ev_ebit_multiple": {
+      "value": 9.62,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "ev_fcf_multiple": {
+      "value": 8.37,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "pe_multiple": {
+      "value": 12.49,
+      "unit": "x",
+      "period": "2026-10-03",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "earnings_yield_pct": 10.39,
+    "magic_formula_rank": null,
+    "sensitivity_table": [
+      {
+        "near_term_growth_pct": 11.8,
+        "values": {
+          "wacc_7.0pct": 8.8,
+          "wacc_9.0pct": 6.0,
+          "wacc_11.0pct": 4.5
+        }
+      },
+      {
+        "near_term_growth_pct": 6.8,
+        "values": {
+          "wacc_7.0pct": 6.6,
+          "wacc_9.0pct": 4.5,
+          "wacc_11.0pct": 3.4
+        }
+      },
+      {
+        "near_term_growth_pct": 1.8,
+        "values": {
+          "wacc_7.0pct": 4.9,
+          "wacc_9.0pct": 3.4,
+          "wacc_11.0pct": 2.6
+        }
+      }
+    ],
+    "assumptions": {
+      "checkpoint_id": "checkpoint2",
+      "user_notes": "",
+      "proceed": true,
+      "wacc_pct": 9.0,
+      "terminal_growth_pct": 2.5,
+      "projection_years": 10,
+      "stage1_years": null,
+      "fade_years": null,
+      "revenue_growth_yr1_pct": null,
+      "margin_assumption_pct": null
+    },
+    "dcf_reliability_note": "Near-term FCF growth: 6.8% (FCF CAGR 3y, capped by revenue CAGR 6.8% — FCF growing faster than revenue is unsustainable long-term). ⚠️ Cyclical peak base: current revenue is 1.2x the historical median of the last 4 years. The CAGR-derived growth rate may be anchored to a boom year — forward DCF could overstate sustainable growth. Consider using a normalized (mid-cycle) revenue base for projections. ⚠️ DCF spread note: forward DCF uses 6.8% near-term growth (historical CAGR) but the market currently prices only -7.5% (spread: 14pp). The DCF upside is conditional on the analyst's growth assumption being correct vs what the market discounts — not a free margin of safety. Reverse DCF is the more informative valuation anchor.",
+    "fcf_quality_warning": null,
+    "near_term_growth_used_pct": 0.06766488761665546,
+    "near_term_growth_source": "fcf_cagr_3y_rev_capped",
+    "stage1_years_used": 5,
+    "fade_years_used": 5,
+    "epv_enterprise": {
+      "value": 1471766323.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_per_share": {
+      "value": 25.29,
+      "unit": "USD/share",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_4y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_upside_pct": -20.7,
+    "epv_source": "ebit_median_4y",
+    "suggested_wacc_pct": 10.7,
+    "suggested_wacc_breakdown": "Rf=4.2% + β=1.0×ERP=5.0% + size_premium=1.5% (small cap)",
+    "valuation_methods_summary": [
+      {
+        "method": "DCF (3-stage Damodaran fade)",
+        "per_share": "$72.22",
+        "upside_pct": 126.3,
+        "display_upside": "+126.3%",
+        "classification": "cheap"
+      },
+      {
+        "method": "EPV (Greenwald — zero growth)",
+        "per_share": "$25.29",
+        "upside_pct": -20.7,
+        "display_upside": "-20.7%",
+        "classification": "expensive"
+      },
+      {
+        "method": "Reverse DCF (market-implied growth)",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "implied -7.5% vs historical 6.8%",
+        "classification": "cheap"
+      },
+      {
+        "method": "EV/EBIT vs peer median",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "9.6x vs peer median N/A",
+        "classification": "n/a"
+      }
+    ]
+  },
+  "citations": [],
+  "unverified_claims": [],
+  "cost_usd": 0.0
+}

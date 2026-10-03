@@ -17,6 +17,7 @@ import pytest
 from due_diligence import cli
 from due_diligence.agents import archiver, critic, value_expert
 from due_diligence.schemas.base import FinancialsReport
+from due_diligence.schemas.reports import ValuationReport  # noqa: E402
 from due_diligence.schemas.reports import (
     CompetitiveReport,
     CriticReport,
@@ -63,11 +64,16 @@ _ALLOWLIST = {
     "cash_series": "serie de balance de T9; consumo previsto en valoración (bloque C) y H3-1 scores contables",
     "equity_series": "serie de balance de T9; consumo previsto en valoración (bloque C) y H3-1 scores contables",
     "data_quality_flags": "consumido en T13 (bloque C): sección 'Data quality flags' del archiver y bloque del Expert",
+    # ValuationReport (añadido al guard en la integración de H1): consumidos de forma indirecta.
+    "fcf_quality_warning": "volcado en dcf_reliability_note (valuation.py), que sí se renderiza",
+    "wacc_breakdown": "renderizado como texto vía suggested_wacc_breakdown (describe_wacc)",
+    "dcf_base_source": "incluido en MetricValue.source de dcf_intrinsic_per_share",
+    "epv_enterprise": "valor intermedio; el informe usa epv_per_share/epv_upside_pct (nunca se mostró)",
 }
 
 
 @pytest.mark.parametrize("model", [FilingsRAGReport, ManagementReport, CompetitiveReport,
-                                   FinancialsReport, CriticReport])
+                                   FinancialsReport, CriticReport, ValuationReport])
 def test_every_report_field_has_a_consumer(model):
     orphan = [f for f in model.model_fields
               if f not in _ALLOWLIST and not re.search(rf"\.{f}\b", _CONSUMER_SRC)]

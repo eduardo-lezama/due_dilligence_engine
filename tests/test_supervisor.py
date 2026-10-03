@@ -204,7 +204,10 @@ def test_check_tavily_quota_raises_when_nearly_exhausted(mocker):
         {"usage": {"credits_used": 960, "credits_limit": 1000}}
     ).encode()
     mocker.patch("due_diligence.tools.tavily.urllib.request.urlopen", return_value=mock_resp)
-    mocker.patch.object(config_module.settings, "tavily_api_key", "tvly-test-key")
+    # Parchear la instancia que USA tavily.py: test_config recarga config y deja un
+    # objeto settings distinto en config_module (el test fallaba sin .env, EC-89).
+    import due_diligence.tools.tavily as tavily_module
+    mocker.patch.object(tavily_module.settings, "tavily_api_key", "tvly-test-key")
 
     # _real_check_tavily_quota apunta al objeto función original (capturado antes del autouse)
     with pytest.raises(TavilyQuotaExceededError, match="960/1000"):

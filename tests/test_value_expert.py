@@ -703,3 +703,56 @@ def test_risks_caveat_when_governance_flag_omitted():
     ok = _to_report(_ve_out(risks="An active SEC investigation and a Material Weakness are disclosed."),
                     "TST", _gov_state(active_sec_investigation=True, material_weakness=True))
     assert "omits governance flag" not in ok.risks
+
+
+# ---------------------------------------------------------------------------
+# Tests: hipótesis del inversor aisladas (anti-sicofancia) — H1-T4b, EC-70
+# ---------------------------------------------------------------------------
+CP1 = {"proceed": True, "peers": "", "answers": {
+    "q1": {"question": "Is the moat durable?", "answer": "Yes, switching costs are huge"},
+    "q2": {"question": "Risk?", "answer": ""}}}
+
+
+def test_hypotheses_block_separated_and_labeled():
+    from due_diligence.agents.value_expert import _format_investor_hypotheses
+    lines = _format_investor_hypotheses({"checkpoint1_user_input": CP1,
+                                         "checkpoint2_user_input": {"growth_justification": "AI tailwind"}})
+    text = "\n".join(lines)
+    assert lines[0] == "## INVESTOR'S OWN HYPOTHESES (evaluate critically, do not adopt)"
+    assert "switching costs are huge" in text and "AI tailwind" in text
+    assert "Risk?" not in text                              # respuestas vacías omitidas
+
+
+def test_hypotheses_block_absent_without_input():
+    from due_diligence.agents.value_expert import _format_investor_hypotheses
+    assert _format_investor_hypotheses({"checkpoint1_user_input": {"proceed": True}}) == []
+
+
+def test_growth_justification_present_without_cagr_and_at_end():
+    ctx = _format_context({"ticker": "TST",
+                           "checkpoint2_user_input": {"growth_justification": "AI tailwind"}})
+    assert "AI tailwind" in ctx
+    assert ctx.rstrip().endswith("Rationale for DCF growth assumptions: AI tailwind")   # último bloque del contexto
+    assert "Investor's rationale for DCF growth assumptions" not in ctx   # etiqueta antigua eliminada
+
+
+def test_growth_justification_not_mixed_into_historical_context():
+    ctx = _format_context({"ticker": "TST", "historical_cagr_5y": 0.08, "historical_cagr_years": 5,
+                           "checkpoint2_user_input": {"growth_justification": "AI tailwind"}})
+    hist = ctx.split("## HISTORICAL CONTEXT")[1].split("## INVESTOR'S OWN HYPOTHESES")[0]
+    assert "AI tailwind" not in hist
+
+
+def test_system_prompt_has_rule_24_investor_hypotheses():
+    from due_diligence.agents.value_expert import _SYSTEM_PROMPT
+    assert "24. INVESTOR HYPOTHESES" in _SYSTEM_PROMPT
+
+
+def test_rule24_check_flags_missing_labels():
+    st = dict(_ok_state("TST"), checkpoint1_user_input=CP1,
+              checkpoint2_user_input={"growth_justification": "AI tailwind"})
+    r = _to_report(_ve_out(psychological_lens="Market is too pessimistic."), "TST", st)
+    assert "§8 did not evaluate 2 investor hypotheses" in r.psychological_lens
+    ok = _to_report(_ve_out(psychological_lens="Moat hypothesis: SUPPORTED by ROIC. AI tailwind: UNTESTABLE."),
+                    "TST", st)
+    assert "did not evaluate" not in ok.psychological_lens

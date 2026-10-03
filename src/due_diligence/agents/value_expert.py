@@ -122,6 +122,7 @@ RULES — NON-NEGOTIABLE:
     - STABLE label → use neutral language about ROIC.
     Critical distinction: absolute ROIC level (negative = poor quality capital allocation) vs ROIC direction (RISING = marginal capital is earning improving returns). A company going from -28% to +5% ROIC is at a potential inflection point — not in erosion. Describing RISING trend as "eroding moat" is a category error that produces incorrect verdicts with high spurious confidence.
 23. GOVERNANCE RED FLAGS (§3+§7+§9): when context contains a '## GOVERNANCE RED FLAGS' block, §7 MUST list each flag explicitly, §3 MUST assess its implication for management trust, and §9 MUST state whether any flag is a thesis-breaker.
+24. INVESTOR HYPOTHESES: the '## INVESTOR'S OWN HYPOTHESES' block is the user's opinion. In §8 Psychological Lens, evaluate each hypothesis against the evidence, label it SUPPORTED / CONTRADICTED / UNTESTABLE, and never cite it as evidence elsewhere.
 
 VERDICT RUBRIC:
 - BUY: moat confirmed + quality management + DCF upside >20% + no material 8-K red flags + conflicting signals resolved in favor of the bull case.
@@ -202,6 +203,60 @@ def _format_data_gaps(state: AnalysisState) -> list[str]:
                  f"sections that evidence is missing. Confidence is capped at {CONFIDENCE_CAP_DATA_GAPS:.0%} "
                  "when Filings or Management are missing.")
     return lines + [""]
+
+
+# Etiquetas que §8 debe usar para cada hipótesis del inversor (regla 24).
+_HYPOTHESIS_LABEL_RE = re.compile(r"\b(SUPPORTED|CONTRADICTED|UNTESTABLE)\b")
+
+
+def _investor_hypotheses(state: AnalysisState) -> tuple[list[tuple[str, str]], str]:
+    """(pares (pregunta, respuesta) no vacíos del checkpoint 1, growth_justification del cp2)."""
+    cp1 = state.get("checkpoint1_user_input") or {}  # type: ignore[typeddict-item]
+    cp2 = state.get("checkpoint2_user_input") or {}  # type: ignore[typeddict-item]
+    answers = cp1.get("answers") or {}
+    items = [(a.get("question", ""), a["answer"].strip()) for a in answers.values()
+             if isinstance(a, dict) and (a.get("answer") or "").strip()]
+    gj = (cp2.get("growth_justification") or "").strip()
+    return items, gj
+
+
+def _format_investor_hypotheses(state: AnalysisState) -> list[str]:
+    """Respuestas socráticas (cp1, ADR-018) y growth_justification (cp2) en un bloque aislado.
+
+    Investigación ("Price of Agreement", ICLR 2026): mezclar la opinión del usuario con la
+    evidencia induce sicofancia. Va al final, separada y etiquetada como hipótesis. Riesgo
+    conocido: el sesgo de recencia puede aumentar su peso; solo el eval de H2-1 lo mide
+    (por eso T0b congela la línea base antes de este cambio).
+    """
+    items, gj = _investor_hypotheses(state)
+    if not items and not gj:
+        return []
+    lines = ["## INVESTOR'S OWN HYPOTHESES (evaluate critically, do not adopt)",
+             "These are the investor's opinions, NOT evidence. Test each against the data above. "
+             "Never raise confidence because the investor agrees; state explicitly where the data contradicts them."]
+    lines += [f"- Q: {q}\n  Investor: {a}" for q, a in items]
+    if gj:
+        lines.append(f"- Rationale for DCF growth assumptions: {gj}")
+    return lines + [""]
+
+
+def _check_rule24_lens(lens: str | None, state: AnalysisState, ticker: str) -> str | None:
+    """Check determinista de la regla 24: §8 debe etiquetar cada hipótesis del inversor.
+
+    Cuenta las etiquetas SUPPORTED/CONTRADICTED/UNTESTABLE en psychological_lens; si hay
+    menos que hipótesis, añade un caveat visible (no se re-genera la síntesis).
+    """
+    items, gj = _investor_hypotheses(state)
+    n_hyp = len(items) + (1 if gj else 0)
+    if n_hyp == 0:
+        return lens
+    n_labels = len(_HYPOTHESIS_LABEL_RE.findall(lens or ""))
+    if n_labels >= n_hyp:
+        return lens
+    log.warning("value_expert_rule24_unlabeled_hypotheses", ticker=ticker,
+                hypotheses=n_hyp, labels=n_labels)
+    caveat = f"⚠️ §8 did not evaluate {n_hyp} investor hypotheses (SUPPORTED/CONTRADICTED/UNTESTABLE)"
+    return f"{lens}\n\n{caveat}" if lens else caveat
 
 
 def _format_context(state: AnalysisState) -> str:
@@ -761,16 +816,15 @@ def _format_context(state: AnalysisState) -> str:
             "If implied growth > CAGR, the market is pricing acceleration. "
             "If implied growth < CAGR, the market is pricing deceleration."
         )
-        # Justificación del usuario sobre por qué sus asunciones de growth divergen o
-        # se alinean con el CAGR histórico — aportada en Checkpoint 2 (ADR-018).
-        # Si está disponible, es contexto clave para §6 Valuation y §9 Decision Frame.
-        cp2 = state.get("checkpoint2_user_input") or {}  # type: ignore[typeddict-item]
-        growth_justification = cp2.get("growth_justification", "")
-        if growth_justification:
-            lines.append(f"Investor's rationale for DCF growth assumptions: {growth_justification}")
+        # growth_justification ya NO va aquí (T4b, EC-70): mezclada con la evidencia
+        # inducía sicofancia y además desaparecía si no había CAGR. Ahora vive en el
+        # bloque de hipótesis del inversor, al final.
         lines.append("")
 
-    return "\n".join(lines)
+    # --- Hipótesis del inversor: SIEMPRE el último bloque (T4b, regla 24) ---
+    lines += _format_investor_hypotheses(state)
+
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _to_report(out: ValueExpertLLMOutput, ticker: str,
@@ -786,6 +840,7 @@ def _to_report(out: ValueExpertLLMOutput, ticker: str,
     verdict = out.verdict if out.verdict in ("BUY", "HOLD", "SELL") else "HOLD"
     confidence = max(0.0, min(1.0, out.verdict_confidence))
     risks = out.risks
+    lens = out.psychological_lens
     if state is not None:
         missing = _missing_essentials(state)
         if missing and confidence > CONFIDENCE_CAP_DATA_GAPS:
@@ -800,6 +855,7 @@ def _to_report(out: ValueExpertLLMOutput, ticker: str,
                      flags=gov_flags)
             confidence = CONFIDENCE_CAP_GOVERNANCE
         risks = _check_rule23_risks(risks, gov_flags, ticker)
+        lens = _check_rule24_lens(lens, state, ticker)
     sizing = max(0.0, min(20.0, out.suggested_sizing_pct))
     # Sizing discipline post-hoc clamp (Fix D / EC-24): aunque el prompt instruye
     # "max sizing ≤ confidence × 10", el LLM puede ignorarlo; aquí se impone en código.
@@ -813,7 +869,7 @@ def _to_report(out: ValueExpertLLMOutput, ticker: str,
         business_understanding=out.business_understanding, moat_analysis=out.moat_analysis,
         management_assessment=out.management_assessment, financial_quality=out.financial_quality,
         growth_reinvestment=out.growth_reinvestment, valuation_section=out.valuation_section,
-        risks=risks, psychological_lens=out.psychological_lens, decision_frame=out.decision_frame,
+        risks=risks, psychological_lens=lens, decision_frame=out.decision_frame,
         verdict=verdict, verdict_confidence=confidence, suggested_sizing_pct=sizing,
         verdict_rationale=out.verdict_rationale,
     )

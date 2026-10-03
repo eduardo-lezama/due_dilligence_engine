@@ -152,3 +152,17 @@ Excerpts de menos de 20 caracteres se rechazan (con 6 caracteres partial_ratio e
 **Relación con la arquitectura.** Invariante 5/ADR-005: las reglas críticas se imponen en código, el prompt solo explica. ADR-014: la etiqueta de fuente no exagera.
 
 **Ejemplo.** Filings con `active_sec_investigation=True` y cita "we received a subpoena from the SEC Division of Enforcement..." verificada → el Expert devuelve 0.9 de confianza y el report sale con 0.6; si el LLM dice `True` sin cita → el flag queda `None` y no hay tope.
+
+---
+
+## T4b — Separar opinión y evidencia en el contexto (anti-sicofancia)
+
+**Concepto.** Sicofancia: un LLM tiende a dar la razón a quien le habla. Si la opinión del usuario aparece mezclada con los datos, el modelo la trata como un dato más y sube su confianza cuando el usuario está de acuerdo con la tesis.
+
+**Por qué.** Las respuestas socráticas del checkpoint 1 no llegaban al Expert, y `growth_justification` (checkpoint 2) iba dentro de "HISTORICAL CONTEXT", pegada al CAGR y solo si existía CAGR (EC-70).
+
+**Cómo.** `_format_investor_hypotheses(state)` construye `## INVESTOR'S OWN HYPOTHESES (evaluate critically, do not adopt)`: instrucciones explícitas ("opiniones, NO evidencia"), cada pregunta con respuesta no vacía y "Rationale for DCF growth assumptions" aunque no haya CAGR. Es siempre el **último** bloque del contexto. Regla 24: §8 etiqueta cada hipótesis SUPPORTED / CONTRADICTED / UNTESTABLE y nunca la cita como evidencia. Check determinista `_check_rule24_lens`: si §8 tiene menos etiquetas que hipótesis → caveat "⚠️ §8 did not evaluate N investor hypotheses".
+
+**Relación con la arquitectura.** ADR-018 (checkpoints socráticos) ahora sí cierra el circuito hasta la síntesis. Riesgo documentado: al final del contexto, el sesgo de recencia puede darle más peso; solo el harness de evals de H2-1 lo puede medir contra la línea base congelada en T0b.
+
+**Ejemplo.** cp1 `{"q1": {"question": "Is the moat durable?", "answer": "Yes, switching costs are huge"}, "q2": {..., "answer": ""}}` + cp2 `growth_justification="AI tailwind"` → dos hipótesis en el bloque (q2 vacía se omite); si §8 dice solo "Market is too pessimistic." aparece el caveat.

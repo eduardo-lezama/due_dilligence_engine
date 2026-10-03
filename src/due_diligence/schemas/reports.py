@@ -287,6 +287,7 @@ class ValuationReport(BaseModel):
     fcff_breakdown: Optional[FcffBreakdown] = None      # componentes del FCFF del ÚLTIMO ejercicio
     dcf_base_source: Optional[str] = None               # "FCFF (...)" | "NOPAT proxy (EBIT × (1-t))"
     tax_rate_used: Optional[float] = None               # effective_tax_rate_multi (Σtax/Σpretax ≤3 años)
+    tax_rate_source: Optional[str] = None               # 'effective Σtax/Σpretax (...)' o 'default 25% (motivo)'
     enterprise_value_dcf: Optional[MetricValue] = None  # EV del DCF (capitalizado a la fecha de valoración)
     equity_bridge: Optional[EquityBridge] = None        # EV → equity con cada componente visible
     market_enterprise_value: Optional[MetricValue] = None  # price × shares + net_claims (base de múltiplos y reverse)

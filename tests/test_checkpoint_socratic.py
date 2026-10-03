@@ -157,7 +157,7 @@ def levered_state_with_market():
 
 
 def test_checkpoint2_summary_proposes_real_wacc(levered_state_with_market):
-    # Ke 9.2 % (prima de tamaño OFF); cobertura 300/40 = 7.5× → A+ → Kd 5.0 %; E 1 500 / D 500
+    # Ke 9.2 % (prima de tamaño OFF); cobertura 300/40 = 7.5× → AA → Kd 5.0 %; E 1 500 / D 500
     # WACC = 0.75×9.2 % + 0.25×5.0 %×0.75 = 6.9 % + 0.9375 % = 7.8375 % → 7.8
     s = _build_checkpoint2_summary(levered_state_with_market)
     expected = suggest_wacc(levered_state_with_market["financials"], 1_500e6)

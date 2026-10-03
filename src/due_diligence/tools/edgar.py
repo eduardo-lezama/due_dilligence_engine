@@ -260,7 +260,10 @@ class EdgarAdapter:
         # Un solo método de IC por empresa (revisión adversarial A4): si CUALQUIER año tiene
         # equity ≤ 0, toda la serie (y el snapshot) usa el IC operativo. Mezclar métodos
         # entre años crea saltos espurios en ROIC y en ΔIC.
-        force_operating = any((h.get("stockholders_equity") or 0.0) <= 0 for h in history)
+        # Equity AUSENTE (None) no es equity ≤ 0: un año sin dato no puede cambiar el método de
+        # toda la serie (revisión final H1, #6). Ese año simplemente no tiene IC primario.
+        force_operating = any(h.get("stockholders_equity") is not None and h["stockholders_equity"] <= 0
+                              for h in history)
 
         se_raw = bs.get("stockholders_equity")
         equity_value = se_raw["value"] if se_raw else 0.0
@@ -296,6 +299,8 @@ class EdgarAdapter:
         for h in history:
             if h.get("total_assets") is None or h.get("cash") is None:
                 continue
+            if h.get("stockholders_equity") is None and not force_operating:
+                continue   # sin equity no hay IC primario; contarlo como 0 forzaría el operativo
             res = invested_capital(equity=h.get("stockholders_equity") or 0.0, total_debt=h["total_debt"],
                                    cash=h["cash"], sti=h.get("short_term_investments") or 0.0,
                                    lti=h.get("long_term_investments") or 0.0,

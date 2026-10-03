@@ -209,10 +209,10 @@ def test_cost_of_debt_synthetic_rating_from_coverage():
 
 def test_cost_of_debt_low_coverage_high_spread_and_fallbacks():
     # 100/100 = 1.0× → tramo [0.80, 1.25) "CCC" → 8.0 %. (El plan usaba 100/80 = 1.25×, que cae
-    # justo en el suelo del tramo CCC+ = 6.5 % de su propia tabla: dato del test corregido, tabla intacta.)
+    # justo en el suelo del tramo B- = 6.5 % de su propia tabla: dato del test corregido, tabla intacta.)
     kd, _ = estimate_pre_tax_cost_of_debt(ebit=100e6, interest_expense=100e6)
     assert kd == pytest.approx(0.042 + 0.08)
-    kd, _ = estimate_pre_tax_cost_of_debt(ebit=100e6, interest_expense=80e6)       # 1.25× → CCC+ 6.5 %
+    kd, _ = estimate_pre_tax_cost_of_debt(ebit=100e6, interest_expense=80e6)       # 1.25× → B- 6.5 %
     assert kd == pytest.approx(0.042 + 0.065)
     kd, src = estimate_pre_tax_cost_of_debt(ebit=None, interest_expense=None)     # sin datos → Rf + 2 pp
     assert kd == pytest.approx(0.062) and "fallback" in src

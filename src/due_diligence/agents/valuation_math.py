@@ -229,9 +229,11 @@ def dcf_components(
 # Valores tomados del plan H1 sin verificación online (no hay red en la implementación); actualizar
 # spreads y fecha cuando se revise. Cada fila: (cobertura mínima, spread, rating).
 _SYNTHETIC_RATING_TABLE: tuple[tuple[float, float, str], ...] = (
-    (8.50, 0.006, "AAA/AA"), (6.50, 0.008, "A+"), (5.50, 0.010, "A"), (4.25, 0.011, "A-"),
-    (3.00, 0.013, "BBB"), (2.50, 0.017, "BB+"), (2.25, 0.023, "BB"), (2.00, 0.030, "B+"),
-    (1.75, 0.040, "B"), (1.50, 0.050, "B-"), (1.25, 0.065, "CCC+"), (0.80, 0.080, "CCC"),
+    # Etiquetas alineadas con los tramos de cobertura de Damodaran (revisión final H1, #7: estaban
+    # desplazadas una fila — 7× salía "A+" cuando es AA). Los spreads no cambian.
+    (8.50, 0.006, "AAA"), (6.50, 0.008, "AA"), (5.50, 0.010, "A+"), (4.25, 0.011, "A"),
+    (3.00, 0.013, "A-"), (2.50, 0.017, "BBB"), (2.25, 0.023, "BB+"), (2.00, 0.030, "BB"),
+    (1.75, 0.040, "B+"), (1.50, 0.050, "B"), (1.25, 0.065, "B-"), (0.80, 0.080, "CCC"),
     (0.65, 0.100, "CC"), (0.20, 0.130, "C"), (float("-inf"), 0.170, "D"),
 )
 
@@ -285,7 +287,7 @@ def compute_wacc(
 def describe_wacc(w: WaccBreakdown) -> str:
     """Desglose legible del WACC para checkpoint 2, CLI, archiver y Value Expert (una sola redacción).
 
-    Ej.: "Ke 9.2% (CAPM ...) × 87% + Kd 4.8% (synthetic rating A+ ...) × (1−25%) × 13% = 8.5%".
+    Ej.: "Ke 9.2% (CAPM ...) × 87% + Kd 4.8% (synthetic rating AAA ...) × (1−25%) × 13% = 8.5%".
     """
     ke_src = f" ({w.cost_of_equity_source})" if w.cost_of_equity_source else ""
     kd_src = f" ({w.cost_of_debt_source})" if w.cost_of_debt_source else ""

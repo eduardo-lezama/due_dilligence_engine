@@ -79,16 +79,32 @@ def _verify_one(c: Citation, corpus_norm: str) -> Citation:
 
 
 def validate_citations(citations: list[Citation], corpus: dict[str, str]) -> list[Citation]:
-    """Valida cada cita contra la concatenación del corpus.
+    """Valida cada cita contra CADA fuente del corpus por separado.
 
-    Se concatena todo porque las etiquetas de fuente que da el LLM no son fiables.
+    Se prueban todas las fuentes porque la etiqueta que da el LLM no es fiable, pero nunca su
+    concatenación: unidas, un excerpt podía casar cruzando la frontera entre dos documentos
+    (final del 10-K + principio de la web) y quedar "verificado" sin existir en ninguno
+    (revisión final H1, #8). Verificada en alguna fuente → verificada; si no, se devuelve el
+    rechazo más informativo (números distintos en una ventana que sí casa > texto no encontrado).
     Corpus vacío (todas las descargas fallaron) → todas rechazadas con nota explícita
     (Review Focus #5): sin texto fuente nada puede quedar "verificado".
     """
-    if not any((v or "").strip() for v in corpus.values()):
+    sources = [normalize_text(v) for v in corpus.values() if (v or "").strip()]
+    if not sources:
         return [_reject(c, "empty corpus — nothing to verify against") for c in citations]
-    corpus_norm = normalize_text("\n".join(v for v in corpus.values() if v))
-    return [_verify_one(c, corpus_norm) for c in citations]
+    return [_verify_against_sources(c, sources) for c in citations]
+
+
+def _verify_against_sources(c: Citation, sources: list[str]) -> Citation:
+    """Primera fuente que verifica la cita; si ninguna, el rechazo más cercano."""
+    rejections = []
+    for src in sources:
+        result = _verify_one(c, src)
+        if result.verified:
+            return result
+        rejections.append(result)
+    near_miss = [r for r in rejections if (r.verification_note or "").startswith("numbers not in source")]
+    return (near_miss or rejections)[0]
 
 
 def source_label_for(c: Citation, corpus: dict[str, str]) -> Optional[str]:

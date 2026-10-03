@@ -323,8 +323,19 @@ def subtract_aligned(a_list: list[dict], b_list: list[dict]) -> list[dict]:
     ]
 
 
-PRETAX_CONCEPT = ("IncomeLossFromContinuingOperationsBeforeIncomeTaxes"
-                  "ExtraordinaryItemsNoncontrollingInterest")
+# Equity de la matriz: StockholdersEquity; si el filer solo reporta el total con minoritarios,
+# esa variante (mejor que un None que cambia el método de IC). Una sola cadena para el balance
+# y para balance_history (revisión final H1, #6).
+EQUITY_CONCEPTS = ("StockholdersEquity",
+                   "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest")
+
+# Cadena de beneficio antes de impuestos. Muchos filers (los que tienen participaciones por
+# puesta en equivalencia) solo reportan la segunda variante; sin ella el tipo efectivo caía al
+# 25 % por defecto sin datos (revisión final H1, #2).
+PRETAX_CONCEPTS = (
+    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+    "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+)
 
 
 def compute_operating_income(inc_df: pd.DataFrame) -> list[dict]:
@@ -347,7 +358,7 @@ def compute_operating_income(inc_df: pd.DataFrame) -> list[dict]:
         if derived:
             return derived
 
-    pretax = annual_series(inc_df, (PRETAX_CONCEPT,))
+    pretax = annual_series(inc_df, PRETAX_CONCEPTS)
     # InterestIncomeExpenseNonoperatingNet: positivo = ingreso neto. EBIT = Pretax − neto.
     interest = annual_series(inc_df, ("InterestIncomeExpenseNonoperatingNet",))
     if pretax and interest:
@@ -628,7 +639,7 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
         d = resolve_debt(g, p)
         history.append({
             "period": p, "total_assets": val(g(("Assets",))),
-            "stockholders_equity": val(g(("StockholdersEquity",))),
+            "stockholders_equity": val(g(EQUITY_CONCEPTS)),
             "total_debt": d["long_term_debt"]["value"] + d["short_term_debt"]["value"] + d["finance_leases"]["value"],
             "short_term_debt": d["short_term_debt"]["value"],
             # caja de cada año: no lanza (años antiguos pueden no tenerla) → None y el año se omite del IC
@@ -652,7 +663,7 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
             "capex": merge_annual(CAPEX_CONCEPTS, (cf_df,), facts, labels),  # EC-90: año a año
             # Para ROIC: impuesto + pretax permiten el tipo efectivo por año.
             "income_tax": fill(annual_series(inc_df, ("IncomeTaxExpenseBenefit",))),
-            "pretax_income": fill(annual_series(inc_df, (PRETAX_CONCEPT,))),
+            "pretax_income": fill(annual_series(inc_df, PRETAX_CONCEPTS)),
             # Capital returns (ADR-023): negativos en XBRL; parse_financials toma magnitud.
             "buybacks": merge_annual(BUYBACK_CONCEPTS, (cf_df,), facts, labels),  # EC-90: año a año
             "dividends": merge_annual(DIVIDEND_CONCEPTS, (cf_df,), facts, labels),  # EC-90: año a año
@@ -675,7 +686,7 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
             "short_term_investments": get(STI) or {"value": 0.0, "period": fy_label, "source": "absent"},
             "long_term_investments": get(LTI),
             "current_liabilities": get(("LiabilitiesCurrent",)),
-            "stockholders_equity": get(("StockholdersEquity",)),
+            "stockholders_equity": get(EQUITY_CONCEPTS),
             # --- Memo (T8): visibles, pero NO dentro de total_debt ---
             "operating_lease_liabilities": op_lease,
             "operating_rou_asset": get(OP_ROU_ASSET),

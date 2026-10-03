@@ -524,8 +524,12 @@ def suggest_wacc(financials, market_cap: Optional[float], *, size_premium: bool 
     if market_cap is None or market_cap <= 0 or financials is None:
         return None
     ke_pct, ke_src = _compute_suggested_wacc(market_cap, size_premium=size_premium)  # histórico: devuelve Ke
-    ebit = financials.operating_income[0].value if financials.operating_income else None
-    interest = financials.interest_expense[0].value if financials.interest_expense else None
+    # Cobertura EBIT/intereses del MISMO ejercicio: interest_expense[0] puede ser de otro año si la
+    # serie tiene huecos (revisión final H1, #4). Sin intereses de ese año → Kd por defecto.
+    ebit_mv = financials.operating_income[0] if financials.operating_income else None
+    ebit = ebit_mv.value if ebit_mv is not None else None
+    interest = (next((m.value for m in financials.interest_expense if m.period == ebit_mv.period), None)
+                if ebit_mv is not None else None)
     # Serie por año (T9) primero; el punto del balance como fallback; sin deuda → 0 (peso 0).
     debt_latest = (financials.total_debt_series[0].value if financials.total_debt_series
                    else (financials.total_debt.value if financials.total_debt else 0.0))
@@ -911,43 +915,64 @@ def _upside_pct(per_share_value: Optional[float], price: Optional[float]) -> Opt
     return round((per_share_value - price) / price * 100, 1)
 
 
-def _canonical_tax_rate(financials) -> float:
+def _canonical_tax_rate(financials) -> tuple[float, str]:
     """Tipo efectivo canónico (effective_tax_rate_multi) con las series alineadas por PERIODO.
 
     effective_tax_rate_multi empareja por posición; si income_tax y pretax_income no tienen
     los mismos años (huecos en XBRL), emparejar por índice mezclaría ejercicios. Se alinean
-    aquí por etiqueta FY y se pasan ya emparejados. Sin datos → 25 % (default canónico).
+    aquí por etiqueta FY y se pasan ya emparejados.
+
+    Returns:
+        (tipo, procedencia). La procedencia distingue un 25 % CALCULADO de un 25 % POR DEFECTO
+        (sin datos o pretax ≤ 0): sin ella el informe presentaba el default como si fuera dato
+        (revisión final H1, #2; invariante 5).
     """
     if financials is None:
-        return effective_tax_rate_multi([], [])
+        return effective_tax_rate_multi([], []), "default 25% (no financials)"
     pretax_by = {m.period: m.value for m in financials.pretax_income}
-    pairs = [(m.value, pretax_by[m.period]) for m in financials.income_tax if m.period in pretax_by]
-    return effective_tax_rate_multi([t for t, _ in pairs], [p for _, p in pairs])
+    pairs = [(m.value, pretax_by[m.period], m.period)
+             for m in financials.income_tax if m.period in pretax_by][:3]
+    rate = effective_tax_rate_multi([t for t, _, _ in pairs], [p for _, p, _ in pairs])
+    if not pairs:
+        return rate, "default 25% (income tax / pretax income unavailable)"
+    if sum(p for _, p, _ in pairs) <= 0:
+        return rate, "default 25% (cumulative pretax income ≤ 0)"
+    return rate, f"effective Σtax/Σpretax ({', '.join(per for _, _, per in pairs)})"
 
 
 def _fcff_for_year(financials, i: int, tax_rate: float) -> Optional[FcffBreakdown]:
     """FCFF del ejercicio en posición i de operating_cash_flow, con cada input del MISMO periodo.
 
-    Un input ausente para ese año cuenta 0.0 (y se lista en missing_inputs por _build_fcff):
-    emparejar por etiqueta FY evita mezclar el capex de un año con el OCF de otro (EC-82).
+    Emparejar por etiqueta FY evita mezclar el capex de un año con el OCF de otro (EC-82).
+    Un input ausente PARA ESE AÑO cuenta 0.0 en la aritmética, pero se registra en
+    `missing_inputs` del breakdown: antes solo se avisaba si la serie entera estaba vacía y un
+    hueco de un año (capex FY2024) inflaba el FCFF en silencio (revisión final H1, #1).
+    El principal de leases financieros no se registra: no tenerlos es lo normal.
     """
     ocf = financials.operating_cash_flow
     if i >= len(ocf):
         return None
     period = ocf[i].period
+    missing: list[str] = []
 
-    def _at(series) -> float:   # valor de la serie en el MISMO periodo, 0.0 si falta
-        return next((m.value for m in series if m.period == period), 0.0)
+    def _at(name: str, series) -> float:
+        v = next((m.value for m in series if m.period == period), None)
+        if v is None:
+            missing.append(name)
+            return 0.0
+        return v
 
-    return fcff_breakdown(
-        ocf=ocf[i].value, capex=_at(financials.capex),
-        interest_expense=_at(financials.interest_expense), tax_rate=tax_rate,
-        sbc=_at(financials.sbc), interest_income=_at(financials.interest_income),
-        finance_lease_principal=_at(financials.finance_lease_principal_payments),
+    bd = fcff_breakdown(
+        ocf=ocf[i].value, capex=_at("capex", financials.capex),
+        interest_expense=_at("interest_expense", financials.interest_expense), tax_rate=tax_rate,
+        sbc=_at("sbc", financials.sbc), interest_income=_at("interest_income", financials.interest_income),
+        finance_lease_principal=next((m.value for m in financials.finance_lease_principal_payments
+                                      if m.period == period), 0.0),
     )
+    return bd.model_copy(update={"missing_inputs": missing})
 
 
-def _build_fcff(financials, tax_rate: float) -> tuple[Optional[FcffBreakdown], Optional[float], list[str], str]:
+def _build_fcff(financials, tax_rate: float) -> tuple[Optional[FcffBreakdown], Optional[float], list[str], list[str], str]:
     """
     Base FCFF del DCF (revisión adversarial A2).
 
@@ -957,27 +982,29 @@ def _build_fcff(financials, tax_rate: float) -> tuple[Optional[FcffBreakdown], O
 
     Returns:
         (breakdown del ÚLTIMO año — componentes coherentes entre sí —, base usada en el DCF,
-         inputs ausentes, etiqueta de fuente).
+         inputs ausentes en el último año, huecos "input FYxxxx" de todos los años usados,
+         etiqueta de fuente).
     """
     if financials is None or not financials.operating_cash_flow:
-        return None, None, ["operating_cash_flow"], "unavailable"
+        return None, None, ["operating_cash_flow"], [], "unavailable"
     latest = _fcff_for_year(financials, 0, tax_rate)
-    missing = [n for n, s in (("capex", financials.capex), ("interest_expense", financials.interest_expense),
-                              ("sbc", financials.sbc), ("interest_income", financials.interest_income))
-               if not s]
-    latest = latest.model_copy(update={"missing_inputs": missing})
+    missing = list(latest.missing_inputs)
+    latest_gaps = [f"{n} {financials.operating_cash_flow[0].period}" for n in missing]
     rev_by = {m.period: m.value for m in financials.revenue}
     margins = []
+    year_gaps: list[str] = []
     for i in range(min(3, len(financials.operating_cash_flow))):
         bd = _fcff_for_year(financials, i, tax_rate)
-        rev = rev_by.get(financials.operating_cash_flow[i].period)
+        period = financials.operating_cash_flow[i].period
+        rev = rev_by.get(period)
         if bd is not None and rev:
             margins.append(bd.fcff / rev)
+            year_gaps += [f"{name} {period}" for name in bd.missing_inputs]
     if len(margins) >= 3 and financials.revenue:
         median_margin = sorted(margins)[1]
         base = median_margin * financials.revenue[0].value
-        return latest, base, missing, f"median FCFF margin (3y) × latest revenue = {median_margin:.1%}"
-    return latest, latest.fcff, missing, "latest FY FCFF"
+        return latest, base, missing, year_gaps, f"median FCFF margin (3y) × latest revenue = {median_margin:.1%}"
+    return latest, latest.fcff, missing, latest_gaps, "latest FY FCFF"
 
 
 def valuation_agent(state: AnalysisState) -> dict:
@@ -1100,8 +1127,10 @@ def _run_valuation(state: AnalysisState) -> dict:
 
     # --- 2b. Plano enterprise (ADR-033): tipo, FCFF, acciones, derechos netos, market EV ---
     note_parts: list[str] = []
-    tax_rate = _canonical_tax_rate(financials)
-    fcff_bd, fcff_base_value, fcff_missing, fcff_source = _build_fcff(financials, tax_rate)
+    tax_rate, tax_rate_source = _canonical_tax_rate(financials)
+    fcff_bd, fcff_base_value, fcff_missing, fcff_year_gaps, fcff_source = _build_fcff(financials, tax_rate)
+    if tax_rate_source.startswith("default"):
+        note_parts.append(f"ℹ️ Tax rate: {tax_rate_source}.")
     share_count, share_source = resolve_share_count(
         _mv_val(financials.shares_outstanding) if financials is not None else None,
         _latest(financials.diluted_shares) if financials is not None else None,
@@ -1279,13 +1308,17 @@ def _run_valuation(state: AnalysisState) -> dict:
     # NOPAT del último año con el tipo canónico: ancla del valor terminal con reinversión
     # (Damodaran/Koller) y fallback del DCF cuando el FCFF es negativo (trough / reinversión fuerte).
     nopat_base: Optional[float] = ebit * (1 - tax_rate) if ebit is not None else None
-    terminal_nopat = nopat_base if nopat_base is not None and nopat_base > 0 else None
+    # El valor terminal es perpetuidad: ahí el efectivo converge al MARGINAL (Damodaran; ADR-033).
+    # Usar el efectivo de un año con créditos fiscales (10 %) inflaba el TV (revisión final H1, #3).
+    # El fallback del DCF (NOPAT proxy) sigue con el efectivo: describe el año observado.
+    terminal_nopat = (ebit * (1 - MARGINAL_TAX_RATE)
+                      if ebit is not None and ebit > 0 else None)
     dcf_base: Optional[float] = None
     dcf_base_source: str = ""  # etiqueta para `MetricValue.source` y reliability note
     if fcff_base_value is not None and fcff_base_value > 0:
         dcf_base, dcf_base_source = fcff_base_value, f"FCFF ({fcff_source})"
-    elif terminal_nopat is not None:
-        dcf_base, dcf_base_source = terminal_nopat, "NOPAT proxy (EBIT × (1-t))"
+    elif nopat_base is not None and nopat_base > 0:
+        dcf_base, dcf_base_source = nopat_base, "NOPAT proxy (EBIT × (1-t))"
     else:
         note_parts.append("⚠️ DCF not computed: no positive FCFF or NOPAT (loss-making or data gap).")
         log.warning("valuation_agent_no_dcf_base", ticker=ticker, fcff=fcff_base_value, ebit=ebit)
@@ -1325,6 +1358,8 @@ def _run_valuation(state: AnalysisState) -> dict:
             note_parts.append(f"⚠️ {comps.terminal_value_share:.0%} of value comes from the terminal value.")
 
     # Notas obligatorias de inputs (ADR-033): lo ausente se dice, no se maquilla.
+    if fcff_year_gaps:
+        note_parts.append(f"ℹ️ FCFF inputs absent for specific years (counted as 0): {', '.join(fcff_year_gaps)}.")
     if "sbc" in fcff_missing:
         note_parts.append("⚠️ SBC unavailable: FCFF may be overstated (stock comp not charged).")
     if "interest_expense" in fcff_missing and (total_debt or 0) > 0:
@@ -1401,7 +1436,8 @@ def _run_valuation(state: AnalysisState) -> dict:
     # EV de mercado = equity de mercado (precio × acciones) + net claims: la MISMA definición de
     # derechos que el bridge del DCF/EPV (ADR-033 §5). Market EV ≤ 0 (net-net) → múltiplos "n/m".
     if market_ev is not None and market_ev > 0:
-        if ebit is not None:
+        # EBIT ≤ 0: EV/EBIT negativo o división por cero no significa nada → "n/m" (revisión final H1, #5)
+        if ebit is not None and ebit > 0:
             ev_ebit_mv = MetricValue(
                 value=round(market_ev / ebit, 2),
                 unit="x",
@@ -1576,6 +1612,7 @@ def _run_valuation(state: AnalysisState) -> dict:
         fcff_breakdown=fcff_bd,
         dcf_base_source=dcf_base_source or None,
         tax_rate_used=tax_rate,
+        tax_rate_source=tax_rate_source,
         enterprise_value_dcf=ev_dcf_mv,
         equity_bridge=bridge,
         market_enterprise_value=(MetricValue(value=round(market_ev), unit="USD", period=as_of_date,

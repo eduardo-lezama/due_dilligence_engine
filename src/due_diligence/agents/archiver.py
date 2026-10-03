@@ -372,7 +372,8 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
             if valuation.fcff_base is not None:
                 footer_parts.append(f"FCFF base {_fmt_usd(valuation.fcff_base.value)} ({valuation.fcff_base.source})")
             if valuation.tax_rate_used is not None:
-                footer_parts.append(f"tax rate {valuation.tax_rate_used:.1%}")
+                src = f" ({valuation.tax_rate_source})" if valuation.tax_rate_source else ""
+                footer_parts.append(f"tax rate {valuation.tax_rate_used:.1%}{src}")
             if valuation.mid_year_convention_used is not None:
                 footer_parts.append(f"mid-year convention {'ON' if valuation.mid_year_convention_used else 'OFF'}")
             if valuation.terminal_value_share is not None:

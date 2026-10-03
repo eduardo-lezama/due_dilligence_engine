@@ -178,10 +178,27 @@ class EdgarAdapter:
         else:
             fcf_list = []
 
-        total_debt_value = bs["long_term_debt"]["value"] + bs["short_term_debt"]["value"]
-        cash_value = (
-            bs["cash_and_equivalents"]["value"] + bs["short_term_investments"]["value"]
-        )
+        def _mv_opt(item: dict | None, unit: str = "USD") -> MetricValue | None:
+            """MetricValue opcional — nunca construir con value=None (EC-34).
+
+            Un item con source "absent" es un 0.0 de relleno, no un dato: se omite (None).
+            """
+            if not item or item.get("value") is None or item.get("source") == "absent":
+                return None
+            return MetricValue(value=item["value"], unit=unit, period=item["period"],
+                               source=item.get("source", "XBRL"))
+
+        # Deuda total = LT + ST + leasing financiero (EC-80). Fixtures legacy sin
+        # "finance_leases" cuentan 0. Los leasings OPERATIVOS no entran (ASC 842, memo en T8).
+        lease = bs.get("finance_leases") or {"value": 0.0, "source": "absent"}  # legacy: sin clave → 0
+        total_debt_value = (bs["long_term_debt"]["value"] + bs["short_term_debt"]["value"]
+                            + lease["value"])
+        # EC-81 / revisión adversarial: cash_and_equivalents = SOLO caja. Las STI van en su propio
+        # campo y el bridge (T12) las resta UNA vez. Antes aquí se sumaban (cash + STI) y el
+        # consumidor no podía saberlo. Fixtures legacy: STI=0 → mismo valor que antes.
+        cash_value = bs["cash_and_equivalents"]["value"]
+        sti_item = bs.get("short_term_investments")
+        sti_value = sti_item["value"] if sti_item and sti_item.get("value") is not None else 0.0
         period = bs["total_assets"]["period"]
 
         # --- ROIC calculation ---
@@ -207,8 +224,10 @@ class EdgarAdapter:
         equity_value = se_raw["value"] if se_raw else 0.0
         total_assets_value = bs["total_assets"]["value"] if bs.get("total_assets") else 0.0
 
-        ic_primary = equity_value + total_debt_value - cash_value
-        ic_fallback = total_assets_value - cash_value if total_assets_value > 0 else 0.0
+        # IC resta la caja NO operativa completa: caja + STI (antes iba sumada dentro de cash_value).
+        non_operating_cash = cash_value + sti_value
+        ic_primary = equity_value + total_debt_value - non_operating_cash
+        ic_fallback = total_assets_value - non_operating_cash if total_assets_value > 0 else 0.0
 
         # Threshold: la primaria es "degenerada" si < 10% del operating capital.
         # Esto detecta el patrón buyback-heavy donde equity queda artificialmente bajo.
@@ -264,8 +283,12 @@ class EdgarAdapter:
                 value=total_debt_value, unit="USD", period=period, source="XBRL"
             ),
             cash_and_equivalents=MetricValue(
-                value=cash_value, unit="USD", period=period, source="XBRL"
+                value=cash_value, unit="USD", period=period,
+                source=bs["cash_and_equivalents"].get("source", "XBRL"),
             ),
+            short_term_investments=_mv_opt(sti_item),
+            long_term_investments=_mv_opt(bs.get("long_term_investments")),
+            data_quality_flags=list(raw.get("data_quality_flags", [])),
             shares_outstanding=(
                 # Construcción condicional (EC-34): NO crear MetricValue con value=None.
                 # Si XBRL no reporta shares (small caps con dual-class como CRD.A, ADRs),

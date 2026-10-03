@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Callable
 from datetime import date
 from typing import Any, Protocol
 
@@ -302,16 +303,128 @@ BUYBACK_CONCEPTS = ("PaymentsForRepurchaseOfCommonStock", "PaymentsForRepurchase
 DIVIDEND_CONCEPTS = ("PaymentsOfDividendsCommonStock", "PaymentsOfDividends")
 CASH_CONCEPTS = ("CashAndCashEquivalentsAtCarryingValue", "CashAndCashEquivalents", "Cash")
 
-# Cadenas de deuda heredadas de edgar.py (T5 conserva la lógica; T6 la sustituye
-# por resolve_debt, que corrige el doble conteo — EC-80).
-_LEGACY_LT_DEBT = (
-    "LongTermDebt", "LongTermDebtNoncurrent", "LongTermDebtAndCapitalLeaseObligations",
-    "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities", "LongTermNotesPayable",
-)
-_LEGACY_ST_DEBT = (
-    "ShortTermBorrowings", "LongTermDebtCurrent", "LongTermDebtAndCapitalLeaseObligationsCurrent",
-    "NotesPayableCurrent", "DebtCurrent",
-)
+# --- Deuda (EC-80). Política EXCLUSIVA: un total nunca se suma con sus componentes. ---
+# us-gaap LongTermDebt INCLUYE la porción corriente; LongTermDebtNoncurrent no.
+TOTAL_INCL_CURRENT = ("LongTermDebt", "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities")
+NONCURRENT = ("LongTermDebtNoncurrent", "LongTermDebtAndCapitalLeaseObligations", "LongTermNotesPayable")
+CURRENT_LTD = ("LongTermDebtCurrent", "LongTermDebtAndCapitalLeaseObligationsCurrent")
+# Exclusive: CommercialPaper is usually a component of ShortTermBorrowings → take only the first.
+ST_BORROWINGS = ("ShortTermBorrowings", "CommercialPaper", "NotesPayableCurrent")
+FIN_LEASE_TOTAL = ("FinanceLeaseLiability",)
+# Inversiones financieras (EC-81): antes STI estaba hardcodeado a 0.
+STI = ("ShortTermInvestments", "MarketableSecuritiesCurrent", "AvailableForSaleSecuritiesDebtSecuritiesCurrent")
+LTI = ("LongTermInvestments", "MarketableSecuritiesNoncurrent", "AvailableForSaleSecuritiesDebtSecuritiesNoncurrent")
+RESTRICTED_CASH = ("CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",)
+_TOL = 0.02  # 2 % tolerance for XBRL roundings
+
+
+# --------------------------------------------------------------------------- #
+# Balance: deuda, caja, identidades contables (T6)
+# --------------------------------------------------------------------------- #
+
+# Tipo del "lookup" que reciben resolve_*: una closure concepts → {value, period, source} | None,
+# normalmente `lambda cs: point_value(bs_df, cs, period, facts)` fijada a UN periodo.
+Lookup = Callable[[tuple[str, ...]], dict | None]
+
+
+def _sum_items(items: list[dict | None], period: str) -> dict:
+    """Suma de los items presentes con procedencia "derived:A+B"; "absent" si ninguno.
+
+    Un 0.0 por defecto SIEMPRE lleva source "absent" (nunca parece un dato real).
+    """
+    present = [i for i in items if i]
+    return {"value": sum(i["value"] for i in present), "period": period,
+            "source": "derived:" + "+".join(i["source"] for i in present) if present else "absent"}
+
+
+def resolve_debt(lookup: Lookup, period: str) -> dict:
+    """Deuda financiera sin doble conteo (EC-80).
+
+    us-gaap LongTermDebt INCLUYE la porción corriente; LongTermDebtNoncurrent no.
+    Prioridad: noncurrent explícito > total − corriente. Corto plazo: DebtCurrent (total
+    oficial) si existe; si no, borrowings (exclusivos entre sí) + porción corriente.
+    Leasing financiero se suma solo si el concepto de deuda usado no lo incluye ya.
+
+    Devuelve {long_term_debt, short_term_debt, finance_leases, flags}; las identidades
+    rotas no bloquean: van a `flags` y llegan al report (data_quality_flags).
+    """
+    flags: list[str] = []
+    total_incl, noncurrent = lookup(TOTAL_INCL_CURRENT), lookup(NONCURRENT)
+    current_ltd, st_borrow, debt_current = lookup(CURRENT_LTD), lookup(ST_BORROWINGS), lookup(("DebtCurrent",))
+
+    if noncurrent:
+        lt = noncurrent
+    elif total_incl:
+        if current_ltd:
+            cur, cur_src = current_ltd["value"], current_ltd["source"]
+        elif debt_current:
+            # Revisión adversarial: LongTermDebt (incluye corriente) + DebtCurrent sin LongTermDebtCurrent
+            # explícito doble-contaría la porción corriente. Se infiere: DebtCurrent − borrowings CP.
+            cur = max(debt_current["value"] - (st_borrow["value"] if st_borrow else 0.0), 0.0)
+            cur_src = "DebtCurrent-borrowings"
+            flags.append(f"current LTD inferred from DebtCurrent ({period})")
+        else:
+            cur, cur_src = 0.0, None
+        src = f"derived:{total_incl['source']}-{cur_src}" if cur_src else total_incl["source"]
+        lt = {"value": total_incl["value"] - cur, "period": period, "source": src}
+    else:
+        lt = {"value": 0.0, "period": period, "source": "absent"}
+
+    # DebtCurrent es el total oficial de deuda corriente: si existe, gana a sus componentes.
+    st = debt_current if debt_current else _sum_items([st_borrow, current_ltd], period)
+
+    # Identidades contables: no bloquean, se marcan (llegan al report).
+    if total_incl and noncurrent and current_ltd:
+        expected = noncurrent["value"] + current_ltd["value"]
+        if abs(total_incl["value"] - expected) > _TOL * max(total_incl["value"], 1.0):
+            flags.append(f"{total_incl['source']}={total_incl['value']:.0f} != "
+                         f"noncurrent+current={expected:.0f} ({period})")
+    if debt_current and current_ltd and debt_current["value"] + 1.0 < current_ltd["value"]:
+        flags.append(f"DebtCurrent < {current_ltd['source']} ({period})")
+
+    # "...AndCapitalLeaseObligations" ya contiene los leasings financieros → no sumarlos otra vez.
+    already_has_leases = "CapitalLease" in lt["source"]
+    if already_has_leases:
+        leases = {"value": 0.0, "period": period, "source": f"included-in:{lt['source']}"}
+    else:
+        leases = lookup(FIN_LEASE_TOTAL) or _sum_items(
+            [lookup(("FinanceLeaseLiabilityNoncurrent",)), lookup(("FinanceLeaseLiabilityCurrent",))], period)
+    return {"long_term_debt": lt, "short_term_debt": st, "finance_leases": leases, "flags": flags}
+
+
+def resolve_cash(lookup: Lookup, period: str, ticker: str) -> dict:
+    """Caja: conceptos estándar → con restricted cash (marcado en source) → fail loud (EC-81).
+
+    Antes, sin concepto de caja se ponía 0.0 en silencio: el EV y el IC salían
+    sobrestimados sin aviso. Ahora la ausencia es un DataUnavailableError.
+    """
+    cash = lookup(CASH_CONCEPTS)
+    if cash:
+        return cash
+    restricted = lookup(RESTRICTED_CASH)
+    if restricted:
+        return {**restricted, "source": f"{restricted['source']} (includes restricted cash)"}
+    raise DataUnavailableError(f"{ticker}: cash and equivalents missing for {period}")
+
+
+def balance_identity_flags(lookup: Lookup, period: str, ticker: str) -> list[str]:
+    """Identidades contables del balance.
+
+    Assets == LiabilitiesAndStockholdersEquity debe ser exacta → si no, extracción corrupta: raise.
+    Assets ≈ Liabilities + Equity(incl. NCI) puede romperse por mezzanine/temporary equity → flag.
+    """
+    assets, l_and_e = lookup(("Assets",)), lookup(("LiabilitiesAndStockholdersEquity",))
+    if assets and l_and_e and abs(assets["value"] - l_and_e["value"]) > 0.01 * abs(assets["value"]):
+        raise DataUnavailableError(
+            f"{ticker}: balance identity broken for {period}: Assets {assets['value']:.0f} "
+            f"vs L+E {l_and_e['value']:.0f}")
+    liabilities = lookup(("Liabilities",))
+    equity = lookup(("StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest", "StockholdersEquity"))
+    if assets and liabilities and equity:
+        gap = assets["value"] - liabilities["value"] - equity["value"]
+        if abs(gap) > _TOL * abs(assets["value"]):
+            return [f"Liabilities+Equity differs from Assets by {gap:.0f} ({period}) — mezzanine/temporary equity?"]
+    return []
 
 
 # --------------------------------------------------------------------------- #
@@ -347,13 +460,12 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
     if assets is None:
         raise DataUnavailableError(f"{ticker}: Assets missing for {fy_label}")
 
-    # --- Deuda y caja: lógica heredada (T6 la sustituye por resolve_debt/resolve_cash) ---
-    lt_debt = get(_LEGACY_LT_DEBT) or {"value": 0.0, "period": fy_label, "source": "absent"}
-    st_parts = [get((c,)) for c in _LEGACY_ST_DEBT]
-    st_present = [p for p in st_parts if p]
-    st_debt = {"value": sum(p["value"] for p in st_present), "period": fy_label,
-               "source": ("derived:" + "+".join(p["source"] for p in st_present)) if st_present else "absent"}
-    cash = get(CASH_CONCEPTS) or {"value": 0.0, "period": fy_label, "source": "absent"}
+    # --- Deuda, caja e identidades (T6): todo del MISMO periodo fy_label ---
+    debt = resolve_debt(get, fy_label)
+    flags = debt["flags"] + balance_identity_flags(get, fy_label, ticker)
+    cash = resolve_cash(get, fy_label, ticker)
+    if flags:
+        log.warning("balance_data_quality_flags", ticker=ticker, flags=flags)
 
     return {
         "ticker": ticker.upper(), "cik": cik, "as_of_date": period_end.isoformat(),
@@ -374,13 +486,18 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
         },
         "balance_sheet": {
             "total_assets": assets,
-            "long_term_debt": lt_debt,
-            "short_term_debt": st_debt,
+            "long_term_debt": debt["long_term_debt"],
+            "short_term_debt": debt["short_term_debt"],
+            "finance_leases": debt["finance_leases"],
+            # cash = SOLO caja (EC-81); STI en su propio campo → el bridge la resta UNA vez.
             "cash_and_equivalents": cash,
-            # STI aún no se extrae (T6 lo hace); 0 explícito con source "absent".
-            "short_term_investments": {"value": 0.0, "period": fy_label, "source": "absent"},
+            "short_term_investments": get(STI) or {"value": 0.0, "period": fy_label, "source": "absent"},
+            "long_term_investments": get(LTI),
+            "current_liabilities": get(("LiabilitiesCurrent",)),
             "stockholders_equity": get(("StockholdersEquity",)),
         },
+        # Identidades contables rotas / inferencias: llegan al FinancialsReport y al report.
+        "data_quality_flags": flags,
         "shares": {"shares_outstanding": {
             "value": float(shares_outstanding) if shares_outstanding is not None else None,
             "period": fy_label, "source": "dei:EntityCommonStockSharesOutstanding"}},

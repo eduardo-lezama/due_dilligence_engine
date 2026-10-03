@@ -73,8 +73,12 @@ def _show_financials_table(financials) -> None:
     if financials.total_debt:
         table.add_row("Total Debt", _fmt_usd(financials.total_debt.value), financials.total_debt.period, "XBRL")
     if financials.cash_and_equivalents:
-        table.add_row("Cash + STI", _fmt_usd(financials.cash_and_equivalents.value),
+        # Desde H1 (EC-81) cash_and_equivalents es SOLO caja; las STI tienen su propia fila.
+        table.add_row("Cash (ex-STI)", _fmt_usd(financials.cash_and_equivalents.value),
                       financials.cash_and_equivalents.period, "XBRL")
+    if financials.short_term_investments:
+        table.add_row("Short-term investments", _fmt_usd(financials.short_term_investments.value),
+                      financials.short_term_investments.period, "XBRL")
     # Capital returns (ADR-023): buybacks + dividends del cash flow statement
     if financials.buybacks:
         b = financials.buybacks[0]
@@ -628,6 +632,7 @@ def analyze_cmd(
     from due_diligence.llm.client import get_client
 
     from due_diligence.tools.tavily import TavilyQuotaExceededError
+    from due_diligence.tools.edgar import DataUnavailableError
 
     ticker = ticker.upper()
     # Iniciar timer y resetear acumulador de tokens/coste (ADR-021)
@@ -648,6 +653,11 @@ def analyze_cmd(
     except TavilyQuotaExceededError as e:
         console.print("\n[bold red]Tavily quota exhausted — analysis aborted.[/bold red]")
         console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    except DataUnavailableError as e:
+        # Fail loud VISIBLE (T6): caja ausente, identidad contable rota, 10-K desalineado...
+        # Antes salía como traceback de Python; ahora un panel rojo con el motivo.
+        console.print(Panel(str(e), title="DATA UNAVAILABLE", border_style="red"))
         raise typer.Exit(1)
 
     state = graph.get_state(config).values

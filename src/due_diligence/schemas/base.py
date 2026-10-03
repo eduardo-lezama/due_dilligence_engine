@@ -83,8 +83,12 @@ class FinancialsReport(BaseModel):
 
     # Balance sheet (point-in-time, most recent)
     total_assets: MetricValue
-    total_debt: MetricValue
-    cash_and_equivalents: MetricValue
+    total_debt: MetricValue  # LT + ST + leasing financiero, sin doble conteo (EC-80)
+    cash_and_equivalents: MetricValue  # SOLO caja (desde H1); STI va aparte (EC-81)
+    short_term_investments: Optional[MetricValue] = None  # NO incluido en cash_and_equivalents (desde H1)
+    long_term_investments: Optional[MetricValue] = None   # activo no operativo — el bridge EV→equity lo suma
+    equity_method_investments: Optional[MetricValue] = None  # participaciones: se suman en el bridge salvo flag (T8)
+    data_quality_flags: list[str] = Field(default_factory=list)  # identidades contables rotas, fallbacks
 
     # Share data
     shares_outstanding: Optional[MetricValue] = None

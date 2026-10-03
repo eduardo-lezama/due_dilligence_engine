@@ -151,3 +151,106 @@ def test_effective_tax_rate_multi_defaults_and_clamp():
     assert xe.effective_tax_rate_multi([], []) == pytest.approx(0.25)
     assert xe.effective_tax_rate_multi([10.0], [-5.0]) == pytest.approx(0.25)     # pretax ≤ 0 → default
     assert xe.effective_tax_rate_multi([80.0], [100.0]) == pytest.approx(0.5)     # clamp
+
+
+# --------------------------------------------------------------------------- #
+# Task 6 — deuda sin doble conteo, caja con fallback, identidades contables
+# --------------------------------------------------------------------------- #
+
+def _lookup(values: dict[str, float]):
+    """Simula point_value: primer concepto de la tupla presente en `values`."""
+    def get(concepts):
+        for c in concepts:
+            if c in values:
+                return {"value": values[c], "period": "FY2025", "source": c}
+        return None
+    return get
+
+
+def test_debt_aapl_like_no_double_count_and_commercial_paper_counted():
+    d = xe.resolve_debt(_lookup({"LongTermDebt": 90.0, "LongTermDebtNoncurrent": 78.0,
+                                 "LongTermDebtCurrent": 12.0, "CommercialPaper": 8.0}), "FY2025")
+    assert d["long_term_debt"]["value"] == 78.0
+    assert d["short_term_debt"]["value"] == 20.0          # 12 current LTD + 8 CP
+    assert d["flags"] == []                                 # 90 == 78 + 12
+
+
+def test_debt_total_including_current_is_split_not_added():
+    d = xe.resolve_debt(_lookup({"LongTermDebt": 100.0, "LongTermDebtCurrent": 10.0}), "FY2025")
+    assert d["long_term_debt"] == {"value": 90.0, "period": "FY2025",
+                                   "source": "derived:LongTermDebt-LongTermDebtCurrent"}
+    assert d["short_term_debt"]["value"] == 10.0
+
+
+def test_debt_current_total_wins_over_components():
+    d = xe.resolve_debt(_lookup({"DebtCurrent": 15.0, "LongTermDebtCurrent": 10.0,
+                                 "ShortTermBorrowings": 5.0}), "FY2025")
+    assert d["short_term_debt"] == {"value": 15.0, "period": "FY2025", "source": "DebtCurrent"}
+
+
+def test_debt_inconsistent_components_flagged():
+    d = xe.resolve_debt(_lookup({"LongTermDebt": 120.0, "LongTermDebtNoncurrent": 78.0,
+                                 "LongTermDebtCurrent": 12.0}), "FY2025")
+    assert any("LongTermDebt" in f for f in d["flags"])
+
+
+def test_debt_longtermdebt_plus_debtcurrent_without_current_ltd_not_double_counted():
+    # LTD 100 (incluye 10 corriente), DebtCurrent 15 (= 10 corriente + 5 CP): total debe ser 105, no 115
+    d = xe.resolve_debt(_lookup({"LongTermDebt": 100.0, "DebtCurrent": 15.0, "CommercialPaper": 5.0}), "FY2025")
+    assert d["long_term_debt"]["value"] == 90.0 and d["short_term_debt"]["value"] == 15.0
+    assert any("inferred from DebtCurrent" in f for f in d["flags"])
+
+
+def test_finance_leases_added_only_when_debt_concept_excludes_them():
+    plain = xe.resolve_debt(_lookup({"LongTermDebtNoncurrent": 50.0, "FinanceLeaseLiability": 4.0}), "FY2025")
+    assert plain["finance_leases"]["value"] == 4.0
+    bundled = xe.resolve_debt(_lookup({"LongTermDebtAndCapitalLeaseObligations": 50.0,
+                                       "FinanceLeaseLiability": 4.0}), "FY2025")
+    assert bundled["finance_leases"]["value"] == 0.0       # already inside the debt concept
+
+
+def test_cash_falls_back_to_restricted_and_flags_it():
+    c = xe.resolve_cash(_lookup({"CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents": 9.0}),
+                        "FY2025", "X")
+    assert c["value"] == 9.0 and "Restricted" in c["source"]
+
+
+def test_cash_missing_fails_loud():
+    with pytest.raises(xe.DataUnavailableError, match="cash"):
+        xe.resolve_cash(_lookup({}), "FY2025", "X")
+
+
+def test_balance_identity_raises_on_assets_vs_l_and_e_mismatch():
+    with pytest.raises(xe.DataUnavailableError, match="identity"):
+        xe.balance_identity_flags(_lookup({"Assets": 100.0, "LiabilitiesAndStockholdersEquity": 80.0}),
+                                  "FY2025", "X")
+
+
+def test_balance_identity_flags_liabilities_plus_equity_gap():
+    flags = xe.balance_identity_flags(_lookup({"Assets": 100.0, "LiabilitiesAndStockholdersEquity": 100.0,
+                                               "Liabilities": 60.0, "StockholdersEquity": 30.0}), "FY2025", "X")
+    assert flags and "Liabilities+Equity" in flags[0]
+
+
+def test_build_raw_emits_resolved_debt_sti_and_flags():
+    """Integración build_raw ← resolve_debt/resolve_cash: STI propio, deuda sin doble conteo."""
+    inc, bs, cf = _min_frames()
+    bs.loc["LongTermDebt"] = ["d", False, 90.0, 80.0]
+    bs.loc["LongTermDebtNoncurrent"] = ["d", False, 78.0, 70.0]
+    bs.loc["LongTermDebtCurrent"] = ["d", False, 12.0, 10.0]
+    bs.loc["ShortTermInvestments"] = ["s", False, 40.0, 30.0]
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2025, 9, 27), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+    b = raw["balance_sheet"]
+    assert b["long_term_debt"]["value"] == 78.0 and b["short_term_debt"]["value"] == 12.0
+    assert b["cash_and_equivalents"]["value"] == 50.0
+    assert b["short_term_investments"] == {"value": 40.0, "period": "FY2025", "source": "ShortTermInvestments"}
+    assert raw["data_quality_flags"] == []
+
+
+def test_build_raw_missing_cash_fails_loud():
+    inc, bs, cf = _min_frames()
+    bs = bs.drop(index="CashAndCashEquivalentsAtCarryingValue")
+    with pytest.raises(xe.DataUnavailableError, match="cash"):
+        xe.build_raw(ticker="x", cik="1", period_end=date(2025, 9, 27), inc_df=inc, bs_df=bs,
+                     cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)

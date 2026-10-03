@@ -62,6 +62,48 @@ def test_parse_financials_cash_includes_short_term_investments(aapl_raw):
     assert report.cash_and_equivalents.value == pytest.approx(expected_cash)
 
 
+def _min_raw() -> dict:
+    """Raw mínimo válido: el fixture AAPL con el balance_sheet sustituido por uno explícito.
+
+    Helper de T6 (el plan lo referencia; no existía). Cada test lo muta a su gusto.
+    """
+    raw = json.loads(FIXTURE_PATH.read_text())
+    raw["balance_sheet"] = {
+        "total_assets": {"value": 1000.0, "period": "FY2025", "source": "Assets"},
+        "long_term_debt": {"value": 300.0, "period": "FY2025", "source": "LongTermDebtNoncurrent"},
+        "short_term_debt": {"value": 0.0, "period": "FY2025", "source": "absent"},
+        "cash_and_equivalents": {"value": 50.0, "period": "FY2025", "source": "CashAndCashEquivalentsAtCarryingValue"},
+        "short_term_investments": {"value": 0.0, "period": "FY2025", "source": "absent"},
+        "stockholders_equity": {"value": 500.0, "period": "FY2025", "source": "StockholdersEquity"},
+    }
+    return raw
+
+
+def test_parse_financials_cash_excludes_sti():
+    """Revisión adversarial (bloqueante): cash_and_equivalents = SOLO caja; STI en su campo.
+
+    Si STI siguiera sumada dentro de cash, el bridge EV→equity (T12) la restaría dos veces.
+    """
+    from due_diligence.tools.edgar import EdgarAdapter
+    raw = {**_min_raw(), "balance_sheet": {**_min_raw()["balance_sheet"],
+           "cash_and_equivalents": {"value": 100.0, "period": "FY2025", "source": "Cash"},
+           "short_term_investments": {"value": 40.0, "period": "FY2025", "source": "ShortTermInvestments"}}}
+    rep = EdgarAdapter.parse_financials(raw)
+    assert rep.cash_and_equivalents.value == 100.0 and rep.short_term_investments.value == 40.0
+
+
+def test_parse_financials_total_debt_includes_finance_leases_and_flags():
+    from due_diligence.tools.edgar import EdgarAdapter
+    raw = _min_raw()
+    raw["balance_sheet"]["finance_leases"] = {"value": 7.0, "period": "FY2025", "source": "FinanceLeaseLiability"}
+    raw["data_quality_flags"] = ["DebtCurrent < LongTermDebtCurrent (FY2025)"]
+    rep = EdgarAdapter.parse_financials(raw)
+    assert rep.total_debt.value == 307.0
+    assert rep.data_quality_flags == ["DebtCurrent < LongTermDebtCurrent (FY2025)"]
+    # STI con source "absent" → campo omitido (None), no un MetricValue(0) que parezca dato
+    assert rep.short_term_investments is None
+
+
 # ---------------------------------------------------------------------------
 # parse_quarterly_snapshot — pure function tests (no EDGAR call, no fixture file)
 # ---------------------------------------------------------------------------

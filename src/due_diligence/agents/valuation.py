@@ -867,6 +867,8 @@ def valuation_agent(state: AnalysisState) -> dict:
         if financials.total_debt is not None:
             total_debt = financials.total_debt.value
         if financials.cash_and_equivalents is not None:
+            # cash-only aceptado aquí (MCE-26, T6): antes de H1 la STI era siempre 0 en el raw;
+            # el bridge EV→equity de T12a resta STI aparte (una sola vez).
             cash = financials.cash_and_equivalents.value
         if financials.revenue:
             revenue_latest = financials.revenue[0].value

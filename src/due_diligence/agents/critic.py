@@ -103,7 +103,10 @@ def _build_critic_prompt(state: AnalysisState) -> str:
             fcf_trend = [f"{f.period}: {fmt_usd(f.value)}" for f in financials.free_cash_flow[:3]]
             lines.append(f"FCF trend: {', '.join(fcf_trend)}")
         if financials.total_debt is not None and financials.cash_and_equivalents is not None:
-            net_debt = financials.total_debt.value - financials.cash_and_equivalents.value
+            # net_debt = deuda − caja − STI (misma definición que el bridge EV→equity; desde H1
+            # cash_and_equivalents ya NO incluye STI, EC-81). T12b lo sustituye por net_claims.
+            sti = financials.short_term_investments.value if financials.short_term_investments else 0.0
+            net_debt = financials.total_debt.value - financials.cash_and_equivalents.value - sti
             lines.append(f"Net debt: {fmt_usd(net_debt)}")
         lines.append("")
 

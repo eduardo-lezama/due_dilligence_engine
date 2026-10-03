@@ -104,6 +104,8 @@ def _build_peer_valuations(reports: list) -> list[PeerValuation]:
         ebit: float | None = rep.operating_income[0].value if rep.operating_income else None
         fcf: float | None = rep.free_cash_flow[0].value if rep.free_cash_flow else None
         debt: float = rep.total_debt.value if rep.total_debt is not None else 0.0
+        # cash-only aceptado aquí (MCE-26, T6): antes de H1 la STI era siempre 0 en el raw, así que
+        # el EV de peers no cambia; T12b pasa este cálculo al bridge común (net_claims con STI).
         cash: float = rep.cash_and_equivalents.value if rep.cash_and_equivalents is not None else 0.0
 
         ev = market_cap + debt - cash

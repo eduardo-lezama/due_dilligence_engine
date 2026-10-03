@@ -225,7 +225,10 @@ def _format_context(state: AnalysisState) -> str:
         if financials.total_debt is not None:
             lines.append(f"Total Debt: {_fmt_usd(financials.total_debt.value)}")
         if financials.cash_and_equivalents is not None:
-            lines.append(f"Cash + STI: {_fmt_usd(financials.cash_and_equivalents.value)}")
+            # Desde H1 (EC-81) cash_and_equivalents es SOLO caja; STI en línea propia.
+            lines.append(f"Cash (ex-STI): {_fmt_usd(financials.cash_and_equivalents.value)}")
+        if financials.short_term_investments is not None:
+            lines.append(f"Short-term investments: {_fmt_usd(financials.short_term_investments.value)}")
 
         # Capital returns (ADR-023, EC-19) — central para tesis value investing.
         # MUST aparecer en §4 Financial Quality del Expert.

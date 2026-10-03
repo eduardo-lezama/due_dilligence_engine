@@ -30,10 +30,26 @@ from pydantic import BaseModel, Field
 from due_diligence.schemas.base import Citation, MetricValue
 
 
-class ManagementReport(BaseModel):
-    """Reporte de gestión e insider ownership."""
+class LLMAgentReport(BaseModel):
+    """Base de los reports producidos por agentes LLM (ADR-032).
+
+    Estados posibles:
+        stub=True  + error=None  → el agente no ha corrido todavía.
+        stub=True  + error="..." → el agente corrió y el LLM falló (fail loud).
+        stub=False               → contenido real.
+
+    Ningún campo existente cambia de nombre: los checkpoints antiguos deserializan
+    con error=None y model_used=None.
+    """
     ticker: str
     stub: bool = True  # True = placeholder, False = contenido real generado
+    error: Optional[str] = None       # "<ClaseError>: mensaje" cuando el LLM falló
+    model_used: Optional[str] = None  # Modelo que realmente respondió (LLMClient.last_model_used)
+
+
+
+class ManagementReport(LLMAgentReport):
+    """Reporte de gestión e insider ownership."""
     insider_ownership_pct: Optional[float] = None  # % total de acciones owned por insiders (directivos + board)
     founder_ceo: Optional[bool] = None             # True si el CEO fundó la empresa
     ceo_tenure_years: Optional[float] = None       # Años del CEO en el cargo
@@ -44,10 +60,8 @@ class ManagementReport(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
 
 
-class FilingsRAGReport(BaseModel):
+class FilingsRAGReport(LLMAgentReport):
     """Reporte de análisis de filings SEC (10-K, 10-Q) usando RAG."""
-    ticker: str
-    stub: bool = True
     business_description: Optional[str] = None      # Descripción del negocio
     risk_factors_summary: Optional[str] = None      # Resumen de factores de riesgo
     mda_highlights: Optional[str] = None            # Highlights de Management Discussion & Analysis
@@ -127,10 +141,8 @@ class QuarterlySnapshot(BaseModel):
     filing_date: Optional[str] = None        # ISO date del 10-Q filing (si disponible)
 
 
-class CompetitiveReport(BaseModel):
+class CompetitiveReport(LLMAgentReport):
     """Reporte de análisis competitivo y moat."""
-    ticker: str
-    stub: bool = True
     moat_classification: Optional[str] = None  # "wide", "narrow", "none"
     moat_sources: list[str] = Field(default_factory=list)  # Fuentes del moat
     peer_roic_comparison: list[PeerROIC] = Field(default_factory=list)  # ROIC de peers (ADR-015)
@@ -192,15 +204,13 @@ class ValuationReport(BaseModel):
     valuation_methods_summary: list[dict] = Field(default_factory=list)  # 4 métodos con clasificación cheap/fair/expensive
 
 
-class ValueExpertReport(BaseModel):
+class ValueExpertReport(LLMAgentReport):
     """
     Reporte del Value Expert — análisis integrado + VERDICT.
 
     ADR-009: verdict debe estar presente cuando stub=False.
     Es el output final del sistema: BUY/SELL/HOLD con justificación.
     """
-    ticker: str
-    stub: bool = True
     business_understanding: Optional[str] = None  # Entendimiento del negocio
     moat_analysis: Optional[str] = None  # Análisis del moat
     management_assessment: Optional[str] = None  # Evaluación del management
@@ -216,10 +226,8 @@ class ValueExpertReport(BaseModel):
     verdict_rationale: Optional[str] = None  # 2-3 frases: por qué este verdict
 
 
-class CriticReport(BaseModel):
+class CriticReport(LLMAgentReport):
     """Reporte del Critic — contra-tesis y pre-mortem."""
-    ticker: str
-    stub: bool = True
     weaknesses: list[str] = Field(default_factory=list)  # Debilidades identificadas
     contra_thesis: Optional[str] = None  # Contra-tesis
     pre_mortem_scenario: Optional[str] = None  # Escenario pre-mortem

@@ -31,6 +31,11 @@ class Citation(BaseModel):
     excerpt: str  # Fragmento exacto de la fuente que contiene el claim
     confidence: float = Field(..., ge=0.0, le=1.0)  # 0.0-1.0: confianza del match
     gaap_vs_nongaap_flag: Optional[str] = None  # "GAAP", "Non-GAAP", or None
+    # H1 (ADR-005 implementado, ADR-032): una cita nace verified=False. Solo
+    # validation/citations.py la marca verified=True tras encontrar el excerpt en el
+    # texto fuente real. Las no verificadas llevan confidence=0 y el motivo aquí.
+    verified: bool = False                   # True solo tras validation/citations.py
+    verification_note: Optional[str] = None  # Motivo de rechazo cuando verified=False
 
 
 class Claim(BaseModel):

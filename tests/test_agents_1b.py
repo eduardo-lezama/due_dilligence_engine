@@ -301,15 +301,15 @@ def test_filings_agent_stub_false(mocker, minimal_state, filings_llm_response_va
     """El reporte resultante debe tener stub=False — el agente corrió de verdad."""
     mocker.patch(
         "due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_business",
-        return_value="",
+        return_value="10-K business text (EC-94: vacío → stub)",
     )
     mocker.patch(
         "due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_risk_factors",
-        return_value="",
+        return_value="10-K risk_factors text (EC-94: vacío → stub)",
     )
     mocker.patch(
         "due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_mda",
-        return_value="",
+        return_value="10-K mda text (EC-94: vacío → stub)",
     )
     mock_client = mocker.MagicMock()
     mock_client.structured.return_value = filings_llm_response_valid

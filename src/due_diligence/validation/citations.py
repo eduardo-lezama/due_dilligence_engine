@@ -196,6 +196,21 @@ def dedupe_citations(citations: list[Citation]) -> list[Citation]:
     return out
 
 
+# Citas que escribe el CÓDIGO (p.ej. la fila del proxy, EC-93): verificadas por construcción, pero
+# no son evidencia aportada por el LLM. Su verification_note empieza por este prefijo.
+DETERMINISTIC_NOTE_PREFIX = "deterministic"
+
+
+def llm_evidence_count(citations: list[Citation]) -> int:
+    """Citas del LLM verificadas contra la fuente (excluye las deterministas) — EC-94.
+
+    Un especialista con 0 no ha respaldado ninguna línea de su narrativa: el Value Expert lo
+    trata como hueco de datos aunque el report no sea stub.
+    """
+    return sum(1 for c in citations
+               if c.verified and not (c.verification_note or "").startswith(DETERMINISTIC_NOTE_PREFIX))
+
+
 def count_verified(citations: list[Citation]) -> tuple[int, int]:
     """(verificadas, no verificadas) — para el log `<agent>_citations_validated`."""
     ok = sum(1 for c in citations if c.verified)

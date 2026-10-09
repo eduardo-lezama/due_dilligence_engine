@@ -50,6 +50,9 @@ Cada ADR sigue: Status · Context · Decision · Consequences · Alternatives.
 | [033](ADR-033-fcff-wacc-equity-bridge.md) | FCFF a WACC real + equity bridge común a DCF, EPV y reverse DCF | Accepted | H1 |
 | [034](ADR-034-cyclical-normalization.md) | Normalización cíclica: las cíclicas se valoran en su nivel mid-cycle | Accepted | Post-H1 |
 | [035](ADR-035-document-tables-deterministic.md) | Datos de tablas de documentos primarios: por estructura, no por el LLM | Accepted | Post-H1 |
+| [036](ADR-036-evidence-gate.md) | Control de evidencia: especialista sin citas verificadas = hueco de datos | Accepted | Post-H1 |
+| [034](ADR-034-cyclical-normalization.md) | Normalización cíclica: las cíclicas se valoran en su nivel mid-cycle | Accepted | Post-H1 |
+| [035](ADR-035-document-tables-deterministic.md) | Datos de tablas de documentos primarios: por estructura, no por el LLM | Accepted | Post-H1 |
 | [034](ADR-034-cyclical-normalization.md) | Normalización cíclica: las cíclicas se valoran en su nivel mid-cycle | Accepted | Post-H1 |
 
 ## Cómo añadir un ADR

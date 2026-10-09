@@ -100,6 +100,7 @@ FIELD GUIDANCE (the output format is enforced by the response schema):
 - founder_ceo: true/false/null — is the CURRENT CEO the company founder?
 - ceo_tenure_years: years the current CEO has been in role; null if not determinable.
 - ceo_tenure_citation: REQUIRED whenever ceo_tenure_years is not null — the exact sentence stating when the CEO was appointed (it must contain the year).
+  If no sentence in SOURCES 1, 1b, 2, 3 or 6 states the appointment year, set ceo_tenure_years to null — the year must come from the provided text, never from your own knowledge.
 - Do NOT count Form 4 transactions: the count is computed deterministically from SOURCE 2.
 - insider_transaction_pattern: WHO is buying vs selling (name the CEO and largest holders), NET direction (net buyer or net seller overall), and what signal this gives. E.g.: 'CEO David Wang net seller: sold 55K shares in March 2026, no open-market purchases in 12m. Board member X net buyer. Overall insider sentiment: neutral to slightly negative.' If no clear pattern, say so.
 - compensation_structure_notes: 2-3 sentences on compensation alignment with shareholders (fixed vs variable, LTI metrics — ROIC-linked vs TSR-only vs revenue-only, clawbacks).

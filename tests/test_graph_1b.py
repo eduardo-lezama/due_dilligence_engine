@@ -172,15 +172,15 @@ def test_graph_1b_fanout_pauses_at_checkpoint1(mocker):
     # Mock Filings
     mocker.patch(
         "due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_business",
-        return_value="",
+        return_value="10-K business text (EC-94: vacío → stub)",
     )
     mocker.patch(
         "due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_risk_factors",
-        return_value="",
+        return_value="10-K risk_factors text (EC-94: vacío → stub)",
     )
     mocker.patch(
         "due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_mda",
-        return_value="",
+        return_value="10-K mda text (EC-94: vacío → stub)",
     )
     mock_filings_client = mocker.MagicMock()
     mock_filings_client.structured.return_value = _make_filings_response()
@@ -265,15 +265,15 @@ def test_graph_1b_state_has_all_four_reports_after_fanout(mocker):
     # Mock Filings
     mocker.patch(
         "due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_business",
-        return_value="",
+        return_value="10-K business text (EC-94: vacío → stub)",
     )
     mocker.patch(
         "due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_risk_factors",
-        return_value="",
+        return_value="10-K risk_factors text (EC-94: vacío → stub)",
     )
     mocker.patch(
         "due_diligence.agents.filings.EdgarFilingsAdapter.fetch_10k_mda",
-        return_value="",
+        return_value="10-K mda text (EC-94: vacío → stub)",
     )
     mock_filings_client = mocker.MagicMock()
     mock_filings_client.structured.return_value = _make_filings_response()

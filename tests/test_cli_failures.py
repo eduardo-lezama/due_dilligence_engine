@@ -154,7 +154,10 @@ def test_confidence_capped_when_specialist_missing(mocker):
 def test_confidence_not_capped_when_specialists_present(mocker):
     from due_diligence.agents.value_expert import value_expert_agent
     _ve_client(mocker, confidence=0.9, sizing=9.0)
+    from due_diligence.schemas.base import Citation
+    # Presentes CON evidencia verificada: sin ella también cuentan como hueco (EC-94).
+    ev = [Citation(claim="c", source_url="10-K", excerpt="x" * 25, confidence=0.9, verified=True)]
     s = value_expert_agent({"ticker": "TST",
-                            "filings": FilingsRAGReport(ticker="TST", stub=False),
-                            "mgmt": ManagementReport(ticker="TST", stub=False)})["synthesis"]
+                            "filings": FilingsRAGReport(ticker="TST", stub=False, citations=ev),
+                            "mgmt": ManagementReport(ticker="TST", stub=False, citations=ev)})["synthesis"]
     assert s.verdict_confidence == pytest.approx(0.9)

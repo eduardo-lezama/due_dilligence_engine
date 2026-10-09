@@ -62,6 +62,7 @@ from due_diligence.schemas.reports import ValueExpertReport
 
 from due_diligence.utils.formatting import fmt_insider_ownership, fmt_usd as _fmt_usd
 from due_diligence.utils.periods import align_by_period
+from due_diligence.validation.citations import llm_evidence_count
 
 log = structlog.get_logger()
 
@@ -170,24 +171,48 @@ _GOVERNANCE_FLAG_TERMS = {
 # Especialistas sin los que el VERDICT no puede tener convicción alta: §1/§7 (filings)
 # y §3 (management) no se pueden reconstruir desde los números.
 _ESSENTIAL_SPECIALISTS = (("filings", "Filings"), ("mgmt", "Management"))
+# Cabecera de un bloque de especialista sin evidencia verificada (EC-94). Los datos deterministas
+# del bloque (Form 4, % de insiders del proxy) siguen siendo fiables; la narrativa no.
+_UNVERIFIED_NARRATIVE = ("⚠️ UNVERIFIED — none of this agent's citations matched the source text. "
+                         "Treat its narrative lines as unverified claims, not evidence; deterministic "
+                         "lines (Form 4, DEF 14A ownership table) remain reliable.")
+
+
+def _unevidenced_essentials(state: AnalysisState) -> list[str]:
+    """Esenciales que corrieron (no stub) pero sin NINGUNA cita del LLM verificada (EC-94).
+
+    Medido tras H1: management 0 verificadas en 4/4 análisis y filings 0 citas en 3/4, y el
+    Expert los trataba como evidencia normal. La cita determinista del proxy no cuenta.
+    """
+    out = []
+    for key, label in _ESSENTIAL_SPECIALISTS:
+        rep = state.get(key)  # type: ignore[literal-required]
+        if rep is not None and not getattr(rep, "stub", True) and llm_evidence_count(rep.citations) == 0:
+            out.append(label)
+    return out
 
 
 def _missing_essentials(state: AnalysisState) -> list[str]:
-    """Etiquetas de los especialistas esenciales ausentes, stub o fallidos."""
+    """Esenciales ausentes, stub, fallidos o sin evidencia verificada → tope de confianza."""
     missing = []
     for key, label in _ESSENTIAL_SPECIALISTS:
         rep = state.get(key)  # type: ignore[literal-required]
         if rep is None or getattr(rep, "stub", True):
             missing.append(label)
-    return missing
+    return missing + _unevidenced_essentials(state)
 
 
 def _data_gaps(state: AnalysisState) -> list[tuple[str, str]]:
     """(agente, motivo) de cada hueco: fallos explícitos + esenciales ausentes sin error."""
     gaps = list(collect_failures(state))
     failed = {label for label, _ in gaps}
+    unevidenced = set(_unevidenced_essentials(state))
     for label in _missing_essentials(state):
-        if label not in failed:
+        if label in failed:
+            continue
+        if label in unevidenced:
+            gaps.append((label, "0 verified citations — its narrative below is unverified"))
+        else:
             gaps.append((label, "report not available"))
     return gaps
 
@@ -428,6 +453,8 @@ def _format_context(state: AnalysisState) -> str:
     mgmt = state.get("mgmt")  # type: ignore[typeddict-item]
     if mgmt is not None and not mgmt.stub:
         lines.append("## MANAGEMENT REPORT")
+        if "Management" in _unevidenced_essentials(state):
+            lines.append(_UNVERIFIED_NARRATIVE)
         # Etiquetas honestas (T3c, EC-69): cada línea dice de dónde sale el dato.
         # ownership y tenure solo existen si su cita se verificó contra fuente primaria (T3b).
         # EC-93: el % de insiders es determinista (fila "as a group" del DEF 14A), no del LLM.
@@ -468,6 +495,8 @@ def _format_context(state: AnalysisState) -> str:
     filings = state.get("filings")  # type: ignore[typeddict-item]
     if filings is not None and not filings.stub:
         lines.append("## FILINGS REPORT (10-K)")
+        if "Filings" in _unevidenced_essentials(state):
+            lines.append(_UNVERIFIED_NARRATIVE)
         if filings.business_description:
             lines.append(f"Business: {filings.business_description}")
         if filings.geographic_revenue_breakdown:

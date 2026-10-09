@@ -843,6 +843,12 @@ def _get_latest_full_10k(company):
     return filings.latest()  # patrón latest() aceptado: degraded mode, ya logueado arriba
 
 
+# Límite por apartado del 10-K (Items 1, 1A, 7) enviado al Filings agent (EC-94).
+# Antes 8 000 / 10 000: en CALM era el 15-20 % de cada sección y el LLM no podía citar lo que no
+# veía. 25 000 × 3 ≈ 19K tokens con gpt-4o-mini (< 0,5 céntimos por análisis).
+TENK_ITEM_MAX_CHARS = 25_000
+
+
 class EdgarFilingsAdapter:
     """
     Adapter para obtener las secciones cualitativas del 10-K anual.
@@ -859,7 +865,7 @@ class EdgarFilingsAdapter:
     """
 
     @staticmethod
-    def fetch_10k_business(ticker: str, max_chars: int = 8000) -> str:
+    def fetch_10k_business(ticker: str, max_chars: int = TENK_ITEM_MAX_CHARS) -> str:
         """
         Obtiene el Item 1 del 10-K (Business Description).
 
@@ -891,7 +897,7 @@ class EdgarFilingsAdapter:
         return text[:max_chars]
 
     @staticmethod
-    def fetch_10k_risk_factors(ticker: str, max_chars: int = 10000) -> str:
+    def fetch_10k_risk_factors(ticker: str, max_chars: int = TENK_ITEM_MAX_CHARS) -> str:
         """
         Obtiene el Item 1A del 10-K (Risk Factors) con fallback regex (EC-27).
 
@@ -977,7 +983,7 @@ class EdgarFilingsAdapter:
             return ""
 
     @staticmethod
-    def fetch_10k_mda(ticker: str, max_chars: int = 10000) -> str:
+    def fetch_10k_mda(ticker: str, max_chars: int = TENK_ITEM_MAX_CHARS) -> str:
         """
         Obtiene el Item 7 del 10-K (Management Discussion & Analysis).
 

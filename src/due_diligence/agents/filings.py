@@ -39,7 +39,8 @@ from due_diligence.llm.errors import LLMError
 from due_diligence.schemas.llm_outputs import FilingsLLMOutput
 from due_diligence.schemas.reports import FilingsRAGReport
 from due_diligence.tools.edgar import EdgarFilingsAdapter
-from due_diligence.validation.citations import count_verified, gate_llm_value, validate_and_relabel, dedupe_citations
+from due_diligence.validation.citations import (count_verified, dedupe_citations, gate_llm_value,
+                                                llm_evidence_count, validate_and_relabel)
 
 log = structlog.get_logger()
 
@@ -138,6 +139,38 @@ If NONE of questions 10-14 apply, explicitly state "No governance red flags foun
 """
 
 
+_RETRY_INSTRUCTION = """Your previous answer had NO citation that matches the 10-K text above, so its
+narrative cannot be used as evidence. Answer again. For each claim, copy the excerpt VERBATIM as ONE
+contiguous span from the 10-K text above (no paraphrasing, no joining, no added words or numbers).
+Rejected excerpts from your previous answer:"""
+
+
+def _retry_for_evidence(client, user_prompt: str, first: FilingsRAGReport, ticker: str,
+                        corpus: dict[str, str]) -> FilingsRAGReport:
+    """Un único reintento cuando ninguna cita del LLM se verifica (EC-94).
+
+    Solo filings: medido tras H1, 0 citas en 3/4 análisis con texto fuente limpio (BBW) —
+    comportamiento del modelo, que una instrucción con los excerpts rechazados corrige. Se queda
+    la respuesta con más evidencia verificada; si el reintento falla, la primera (no se pierde
+    el análisis). En management no se reintenta: allí la causa es estructural (EC-93).
+    """
+    rejected = [f"- {c.excerpt[:200]} ({c.verification_note})" for c in first.citations if not c.verified]
+    feedback = "\n".join(rejected) if rejected else "- (none: you returned no citations)"
+    log.info("filings_evidence_retry", ticker=ticker, rejected=len(rejected))
+    try:
+        out = client.structured(
+            FilingsLLMOutput,
+            messages=[{"role": "user", "content": f"{user_prompt}\n\n{_RETRY_INSTRUCTION}\n{feedback}"}],
+            system=_SYSTEM_PROMPT,
+            max_tokens=4096,
+        )
+    except LLMError as e:
+        log.warning("filings_evidence_retry_failed", ticker=ticker, error_type=type(e).__name__)
+        return first
+    second = _build_report(out, ticker, corpus)
+    return second if llm_evidence_count(second.citations) > llm_evidence_count(first.citations) else first
+
+
 def _build_report(out: FilingsLLMOutput, ticker: str, corpus: dict[str, str]) -> FilingsRAGReport:
     """Convierte la salida validada del LLM en el report de dominio, con citas verificadas.
 
@@ -189,6 +222,19 @@ def filings_agent(state: AnalysisState) -> dict:
     risk_factors_text = EdgarFilingsAdapter.fetch_10k_risk_factors(ticker)
     mda_text = EdgarFilingsAdapter.fetch_10k_mda(ticker)
 
+    # Fail loud (invariante 5, EC-94): los fetchers devuelven "" sin lanzar. Sin ningún apartado
+    # no hay nada que analizar: report con error, sin llamar al LLM (antes recibía "not available"
+    # y producía una narrativa sin fuente). Un apartado vacío suelto se registra.
+    items = {"Item 1": business_text, "Item 1A": risk_factors_text, "Item 7": mda_text}
+    empty = [name for name, text in items.items() if not (text or "").strip()]
+    if len(empty) == len(items):
+        log.error("filings_10k_text_empty", ticker=ticker)
+        return {"filings": FilingsRAGReport(
+            ticker=ticker, stub=True,
+            error="DataUnavailable: 10-K Items 1, 1A and 7 text empty (nothing to analyze)")}
+    if empty:
+        log.warning("filings_10k_item_empty", ticker=ticker, items=empty)
+
     # --- 2. Construir prompt y llamar al LLM ---
     user_prompt = _build_user_prompt(
         ticker=ticker,
@@ -218,6 +264,8 @@ def filings_agent(state: AnalysisState) -> dict:
     corpus = {"10-K Item 1": business_text or "", "10-K Item 1A": risk_factors_text or "",
               "10-K Item 7": mda_text or ""}
     report = _build_report(out, ticker, corpus)
+    if llm_evidence_count(report.citations) == 0:
+        report = _retry_for_evidence(client, user_prompt, report, ticker, corpus)
     n_ok, n_bad = count_verified(report.citations)
     log.info("filings_citations_validated", ticker=ticker, verified=n_ok, unverified=n_bad)
     # Modelo que realmente respondió (puede ser el fallback de otro proveedor).

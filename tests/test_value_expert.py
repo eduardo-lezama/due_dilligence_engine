@@ -59,12 +59,19 @@ _VALID_LLM_RESPONSE = ValueExpertLLMOutput(**{
 })
 
 
+def _evidence():
+    """Una cita del LLM verificada: sin ella el especialista cuenta como hueco de datos (EC-94)."""
+    from due_diligence.schemas.base import Citation
+    return [Citation(claim="c", source_url="10-K", excerpt="verified excerpt", confidence=0.9, verified=True)]
+
+
 def _ok_state(ticker: str = "AAPL") -> dict:
-    """Estado con Filings y Management presentes: sin ellos la confianza se topa a 0.6 (DATA GAPS)."""
+    """Estado con Filings y Management presentes Y con evidencia verificada: sin ella la confianza se
+    topa a 0.6 (DATA GAPS, EC-94)."""
     from due_diligence.schemas.reports import FilingsRAGReport, ManagementReport
     return {"ticker": ticker,
-            "filings": FilingsRAGReport(ticker=ticker, stub=False),
-            "mgmt": ManagementReport(ticker=ticker, stub=False)}
+            "filings": FilingsRAGReport(ticker=ticker, stub=False, citations=_evidence()),
+            "mgmt": ManagementReport(ticker=ticker, stub=False, citations=_evidence())}
 
 
 def _mock_expert(mocker, response=_VALID_LLM_RESPONSE):
@@ -668,10 +675,10 @@ RF = "Active SEC investigation disclosed in Item 1A; material weakness in ICFR."
 
 def _gov_state(**filings_over):
     from due_diligence.schemas.reports import FilingsRAGReport, ManagementReport
-    f = dict(ticker="TST", stub=False, governance_red_flags=RF)
+    f = dict(ticker="TST", stub=False, governance_red_flags=RF, citations=_evidence())
     f.update(filings_over)
     return {"ticker": "TST", "filings": FilingsRAGReport(**f),
-            "mgmt": ManagementReport(ticker="TST", stub=False)}
+            "mgmt": ManagementReport(ticker="TST", stub=False, citations=_evidence())}
 
 
 def test_value_expert_has_governance_block():

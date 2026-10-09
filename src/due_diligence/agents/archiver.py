@@ -31,6 +31,7 @@ from pathlib import Path
 
 import structlog
 
+from due_diligence.validation.citations import llm_evidence_count
 from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
 from due_diligence.llm.client import get_client
@@ -709,22 +710,38 @@ def _render_citations_section(state: AnalysisState) -> list[str]:
     """
     verified_groups: list[tuple[str, list]] = []
     unverified: list[tuple[str, object]] = []
+    no_evidence: list[str] = []   # EC-94: agentes que corrieron sin ninguna cita del LLM verificada
     for field, label in [
         ("mgmt", "Management"),
         ("filings", "Filings (10-K)"),
         ("competitive", "Competitive & Moat"),
     ]:
         rep = state.get(field)  # type: ignore[literal-required]
-        if rep is None or rep.stub or not getattr(rep, "citations", None):
+        if rep is None or rep.stub:
+            continue
+        if llm_evidence_count(getattr(rep, "citations", None) or []) == 0:
+            no_evidence.append(label)
+        if not getattr(rep, "citations", None):
             continue
         ok = [c for c in rep.citations if c.verified]
         if ok:
             verified_groups.append((label, ok))
-        unverified += [(label, c) for c in rep.citations if not c.verified]
+        # Una vez por (agente, excerpt): la cita que respalda un campo y la de la lista del LLM
+        # pueden ser la misma, y duplicada inflaba el recuento de rechazos (AAPL "0/6" eran 2).
+        seen = {(lbl, c.excerpt) for lbl, c in unverified}
+        for c in rep.citations:
+            if not c.verified and (label, c.excerpt) not in seen:
+                unverified.append((label, c))
+                seen.add((label, c.excerpt))
 
     lines: list[str] = []
-    if verified_groups:
+    if verified_groups or no_evidence:
         lines += ["## Sources & Citations", ""]
+        # Antes un agente sin citas se omitía en silencio: el lector no sabía que su sección no
+        # estaba respaldada por nada (EC-94).
+        for label in no_evidence:
+            lines += [f"### {label} — no verified evidence", "",
+                      "This agent's narrative is not backed by any citation matched against the source.", ""]
         for label, cits in verified_groups:
             lines.append(f"### {label}")
             lines.append("")

@@ -715,7 +715,7 @@ def analyze_cmd(
       Phase 1c (valuation + expert + critic + archive)
     """
     import time
-    from langgraph.checkpoint.memory import MemorySaver
+    from due_diligence.graph.checkpointer import make_checkpointer
     from langgraph.types import Command
     from due_diligence.graph.graph import build_graph
     from due_diligence.llm.client import get_client
@@ -729,7 +729,8 @@ def analyze_cmd(
     llm_client = get_client()
     llm_client.reset_run_stats()
 
-    checkpointer = MemorySaver()
+    # Deserialización estricta: solo nuestros schemas (EC-95, ADR-037).
+    checkpointer = make_checkpointer()
     graph = build_graph(checkpointer=checkpointer)
     config = {"configurable": {"thread_id": f"{ticker}-latest"}}
 

@@ -51,7 +51,7 @@ def freeze_context(ticker: str, out_dir: Path, graph: Any = None, today: str | N
     Args:
         ticker: símbolo US.
         out_dir: carpeta de salida (se crea si no existe).
-        graph: grafo compilado inyectable (tests); None → build_graph(MemorySaver()).
+        graph: grafo compilado inyectable (tests); None → build_graph(make_checkpointer()).
         today: fecha ISO para el nombre de archivo; None → hoy.
 
     Returns:
@@ -64,11 +64,11 @@ def freeze_context(ticker: str, out_dir: Path, graph: Any = None, today: str | N
     ticker = ticker.upper()
     today = today or date.today().isoformat()
     if graph is None:
-        from langgraph.checkpoint.memory import MemorySaver
+        from due_diligence.graph.checkpointer import make_checkpointer
 
         from due_diligence.graph.graph import build_graph
 
-        graph = build_graph(checkpointer=MemorySaver())
+        graph = build_graph(checkpointer=make_checkpointer())
     config = {"configurable": {"thread_id": f"freeze-{ticker}-{today}"}}
 
     # Mismo recorrido que cli.analyze_cmd, sin interacción humana.

@@ -242,6 +242,21 @@ class DcfComponents(BaseModel):
     terminal_reinvestment_modeled: bool = False
 
 
+class CyclicalityAssessment(BaseModel):
+    """Diagnóstico determinista de ciclicidad sobre el margen operativo (EC-92).
+
+    Una cíclica tiene años de bonanza muy por encima de su margen normal. Cuando lo es, DCF,
+    EPV, valor terminal y reverse DCF parten del nivel mid-cycle (mediana del margen de hasta
+    10 años × ventas actuales) en vez de los últimos años.
+    """
+    is_cyclical: bool
+    years: int                          # nº de ejercicios con margen usados (máx. 10)
+    median_margin: Optional[float]      # margen operativo mediano (fracción); None si no hay datos
+    peak_margin: Optional[float]        # mejor margen de la ventana
+    peak_period: Optional[str]          # ejercicio del mejor margen, p.ej. "FY2025"
+    evidence: str                       # explicación legible: por qué sí o por qué no
+
+
 class ValuationReport(BaseModel):
     """Reporte de valuation (DCF, múltiplos, sensitivity)."""
     ticker: str
@@ -265,7 +280,8 @@ class ValuationReport(BaseModel):
     dcf_reliability_note: Optional[str] = None          # Warning cuando el DCF puede ser poco fiable
     fcf_quality_warning: Optional[str] = None           # EC-65: FCF inflado por advance payments / project timing
     near_term_growth_used_pct: Optional[float] = None   # Tasa de crecimiento FCF efectivamente usada en el DCF (e.g. 0.123 = 12.3%)
-    near_term_growth_source: Optional[str] = None       # Procedencia: "user_override" | "fcf_cagr_Ny" | "fcf_cagr_Ny_rev_capped" | "revenue_cagr_fallback" | "default_7pct"
+    near_term_growth_source: Optional[str] = None       # Procedencia: "user_override" | "fcf_cagr_Ny" | "fcf_cagr_Ny_rev_capped" | "revenue_cagr_fallback" | "default_7pct" | "cyclical_terminal"
+    cyclicality: Optional[CyclicalityAssessment] = None  # EC-92: si es cíclica, la valoración parte del nivel mid-cycle
     # --- 3-stage DCF (ADR-029) ---
     stage1_years_used: Optional[int] = None             # Años con g1 constante
     fade_years_used: Optional[int] = None               # Años de fade lineal g1→terminal

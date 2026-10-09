@@ -59,11 +59,14 @@ from due_diligence.agents.valuation_math import (
     equity_bridge,
     estimate_pre_tax_cost_of_debt,
     fcff_breakdown,
+    assess_cyclicality,
+    median,
     net_claims,
     per_share,
     resolve_share_count,
     validate_dcf_rates,
 )
+from due_diligence.schemas.reports import CyclicalityAssessment
 
 log = structlog.get_logger()
 
@@ -409,6 +412,7 @@ def _compute_epv(
     *,
     capitalization: float = 1.0,
     tax_rate: Optional[float] = None,
+    normalized_ebit: Optional[tuple[float, str]] = None,
 ) -> tuple:  # (Optional[MetricValue], Optional[MetricValue], Optional[float], Optional[str], Optional[float])
     """
     Earnings Power Value — Greenwald (ADR-029), en el MISMO plano que el DCF (ADR-033).
@@ -430,7 +434,12 @@ def _compute_epv(
         (epv_enterprise_mv, epv_per_share_mv, epv_upside_pct, source_label, growth_premium)
         Todos pueden ser None si no hay datos suficientes.
     """
-    ebit_med, source = _ebit_median(ebit_series)
+    # normalized_ebit (EC-92): EBIT mid-cycle de una cíclica (margen mediano × ventas actuales);
+    # sustituye a la mediana de 5 años en dólares, que en CALM incluía dos años de gripe aviar.
+    if normalized_ebit is not None and normalized_ebit[0] > 0:
+        ebit_med, source = normalized_ebit
+    else:
+        ebit_med, source = _ebit_median(ebit_series)
     if ebit_med is None or wacc <= 0:
         return None, None, None, None, None
 
@@ -691,10 +700,38 @@ def _build_methods_summary(
     ]
 
 
+def _operating_margins(financials, max_years: int = 10) -> list[tuple[str, float]]:
+    """[(periodo, EBIT/ventas)] del más reciente al más antiguo, emparejados por etiqueta FY."""
+    if financials is None:
+        return []
+    rev_by = {m.period: m.value for m in financials.revenue}
+    out = [(oi.period, oi.value / rev_by[oi.period]) for oi in financials.operating_income
+           if oi.value is not None and rev_by.get(oi.period)]
+    return out[:max_years]
+
+
+def _cyclicality(financials) -> CyclicalityAssessment:
+    """Diagnóstico de ciclicidad de la empresa (EC-92). Ver valuation_math.assess_cyclicality."""
+    return assess_cyclicality(_operating_margins(financials))
+
+
+def _mid_cycle_ebit(financials, cyc: Optional[CyclicalityAssessment]) -> Optional[float]:
+    """EBIT mid-cycle = margen operativo mediano (≤10 años) × ventas del último ejercicio.
+
+    Por qué margen × ventas actuales y no la mediana del EBIT en dólares: la empresa puede haber
+    cambiado de tamaño (CALM triplicó ventas en 10 años); el margen normaliza el ciclo y las ventas
+    actuales el tamaño (Damodaran, "normalized margin"). None si no es cíclica o no hay datos.
+    """
+    if cyc is None or not cyc.is_cyclical or cyc.median_margin is None or not financials.revenue:
+        return None
+    return cyc.median_margin * financials.revenue[0].value
+
+
 def _compute_near_term_growth(
     financials,  # Optional[FinancialsReport]
     revenue_cagr: Optional[float],
     user_override_pct: Optional[float],
+    terminal_growth: float = 0.025,
 ) -> tuple[float, str]:
     """
     Calcula near_term_growth y su fuente sin efectos secundarios.
@@ -705,10 +742,15 @@ def _compute_near_term_growth(
         3. revenue_cagr — proxy cuando FCF CAGR no disponible (FCF negativo/insuficiente)
         4. 7% — fallback genérico anclado en PIB nominal US + prima small/mid cap
 
+    Cíclicas (EC-92): tras el override del usuario, g1 = crecimiento terminal. En una cíclica el
+    CAGR entre dos años depende de en qué punto del ciclo caen (CALM: 57 % de FCF, 16,6 % de
+    ventas, ambos por la gripe aviar), no del negocio. El crecimiento real (p.ej. expansión a
+    comida preparada) lo aporta el usuario en el checkpoint 2 con su justificación.
+
     Returns:
         (near_term_growth, source) con los caps [-15%, 30%] ya aplicados.
         source values: "user_override" | "fcf_cagr_Ny" | "fcf_cagr_Ny_rev_capped" |
-                       "revenue_cagr_fallback" | "default_7pct"
+                       "revenue_cagr_fallback" | "default_7pct" | "cyclical_terminal"
 
     Extraído de valuation_agent() como función pura para que el CLI pueda mostrar
     el valor auto antes del prompt de override (EC-54, Task 3).
@@ -718,6 +760,8 @@ def _compute_near_term_growth(
     if user_override_pct is not None:
         growth = user_override_pct / 100
         source = "user_override"
+    elif _cyclicality(financials).is_cyclical:
+        growth, source = terminal_growth, "cyclical_terminal"
     elif financials is not None and financials.free_cash_flow:
         # _fcf_cagr_with_window devuelve la ventana real usada, no len-1 fijo (EC-60).
         raw_cagr, n_periods = _fcf_cagr_with_window(financials.free_cash_flow)
@@ -972,13 +1016,17 @@ def _fcff_for_year(financials, i: int, tax_rate: float) -> Optional[FcffBreakdow
     return bd.model_copy(update={"missing_inputs": missing})
 
 
-def _build_fcff(financials, tax_rate: float) -> tuple[Optional[FcffBreakdown], Optional[float], list[str], list[str], str]:
+def _build_fcff(financials, tax_rate: float, *, cyclical: bool = False,
+                ) -> tuple[Optional[FcffBreakdown], Optional[float], list[str], list[str], str]:
     """
     Base FCFF del DCF (revisión adversarial A2).
 
     Si hay ≥3 ejercicios con ingresos: mediana del margen FCFF/ingresos de hasta 3 años × ingresos
     del último (like-with-like con el EPV, que usa mediana de EBIT; un año con capex o capital
     circulante atípico no fija toda la valoración). Si no: FCFF del último ejercicio.
+
+    cyclical=True (EC-92): mediana del margen FCFF de hasta 10 ejercicios (≥5) × ingresos del
+    último — el nivel mid-cycle. Con 3 años, una cíclica partía de su pico (CALM: año de gripe aviar).
 
     Returns:
         (breakdown del ÚLTIMO año — componentes coherentes entre sí —, base usada en el DCF,
@@ -993,14 +1041,22 @@ def _build_fcff(financials, tax_rate: float) -> tuple[Optional[FcffBreakdown], O
     rev_by = {m.period: m.value for m in financials.revenue}
     margins = []
     year_gaps: list[str] = []
-    for i in range(min(3, len(financials.operating_cash_flow))):
+    window = 10 if cyclical else 3
+    for i in range(min(window, len(financials.operating_cash_flow))):
         bd = _fcff_for_year(financials, i, tax_rate)
         period = financials.operating_cash_flow[i].period
         rev = rev_by.get(period)
         if bd is not None and rev:
             margins.append(bd.fcff / rev)
             year_gaps += [f"{name} {period}" for name in bd.missing_inputs]
+    if cyclical and len(margins) >= 5 and financials.revenue:
+        mid = median(margins)
+        return (latest, mid * financials.revenue[0].value, missing, year_gaps,
+                f"mid-cycle median FCFF margin ({len(margins)}y) × latest revenue = {mid:.1%}")
     if len(margins) >= 3 and financials.revenue:
+        margins = margins[:3]
+        year_gaps = [g for g in year_gaps
+                     if g.rsplit(" ", 1)[-1] in {m.period for m in financials.operating_cash_flow[:3]}]
         median_margin = sorted(margins)[1]
         base = median_margin * financials.revenue[0].value
         return latest, base, missing, year_gaps, f"median FCFF margin (3y) × latest revenue = {median_margin:.1%}"
@@ -1128,7 +1184,17 @@ def _run_valuation(state: AnalysisState) -> dict:
     # --- 2b. Plano enterprise (ADR-033): tipo, FCFF, acciones, derechos netos, market EV ---
     note_parts: list[str] = []
     tax_rate, tax_rate_source = _canonical_tax_rate(financials)
-    fcff_bd, fcff_base_value, fcff_missing, fcff_year_gaps, fcff_source = _build_fcff(financials, tax_rate)
+    # EC-92: ciclicidad ANTES de la base FCFF: si es cíclica, toda la valoración parte del nivel mid-cycle.
+    cyclicality = _cyclicality(financials) if financials is not None else None
+    is_cyclical = cyclicality is not None and cyclicality.is_cyclical
+    fcff_bd, fcff_base_value, fcff_missing, fcff_year_gaps, fcff_source = _build_fcff(
+        financials, tax_rate, cyclical=is_cyclical)
+    mid_cycle_ebit = _mid_cycle_ebit(financials, cyclicality)
+    if is_cyclical:
+        note_parts.append(
+            f"⚠️ Cyclical business ({cyclicality.evidence}). Valuation uses the mid-cycle level "
+            f"(median margins × latest revenue) and stage-1 growth = terminal growth unless overridden. "
+            f"Latest-year results are not the normal earning power.")
     if tax_rate_source.startswith("default"):
         note_parts.append(f"ℹ️ Tax rate: {tax_rate_source}.")
     share_count, share_source = resolve_share_count(
@@ -1182,6 +1248,7 @@ def _run_valuation(state: AnalysisState) -> dict:
         financials=financials,
         revenue_cagr=revenue_cagr,
         user_override_pct=assumptions.revenue_growth_yr1_pct,
+        terminal_growth=terminal_growth,
     )
 
     # Detectar si se aplicaron caps (FCF_CAGR pre-cap puede calcularse desde el source)
@@ -1192,7 +1259,11 @@ def _run_valuation(state: AnalysisState) -> dict:
     growth_was_capped = (
         raw_cagr is not None
         and (raw_cagr > _MAX_NEAR_TERM_GROWTH or raw_cagr < _MIN_NEAR_TERM_GROWTH)
-        and near_term_growth_source not in ("user_override", "revenue_cagr_fallback", "default_7pct")
+        and near_term_growth_source not in ("user_override", "revenue_cagr_fallback", "default_7pct",
+                                            "cyclical_terminal")
+        # Con el tope por ventas el valor usado no es el ±30 %: avisar de "capped at 30%" contradecía
+        # la línea de growth (CALM: "capped at 30%" con g1 = 16,6 %).
+        and "rev_capped" not in near_term_growth_source
     )
 
     if "rev_capped" in near_term_growth_source:
@@ -1229,6 +1300,12 @@ def _run_valuation(state: AnalysisState) -> dict:
             if revenue_cagr is not None else
             f"Near-term FCF growth: {near_term_growth:.1%} "
             f"(FCF CAGR {n_y}y, capped at {_MAX_NEAR_TERM_GROWTH:.0%})."
+        )
+    elif near_term_growth_source == "cyclical_terminal":
+        growth_context = (
+            f"Near-term FCF growth: {near_term_growth:.1%} (cyclical: set to terminal growth — "
+            f"historical CAGRs depend on where the cycle endpoints fall; override at checkpoint 2 "
+            f"with a justification if there is structural growth)."
         )
     elif near_term_growth_source == "revenue_cagr_fallback":
         growth_context = (
@@ -1272,6 +1349,7 @@ def _run_valuation(state: AnalysisState) -> dict:
         and financials.revenue is not None
         and len(financials.revenue) >= 3
         and assumptions.revenue_growth_yr1_pct is None  # no si el usuario ya overrideó
+        and not is_cyclical  # EC-92: la nota de ciclicidad ya lo explica y normaliza la base
     ):
         # Ventana de 5 años (T7): con periods=10 la mediana de 10 años cambiaría el aviso en silencio.
         rev_values = [r.value for r in financials.revenue[:5] if r.value and r.value > 0]
@@ -1307,12 +1385,14 @@ def _run_valuation(state: AnalysisState) -> dict:
     # --- 5. DCF sobre FCFF; fallback NOPAT (ya unlevered → misma base, EC-13) ---
     # NOPAT del último año con el tipo canónico: ancla del valor terminal con reinversión
     # (Damodaran/Koller) y fallback del DCF cuando el FCFF es negativo (trough / reinversión fuerte).
-    nopat_base: Optional[float] = ebit * (1 - tax_rate) if ebit is not None else None
+    # EC-92: en una cíclica el EBIT de partida es el mid-cycle, no el del último año.
+    ebit_for_value = mid_cycle_ebit if mid_cycle_ebit is not None else ebit
+    nopat_base: Optional[float] = ebit_for_value * (1 - tax_rate) if ebit_for_value is not None else None
     # El valor terminal es perpetuidad: ahí el efectivo converge al MARGINAL (Damodaran; ADR-033).
     # Usar el efectivo de un año con créditos fiscales (10 %) inflaba el TV (revisión final H1, #3).
     # El fallback del DCF (NOPAT proxy) sigue con el efectivo: describe el año observado.
-    terminal_nopat = (ebit * (1 - MARGINAL_TAX_RATE)
-                      if ebit is not None and ebit > 0 else None)
+    terminal_nopat = (ebit_for_value * (1 - MARGINAL_TAX_RATE)
+                      if ebit_for_value is not None and ebit_for_value > 0 else None)
     dcf_base: Optional[float] = None
     dcf_base_source: str = ""  # etiqueta para `MetricValue.source` y reliability note
     if fcff_base_value is not None and fcff_base_value > 0:
@@ -1490,6 +1570,8 @@ def _run_valuation(state: AnalysisState) -> dict:
         price_current=price,
         mid_year=assumptions.mid_year_convention,
         capitalization=capitalization,
+        normalized_ebit=((mid_cycle_ebit, f"mid_cycle_margin_{cyclicality.years}y")
+                         if mid_cycle_ebit is not None else None),
     )
     if epv_growth_premium is not None:
         # Lectura de Greenwald: el EPV no es "caro/barato" a secas; dice cuánto paga el precio
@@ -1556,6 +1638,11 @@ def _run_valuation(state: AnalysisState) -> dict:
     # near_term_growth, que ya es el input del DCF directo: comparar el reverse contra él era
     # circular (el "histórico" salía del mismo FCF CAGR que alimentaba el modelo).
     historical_cagr_for_conv = revenue_cagr
+    if is_cyclical and financials is not None:
+        # EC-92: el CAGR de 5 años de una cíclica depende de los extremos (CALM 16,6 % por la gripe
+        # aviar). Se compara con el de toda la ventana (hasta 10 años), menos sensible al pico.
+        full = cagr_by_fiscal_years(financials.revenue, max_years=10)
+        historical_cagr_for_conv = full[0] if full else revenue_cagr
     # Reverse comparable (revisión M2): CAGR media a 10 años del camino implícito stage1 + fade.
     reverse_10y = (
         _ten_year_equivalent_cagr(reverse_growth, terminal_growth, stage1_years, fade_years)
@@ -1593,6 +1680,7 @@ def _run_valuation(state: AnalysisState) -> dict:
         dcf_reliability_note=dcf_reliability_note,
         near_term_growth_used_pct=near_term_growth,
         near_term_growth_source=near_term_growth_source,
+        cyclicality=cyclicality,
         stage1_years_used=stage1_years,
         fade_years_used=fade_years,
         epv_enterprise=epv_ent_mv,

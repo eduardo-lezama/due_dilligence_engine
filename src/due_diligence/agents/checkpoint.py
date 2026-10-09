@@ -178,7 +178,7 @@ def _build_checkpoint2_summary(state: AnalysisState) -> dict:
     como default del prompt. Antes la CLI mostraba el Ke como "Suggested WACC" y usaba 9,0 fijo.
     """
     # Import diferido: valuation importa CHECKPOINT2_DEFAULTS de este módulo → evitar el ciclo.
-    from due_diligence.agents.valuation import suggest_wacc
+    from due_diligence.agents.valuation import _cyclicality, suggest_wacc
     from due_diligence.agents.valuation_math import describe_wacc
 
     ticker = state["ticker"]
@@ -203,6 +203,13 @@ def _build_checkpoint2_summary(state: AnalysisState) -> dict:
     roic_hint = None
     if financials is not None and financials.roic_series:
         roic_hint = f"{financials.roic_series[0].value:.1%} ({financials.roic_series[0].period})"
+
+    cyc = _cyclicality(financials) if financials is not None else None
+    cyclicality_hint = (
+        f"Cyclical: yes — {cyc.evidence}. Auto g1 = terminal growth; historical CAGRs depend on "
+        f"the cycle endpoints. Override g1 only for structural growth."
+        if cyc is not None and cyc.is_cyclical else "Cyclical: no"
+    )
 
     # CAGR histórico como anchor para las asunciones de growth (ADR-018 + ADR-019)
     cagr_5y = state.get("historical_cagr_5y")  # type: ignore[typeddict-item]
@@ -230,6 +237,9 @@ def _build_checkpoint2_summary(state: AnalysisState) -> dict:
             # Anchor histórico: el usuario puede comparar su growth propuesto vs historia
             "historical_revenue_cagr_5y": f"{cagr_5y:.1%}" if cagr_5y is not None else "unavailable",
             "wacc_breakdown": wacc_breakdown,
+            # EC-92: el usuario fija g1 aquí; debe saber que el CAGR histórico de una cíclica
+            # depende del punto del ciclo antes de usarlo como ancla.
+            "cyclicality": cyclicality_hint,
         },
         "defaults": {
             **CHECKPOINT2_DEFAULTS,

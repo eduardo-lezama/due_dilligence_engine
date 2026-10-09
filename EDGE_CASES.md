@@ -352,6 +352,8 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 
 ## Conocidos — pendientes de fix
 
+- **Cíclicas — ventas en pico (EC-92, parcial)**: la normalización usa el margen mid-cycle × ventas ACTUALES. En materias primas las ventas también suben en el pico (precio); normalizarlas exige precios mid-cycle que no tenemos. Tampoco se usan datos TTM: CALM ya pierde dinero en el Q1 FY2027 y la valoración no lo incorpora (H3).
+
 ### Pendientes tras H1 (2026-10)
 
 - **Crecimiento de stage 1 frágil**: derivado del CAGR histórico del FCF. AZO −4,6 % por capex en expansión vs revenue +8,4 %; BBW 15,7 % por una ventana que arranca en el valle COVID. Solución prevista: base rates (H3-4).
@@ -691,3 +693,9 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 "`.
 - **Fix**: `missing_inputs` por año y nota "FCFF inputs absent for specific years"; `tax_rate_source` en `ValuationReport` y nota si es default; cadena de pretax con la variante de puesta en equivalencia; `terminal_nopat` con `MARGINAL_TAX_RATE`; intereses del mismo periodo que el EBIT en `suggest_wacc`; EV/EBIT solo con EBIT > 0; `force_operating` ignora equity `None` y `EQUITY_CONCEPTS` cae a la variante con NCI; tabla de ratings re-etiquetada; `validate_citations` verifica contra cada fuente por separado. Tests en `tests/test_h1_final_review.py`.
 - **Commit**: ver `git log --grep "EC-91"`
+
+### EC-92 — Las cíclicas se valoraban extrapolando el pico del ciclo
+- **Síntoma** (run en vivo CALM, 2026-10-03): DCF $205/acción con precio $66,67 (+208 %). La base FCFF (mediana de 3 años) incluía FY2025, año de gripe aviar (margen operativo 36 % frente al 7,5 % típico); el crecimiento de la etapa 1 (16,6 %) salía del CAGR de ventas de 5 años, inflado por el mismo pico. El reverse DCF salía "barato" al compararse con ese 16,6 % y la convergencia ("3 de 4 métodos baratos") se usaba como argumento. Además aparecía la nota "DCF growth capped at 30%" cuando el valor usado era el tope por ventas (16,6 %): dos notas contradictorias.
+- **Causa raíz**: la valoración asumía que los últimos 3–5 años son el poder de beneficio normal. Falso en empresas cuyo margen tiene picos muy por encima de su nivel típico (materias primas, acero, fertilizantes, alimentos básicos).
+- **Fix**: detector determinista `valuation_math.assess_cyclicality` (≥5 años de margen operativo; cíclica si el mejor margen supera la mediana en ≥8 pp y es ≥1,75×; umbrales calibrados con márgenes reales de AAPL, AZO, BBW, PRDO, NUE, MOS y CALM). Si es cíclica: base FCFF = margen FCFF mediano de hasta 10 años × ventas actuales; EPV y valor terminal desde el EBIT mid-cycle (margen operativo mediano × ventas actuales); g1 = crecimiento terminal salvo override del usuario; reverse DCF comparado con el CAGR de ventas de toda la ventana. `ValuationReport.cyclicality`, línea "Cyclical: yes" en el informe, bloque `## CYCLICALITY (deterministic)` para el Value Expert y aviso en el checkpoint 2; el bloque de CAGR histórico del Expert avisa de que en una cíclica no es ancla (en el re-run el Expert seguía citando el 16,6 %). La nota del tope del 30 % solo aparece si el valor usado es ese tope. CALM añadido como 5.º arquetipo (MCE-25). Tests en `tests/test_valuation_cyclical.py`. Decisión: [ADR-034](docs/adr/ADR-034-cyclical-normalization.md).
+- **Commit**: ver `git log --grep "EC-92"`

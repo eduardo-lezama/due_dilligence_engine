@@ -12,6 +12,8 @@ Arquetipos:
     BBW  — small cap con income statement simplificado (sin OperatingIncomeLoss en XBRL)
     AZO  — buyback-heavy con equity negativo (IC fallback a assets-cash)
     PRDO — asset-light services con capex ~0 (FCF = OCF sin capex significativo)
+    CALM — cíclica de materias primas (márgenes con picos de 30+ pp por la gripe aviar);
+           cierre fiscal 52/53 semanas a finales de mayo
 """
 
 import json
@@ -28,6 +30,7 @@ ARCHETYPES = [
     ("BBW",  "small_cap_simplified_income_statement"),
     ("AZO",  "buyback_heavy_negative_equity"),
     ("PRDO", "asset_light_zero_capex"),
+    ("CALM", "commodity_cyclical"),
 ]
 
 FIXTURES_DIR = Path(__file__).parent.parent / "tests" / "fixtures"
@@ -53,5 +56,5 @@ if __name__ == "__main__":
         fetch_and_save(ticker, label)
 
     print("\nDone. Commit the fixtures:")
-    print("  git add tests/fixtures/aapl_xbrl_raw.json tests/fixtures/bbw_xbrl_raw.json tests/fixtures/azo_xbrl_raw.json tests/fixtures/prdo_xbrl_raw.json"
+    print("  git add tests/fixtures/aapl_xbrl_raw.json tests/fixtures/bbw_xbrl_raw.json tests/fixtures/azo_xbrl_raw.json tests/fixtures/prdo_xbrl_raw.json tests/fixtures/calm_xbrl_raw.json"
 )

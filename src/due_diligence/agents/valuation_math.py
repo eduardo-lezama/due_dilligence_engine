@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from due_diligence.schemas.reports import DcfComponents, EquityBridge, FcffBreakdown, WaccBreakdown
+from due_diligence.schemas.reports import (
+    CyclicalityAssessment, DcfComponents, EquityBridge, FcffBreakdown, WaccBreakdown,
+)
 
 # Tipo impositivo: UNA sola definición canónica (revisión adversarial). Vive en tools.xbrl_extract
 # porque es una propiedad de los datos (Σtax/Σpretax); aquí solo se re-exporta para los
@@ -296,3 +298,50 @@ def describe_wacc(w: WaccBreakdown) -> str:
         f"Kd {w.pre_tax_cost_of_debt:.1%}{kd_src} × (1−{w.tax_rate:.0%}) × {w.debt_weight:.0%} "
         f"= {w.wacc:.1%}"
     )
+
+
+# --- Ciclicidad (EC-92) ---
+# Umbrales calibrados con márgenes operativos reales de 10 años (EDGAR, 2026-10-09):
+#   no cíclicas: AAPL pico−mediana +3 pp, AZO +1, BBW +1 (COVID = hundimiento, no pico), PRDO +6;
+#   cíclicas: NUE +16 pp (2,8×), MOS +18 (3,8×), CALM +29 (4,8×).
+# La señal son los PICOS hacia arriba: una crisis puntual (BBW 2020) no hace cíclica a una empresa,
+# y una desviación típica alta tampoco (BBW y PRDO la tienen). Dos condiciones a la vez para no
+# disparar con márgenes altos y estables (un +8 pp sobre 40 % no es un ciclo).
+CYCLICAL_MIN_YEARS = 5
+CYCLICAL_PEAK_EXCESS = 0.08      # el mejor año supera la mediana en ≥ 8 puntos porcentuales…
+CYCLICAL_PEAK_RATIO = 1.75       # …y es ≥ 1,75 veces la mediana (si la mediana es > 0)
+CYCLICAL_MAX_YEARS = 10
+
+
+def median(values: list[float]) -> float:
+    """Mediana simple (media de los dos centrales si n es par). Lanza si la lista está vacía."""
+    if not values:
+        raise ValuationInputError("median of empty list")
+    s = sorted(values)
+    n = len(s)
+    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
+
+
+def assess_cyclicality(op_margins: list[tuple[str, float]]) -> CyclicalityAssessment:
+    """
+    ¿Es cíclica? `op_margins` = [(periodo, margen operativo)] con el más reciente primero.
+
+    Cíclica si, con ≥ 5 ejercicios (se usan hasta 10), el mejor margen supera la mediana en
+    ≥ 8 pp Y es ≥ 1,75× la mediana. Con mediana ≤ 0 basta el exceso de 8 pp (picos sobre un
+    nivel normal de pérdidas son ciclo puro). Función pura: el llamador alinea por periodo.
+    """
+    window = op_margins[:CYCLICAL_MAX_YEARS]
+    if len(window) < CYCLICAL_MIN_YEARS:
+        return CyclicalityAssessment(
+            is_cyclical=False, years=len(window), median_margin=None, peak_margin=None, peak_period=None,
+            evidence=f"insufficient history ({len(window)} years < {CYCLICAL_MIN_YEARS}) — not assessed")
+    med = median([m for _, m in window])
+    peak_period, peak = max(window, key=lambda pm: pm[1])
+    excess = peak - med
+    ratio_ok = med <= 0 or peak >= CYCLICAL_PEAK_RATIO * med
+    is_cyclical = excess >= CYCLICAL_PEAK_EXCESS and ratio_ok
+    ratio_txt = f"{peak / med:.1f}x" if med > 0 else "n/m (median ≤ 0)"
+    evidence = (f"peak operating margin {peak:.1%} ({peak_period}) vs {len(window)}y median {med:.1%}: "
+                f"+{excess * 100:.1f} pp, {ratio_txt}")
+    return CyclicalityAssessment(is_cyclical=is_cyclical, years=len(window), median_margin=med,
+                                 peak_margin=peak, peak_period=peak_period, evidence=evidence)

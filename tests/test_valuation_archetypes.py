@@ -21,7 +21,7 @@ from due_diligence.schemas.reports import MarketReport
 from due_diligence.tools.edgar import EdgarAdapter
 
 # Precios sintéticos redondos (USD) — solo para tener un precio, no pretenden ser de mercado.
-_PRICES = {"AAPL": 250.0, "BBW": 50.0, "AZO": 3_500.0, "PRDO": 30.0}
+_PRICES = {"AAPL": 250.0, "BBW": 50.0, "AZO": 3_500.0, "PRDO": 30.0, "CALM": 65.0}
 
 
 def _state(fin) -> dict:

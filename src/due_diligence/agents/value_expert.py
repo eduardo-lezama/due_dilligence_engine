@@ -749,6 +749,14 @@ def _format_context(state: AnalysisState) -> str:
                     f"Assess in §6 whether the revenue growth ceiling is appropriate given "
                     f"the business model and margin trajectory."
                 )
+            elif src == "cyclical_terminal":
+                growth_block = (
+                    f"Near-term FCF growth used: {g_pct:.1f}%\n"
+                    f"Source: cyclical business — stage-1 growth set to terminal growth (EC-92); "
+                    f"historical CAGRs depend on where the cycle endpoints fall.\n"
+                    f"Assess in §6 whether there is STRUCTURAL growth beyond the cycle "
+                    f"(capacity, new segments); if so, the investor must override it at checkpoint 2."
+                )
             elif src == "revenue_cagr_fallback":
                 growth_block = (
                     f"Near-term FCF growth used: {g_pct:.1f}%\n"
@@ -769,6 +777,19 @@ def _format_context(state: AnalysisState) -> str:
 
             lines.append(f"\n## DCF GROWTH ASSUMPTION (use in §6 — most sensitive DCF parameter)")
             lines.append(growth_block)
+
+        # EC-92: diagnóstico de ciclicidad determinista. Sin él, el Expert leía "3 de 4 métodos baratos"
+        # sobre una base de pico (CALM) y lo usaba como argumento.
+        cyc = valuation.cyclicality
+        if cyc is not None and cyc.is_cyclical:
+            lines.append("\n## CYCLICALITY (deterministic)")
+            lines.append(
+                f"Cyclical: yes — {cyc.evidence}.\n"
+                f"DCF base, EPV and terminal value use the mid-cycle level (median margins × latest "
+                f"revenue), not the latest year. In §4 and §6 judge earnings THROUGH THE CYCLE: a high "
+                f"latest-year ROIC or margin is not the normal earning power, and 'cheap' on peak "
+                f"earnings is the classic cyclical value trap."
+            )
 
         # Bloque VALUATION METHODS CONVERGENCE (ADR-030) — tabla estructurada de 4 métodos.
         # Le da al LLM los datos categorizados para que la regla #21 del prompt pueda
@@ -882,6 +903,16 @@ def _format_context(state: AnalysisState) -> str:
             qualifiers.append(
                 "⚠️ NEGATIVE CAGR: revenue has been shrinking. Verify if this is secular "
                 "decline or cyclical trough before anchoring the DCF."
+            )
+        val_ctx = state.get("valuation")  # type: ignore[typeddict-item]
+        cyc_ctx = getattr(val_ctx, "cyclicality", None)
+        if cyc_ctx is not None and cyc_ctx.is_cyclical:
+            # EC-92: en el run de CALM el Expert anclaba el reverse DCF en este 16,6 % (pico de la
+            # gripe aviar) mientras la tabla de convergencia ya usaba el CAGR de toda la ventana.
+            qualifiers.append(
+                "⚠️ CYCLICAL: this CAGR depends on the cycle endpoints, not on the business. "
+                "Do not use it as the growth anchor; the convergence table compares the reverse DCF "
+                "against the full-window revenue CAGR instead."
             )
         for q in qualifiers:
             lines.append(q)

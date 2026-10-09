@@ -39,15 +39,15 @@ def block_real_network_clients():
             _llm_client._client._anthropic = None
         yield
 
-# Los 4 arquetipos de MCE-25. Cada test que use `archetype_raw` corre 4 veces.
+# Los 5 arquetipos de MCE-25. Cada test que use `archetype_raw` corre 5 veces.
 # Añadir un ticker aquí + su fixture JSON es suficiente para incorporar un arquetipo nuevo.
-_ARCHETYPE_TICKERS = ["aapl", "bbw", "azo", "prdo"]
+_ARCHETYPE_TICKERS = ["aapl", "bbw", "azo", "prdo", "calm"]  # calm: cíclica (MCE-25, H1+)
 
 
 @pytest.fixture(params=_ARCHETYPE_TICKERS, ids=_ARCHETYPE_TICKERS)
 def archetype_raw(request):
     """
-    Fixture parametrizado sobre los 4 arquetipos de XBRL (MCE-25).
+    Fixture parametrizado sobre los 5 arquetipos de XBRL (MCE-25).
 
     Cada test que lo declare se ejecuta 4 veces — una por arquetipo.
     Esto garantiza que los paths críticos del parser no son AAPL-specific.

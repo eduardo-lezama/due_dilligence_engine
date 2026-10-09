@@ -261,6 +261,10 @@ def _ask_dcf_assumptions(payload: dict, state: dict) -> dict:
     if financials and financials.roic_series:
         r = financials.roic_series[0]
         console.print(f"  Latest ROIC:   [cyan]{r.value:.1%}[/cyan] ({r.period})")
+    cyc_hint = context.get("cyclicality") or ""
+    if cyc_hint.startswith("Cyclical: yes"):
+        # EC-92: visible ANTES de pedir g1 — el CAGR de una cíclica no es un ancla fiable.
+        console.print(f"  [yellow]{cyc_hint}[/yellow]")
     console.print()
 
     def _ask_int(prompt: str, default: int) -> int:
@@ -314,6 +318,7 @@ def _ask_dcf_assumptions(payload: dict, state: dict) -> dict:
     _SOURCE_LABELS = {
         "default_7pct": "generic fallback (no historical data)",
         "revenue_cagr_fallback": "revenue CAGR proxy (FCF unavailable)",
+        "cyclical_terminal": "cyclical business: terminal growth (EC-92) — override only for structural growth",
     }
     source_desc = _SOURCE_LABELS.get(auto_source, auto_source.replace("_", " "))
     console.print(

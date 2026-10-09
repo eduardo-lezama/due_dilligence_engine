@@ -362,6 +362,12 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
                 f"terminal={a.terminal_growth_pct}%, "
                 f"{a.projection_years}y explicit (3-stage Damodaran fade)*"
             )
+            cyc = valuation.cyclicality
+            if cyc is not None and cyc.is_cyclical:
+                # EC-92: el lector debe saber que la tabla parte del nivel mid-cycle, no del último año.
+                lines.append(f"*Cyclical: yes — {cyc.evidence}. DCF base, EPV and terminal value use the "
+                             f"mid-cycle level (median margins × latest revenue); stage-1 growth = terminal "
+                             f"unless overridden.*")
             if valuation.suggested_wacc_pct is not None:
                 lines.append(
                     f"*Suggested WACC (real: Ke + Kd after tax, market weights): "

@@ -48,6 +48,7 @@ Cada ADR sigue: Status · Context · Decision · Consequences · Alternatives.
 | [031](ADR-031-llm-in-loop-validation.md) | LLM-in-the-Loop Validation para thesis-break self-check | Accepted | 2+ |
 | [032](ADR-032-structured-outputs-fail-loud.md) | Structured outputs nativos y fail-loud en la capa LLM | Accepted | H1 |
 | [033](ADR-033-fcff-wacc-equity-bridge.md) | FCFF a WACC real + equity bridge común a DCF, EPV y reverse DCF | Accepted | H1 |
+| [034](ADR-034-cyclical-normalization.md) | Normalización cíclica: las cíclicas se valoran en su nivel mid-cycle | Accepted | Post-H1 |
 
 ## Cómo añadir un ADR
 1. Crear `ADR-NNN-slug.md` incrementando N.

@@ -49,9 +49,34 @@ class LLMAgentReport(BaseModel):
 
 
 
+class BeneficialOwnershipRow(BaseModel):
+    """Una fila de la tabla de participaciones del DEF 14A, leída por estructura (EC-93)."""
+    label: str                    # nombre del titular tal como aparece (sin marcas de nota al pie)
+    shares: Optional[int]         # acciones beneficiarias (multi-columna: el TOTAL); None si multiclase
+    percent: Optional[float]      # % de la clase; None si "*" / "less than 1%" o si es multiclase
+    below_1pct: bool = False      # True si el proxy dice explícitamente "menos del 1 %"
+    multi_class: bool = False     # tabla con varias clases / % de voto: no existe UN porcentaje
+    text: str                     # línea normalizada (citable); multiclase = celdas literales "a | b | c"
+
+
+class BeneficialOwnership(BaseModel):
+    """Tabla(s) de participaciones del DEF 14A: titulares y la fila "as a group" (EC-93)."""
+    rows: list[BeneficialOwnershipRow]
+    group: Optional[BeneficialOwnershipRow] = None   # "All directors and executive officers as a group"
+    filing_date: Optional[str] = None                # fecha del DEF 14A del que sale la tabla (staleness)
+
+
 class ManagementReport(LLMAgentReport):
     """Reporte de gestión e insider ownership."""
-    insider_ownership_pct: Optional[float] = None  # % total de acciones owned por insiders (directivos + board)
+    # EC-93: determinista desde la fila "as a group" de la tabla del DEF 14A (tools/proxy_ownership).
+    # El LLM ya no produce este número: con la tabla ausente del texto lo sacaba de la web.
+    insider_ownership_pct: Optional[float] = None  # % (no fracción) de directivos + consejo como grupo
+    insider_ownership_shares: Optional[int] = None  # acciones de ese grupo
+    insider_ownership_below_1pct: bool = False      # el proxy dice "*"/"less than 1%": no hay cifra exacta
+    # Multiclase (PATH, GOOGL, BRK-B): fila literal del grupo con % por clase y de VOTO. No se reduce a
+    # un % único: la última columna es el poder de voto (PATH 85,2 %), no la participación económica.
+    insider_ownership_multi_class_row: Optional[str] = None
+    insider_ownership_as_of: Optional[str] = None   # fecha del DEF 14A; >15 meses → aviso de dato viejo
     founder_ceo: Optional[bool] = None             # True si el CEO fundó la empresa
     ceo_tenure_years: Optional[float] = None       # Años del CEO en el cargo
     form4_transactions_12m: Optional[int] = None   # Nº de transacciones Form 4 en 12m — determinista (len, H1)

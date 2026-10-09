@@ -41,7 +41,7 @@ from rich.table import Table
 from rich import box
 
 from due_diligence.config import settings
-from due_diligence.utils.formatting import fmt_usd as _fmt_usd
+from due_diligence.utils.formatting import fmt_insider_ownership, fmt_usd as _fmt_usd
 
 app = typer.Typer(help="Due Diligence — value investing analysis system")
 console = Console()
@@ -127,7 +127,10 @@ def _show_checkpoint1_summary(state: dict) -> None:
 
     mgmt = state.get("mgmt")
     if mgmt and not mgmt.stub:
-        ownership = f"{mgmt.insider_ownership_pct:.1f}%" if mgmt.insider_ownership_pct else "N/A"
+        ownership = fmt_insider_ownership(mgmt.insider_ownership_pct, mgmt.insider_ownership_shares,
+                                          mgmt.insider_ownership_below_1pct,
+                                          mgmt.insider_ownership_multi_class_row,
+                                          as_of=mgmt.insider_ownership_as_of) or "N/A"
         table.add_row("Management", f"Insider ownership: {ownership}", "[green]OK[/green]")
     else:
         table.add_row("Management", "—", "[yellow]degraded[/yellow]")

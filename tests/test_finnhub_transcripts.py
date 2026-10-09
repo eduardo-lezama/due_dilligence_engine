@@ -15,6 +15,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+# Ejercitan FinnhubAdapter real (con finnhub.Client mockeado): sin el mock por defecto (EC-93).
+pytestmark = pytest.mark.real_finnhub_fetch
+
 
 def test_fetch_transcripts_returns_quarterly_list(mocker):
     """Con 5 transcripts disponibles, devuelve los 4 más recientes correctamente formateados."""

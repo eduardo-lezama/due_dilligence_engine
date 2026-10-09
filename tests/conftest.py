@@ -14,7 +14,7 @@ _FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 def _network_disabled(*_args, **_kwargs):
     raise RuntimeError(
-        "Real LLM/web client constructed during tests — mock get_client() or inject a fake "
+        "Real network client (LLM/web/EDGAR) constructed during tests — mock it or use a fixture "
         "(tests/CLAUDE.md: zero real API calls)."
     )
 
@@ -22,7 +22,7 @@ def _network_disabled(*_args, **_kwargs):
 @pytest.fixture(autouse=True)
 def block_real_network_clients():
     """
-    Impide construir clientes reales de OpenAI, Anthropic y Tavily en cualquier test (H1).
+    Impide construir clientes reales de OpenAI, Anthropic, Tavily, EDGAR, Finnhub y Polygon en cualquier test (H1, EC-93).
 
     Antes de H1, varios tests hacían llamadas de red reales cuando había un .env con claves
     (y fallaban sin él). Un test que necesite el constructor real lo parchea él mismo
@@ -30,7 +30,10 @@ def block_real_network_clients():
     """
     with unittest.mock.patch("openai.OpenAI", _network_disabled), \
             unittest.mock.patch("anthropic.Anthropic", _network_disabled), \
-            unittest.mock.patch("tavily.TavilyClient", _network_disabled):
+            unittest.mock.patch("tavily.TavilyClient", _network_disabled),             unittest.mock.patch("edgar.Company", _network_disabled),             unittest.mock.patch("finnhub.Client", _network_disabled),             unittest.mock.patch("polygon.RESTClient", _network_disabled):
+        # edgar.Company (EC-93): los tests de management descargaban filings reales de EDGAR sin
+        # que nadie lo notara (el adaptador degrada en silencio). Los tests de adaptadores que lo
+        # necesitan ya parchean edgar.Company ellos mismos, lo que sobrescribe este bloqueo.
         # El singleton de get_client() puede haber cacheado un cliente SDK real de un test
         # anterior: lo vaciamos para que el bloqueo aplique también a él.
         from due_diligence.llm import client as _llm_client
@@ -89,6 +92,66 @@ def pytest_configure(config):
         "markers",
         "real_quarterly_fetch: no mockear EdgarAdapter.fetch_quarterly_snapshot (el test mockea edgar.Company)",
     )
+    config.addinivalue_line(
+        "markers",
+        "real_8k_fetch: no mockear EdgarEventsAdapter.fetch_8k_events (el test mockea edgar.Company)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_finnhub_fetch: no mockear FinnhubAdapter.fetch_transcripts/fetch_quarterly_earnings (el test mockea finnhub.Client)",
+    )
+
+
+@pytest.fixture(autouse=True)
+def no_live_def14a_html():
+    """EC-93: el HTML del proxy se descarga de EDGAR. Por defecto devuelve "" (sin tabla) para que
+    ningún test toque la red; los que necesitan la tabla parchean con un fixture
+    tests/fixtures/<ticker>_def14a_ownership.html.
+
+    unittest.mock.patch y NO `mocker`: un fixture autouse que pide `mocker` lo instancia antes
+    que los demás autouse; al deshacer en orden inverso, mocker restauraba los mocks por defecto
+    de otros fixtures en vez de la función original y se filtraban entre tests (EC-93).
+    """
+    with unittest.mock.patch(
+        "due_diligence.tools.edgar.EdgarManagementAdapter.fetch_def14a_html", return_value=("", None)
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def no_live_8k_events(request):
+    """
+    Evita descargas reales de 8-K desde market_agent, management_agent y los tests de grafo (EC-93).
+
+    Hasta EC-93 nadie lo mockeaba: los tests descargaban filings reales de EDGAR (2 s por test,
+    suite de 38 s) y seguían pasando con la red cortada porque el adaptador degrada a [].
+    Los tests de fetch_8k_events en sí (mockeando edgar.Company) se marcan con
+    @pytest.mark.real_8k_fetch.
+    """
+    if request.node.get_closest_marker("real_8k_fetch"):
+        yield
+        return
+    with unittest.mock.patch(
+        "due_diligence.tools.edgar.EdgarEventsAdapter.fetch_8k_events", return_value=[]
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def no_live_finnhub(request):
+    """
+    Evita llamadas reales a Finnhub (transcripts y resultados trimestrales) desde los agentes (EC-93).
+
+    Con FINNHUB_API_KEY en .env, market_agent y management_agent llamaban a la API real en los
+    tests. Los tests del adaptador (tests/test_finnhub_transcripts.py) se marcan con
+    @pytest.mark.real_finnhub_fetch y mockean finnhub.Client ellos mismos.
+    """
+    if request.node.get_closest_marker("real_finnhub_fetch"):
+        yield
+        return
+    with unittest.mock.patch("due_diligence.tools.finnhub.FinnhubAdapter.fetch_transcripts", return_value=[]),             unittest.mock.patch("due_diligence.tools.finnhub.FinnhubAdapter.fetch_quarterly_earnings",
+                                return_value=[]):
+        yield
 
 
 @pytest.fixture(autouse=True)

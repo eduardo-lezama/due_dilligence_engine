@@ -15,6 +15,8 @@ Referencia: ADR-022 (formatter adaptativo) + meta-pattern post-EC-14.
 """
 
 from __future__ import annotations
+from datetime import date
+from typing import Optional
 
 
 def fmt_usd(value: float) -> str:
@@ -56,3 +58,33 @@ def fmt_usd(value: float) -> str:
         return f"${value / 1e3:.0f}k"
     else:
         return f"${value:.0f}"
+
+
+_STALE_PROXY_DAYS = 456   # ~15 meses: el proxy anual siguiente ya debería existir
+
+
+def fmt_insider_ownership(pct: Optional[float], shares: Optional[int], below_1pct: bool,
+                          multi_class_row: Optional[str] = None, as_of: Optional[str] = None,
+                          ) -> Optional[str]:
+    """Participación de directivos + consejo como grupo, para contexto LLM, checkpoint y CLI (EC-93).
+
+    "3.6% (1,697,343 shares)" | "less than 1% (9,079,765 shares)" | None si no hay dato.
+    "less than 1%" sin cifra cuando el proxy pone "*": nunca un número inventado.
+    Multiclase: la fila literal (por clase y % de voto), porque un % único sería falso.
+    as_of (fecha del DEF 14A): se añade siempre; si tiene más de ~15 meses, aviso de dato viejo.
+    """
+    if multi_class_row:
+        text = f"multi-class shares — directors and officers as a group (per class / voting power): {multi_class_row}"
+    elif pct is None and not below_1pct:
+        return None
+    else:
+        head = "less than 1%" if below_1pct else f"{pct:.1f}%"
+        text = f"{head} ({shares:,} shares)" if shares is not None else head
+    if as_of:
+        text += f" [proxy filed {as_of}]"
+        try:
+            if (date.today() - date.fromisoformat(as_of[:10])).days > _STALE_PROXY_DAYS:
+                text += " ⚠️ stale proxy (>15 months) — ownership may have changed"
+        except ValueError:
+            pass   # fecha con formato inesperado: se muestra tal cual, sin juzgar antigüedad
+    return text

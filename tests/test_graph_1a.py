@@ -88,7 +88,7 @@ def _mock_specialists(mocker):
     mock_mgmt = mocker.MagicMock()
     from due_diligence.schemas.llm_outputs import CompetitiveLLMOutput, ManagementLLMOutput
     mock_mgmt.structured.return_value = ManagementLLMOutput(
-        insider_ownership_pct=None, insider_ownership_citation=None, founder_ceo=None,
+        founder_ceo=None,
         ceo_tenure_years=None, ceo_tenure_citation=None, insider_transaction_pattern=None,
         compensation_structure_notes="N/A", capital_allocation_summary="N/A", citations=[])
     mocker.patch("due_diligence.agents.management.get_client", return_value=mock_mgmt)

@@ -60,7 +60,7 @@ from due_diligence.llm.errors import LLMError, LLMSchemaError
 from due_diligence.schemas.llm_outputs import ThesisBreakCheck, ValueExpertLLMOutput
 from due_diligence.schemas.reports import ValueExpertReport
 
-from due_diligence.utils.formatting import fmt_usd as _fmt_usd
+from due_diligence.utils.formatting import fmt_insider_ownership, fmt_usd as _fmt_usd
 from due_diligence.utils.periods import align_by_period
 
 log = structlog.get_logger()
@@ -430,8 +430,13 @@ def _format_context(state: AnalysisState) -> str:
         lines.append("## MANAGEMENT REPORT")
         # Etiquetas honestas (T3c, EC-69): cada línea dice de dónde sale el dato.
         # ownership y tenure solo existen si su cita se verificó contra fuente primaria (T3b).
-        if mgmt.insider_ownership_pct is not None:
-            lines.append(f"Insider ownership (DEF 14A, citation-verified): {mgmt.insider_ownership_pct:.1f}%")
+        # EC-93: el % de insiders es determinista (fila "as a group" del DEF 14A), no del LLM.
+        ownership = fmt_insider_ownership(mgmt.insider_ownership_pct, mgmt.insider_ownership_shares,
+                                          mgmt.insider_ownership_below_1pct,
+                                          mgmt.insider_ownership_multi_class_row,
+                                          as_of=mgmt.insider_ownership_as_of)
+        if ownership is not None:
+            lines.append(f"Insider ownership (DEF 14A ownership table, deterministic): {ownership}")
         if mgmt.founder_ceo is not None:
             lines.append(f"Founder-CEO: {'Yes' if mgmt.founder_ceo else 'No'}")
         if mgmt.ceo_tenure_years is not None:

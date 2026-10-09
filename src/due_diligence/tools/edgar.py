@@ -538,6 +538,45 @@ class EdgarManagementAdapter:
     """
 
     @staticmethod
+    def fetch_def14a_html(ticker: str) -> tuple[str, str | None]:
+        """
+        (HTML completo del DEF 14A más reciente, fecha de presentación) — ("", None) si no hay (EC-93).
+
+        La fecha viaja con el HTML porque el último DEF 14A puede ser de hace años (EPD: 2022) y
+        la participación de directivos se presentaría como actual sin aviso.
+
+        Lo consume tools/proxy_ownership.py para leer la tabla de participaciones por su
+        ESTRUCTURA (filas y celdas). El texto plano (fetch_def14a_text) no sirve para eso:
+        la ventana por títulos caía después de la tabla (CALM, PRDO) y la conversión a texto
+        trocea las tablas estrechas (AZO: "Goodsp…", "Percent…").
+
+        Por qué la cadena de intentos: en edgartools 5.59.1 `Filing.html()` devuelve None
+        para los proxies cuyo documento principal es inline XBRL (empieza por `<?xml` y
+        DEF 14A no está en XML_FILING_FORMS, _filings.py:1603-1640). `sgml().html()` lee el
+        documento principal del paquete SGML (sgml_common.py:314) y sí lo devuelve.
+        """
+        from edgar import Company, set_identity  # type: ignore[import]
+
+        set_identity(settings.sec_user_agent)
+        filings = Company(ticker).get_filings(form="DEF 14A")
+        if not filings:
+            log.warning("def14a_not_found", ticker=ticker)
+            return "", None
+        filing = filings.latest()  # patrón latest() aceptado: DEF 14A/A es excepcional (MCE-26, T5)
+        filing_date = str(filing.filing_date) if getattr(filing, "filing_date", None) else None
+        html = filing.html()
+        if not html:
+            try:
+                html = filing.sgml().html()
+            except Exception as e:  # red/parseo SGML: se registra y se devuelve "" (el llamador avisa)
+                log.warning("def14a_html_sgml_failed", ticker=ticker, error=str(e))
+                html = None
+        if not html:
+            log.warning("def14a_html_unavailable", ticker=ticker)
+            return "", filing_date
+        return html, filing_date
+
+    @staticmethod
     def fetch_def14a_text(ticker: str, max_chars: int = 24000) -> str:
         """
         Obtiene el texto del proxy statement (DEF 14A) más reciente con extracción

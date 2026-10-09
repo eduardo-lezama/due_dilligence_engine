@@ -645,7 +645,7 @@ def test_value_expert_context_shows_only_verified_evidence():
     ctx = _format_context({"ticker": "TST", "mgmt": _mgmt_with_cits()})
     assert "CEO bought 5,000 shares" in ctx and "selling everything" not in ctx
     assert "Form 4 open-market transactions (12m, deterministic): 3" in ctx
-    assert "Insider ownership (DEF 14A, citation-verified): 12.5%" in ctx
+    assert "Insider ownership (DEF 14A ownership table, deterministic): 12.5%" in ctx
     assert "CEO tenure (citation-verified): 11 years" in ctx
 
 

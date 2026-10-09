@@ -64,8 +64,8 @@ class ManagementLLMOutput(_Strict):
     los Form 4 descargados (T3b). Los números (ownership, tenure) solo llegan al report
     si su cita se verifica contra fuentes primarias.
     """
-    insider_ownership_pct: float | None
-    insider_ownership_citation: CitationOut | None
+    # insider_ownership_pct NO está aquí (EC-93): se lee de la tabla del DEF 14A en código
+    # (tools/proxy_ownership). Cuando el LLM lo producía, con la tabla ausente lo sacaba de la web.
     founder_ceo: bool | None
     ceo_tenure_years: float | None
     ceo_tenure_citation: CitationOut | None

@@ -1,3 +1,4 @@
+from pathlib import Path
 """
 Tests Phase 1b — Management Agent, Filings Agent, Market Agent y Competitive Agent.
 
@@ -44,7 +45,7 @@ def minimal_state():
 
 def _mgmt_out(**over) -> ManagementLLMOutput:
     """Salida LLM tipada (ADR-032) mínima para el management agent."""
-    base = dict(insider_ownership_pct=None, insider_ownership_citation=None, founder_ceo=None,
+    base = dict(founder_ceo=None,
                 ceo_tenure_years=None, ceo_tenure_citation=None, insider_transaction_pattern=None,
                 compensation_structure_notes=None, capital_allocation_summary=None, citations=[])
     base.update(over)
@@ -55,7 +56,6 @@ def _mgmt_out(**over) -> ManagementLLMOutput:
 def llm_response_valid():
     """Salida estructurada del caso feliz (antes: JSON en texto)."""
     return _mgmt_out(
-        insider_ownership_pct=0.08,
         ceo_tenure_years=13.0,
         compensation_structure_notes="Tim Cook's compensation is primarily equity-based, vesting over 3 years with performance conditions tied to TSR vs. S&P 500.",
         capital_allocation_summary="Apple has returned over $600B to shareholders via buybacks since 2012. Capital allocation is consistent and shareholder-friendly.",
@@ -147,8 +147,9 @@ def test_management_agent_populates_fields(mocker, minimal_state, llm_response_v
     result = management_agent(minimal_state)
     report: ManagementReport = result["mgmt"]
 
-    # Sin cita verificada contra fuente primaria, los números del LLM se descartan (EC-69).
+    # Sin tabla de participaciones (HTML vacío, conftest) no hay % de insiders: nunca lo da el LLM (EC-93).
     assert report.insider_ownership_pct is None
+    # Sin cita verificada contra fuente primaria, los números del LLM se descartan (EC-69).
     assert report.ceo_tenure_years is None
     # Determinista desde H1: len(form4_transactions), no lo que diga el LLM (ADR-005).
     assert report.form4_transactions_12m == 1
@@ -570,6 +571,9 @@ def test_market_agent_skips_tavily_when_no_drawdown(mocker, minimal_state):
         "due_diligence.agents.market.FinnhubAdapter.fetch_company_news",
         return_value=[],
     )
+    # Aísla la ruta de drawdown: sin esto el respaldo Tavily de resultados trimestrales también
+    # llama a search. Antes de EC-93 no se notaba porque el 8-K real de EDGAR (red) lo evitaba.
+    mocker.patch("due_diligence.agents.market._fetch_quarterly_earnings_tavily", return_value="")
     tavily_spy = mocker.patch(
         "due_diligence.agents.market.TavilyAdapter.search",
         return_value=[],
@@ -599,6 +603,9 @@ def test_market_agent_invokes_tavily_when_drawdown_detected(mocker, minimal_stat
         "due_diligence.agents.market.FinnhubAdapter.fetch_company_news",
         return_value=[],
     )
+    # Aísla la ruta de drawdown: sin esto el respaldo Tavily de resultados trimestrales también
+    # llama a search. Antes de EC-93 no se notaba porque el 8-K real de EDGAR (red) lo evitaba.
+    mocker.patch("due_diligence.agents.market._fetch_quarterly_earnings_tavily", return_value="")
     tavily_spy = mocker.patch(
         "due_diligence.agents.market.TavilyAdapter.search",
         return_value=[
@@ -628,6 +635,7 @@ def test_polygon_skips_when_no_api_key(mocker):
     assert result["market_cap"] is None
 
 
+@pytest.mark.real_finnhub_fetch  # ejercita FinnhubAdapter real (EC-93)
 def test_finnhub_skips_when_no_api_key(mocker):
     """Si FINNHUB_API_KEY no está configurada, devuelve lista vacía."""
     mocker.patch(
@@ -643,6 +651,7 @@ def test_finnhub_skips_when_no_api_key(mocker):
 
 # --- Tests: P2 — Finnhub fetch_quarterly_earnings (structured EPS actuals) ---
 
+@pytest.mark.real_finnhub_fetch  # ejercita FinnhubAdapter real (EC-93)
 def test_finnhub_quarterly_earnings_skips_when_no_api_key(mocker):
     """P2: Sin FINNHUB_API_KEY, fetch_quarterly_earnings devuelve [] sin error."""
     mocker.patch(
@@ -654,6 +663,7 @@ def test_finnhub_quarterly_earnings_skips_when_no_api_key(mocker):
     assert result == []
 
 
+@pytest.mark.real_finnhub_fetch  # ejercita FinnhubAdapter real (EC-93)
 def test_finnhub_quarterly_earnings_returns_structured_data(mocker):
     """P2: fetch_quarterly_earnings devuelve lista de dicts con campos EPS."""
     mock_raw = [
@@ -694,6 +704,7 @@ def test_finnhub_quarterly_earnings_returns_structured_data(mocker):
     assert result[1]["revenueActual"] is None
 
 
+@pytest.mark.real_finnhub_fetch  # ejercita FinnhubAdapter real (EC-93)
 def test_finnhub_quarterly_earnings_api_error_returns_empty(mocker):
     """P2: Error de API devuelve [] sin propagar la excepción."""
     mocker.patch(
@@ -1136,6 +1147,7 @@ from due_diligence.agents.filings import _build_report as build_filings  # noqa:
 from due_diligence.agents.management import _build_report as build_mgmt  # noqa: E402
 
 DEF14A = "All directors and executive officers as a group beneficially own 12.5% of outstanding shares."
+TENURE = "Mr. Smith has served as our Chief Executive Officer since 2011."
 
 
 def _cout(excerpt, source="DEF 14A"):
@@ -1148,25 +1160,59 @@ def test_form4_count_is_deterministic():
     assert rep.form4_transactions_12m == 7
 
 
-def test_insider_pct_kept_only_with_verified_matching_citation():
-    ok = build_mgmt(_mgmt_out(insider_ownership_pct=12.5,
-                              insider_ownership_citation=_cout(DEF14A)), "TST", {"DEF 14A": DEF14A}, 0)
-    assert ok.insider_ownership_pct == 12.5
-    assert any(c.verified and "12.5%" in c.excerpt for c in ok.citations)
-    no_cit = build_mgmt(_mgmt_out(insider_ownership_pct=12.5), "TST", {"DEF 14A": DEF14A}, 0)
-    assert no_cit.insider_ownership_pct is None
-    mismatch = build_mgmt(_mgmt_out(insider_ownership_pct=30.0,
-                                    insider_ownership_citation=_cout(DEF14A)), "TST", {"DEF 14A": DEF14A}, 0)
-    assert mismatch.insider_ownership_pct is None
+def _ownership(ticker: str):
+    from due_diligence.tools.proxy_ownership import parse_beneficial_ownership
+    html = (Path(__file__).parent / "fixtures" / f"{ticker}_def14a_ownership.html").read_text(encoding="utf-8")
+    return parse_beneficial_ownership(html)
 
 
-def test_numeric_gate_rejects_web_only_support():
-    """Un % de propiedad sacado de la web no puede quedar 'verificado' (fuentes primarias, ADR-011)."""
-    web = "Analysts estimate insiders hold about 12.5% of the company's outstanding stock."
-    rep = build_mgmt(_mgmt_out(insider_ownership_pct=12.5, insider_ownership_citation=_cout(web, "Tavily")),
-                     "TST", {"DEF 14A": DEF14A, "Web (Tavily)": web}, 0)
-    assert rep.insider_ownership_pct is None
-    assert all(not c.verified for c in rep.citations if "Analysts estimate" in c.excerpt)
+def test_insider_ownership_is_deterministic_from_proxy_table():
+    """EC-93: el % sale de la fila "as a group" del DEF 14A (CALM: 3,6 %, 1 697 343 acciones), con cita
+    construida desde esa fila; ya no es un campo del LLM."""
+    bo = _ownership("calm")
+    rep = build_mgmt(_mgmt_out(), "CALM", {"DEF 14A": DEF14A}, 0, ownership=bo)
+    assert rep.insider_ownership_pct == 3.6 and rep.insider_ownership_shares == 1_697_343
+    assert rep.insider_ownership_below_1pct is False
+    cit = next(c for c in rep.citations if c.excerpt == bo.group.text)
+    assert cit.verified is True and cit.source_url == "DEF 14A ownership table"
+
+
+def test_insider_ownership_below_one_percent_has_no_invented_number():
+    """AAPL pone "*" (menos del 1 %): el % queda None y se marca below_1pct — nunca un 0,5 inventado."""
+    rep = build_mgmt(_mgmt_out(), "AAPL", {"DEF 14A": DEF14A}, 0, ownership=_ownership("aapl"))
+    assert rep.insider_ownership_pct is None and rep.insider_ownership_below_1pct is True
+    assert rep.insider_ownership_shares == 9_079_765
+
+
+def test_no_ownership_table_means_no_insider_pct():
+    rep = build_mgmt(_mgmt_out(), "TST", {"DEF 14A": DEF14A}, 0, ownership=None)
+    assert rep.insider_ownership_pct is None and rep.insider_ownership_shares is None
+
+
+def test_llm_output_schema_no_longer_has_insider_pct():
+    assert "insider_ownership_pct" not in ManagementLLMOutput.model_fields
+    assert "insider_ownership_citation" not in ManagementLLMOutput.model_fields
+
+
+def test_management_agent_feeds_parsed_table_to_llm_and_corpus(mocker, minimal_state, llm_response_valid):
+    """El LLM recibe la tabla limpia (no el texto troceado) y una cita copiada de ella se verifica."""
+    html = (Path(__file__).parent / "fixtures" / "calm_def14a_ownership.html").read_text(encoding="utf-8")
+    mocker.patch("due_diligence.agents.management.EdgarManagementAdapter.fetch_def14a_html",
+                 return_value=(html, "2026-08-18"))
+    mocker.patch("due_diligence.agents.management.EdgarManagementAdapter.fetch_def14a_text", return_value="Proxy text")
+    mocker.patch("due_diligence.agents.management.EdgarManagementAdapter.fetch_form4_transactions", return_value=[])
+    mocker.patch("due_diligence.agents.management.EdgarManagementAdapter.fetch_10k_item10", return_value="Item 10 text")
+    mocker.patch("due_diligence.agents.management.TavilyAdapter.search", return_value=[])
+    row = "Adolphus B. Baker | 1,504,175 shares | 3.2%"
+    out = llm_response_valid.model_copy(update={"citations": [_cout(row)]})
+    client = mocker.MagicMock()
+    client.structured.return_value = out
+    mocker.patch("due_diligence.agents.management.get_client", return_value=client)
+    rep = management_agent(minimal_state)["mgmt"]
+    prompt = client.structured.call_args.kwargs["messages"][0]["content"]
+    assert "All directors and executive officers as a group (14 persons) | 1,697,343 shares | 3.6%" in prompt
+    assert rep.insider_ownership_pct == 3.6 and rep.insider_ownership_as_of == "2026-08-18"
+    assert any(c.verified and c.excerpt == row for c in rep.citations)
 
 
 def test_ceo_tenure_requires_year_in_verified_excerpt():
@@ -1257,7 +1303,7 @@ def test_governance_flag_with_invented_citation_is_dropped():
 def test_field_citation_not_duplicated_when_llm_also_lists_it():
     """Visto en vivo (AAPL, 2026-10-03): la cita que respalda el % de insiders aparecía dos veces en el
     report (una en citations del LLM y otra añadida por el gating). Debe aparecer una sola vez."""
-    same = _cout(DEF14A)
-    rep = build_mgmt(_mgmt_out(insider_ownership_pct=12.5, insider_ownership_citation=same, citations=[same]),
-                     "TST", {"DEF 14A": DEF14A}, 0)
-    assert len([c for c in rep.citations if c.excerpt == DEF14A]) == 1
+    same = _cout(TENURE)
+    rep = build_mgmt(_mgmt_out(ceo_tenure_years=14.0, ceo_tenure_citation=same, citations=[same]),
+                     "TST", {"DEF 14A": DEF14A + " " + TENURE}, 0)
+    assert len([c for c in rep.citations if c.excerpt == TENURE]) == 1

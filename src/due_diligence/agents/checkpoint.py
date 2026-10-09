@@ -31,7 +31,7 @@ from __future__ import annotations
 import structlog
 from langgraph.types import interrupt
 
-from due_diligence.utils.formatting import fmt_usd
+from due_diligence.utils.formatting import fmt_insider_ownership, fmt_usd
 from due_diligence.graph.state import AnalysisState
 
 log = structlog.get_logger()
@@ -92,12 +92,19 @@ def _build_socratic_questions(state: AnalysisState) -> list[str]:
             )
 
     # --- Patrón 2: Insider ownership bajo ---
-    if mgmt is not None and not mgmt.stub and mgmt.insider_ownership_pct is not None:
-        if mgmt.insider_ownership_pct < 1.0:
-            qs.append(
-                f"Insider ownership is {mgmt.insider_ownership_pct:.2f}%. "
-                "Would you weigh this as misaligned incentives or normal for a company of this size?"
-            )
+    # EC-93: "*" en el proxy → below_1pct sin cifra; antes esta pregunta no salía nunca en ese caso.
+    if mgmt is not None and not mgmt.stub and (
+        mgmt.insider_ownership_below_1pct
+        or (mgmt.insider_ownership_pct is not None and mgmt.insider_ownership_pct < 1.0)
+    ):
+        ownership = fmt_insider_ownership(mgmt.insider_ownership_pct, mgmt.insider_ownership_shares,
+                                          mgmt.insider_ownership_below_1pct,
+                                          mgmt.insider_ownership_multi_class_row,
+                                          as_of=mgmt.insider_ownership_as_of)
+        qs.append(
+            f"Insider ownership (directors and officers as a group) is {ownership}. "
+            "Would you weigh this as misaligned incentives or normal for a company of this size?"
+        )
 
     # --- Patrón 3: CEO tenure largo ---
     if mgmt is not None and not mgmt.stub and mgmt.ceo_tenure_years is not None:

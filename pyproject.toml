@@ -17,6 +17,7 @@ dependencies = [
     "rich>=13.0.0",
     "structlog>=24.0.0",
     "rapidfuzz>=3.14",  # validation/citations.py (ADR-032): fuzzy match de excerpts
+    "lxml>=6.0",
 ]
 
 [project.optional-dependencies]

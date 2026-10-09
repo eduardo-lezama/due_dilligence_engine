@@ -17,6 +17,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# Estos tests ejercitan fetch_8k_events real (con edgar.Company mockeado): sin el mock por defecto.
+pytestmark = pytest.mark.real_8k_fetch
+
 
 def _make_fake_filing(
     items: list[str],

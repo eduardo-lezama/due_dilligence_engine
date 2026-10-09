@@ -38,10 +38,12 @@ from due_diligence.graph.state import AnalysisState
 from due_diligence.agents.llm_support import error_label, model_used
 from due_diligence.llm.client import get_client
 from due_diligence.llm.errors import LLMError
+from due_diligence.schemas.base import Citation
 from due_diligence.schemas.llm_outputs import ManagementLLMOutput
-from due_diligence.schemas.reports import ManagementReport
+from due_diligence.schemas.reports import BeneficialOwnership, BeneficialOwnershipRow, ManagementReport
 from due_diligence.tools.edgar import EdgarEventsAdapter, EdgarManagementAdapter, format_form4_for_prompt
 from due_diligence.tools.finnhub import FinnhubAdapter
+from due_diligence.tools.proxy_ownership import parse_beneficial_ownership, render_ownership
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
 from due_diligence.validation.citations import count_verified, gate_llm_value, validate_and_relabel, dedupe_citations
 
@@ -90,13 +92,11 @@ RULES:
 - Citation excerpts are verified automatically against the sources: copy them VERBATIM. Paraphrased excerpts are discarded.
 - Excerpts must be ONE contiguous span copied from ONE source. Never join text from different places, never add
   words, and never add computed figures (e.g. a percentage you calculated) to an excerpt.
-- TABLES (e.g. DEF 14A beneficial ownership): copy the row exactly as it appears, including footnote markers and
-  symbols, e.g. "officers as a group (12 persons) 9,079,765(17) *". A "*" means "less than 1%": if the table only
-  shows "*" and no percentage, set insider_ownership_pct to null — do not compute it yourself.
+- OWNERSHIP TABLE: SOURCE 1b is the DEF 14A beneficial ownership table already parsed into one line per holder
+  ("label | N shares | X%"). Cite those lines EXACTLY as written. Insider ownership % is computed by the system
+  from that table — do not report or recompute it; use it only to reason about skin in the game.
 
 FIELD GUIDANCE (the output format is enforced by the response schema):
-- insider_ownership_pct: total % of shares owned by all insiders combined (directors + executive officers as a group), as stated in SOURCE 1 (DEF 14A) or SOURCE 3; null if not stated.
-- insider_ownership_citation: REQUIRED whenever insider_ownership_pct is not null — the exact DEF 14A / 10-K sentence or table row that states the percentage. Without a verifiable citation the number is discarded.
 - founder_ceo: true/false/null — is the CURRENT CEO the company founder?
 - ceo_tenure_years: years the current CEO has been in role; null if not determinable.
 - ceo_tenure_citation: REQUIRED whenever ceo_tenure_years is not null — the exact sentence stating when the CEO was appointed (it must contain the year).
@@ -156,6 +156,7 @@ def _build_user_prompt(
     tavily_text: str,
     transcripts_text: str = "",
     leadership_events_text: str = "",
+    ownership_text: str = "",
 ) -> str:
     """
     Construye el prompt de usuario con todo el contexto de fuentes.
@@ -177,6 +178,11 @@ def _build_user_prompt(
 
 ## SOURCE 1: DEF 14A — Proxy Statement (compensation, ownership, board)
 {def14a_text or "DEF 14A not available."}
+
+---
+
+## SOURCE 1b: DEF 14A — Beneficial ownership table (parsed from the proxy HTML; cite lines verbatim)
+{ownership_text or "Beneficial ownership table not available."}
 
 ---
 
@@ -205,7 +211,7 @@ def _build_user_prompt(
 Answer each question using ONLY the sources above:
 
 1. Who runs the company? How long has the CEO been in position? What is their prior track record?
-2. Does management have skin in the game? What is the insider ownership %? What does Form 4 activity show?
+2. Does management have skin in the game? Use the ownership table in SOURCE 1b. What does Form 4 activity show?
 3. How is management compensated? Is it aligned with shareholders (long-term equity, ROIC targets) or with short-term adjusted metrics?
 4. Capital allocation track record: M&A discipline, buybacks at reasonable prices, dividends, reinvestment quality.
 5. Is the board independent? Any red flags in governance, related-party transactions, or entrenchment?"""
@@ -213,26 +219,36 @@ Answer each question using ONLY the sources above:
 
 # Fuentes PRIMARIAS (ADR-011): las únicas contra las que se puede verificar un número
 # del LLM. Tavily y transcripts sirven para citas de texto, nunca para "verificar" un %.
-_PRIMARY_SOURCES = ("DEF 14A", "10-K Item 10", "Form 4")
+_PRIMARY_SOURCES = ("DEF 14A", "DEF 14A ownership table", "10-K Item 10", "Form 4")
+_OWNERSHIP_LABEL = "DEF 14A ownership table"
 # Un excerpt que respalda la antigüedad del CEO debe contener el año de nombramiento.
 _YEAR_RE = re.compile(r"\b(19|20)\d{2}\b")
 
 
+def _ownership_citation(group: BeneficialOwnershipRow) -> Citation:
+    """Cita determinista de la fila "as a group": la escribe el código desde la tabla, no el LLM."""
+    return Citation(
+        claim="Insider ownership: all directors and executive officers as a group",
+        source_url=_OWNERSHIP_LABEL, excerpt=group.text, confidence=1.0, verified=True,
+        verification_note="deterministic: parsed from the DEF 14A beneficial ownership table (EC-93)",
+    )
+
+
 def _build_report(out: ManagementLLMOutput, ticker: str, corpus: dict[str, str],
-                  form4_count: int | None) -> ManagementReport:
+                  form4_count: int | None, ownership: BeneficialOwnership | None = None) -> ManagementReport:
     """Valida citas, condiciona los campos numéricos y pone el conteo Form 4 determinista.
 
     - `corpus`: {etiqueta: texto} con exactamente lo que se envió al LLM (local al nodo).
-    - `insider_ownership_pct` y `ceo_tenure_years` solo sobreviven con cita verificada
-      contra fuentes primarias (y, para el %, con el número dentro del excerpt; para la
-      antigüedad, con un año en el excerpt). Si no → None (EC-69, ADR-005).
+    - `insider_ownership_*`: deterministas desde la fila "as a group" de `ownership` (EC-93); sin
+      tabla → None. "*" en el proxy → below_1pct=True y % None (nunca un número inventado).
+    - `ceo_tenure_years` solo sobrevive con cita verificada contra fuentes primarias y con un
+      año en el excerpt. Si no → None (EC-69, ADR-005).
     - `form4_transactions_12m` = len(transacciones descargadas): nunca lo dice el LLM.
     - Citas de texto libre: se validan contra TODO el corpus y su source_url pasa a la
       etiqueta real donde se encontraron. Las no verificadas se conservan marcadas.
     """
     primary = {k: v for k, v in corpus.items() if k in _PRIMARY_SOURCES}
-    pct, pct_cit = gate_llm_value(out.insider_ownership_pct, out.insider_ownership_citation,
-                                  primary, numeric=True)
+    group = ownership.group if ownership is not None else None
     tenure, ten_cit = gate_llm_value(out.ceo_tenure_years, out.ceo_tenure_citation,
                                      primary, numeric=False)
     if ten_cit is not None and ten_cit.verified and not _YEAR_RE.search(ten_cit.excerpt):
@@ -240,10 +256,16 @@ def _build_report(out: ManagementLLMOutput, ticker: str, corpus: dict[str, str],
         ten_cit = ten_cit.model_copy(update={"verified": False, "confidence": 0.0,
                                              "verification_note": "no appointment year in excerpt"})
     citations = validate_and_relabel([c.to_citation() for c in out.citations], corpus)
-    citations = dedupe_citations(citations + [c for c in (pct_cit, ten_cit) if c is not None])
+    own_cit = _ownership_citation(group) if group is not None else None
+    citations = dedupe_citations(citations + [c for c in (own_cit, ten_cit) if c is not None])
     return ManagementReport(
         ticker=ticker, stub=False,
-        insider_ownership_pct=pct, founder_ceo=out.founder_ceo, ceo_tenure_years=tenure,
+        insider_ownership_pct=group.percent if group is not None else None,
+        insider_ownership_shares=group.shares if group is not None else None,
+        insider_ownership_below_1pct=group.below_1pct if group is not None else False,
+        insider_ownership_multi_class_row=group.text if group is not None and group.multi_class else None,
+        insider_ownership_as_of=ownership.filing_date if group is not None else None,
+        founder_ceo=out.founder_ceo, ceo_tenure_years=tenure,
         form4_transactions_12m=form4_count,   # determinista: len(fetch_form4_transactions)
         insider_transaction_pattern=out.insider_transaction_pattern,
         compensation_structure_notes=out.compensation_structure_notes,
@@ -272,6 +294,16 @@ def management_agent(state: AnalysisState) -> dict:
     def14a_text = EdgarManagementAdapter.fetch_def14a_text(ticker)
     form4_transactions = EdgarManagementAdapter.fetch_form4_transactions(ticker)
     item10_text = EdgarManagementAdapter.fetch_10k_item10(ticker)
+    # EC-93: tabla de participaciones leída por estructura desde el HTML del proxy. El texto de
+    # fetch_def14a_text se queda para compensación/gobierno, pero la tabla no siempre caía en él.
+    proxy_html, proxy_date = EdgarManagementAdapter.fetch_def14a_html(ticker)
+    ownership = parse_beneficial_ownership(proxy_html)
+    if ownership is not None:
+        ownership = ownership.model_copy(update={"filing_date": proxy_date})
+    ownership_text = render_ownership(ownership) if ownership is not None else ""
+    if ownership is None or ownership.group is None:
+        log.warning("management_ownership_table_unavailable", ticker=ticker,
+                    table_found=ownership is not None)
 
     # 5.02 leadership transition events (EC-52): fuente autoritativa para cambios
     # de CEO/CFO/COO. Lookback de 36 meses para capturar nombramientos de hasta ~3 años
@@ -330,6 +362,7 @@ def management_agent(state: AnalysisState) -> dict:
         tavily_text=tavily_text,
         transcripts_text=transcripts_text,
         leadership_events_text=leadership_events_text,
+        ownership_text=ownership_text,
     )
 
     log.info("management_agent_llm_call", ticker=ticker)
@@ -351,13 +384,14 @@ def management_agent(state: AnalysisState) -> dict:
     # entra en el estado checkpointeado.
     corpus = {
         "DEF 14A": def14a_text or "",
+        _OWNERSHIP_LABEL: ownership_text,
         "10-K Item 10": item10_text or "",
         "Form 4": form4_text or "",
         "8-K 5.02": leadership_events_text or "",
         "Web (Tavily)": tavily_text or "",
         "Transcripts": transcripts_text or "",
     }
-    report = _build_report(out, ticker, corpus, form4_count=len(form4_transactions))
+    report = _build_report(out, ticker, corpus, form4_count=len(form4_transactions), ownership=ownership)
     # Evidencia Form 4 determinista para el Expert (T3c): la tabla tal cual, sin LLM.
     report = report.model_copy(update={"form4_summary": form4_text})
     n_ok, n_bad = count_verified(report.citations)

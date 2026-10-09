@@ -107,7 +107,7 @@ def _make_management_response():
     """Salida tipada de structured() para management (ADR-032)."""
     from due_diligence.schemas.llm_outputs import ManagementLLMOutput
     return ManagementLLMOutput(
-        insider_ownership_pct=0.08, insider_ownership_citation=None, founder_ceo=None,
+        founder_ceo=None,
         ceo_tenure_years=13.0, ceo_tenure_citation=None, insider_transaction_pattern=None,
         compensation_structure_notes="Equity-aligned.",
         capital_allocation_summary="Disciplined buybacks.", citations=[])

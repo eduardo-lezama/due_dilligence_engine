@@ -41,7 +41,7 @@ from due_diligence.llm.errors import LLMError
 from due_diligence.schemas.llm_outputs import CriticLLMOutput
 from due_diligence.schemas.reports import CriticReport
 from due_diligence.utils.formatting import fmt_usd
-from due_diligence.utils.periods import align_by_period
+from due_diligence.utils.periods import align_by_period, value_at
 
 log = structlog.get_logger()
 
@@ -183,8 +183,11 @@ def _detect_red_flags(state: AnalysisState) -> list[str]:
     if financials is not None:
         if financials.free_cash_flow and (financials.buybacks or financials.dividends):
             fcf_v = financials.free_cash_flow[0].value
-            buyback_v = financials.buybacks[0].value if financials.buybacks else 0.0
-            dividend_v = financials.dividends[0].value if financials.dividends else 0.0
+            period = financials.free_cash_flow[0].period
+            # Mismo ejercicio que el FCF (revisión final H1, #10): buybacks[0] podía ser de otro año
+            # si la serie tenía huecos, y el % comparaba recompras de FY2024 con FCF de FY2025.
+            buyback_v = value_at(financials.buybacks, period) or 0.0
+            dividend_v = value_at(financials.dividends, period) or 0.0
             total_returned = buyback_v + dividend_v
             if fcf_v > 0:
                 pct = total_returned / fcf_v * 100

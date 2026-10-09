@@ -68,3 +68,12 @@ def cagr_by_fiscal_years(series: list[MetricValue], max_years: int | None = None
         if not scan_for_positive_start:
             return None
     return None
+
+
+def value_at(series: list[MetricValue], period: str) -> float | None:
+    """Valor de la serie en el ejercicio EXACTO `period`, o None si ese año no está.
+
+    Para cocientes entre series (recompras / FCF, …): `serie[0]` no garantiza el mismo año
+    si una de las dos tiene huecos (revisión final H1, #9/#10; mismo patrón que EC-82).
+    """
+    return next((m.value for m in series if m.period == period and m.value is not None), None)

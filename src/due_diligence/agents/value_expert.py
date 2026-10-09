@@ -61,7 +61,7 @@ from due_diligence.schemas.llm_outputs import ThesisBreakCheck, ValueExpertLLMOu
 from due_diligence.schemas.reports import ValueExpertReport
 
 from due_diligence.utils.formatting import fmt_insider_ownership, fmt_usd as _fmt_usd
-from due_diligence.utils.periods import align_by_period
+from due_diligence.utils.periods import align_by_period, fiscal_year, value_at
 from due_diligence.validation.citations import llm_evidence_count
 
 log = structlog.get_logger()
@@ -355,10 +355,18 @@ def _format_context(state: AnalysisState) -> str:
             # (ΔNOPAT/ΔIC) va en su propia línea, calculado en parse_financials (EC-85).
             if len(financials.roic_series) >= 2:
                 roic_latest = financials.roic_series[0].value
-                # Ventana de 5 años (T7): con periods=10 roic_series[-1] sería una tendencia a 10.
-                oldest_idx = min(4, len(financials.roic_series) - 1)
-                roic_oldest = financials.roic_series[oldest_idx].value
-                n_periods = oldest_idx  # 5 puntos → 4 deltas
+                # Ventana de 5 años (T7) medida en AÑOS FISCALES, no en posiciones (revisión final
+                # H1, #9): con un año ausente, el índice 4 no es "4 años atrás" y el ΔROIC anual
+                # salía inflado. Fallback a posiciones si las etiquetas no son FYxxxx.
+                try:
+                    y0 = fiscal_year(financials.roic_series[0].period)
+                    window = [r for r in financials.roic_series[1:] if 0 < y0 - fiscal_year(r.period) <= 4]
+                    oldest = window[-1] if window else financials.roic_series[1]
+                    n_periods = max(y0 - fiscal_year(oldest.period), 1)
+                except ValueError:
+                    oldest = financials.roic_series[min(4, len(financials.roic_series) - 1)]
+                    n_periods = financials.roic_series.index(oldest)
+                roic_oldest = oldest.value
                 avg_annual_delta_pp = (roic_latest - roic_oldest) / n_periods * 100  # en pp
                 if roic_latest > roic_oldest * 1.05:
                     interp = f"RISING (avg ΔROIC: +{avg_annual_delta_pp:.1f}pp/year over {n_periods} years)"
@@ -388,24 +396,25 @@ def _format_context(state: AnalysisState) -> str:
         # Capital returns (ADR-023, EC-19) — central para tesis value investing.
         # MUST aparecer en §4 Financial Quality del Expert.
         if financials.buybacks or financials.dividends:
-            buyback_latest = financials.buybacks[0] if financials.buybacks else None
-            dividend_latest = financials.dividends[0] if financials.dividends else None
-            buyback_v = buyback_latest.value if buyback_latest else 0.0
-            dividend_v = dividend_latest.value if dividend_latest else 0.0
+            # Todo del MISMO ejercicio (revisión final H1): el del FCF si existe; si no, el último
+            # con recompras/dividendos. Antes buybacks[0]/fcf[0] podían ser de años distintos.
+            fcf0 = financials.free_cash_flow[0] if financials.free_cash_flow else None
+            period = fcf0.period if fcf0 else (financials.buybacks or financials.dividends)[0].period
+            buyback_v = value_at(financials.buybacks, period) or 0.0
+            dividend_v = value_at(financials.dividends, period) or 0.0
             total_returned = buyback_v + dividend_v
-            fcf_latest = financials.free_cash_flow[0].value if financials.free_cash_flow else 0.0
-            pct_of_fcf = (total_returned / fcf_latest * 100) if fcf_latest > 0 else None
-            period = (buyback_latest or dividend_latest).period
+            pct_of_fcf = (total_returned / fcf0.value * 100) if (fcf0 and fcf0.value > 0) else None
             parts = []
             if buyback_v > 0:
                 parts.append(f"buybacks {_fmt_usd(buyback_v)}")
             if dividend_v > 0:
                 parts.append(f"dividends {_fmt_usd(dividend_v)}")
             pct_str = f" = {pct_of_fcf:.0f}% of FCF" if pct_of_fcf is not None else ""
-            lines.append(
-                f"Capital returned to shareholders ({period}): "
-                f"{_fmt_usd(total_returned)} ({', '.join(parts)}){pct_str}"
-            )
+            if parts:   # sin recompras ni dividendos de ese ejercicio no hay línea (no "$0 ()")
+                lines.append(
+                    f"Capital returned to shareholders ({period}): "
+                    f"{_fmt_usd(total_returned)} ({', '.join(parts)}){pct_str}"
+                )
 
         # Gross margin trend — SIEMPRE surfaceado (Fix B / EC-22).
         # Antes solo se emitía con compresión 3 años; ahora se emite siempre que haya

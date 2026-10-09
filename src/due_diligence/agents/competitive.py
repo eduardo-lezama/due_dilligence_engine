@@ -45,7 +45,7 @@ from due_diligence.schemas.reports import CompetitiveReport
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
 from due_diligence.utils.formatting import fmt_usd
 from due_diligence.validation.citations import count_verified, validate_and_relabel
-from due_diligence.utils.periods import align_by_period, cagr_by_fiscal_years
+from due_diligence.utils.periods import align_by_period, cagr_by_fiscal_years, value_at
 
 log = structlog.get_logger()
 
@@ -318,9 +318,11 @@ def _check_wide_moat_criteria(financials: FinancialsReport) -> list[str]:
 
     # Criterio 2: Capital base estable o creciente — proxy: buybacks < 70% FCF
     if financials.buybacks and financials.free_cash_flow:
-        bb_v = financials.buybacks[0].value
         fcf_v = financials.free_cash_flow[0].value
-        if fcf_v > 0:
+        # Recompras del MISMO ejercicio que el FCF (revisión final H1): buybacks[0] podía ser de
+        # otro año si la serie tenía huecos. Sin dato de ese año, el criterio no se evalúa.
+        bb_v = value_at(financials.buybacks, financials.free_cash_flow[0].period)
+        if bb_v is not None and fcf_v > 0:
             payout_pct = bb_v / fcf_v * 100
             if payout_pct >= 70:
                 fails.append(

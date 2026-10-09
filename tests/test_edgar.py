@@ -57,7 +57,8 @@ def test_parse_financials_total_debt_is_sum_of_lt_and_st(aapl_raw):
     assert report.total_debt.value == pytest.approx(expected_debt)
 
 
-def test_parse_financials_cash_includes_short_term_investments(aapl_raw):
+def test_parse_financials_cash_excludes_short_term_investments(aapl_raw):
+    # Desde H1 (T6) cash_and_equivalents es SOLO caja; las STI van en su campo (nombre corregido, #12).
     from due_diligence.tools.edgar import EdgarAdapter
 
     report = EdgarAdapter.parse_financials(aapl_raw)

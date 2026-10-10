@@ -38,6 +38,13 @@ Hasta H1, cada cambio del prompt o del modelo del Value Expert se aceptaba leyen
 - **`rule21_count` daba falsos positivos en 13 de 14 casos.** El modelo escribe "0 cheap, 1 fair, and 2 expensive out of 4", el formato del propio contexto. El check acepta ahora ese formato. Además, no aplica si ningún método es calculable (PLUG).
 - **`ungrounded_numbers`.** La tolerancia depende de la precisión escrita y no se derivan cocientes; así acepta solo el 1–3 % de cifras aleatorias (antes, el 100 %). En la baseline, 3 de 114 cifras marcadas son falsos positivos de signo, aceptados.
 
+- **Segunda calibración (2026-10-10, con gpt-6.1-sol, ADR-040).** Un modelo que razona sobre los veredictos que descarta destapó falsos positivos en los checks de texto, y se corrigieron con frases reales:
+  - **Justificación** (`rationale_matches_verdict`): ya no cuentan las cláusulas con negación o condición, como "do not yet establish a definitive SELL case" o "insufficiently resolved for BUY".
+  - **Regla 22**: si la frase contrasta el ROIC con otra métrica ("falling ROIC versus improving operating performance"), la palabra de mejora no se atribuye al ROIC.
+  - **Cifras**: "16 percent" se trata igual que "16%".
+
+  Lección: **cada modelo nuevo calibra también el instrumento.** Antes de creerse un fallo de la puerta, se lee la salida.
+
 ## Alternatives considered
 
 - **Pydantic Evals o DeepEval.** Pydantic Evals añade 8 paquetes nuevos (pydantic-ai-slim y otros) para lo que hacen unas 300 líneas propias. Se reconsidera con el juez LLM (MCE-33).

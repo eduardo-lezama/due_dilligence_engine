@@ -39,7 +39,7 @@ _MIN_SECTION_CHARS = 40
 # --- Cifras: signo, valor y unidad. El lookbehind evita "fy2025", "q1", "§6" y decimales sueltos. ---
 _NUM_RE = re.compile(
     r"(?<![\w§.])(?P<sign>[-−])?(?P<cur>\$)?(?P<num>\d[\d,]*(?:\.\d+)?)\s*"
-    r"(?P<unit>%|pp|basis points|bps|billion|million|thousand|bn|b|m|k|x)?(?![\w])")
+    r"(?P<unit>%|percent|pp|basis points|bps|billion|million|thousand|bn|b|m|k|x)?(?![\w])")
 _SCALE = {"billion": 1e9, "bn": 1e9, "b": 1e9, "million": 1e6, "m": 1e6, "thousand": 1e3, "k": 1e3}
 _PCT_UNITS = ("%", "pp", "bps", "basis points")
 _BPS_UNITS = ("bps", "basis points")      # 340 bps = 3,4 pp (calibración con informes reales)
@@ -66,6 +66,7 @@ def _parse_numbers(text: str, *, skip_trivial: bool) -> list[_Num]:
         digits = m.group("num").replace(",", "")
         raw = float(digits)
         unit = (m.group("unit") or "").lower()
+        unit = "%" if unit == "percent" else unit     # "16 percent" = "16%" (calibración con gpt-6.1-sol)
         if skip_trivial and not unit and not m.group("cur") and (
                 raw <= 10 or (1900 <= raw <= 2099 and raw.is_integer())):
             continue          # contadores ("3 of 4"), numeración y años no son cifras financieras
@@ -200,7 +201,10 @@ def check_rule22_roic_language(raw, report, context, state) -> CheckResult:
     if label == "RISING":
         hits = [p for p in _RULE22_FORBIDDEN["RISING"] if p in text]
     else:   # FALLING: palabras de mejora en una frase que habla del ROIC
-        sentences = [s for s in re.split(r"(?<=[.;!?])\s+", text) if "roic" in s]
+        # La palabra de mejora debe referirse al ROIC: se trocea también por contraste ("falling ROIC
+        # versus improving operating performance" habla de otra métrica; calibración con gpt-6.1-sol).
+        pieces = re.split(r"(?<=[.;!?])\s+|\b(?:versus|vs\.?|but|while|whereas|although|though|despite|however)\b", text)
+        sentences = [s for s in pieces if s and "roic" in s]
         hits = [w for w in _RULE22_FORBIDDEN["FALLING"] for s in sentences if re.search(rf"\b{w}\b", s)]
     return CheckResult(name="rule22_roic_language", applicable=True, passed=not hits,
                        detail=f"{label}: {', '.join(sorted(set(hits)))}" if hits else label)
@@ -222,9 +226,26 @@ def check_rule24_hypotheses(raw, report, context, state) -> CheckResult:
                        detail=f"{n_labels} labels for {n_hyp} hypotheses")
 
 
+# Nombrar otro veredicto para descartarlo ("needed for BUY", "argues against SELL", "withhold a BUY",
+# "rather than a SELL") no es concluirlo (calibración con gpt-6.1-sol, que razona sobre lo que descarta).
+# Se descartan las menciones en una CLÁUSULA con negación o condición ("do not yet establish a definitive
+# SELL case", "insufficiently resolved for BUY"): con un modelo que razona sobre lo que descarta, una
+# ventana de pocas palabras tras la negación se quedaba corta (calibración con el run completo de sol).
+_NEGATION_CUE_RE = re.compile(
+    r"\b(?:not|no|nor|never|against|without|insufficient\w*|rather than|instead of|withhold\w*|prevent\w*"
+    r"|premature\w*|before|until|needed for|required for)\b", re.IGNORECASE)
+
+
+def _discard_negated_verdicts(text: str) -> str:
+    """Quita las cláusulas (separadas por . ; :) que contienen una negación o condición."""
+    clauses = re.split(r"[.;:]", text)
+    return " ".join(c for c in clauses if not _NEGATION_CUE_RE.search(c))
+
+
 def check_rationale_matches_verdict(raw, report, context, state) -> CheckResult:
     """La justificación no concluye otro veredicto (falla si nombra veredictos y ninguno es el propio)."""
-    named = set(re.findall(r"\b(BUY|HOLD|SELL)\b", raw.verdict_rationale or ""))
+    text = _discard_negated_verdicts(raw.verdict_rationale or "")
+    named = set(re.findall(r"\b(BUY|HOLD|SELL)\b", text))
     ok = not named or raw.verdict in named
     return CheckResult(name="rationale_matches_verdict", applicable=True, passed=ok,
                        detail="" if ok else f"verdict {raw.verdict}, rationale names {sorted(named)}")

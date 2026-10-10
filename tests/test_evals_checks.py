@@ -236,3 +236,37 @@ def test_ungrounded_is_not_trivially_permissive_on_real_context():
     accepted_pct = sum(not ungrounded_numbers(f"value {t} here", ctx) for t in pcts) / len(pcts)
     accepted_usd = sum(not ungrounded_numbers(f"value {t} here", ctx) for t in usd) / len(usd)
     assert accepted_pct < 0.25 and accepted_usd < 0.15, (accepted_pct, accepted_usd)
+
+
+def test_rationale_negated_or_conditional_mentions_do_not_count():
+    """Calibración con gpt-6.1-sol: nombrar otro veredicto para descartarlo no es concluirlo."""
+    for text in ("CALM lacks the margin of safety needed for BUY.",
+                 "Strong cash generation argues against SELL, but the conflict remains.",
+                 "I favor EPV as the anchor and withhold a BUY.",
+                 "Favorable evidence warrants patience rather than a SELL, while risks prevent a conviction BUY."):
+        assert check_rationale_matches_verdict(_raw(verdict="HOLD", verdict_rationale=text), _report(), "", {}).passed, text
+    assert not check_rationale_matches_verdict(_raw(verdict="HOLD", verdict_rationale="This is a clear BUY."),
+                                               _report(), "", {}).passed
+
+
+def test_ungrounded_numbers_understands_percent_word():
+    from due_diligence.evals.checks import ungrounded_numbers
+    ctx = "Revenue growth: 16.0%\n"
+    assert ungrounded_numbers("revenue grew 16 percent", ctx) == []
+    assert ungrounded_numbers("revenue grew 23 percent", ctx) == ["23 percent"]
+
+
+def test_rationale_negated_sentences_from_real_sol_outputs():
+    """Frases reales de gpt-6.1-sol (run completo) que concluyen HOLD descartando otro veredicto."""
+    for text in ("Positive earnings do not yet establish a definitive SELL case.",
+                 "Moat durability and sustainable earning power remain insufficiently resolved for BUY.",
+                 "Three cheap signals argue against selling, but the conflict is unresolved; HOLD is not a SELL."):
+        assert check_rationale_matches_verdict(_raw(verdict="HOLD", verdict_rationale=text), _report(), "", {}).passed, text
+
+
+def test_rule22_falling_contrast_with_other_metric_is_not_a_violation():
+    ctx = "ROIC trend interpretation (use in §5): FALLING (avg ΔROIC: -2.0pp/year over 4 years)"
+    ok = "The second conflict is falling annual ROIC versus improving recent operating performance."
+    assert check_rule22_roic_language(_raw(financial_quality=f"{ok} {_FILLER}"), _report(), ctx, {}).passed
+    bad = "ROIC is improving steadily as the business scales."
+    assert not check_rule22_roic_language(_raw(financial_quality=f"{bad} {_FILLER}"), _report(), ctx, {}).passed

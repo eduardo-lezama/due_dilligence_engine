@@ -1,9 +1,5 @@
 # Investment Analysis Context: CALM
 
-## DATA GAPS (specialists that failed or are missing — their evidence is ABSENT)
-- Management: 0 verified citations — its narrative below is unverified
-Do not infer the content of missing sections. State explicitly in the affected sections that evidence is missing. Confidence is capped at 60% when Filings or Management are missing.
-
 ## FINANCIALS (EDGAR XBRL — deterministic)
 Revenue: $2.9B (FY2026)
 Operating Income (EBIT): $350M (FY2026)
@@ -26,25 +22,22 @@ Quarterly Operating Income: $-82M
 Quarterly Gross Profit: $403k
 
 ## MANAGEMENT REPORT
-⚠️ UNVERIFIED — none of this agent's citations matched the source text. Treat its narrative lines as unverified claims, not evidence; deterministic lines (Form 4, DEF 14A ownership table) remain reliable.
 Insider ownership (DEF 14A ownership table, deterministic): 3.6% (1,697,343 shares) [proxy filed 2026-08-18]
-Founder-CEO: No
 Form 4 open-market transactions (12m, deterministic): 0
 Form 4 transactions (Form 4, deterministic):
 No open-market insider purchases or sales found in the last 12 months.
-Insider transaction pattern (LLM summary, unverified): Not available in provided sources.
-Compensation (LLM summary): Not available in provided sources.
-Capital allocation (LLM summary): Not available in provided sources.
+Insider transaction pattern (LLM summary, unverified): Sherman L. Miller is identified as President and CEO; the ownership table lists him below 1%. Adolphus B. Baker is the largest listed individual director/executive holder at 3.2%, while all directors and executive officers as a group hold 3.6%. No open-market insider purchases or sales were found in the last 12 months, so there is no clear buying-or-selling signal. Whether the current CEO is a founder and his prior track record are not available in the provided sources.
+Compensation (LLM summary): The proxy says the Board aims to align executives’ long-term interests with stockholders, but the provided material does not give enough detail to assess fixed versus variable pay, long-term incentive metrics (including whether they are ROIC-linked), or clawbacks. Therefore, actual shareholder alignment and the balance between long-term and short-term incentives are not determinable from the provided sources.
+Capital allocation (LLM summary): M&A discipline, buybacks and their pricing, dividend policy, and reinvestment quality are not available in the provided sources. No capital-allocation track record can be assessed from this material.
 Insider transaction evidence (verified citations; use for §3 price reconciliation):
-  - All directors and executive officers as a group (14 persons) | 1,697,343 shares | 3.6%
+  - Mr. Miller is a director and is President and Chief Executive Officer.
+  - Sherman L. Miller | 34,464 shares | less than 1%
+  - Adolphus B. Baker | 1,504,175 shares | 3.2%
 
 ## FILINGS REPORT (10-K)
-Business: Cal-Maine Foods, Inc. is the largest egg company in the U.S. and a leading player in the egg-based food industry. The company sells a variety of egg products, including conventional and specialty eggs, as well as prepared foods such as pre-cooked egg patties and omelets. Its products are distributed to retail and foodservice customers nationwide, ensuring that nutritious and affordable egg options are accessible to households across the country.
-Key risks: The company faces several material risks, including volatility in wholesale shell egg prices, which can significantly impact revenues and profits. Additionally, agricultural risks such as outbreaks of avian diseases like HPAI can adversely affect production and supply. Competitive pressures from large customers and changing consumer preferences also pose risks to the company's market position.
-MDA highlights (LLM summary): Management highlights that net sales for fiscal 2026 were $2.9 billion, a decrease from $4.3 billion in fiscal 2025, primarily due to lower conventional shell egg prices. The company has expanded its prepared foods segment, which accounted for $244.8 million in sales, indicating a strategic shift towards diversifying its product offerings. Management is focused on leveraging its scale and operational excellence to navigate market challenges and drive growth.
-
-## GOVERNANCE RED FLAGS (from 10-K)
-null
+Business: Cal-Maine sells shell eggs across conventional and specialty categories, including cage-free, organic, and free-range eggs, to retail and foodservice customers nationwide. It also sells prepared foods such as egg patties, omelets, pancakes, waffles, and specialty wraps. The filing identifies three reportable product segments: Conventional Shell Eggs, Specialty Shell Eggs, and Prepared Foods; it also describes other operations, including co-pack shell eggs and egg products, that are not reportable segments. It sells through grocery and club stores, other supermarket-serving companies, and foodservice distributors, and prices shell eggs using market-based, cost-based, or hybrid arrangements.
+Key risks: Wholesale shell egg prices are volatile and outside the company’s control, exposing revenue and profits to supply, demand, and seasonal changes. Feed is the largest element of shell egg production cost, and feed prices are affected by factors including weather, supply and demand, trade policies, and geopolitical instability. HPAI outbreaks can require depopulation and disrupt production; the filing reports a March 2026 outbreak at the company’s Maryland pullet facility. Customer concentration is significant: the top three customers represented 43.1% of fiscal 2026 net sales, and Walmart accounted for 30.0%. The filing also identifies prepared-food acquisition integration and changing consumer preferences as risks; technology-specific risks are not available in provided sources.
+MDA highlights (LLM summary): Fiscal 2026 net sales were $2.9 billion and net income was $316.7 million. Net sales decreased 31.7% from fiscal 2025, primarily as conventional shell egg prices fell while the layer population recovered from HPAI-related disruption. Average conventional shell egg price per dozen declined 50.9%; prepared foods contributed $244.8 million, or 8.4%, of fiscal 2026 net sales, primarily following the Echo Lake Foods acquisition. Management attributed the recent decline in wholesale egg prices primarily to improved supply and reduced panic-driven purchasing and retailer and foodservice inventory builds. Item 7 describes a change to three reportable operating segments effective in the fourth quarter of fiscal 2026; further information about accounting-policy changes, going-concern language, or capital raises is not available in provided sources.
 
 ## MARKET DATA
 Current price: $64.35
@@ -73,37 +66,37 @@ Recent news: Recent news (last 30 days, 5 articles):
     In late September 2026, Cal-Maine Foods reported first-quarter fiscal 2027 results showing sales of US$539.61 million, down sharply from US$922.60 million a year earlier, and a net loss of US$58.62 million versus prior net income, as oversupplied egg markets and lower conventional pricing weighed on
 
 ## Extended news coverage (drawdown context — Tavily, last 12 months)
-[1] HelloFresh Shares Drop After Profit Warning - MarketWatch
-URL: https://www.marketwatch.com/story/hellofresh-shares-drop-after-profit-warning-06eae965
-HelloFresh shares dropped after the German meal-kit company warned it added fewer customers than anticipated during its back-to-school campaign, prompting third-quarter results to miss expectations and a cut to its full-year outlook. The company said it expected both revenue and adjusted earnings before interest, taxes, depreciation and amortization for the third quarter to fall short of analysts' expectations. It projects third-quarter revenue to decline by between 11% and 12% excluding currency changes, against the 6.8% decline anticipated by the average of analysts' forecasts. As a result, 
+[1] Cal-Maine Foods Inc (CALM) Q3 2026 Earnings Call Highlights: Navigating Challenges with ...
+URL: https://finance.yahoo.com/markets/stocks/articles/cal-maine-foods-inc-calm-190055450.html
+2. Best 0% APR cards. 2. Best high-yield savings accounts. 3. Best money market accounts. # Cal-Maine Foods Inc (CALM) Q3 2026 Earnings Call Highlights: Navigating Challenges with ... * Cal-Maine Foods Inc (NASDAQ:CALM) reported a significant increase in specialty egg sales, accounting for 50.5% of total shell egg sales in Q3 2026, compared to 24.4% in the previous year. * Prepared Foods sales saw a substantial rise, contributing 9.5% to net sales, up from 0.8% in the previous year. * The company is strategically investing in high-return organic growth opportunities, including specialty egg ca
 
-[2] HelloFresh Shares Drop After Profit Warning - MarketWatch
-URL: https://www.marketwatch.com/story/hellofresh-shares-drop-after-profit-warning-06eae965?mod=dj-newswires
-HelloFresh shares dropped after the German meal-kit company warned it added fewer customers than anticipated during its back-to-school campaign, prompting third-quarter results to miss expectations and a cut to its full-year outlook. The company said it expected both revenue and adjusted earnings before interest, taxes, depreciation and amortization for the third quarter to fall short of analysts' expectations. It projects third-quarter revenue to decline by between 11% and 12% excluding currency changes, against the 6.8% decline anticipated by the average of analysts' forecasts. As a result, 
+[2] Cal-Maine Foods (CALM) Dropped, So What Is Behind The Latest Attention?
+URL: https://finance.yahoo.com/markets/stocks/articles/cal-maine-foods-calm-dropped-042409801.html
+2. Best 0% APR cards. 3. Best balance transfer cards. 2. Best high-yield savings accounts. 3. Best money market accounts. The weak quarter has quickly fed into sentiment around Cal-Maine Foods, with the share price sliding about 21% over the past three months and roughly 17% year to date, while the 1-year total shareholder return is down about 27% despite still very strong 3 and 5-year total returns. This suggests recent momentum is fading as investors reassess both earnings risk and the pace at which the Specialty and Prepared Foods shift can reshape the business mix. On the most followed nar
 
-[3] HelloFresh Shares Drop After Profit Warning - MarketWatch
-URL: https://www.marketwatch.com/story/hellofresh-shares-drop-after-profit-warning-06eae965?mod=markets
-HelloFresh shares dropped after the German meal-kit company warned it added fewer customers than anticipated during its back-to-school campaign, prompting third-quarter results to miss expectations and a cut to its full-year outlook. The company said it expected both revenue and adjusted earnings before interest, taxes, depreciation and amortization for the third quarter to fall short of analysts' expectations. It projects third-quarter revenue to decline by between 11% and 12% excluding currency changes, against the 6.8% decline anticipated by the average of analysts' forecasts. As a result, 
+[3] Is Cal Maine Foods (CALM) Fairly Valued On Full Year Earnings?
+URL: https://finance.yahoo.com/markets/stocks/articles/cal-maine-foods-calm-fairly-221054931.html
+3. Best balance transfer cards. 2. Best high-yield savings accounts. # Is Cal Maine Foods (CALM) Fairly Valued On Full Year Earnings? Get insights on thousands of stocks from the global community of over 7 million individual investors at Simply Wall St. Cal-Maine Foods (CALM) has drawn attention after reporting full year earnings to May 30, 2026. For Cal-Maine Foods, a 15% upswing after a weak quarter raises a simple question: are investors responding to the company's long term earnings power or just a swing in sentiment that the valuation section can help unpack? Cal-Maine Foods closed at $87
 
-[4] What's Keeping Supply Chains Afloat Amidst The Tariffs ...
-URL: https://www.forbes.com/sites/alexanderpuutio/2025/08/25/whats-keeping-supply-chains-afloat-amidst-the-tariffs-and-uncertainty
-“A single miscalculation on tariffs can erase the margin on an entire product line. In this climate, our users are not just asking for insights;
+[4] How Supply Chains Impact Tariffs - Forbes
+URL: https://www.forbes.com/sites/cfo/2025/02/25/how-supply-chains-impact-tariffs
+Feb 25, 2025 · Most companies that manufacture products will find themselves impacted in some way by tariffs, even if primary facilities are in the U.S. because of their material sources and their supply chain
 
-[5] ‘Fewer Choices and Higher Prices’: The Supply Chain of the Future - WSJ
-URL: https://www.wsj.com/economy/trade/fewer-choices-and-higher-prices-the-supply-chain-of-the-future-8e8cc994
-American consumers should brace for price increases and fewer options in the store, say people involved in the global networks that supply U.S. retailers. The companies that built up Asian supply chains over decades operate on slim margins, and many say they have little choice but to pass on the cost of President Trump’s higher tariffs, assuming he sticks by his plan. They say it is impossible to make many labor-intensive products in the U.S., and shifting around production to ease the tariff burden will be time-consuming and costly. Copyright ©2026 Dow Jones & Company, Inc. All Rights Reserve
+[5] U.S. companies have finally gotten $71 billion in tariff ...
+URL: https://finance.yahoo.com/economy/policy/articles/u-companies-finally-gotten-71-070000840.html?fr=sycsrp_catchall
+Jul 17, 2026 · But even as companies adjust supply chains and margins to account for increased tariff costs, they are finding headwinds elsewhere.
 
-[6] Trade War Roils Logistics Sector After 2024’s Relative Calm - WSJ
-URL: https://www.wsj.com/articles/trade-war-roils-logistics-sector-after-2024s-relative-calm-a21ec101
-U.S. companies face rising logistics costs, supply-chain upheaval and uncertain consumer demand this year amid a global trade war, freight-sector experts say. The renewed uncertainty follows a year in which U.S. business logistics costs as a share of gross domestic product stayed flat with the prior year as some logistics activity returned to more normal prepandemic seasonal patterns, according to the latest annual Council of Supply Chain Management Professionals State of Logistics Report, released Tuesday. Copyright ©2026 Dow Jones & Company, Inc. All Rights Reserved.
+[6] Trump’s Tariffs Enter New Phase, Ending Months of Calm - WSJ
+URL: https://www.wsj.com/economy/trade/trumps-tariffs-enter-new-phase-ending-months-of-calm-65f33e3e
+WASHINGTON—President Trump is preparing to reshape the legal justification for his tariff regime this week and push negotiations with North American trading partners into high gear, setting off a new phase of trade uncertainty for businesses after months of relative calm. When the Supreme Court in February struck down most of Trump’s second-term tariffs, he immediately replaced the illegal duties with a temporary 10% tariff that applied to nearly all U.S. imports. That 10% duty is legally limited to 150 days, which ends early Friday. The interim period ushered in relative stability in trade po
 
 [7] Exclusive | SEC Investigating Former Chair of Auditing Industry Regulator - WSJ
 URL: https://www.wsj.com/finance/regulation/sec-investigating-former-chair-of-auditing-industry-regulator-11623943373
 The Securities and Exchange Commission is investigating whether the recently dismissed chairman of the auditing industry’s oversight board violated any rules in his handling of internal complaints at the regulator, according to people familiar with the matter. The SEC’s enforcement investigation is examining the actions of William Duhnke, who was dismissed from his job as chairman of the Public Company Accounting Oversight Board two weeks ago, according to the people. The investigation is the latest sign of trouble for the struggling regulator, which oversees the accounting firms that audit U.
 
-[8] United States Securities and Exchange Commission
-URL: https://www.wsj.com/topics/subject/securities-and-exchange-commission-sec?page=15
-PG&E said the SEC has opened an investigation into its disclosures and accounting for losses related to California wildfires.
+[8] SEC Drops Zcash Probe: Rare Clarity for Privacy Coins, ZEC Crypto To $1,000?
+URL: https://finance.yahoo.com/news/sec-drops-zcash-probe-rare-061520982.html
+2. Best high-yield savings accounts. 3. Best money market accounts. # SEC Drops Zcash Probe: Rare Clarity for Privacy Coins, ZEC Crypto To $1,000? The US Securities and Exchange Commission (SEC) used to terrorize crypto firms under Gary Gensler during the Biden administration so much so that it was pointless for founders to innovate. ZEC crypto, which is undoubtedly one of the top cryptos to consider in this cycle, reacted calmly, holding its recent range after months of pressure tied to regulatory fear. ZEC USDT is firm above $400, and remains one of the top performers, standing out from the 
 
 [9] Everybody Calm Down About GameStop - WSJ
 URL: https://www.wsj.com/opinion/everybody-calm-down-about-gamestop-11613083812
@@ -483,7 +476,7 @@ second quarter ended
 Nove
 
 ## COMPETITIVE / MOAT REPORT
-Moat: narrow (brand, switching_costs)
+Moat: none (N/A)
 
 ## VALUATION REPORT
 Valuation basis: FCFF discounted at WACC → EV → equity bridge → per share (ADR-033)

@@ -2,7 +2,7 @@
   "ticker": "KBR",
   "cik": "0001357615",
   "as_of_date": "2026-01-02",
-  "run_id": "8aec99d1-2e3",
+  "run_id": "4a0ded25-9a2",
   "financials": {
     "ticker": "KBR",
     "cik": "0001357615",
@@ -1699,46 +1699,100 @@
     "ticker": "KBR",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
+    "model_used": "gpt-6-luna",
     "insider_ownership_pct": 1.154,
     "insider_ownership_shares": 1459870,
     "insider_ownership_below_1pct": false,
     "insider_ownership_multi_class_row": null,
     "insider_ownership_as_of": "2026-03-30",
-    "founder_ceo": false,
+    "founder_ceo": null,
     "ceo_tenure_years": null,
     "form4_transactions_12m": 4,
     "form4_summary": "OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the game):\n  Jack B Moore (Director) | BUY | 4,000 shares @ $31.44 | 2026-05-20\n  Carlos A. Sabater (Director) | BUY | 14,500 shares @ $32.47 | 2026-05-19\n  Lewis Von Thaer (Director) | BUY | 3,000 shares @ $30.77 | 2026-05-14\n  Shad E. Evans (EVP & Chief Financial Officer) | BUY | 8,375 shares @ $30.60 | 2026-05-13",
-    "insider_transaction_pattern": "CEO Stuart J. B. Bradie net buyer: purchased 750,093 shares, no recent open-market sales. Directors Jack B. Moore, Carlos A. Sabater, and Lewis Von Thaer net buyers: bought 4,000, 14,500, and 3,000 shares respectively in May 2026. Overall insider sentiment: positive.",
-    "compensation_structure_notes": "Management's compensation is linked to performance metrics such as Adjusted EPS, Adjusted OCF, Relative TSR, and Sustainability, indicating a mix of short-term and long-term incentives. The use of equity compensation plans suggests alignment with shareholder interests, although specific long-term metrics like ROIC are not mentioned.",
-    "capital_allocation_summary": "KBR's capital allocation strategy appears focused on growth through strategic investments and a planned spin-off of its Mission Technology Solutions business. There is no mention of recent buybacks or dividends, indicating a potential focus on reinvestment rather than returning capital to shareholders.",
+    "insider_transaction_pattern": "The provided current-role sources do not identify the CEO, so I cannot attribute the reported activity to the CEO. The listed Form 4 discretionary transactions are purchases by directors Jack B. Moore, Carlos A. Sabater, and Lewis Von Thaer, and by Shad E. Evans, identified there as EVP & Chief Financial Officer; no sales appear in the supplied entries, so the observed activity is buying-positive but limited to the transactions provided. Among the listed executives, Stuart J. B. Bradie has the largest reported holding, followed by Mark W. Sopp; the provided sources do not establish Bradie's current role.",
+    "compensation_structure_notes": "The proxy describes short- and long-term incentive plans using adjusted EPS, adjusted OCF, relative TSR, book-to-bill, and sustainability measures. This mixes adjusted financial measures with a shareholder-return measure, but the provided material does not specify their weights, ROIC targets, or clawback terms, so alignment on those dimensions cannot be assessed.",
+    "capital_allocation_summary": "Not available in provided sources. The supplied material does not provide a sufficient track record to assess M&A discipline, buybacks, dividends, or reinvestment quality.",
     "citations": [
       {
-        "claim": "Stuart J. B. Bradie net buyer: purchased 750,093 shares, no recent open-market sales.",
+        "claim": "The supplied Form 4 entries show purchases by these insiders.",
+        "source_url": "Form 4",
+        "excerpt": "Jack B Moore (Director) | BUY | 4,000 shares @ $31.44 | 2026-05-20",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The supplied Form 4 entries show purchases by these insiders.",
+        "source_url": "Form 4",
+        "excerpt": "Carlos A. Sabater (Director) | BUY | 14,500 shares @ $32.47 | 2026-05-19",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The supplied Form 4 entries show purchases by these insiders.",
+        "source_url": "Form 4",
+        "excerpt": "Lewis Von Thaer (Director) | BUY | 3,000 shares @ $30.77 | 2026-05-14",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The supplied Form 4 identifies Shad E. Evans as EVP & Chief Financial Officer and reports a purchase.",
+        "source_url": "Form 4",
+        "excerpt": "Shad E. Evans (EVP & Chief Financial Officer) | BUY | 8,375 shares @ $30.60 | 2026-05-13",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Stuart J. B. Bradie's reported beneficial ownership.",
         "source_url": "DEF 14A ownership table",
         "excerpt": "Stuart J. B. Bradie | 750,093 shares | less than 1%",
-        "confidence": 0.9,
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Management's compensation is linked to performance metrics such as Adjusted EPS, Adjusted OCF, Relative TSR, and Sustainability.",
+        "claim": "Mark W. Sopp's reported beneficial ownership.",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "Mark W. Sopp | 176,846 shares | less than 1%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The proxy says the listed measures were chosen for short- and long-term incentive plans.",
         "source_url": "DEF 14A",
-        "excerpt": "the most important financial performance measures (including the Company-Selected Measure) that we used to link executive compensation actually paid to the NEOs to our performance, which are the performance metrics the Committee chose for our short-term and long-term incentive plans",
-        "confidence": 0.9,
+        "excerpt": "For 2025, the most important financial performance measures (including the Company-Selected Measure) that we used to link executive compensation actually paid to the NEOs to our performance, which are the performance metrics the Committee chose for our short-term and long-term incentive plans and are described in more detail in the “Compensation Discussion and Analysis” section of this proxy statement, are as follows, listed on an unranked basis:",
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "KBR's capital allocation strategy appears focused on growth through strategic investments and a planned spin-off of its Mission Technology Solutions business.",
-        "source_url": "Web (Tavily)",
-        "excerpt": "Management **reiterated its full-year Adjusted EPS guidance** of $4.05 at the midpoint.",
-        "confidence": 0.9,
-        "gaap_vs_nongaap_flag": null,
+        "claim": "The proxy identifies adjusted EPS and adjusted OCF as non-GAAP measures.",
+        "source_url": "DEF 14A",
+        "excerpt": "Adjusted EPS and adjusted OCF are both considered non-GAAP financial measures under SEC rules.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": "Non-GAAP",
         "verified": true,
         "verification_note": null
+      },
+      {
+        "claim": "The current CEO's identity, tenure, and founder status cannot be established from the provided authoritative current-role sources; the 10-K Item 10 source is unavailable.",
+        "source_url": "SOURCE 3: 10-K Item 10",
+        "excerpt": "10-K Item 10 not available.",
+        "confidence": 0.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": false,
+        "verification_note": "excerpt not found in source (fuzzy=56)"
       },
       {
         "claim": "Insider ownership: all directors and executive officers as a group",
@@ -1755,18 +1809,37 @@
     "ticker": "KBR",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
+    "model_used": "gpt-6-luna",
     "business_description": "Not available in provided sources.",
-    "risk_factors_summary": "The company faces risks related to changes in estimated contract costs and losses, which can materially impact future reported earnings. Additionally, the company is exposed to market risks associated with foreign currency exchange rates and interest rate fluctuations. Legal and tax contingencies also pose risks, as outcomes can significantly affect financial results.",
+    "risk_factors_summary": "The available Item 1A text says changes in contract estimates can materially affect future reported earnings, including through cumulative catch-up adjustments and reversals of previously recognized revenue. It also identifies uncertainty in pension estimates: actual market and economic conditions, regulatory changes, and participant experience may differ from actuarial assumptions and materially affect financial position or results. Specific competitive or technology risks and dated, company-specific government actions are not available in the provided sources.",
     "mda_highlights": "Not available in provided sources.",
     "backlog_usd": null,
     "revenue_guidance": null,
     "geographic_revenue_breakdown": null,
     "key_regulatory_events": null,
-    "governance_red_flags": "null",
+    "governance_red_flags": null,
     "active_sec_investigation": false,
     "material_weakness": false,
-    "citations": []
+    "citations": [
+      {
+        "claim": "Contract estimate changes can materially affect reported earnings and may lead to cumulative catch-up adjustments or reversal of previously recognized revenue.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "These factors can affect the accuracy of our estimates and materially impact our future reported earnings. Changes in total estimated contract costs and losses, if any, are recognized on a cumulative catch-up basis in the period in which the changes are identified at the contract level. Such changes in contract estimates can result in the recognition of revenue in a current period for performance obligations which were satisfied or partially satisfied in a prior period. Changes in contract estimates may also result in the reversal of previously recognized revenue.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Pension estimates may differ from actual results and materially affect financial position or operating results.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "The actuarial assumptions used in determining our pension benefits may differ materially from actual results due to changing market and economic conditions, changes in the legislative or regulatory environment, higher or lower withdrawal rates and longer or shorter life spans of participants. While we believe that the assumptions used are appropriate, differences in actual experience, expectations or changes in assumptions may materially affect our financial position or results of operations.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      }
+    ]
   },
   "market": {
     "ticker": "KBR",
@@ -1805,7 +1878,7 @@
     },
     "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Dividend Champion, Contender, And Challenger Highlights: Week October 11\n    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=6ecf61a08d4e89e309d2bc77c13f5e7c620f7c06baba3507c179f7718a35d78e\n    Get a weekly dividend recap for Champions, Contenders & Challengersâsee dividend changes, upcoming ex-dividend dates and pay dates.\n\n[2] EMCOR Stock Trades at a Premium: Should Investors Buy or Steer Clear?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=987c43456a3c5a32fefa0e02c62f4094fd6b112187e5cac5ad3b5c60d2ad7588\n    EME's record backlog, rising data center demand and higher 2026 guidance support growth, but premium valuation and project execution risks warrant attention.\n\n[3] KBR Wins Offshore Engineering Contract for Aramco's Marjan Field\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=a1193414a3321856f7d04a35f1a43cc29a7cfbbc03ea2ca7dea11adb964a89ee\n    KBR secures an Aramco offshore engineering contract for Marjan field upgrades, extending its Middle East energy momentum and project role.\n\n[4] Are Options Traders Betting on a Big Move in KBR Stock?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=6981ec12354476fb2809327961a1940ca8965623649f30723594cbe8ea34775b\n    Investors need to pay close attention to KBR stock based on the movements in the options market lately.\n\n[5] KBR Awarded Offshore Engineering Contract Supporting Aramco’s Marjan Field Development Program\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=5aaeee9f98b9c75faa3c91c6880c0fe4179321d297728da913e2f97cd432a443\n    HOUSTON, Oct. 06, 2026 (GLOBE NEWSWIRE) -- KBR (NYSE: KBR) has been awarded a project by Aramco to support the upgrade of facilities across the Marjan offshore field in the Arabian Gulf. Under the contract, KBR will provide engineering and project execution services to support key offshore processin",
     "material_events": [],
-    "quarterly_earnings_text": "[1] KBR Q2 Earnings Call Highlights\nURL: https://finance.yahoo.com/markets/stocks/articles/kbr-q2-earnings-call-highlights-120355817.html\n* **KBR reported solid second-quarter results**, with revenue rising 2% to approximately $2 billion, adjusted EBITDA increasing to $258 million and adjusted EPS reaching $0.99. * STS revenue grew 10% to $676 million, while backlog reached a record **$5.5 billion** and book-to-bill was 1.5 times. * KBR is advancing the planned January 4, 2027, spinoff of Mission Technology Solutions under the **Trinzic** name. KBR (NYSE:KBR) reported second-quarter 2026 revenue of approximately $2 billion, up 2% from the prior-year period, while adjusted EBITDA rose $16 million to $258 million and adjusted EPS increased $0.08 to $0.99. The company said first-half results were tracking slightly ahead of its planned cadence and reaffirmed its full-year guidance for revenue, adjusted EBITDA, adjusted EPS and adjusted operating cash flow. Year-to-date adjusted EBITDA margin excluding LNG joint-venture earnings was approximately 14.5%, which Evans said keeps the business on track for its full-year mid-teens \n\n[2] KBR Inc. (KBR) Q1 Earnings and Revenues Top Estimates\nURL: https://finance.yahoo.com/markets/stocks/articles/kbr-inc-kbr-q1-earnings-112503012.html\n(KBR) came out with quarterly earnings of $0.96 per share, beating the Zacks Consensus Estimate of $0.92 per share. This compares to earnings of $0.98 per share a year ago. A quarter ago, it was expected that this the engineering, construction company would post earnings of $0.95 per share when it actually produced earnings of $0.99, delivering a surprise of +4.21%. KBR, which belongs to the Zacks Engineering - R and D Services industry, posted revenues of $1.92 billion for the quarter ended March 2026, surpassing the Zacks Consensus Estimate by 3.65%. While KBR has underperformed the market so far this year, the question that comes to investors' minds is: what's next for the stock? The current consensus EPS estimate is $0.95 on $1.88 billion in revenues for the coming quarter and $4.01 on $8.12 billion in revenues for the current fiscal year. This company is expected to post quarterly earnings of $0.61 per share in its upcoming report, which represents a year-over-year change of +8.9%\n\n[3] KBR (KBR) Up 1.8% Since Last Earnings Report: Can It Continue?\nURL: https://finance.yahoo.com/markets/stocks/articles/kbr-kbr-1-8-since-153019341.html\n# KBR (KBR) Up 1.8% Since Last Earnings Report: Can It Continue? A month has gone by since the last earnings report for KBR Inc. Shares have added about 1.8% in that time frame, underperforming the S&P 500. Before we dive into how investors and analysts have reacted as of late, let's take a quick look at its most recent earnings report in order to get a better handle on the important drivers. KBR posted adjusted earnings of 96 cents per share in the first quarter of fiscal 2026, down 5% year over year from $1.01 per share, but ahead of the Zacks Consensus Estimate of 92 cents by 4.3%. Quarterly revenues came in at $1.923 billion, down 4.7% from $2.018 billion a year ago and above the consensus mark of $1.855 billion by 3.7%. For full-year fiscal 2026, the company reaffirmed guidance calling for revenues of $7.90-$8.36 billion, adjusted EBITDA of $980 million-$1.04 billion, adjusted EPS of $3.87-$4.22 and adjusted operating cash flows of $560-$600 million.\n\n[4] KBR, Inc. (KBR) Stock Price, News, Quote & History - Yahoo Finance\nURL: https://finance.yahoo.com/quote/KBR?fr=sycsrp_catchall\n2. Best 0% APR cards. 3. Best balance transfer cards. 2. Best high-yield savings accounts. 3. Best money market accounts. 4. Best free checking accounts. 2. Tax brackets and rates. # KBR, Inc. 35.34  +0.16  (+0.45%). * Earnings Date  Oct 29, 2026. KBR, Inc. provides scientific, technology, and engineering solutions to governments and commercial customers worldwide. It offers research and development, advanced prototyping, acquisition support, systems engineering, cyber analytics, space domain awareness, test and evaluation, data analytics and integration, systems integration and program management, global supply chain management, operations readiness and support, and professional advisory services, as well as command, control, communications, computers, intelligence, surveillance, and reconnaissance services to defense, intelligence, space, aviation, and other programs and missions for military and other government agencies. In addition, it provides synergistic services, including ener\n\n[5] KBR, Inc. (KBR) Stock Price & Overview\nURL: https://stockanalysis.com/stocks/kbr\nKBR (KBR) announced that its Mission Technology Solutions business, which will become Trinzic following its planned spin-off, has won a three-year contract to continue advancing mission-critical radio... 09, 2026 (GLOBE NEWSWIRE) -- KBR (NYSE: KBR) announced that its Mission Technology Solutions business, which will become Trinzic following its planned spin-off, has won a three-year con... KBR (KBR) announced its Mission Technology Solutions business, which will be Trinzic after its planned spin-off, will help keep the U.S. prepared for extreme weather following its award of the…. 01, 2026 (GLOBE NEWSWIRE) -- KBR (NYSE: KBR) announced today its Mission Technology Solutions business, which will be Trinzic after its planned spin-off, will help keep the U.S. prepare... KBR (KBR) announced that its Mission Technology Solutions business, which will be named Trinzic after its planned spin-off, has been awarded a Workplace Services Management contract by the UK Ministry... HOUSTON, Aug. 27, 2\n\n[6] KBR | Delivering Solutions, Changing the World\nURL: https://www.kbr.com/en\n[Learn More](/en/what-we-do/mission-technology-solutions). [Learn More](/en/what-we-do/sustainable-technology-solutions). [Explore Now](/en/what-we-do/kbr-digital-accelerators). [Learn More](https://www.kbr.com/en/who-we-are/our-people). [Learn More](https://www.kbr.com/careers). A position at KBR is more than a job – it’s a chance to join a global team that’s delivering solutions that are changing the world. [Learn More](https://careers.kbr.com/us/en/kbr-benefits). At KBR, we value our people and show it through our compelling, competitive compensation, reward and benefit packages. #### We Value Our People. We are dedicated to creating work environments in which every member of our team of teams feels safe, supported, respected, trusted and valued, and where each person is given opportunities to belong, connect and grow. [Learn More](/en/who-we-are/vision-values \"Vision & Values\"). [Learn More](/en/who-we-are/sustainability). [Learn More](/en/who-we-are/sustainability/community-involv\n",
+    "quarterly_earnings_text": "[1] KBR Q2 Earnings Call Highlights\nURL: https://finance.yahoo.com/markets/stocks/articles/kbr-q2-earnings-call-highlights-120355817.html\n* **KBR reported solid second-quarter results**, with revenue rising 2% to approximately $2 billion, adjusted EBITDA increasing to $258 million and adjusted EPS reaching $0.99. * STS revenue grew 10% to $676 million, while backlog reached a record **$5.5 billion** and book-to-bill was 1.5 times. * KBR is advancing the planned January 4, 2027, spinoff of Mission Technology Solutions under the **Trinzic** name. KBR (NYSE:KBR) reported second-quarter 2026 revenue of approximately $2 billion, up 2% from the prior-year period, while adjusted EBITDA rose $16 million to $258 million and adjusted EPS increased $0.08 to $0.99. The company said first-half results were tracking slightly ahead of its planned cadence and reaffirmed its full-year guidance for revenue, adjusted EBITDA, adjusted EPS and adjusted operating cash flow. Year-to-date adjusted EBITDA margin excluding LNG joint-venture earnings was approximately 14.5%, which Evans said keeps the business on track for its full-year mid-teens \n\n[2] KBR Inc. (KBR) Q1 Earnings and Revenues Top Estimates\nURL: https://finance.yahoo.com/markets/stocks/articles/kbr-inc-kbr-q1-earnings-112503012.html\n(KBR) came out with quarterly earnings of $0.96 per share, beating the Zacks Consensus Estimate of $0.92 per share. This compares to earnings of $0.98 per share a year ago. A quarter ago, it was expected that this the engineering, construction company would post earnings of $0.95 per share when it actually produced earnings of $0.99, delivering a surprise of +4.21%. KBR, which belongs to the Zacks Engineering - R and D Services industry, posted revenues of $1.92 billion for the quarter ended March 2026, surpassing the Zacks Consensus Estimate by 3.65%. While KBR has underperformed the market so far this year, the question that comes to investors' minds is: what's next for the stock? The current consensus EPS estimate is $0.95 on $1.88 billion in revenues for the coming quarter and $4.01 on $8.12 billion in revenues for the current fiscal year. This company is expected to post quarterly earnings of $0.61 per share in its upcoming report, which represents a year-over-year change of +8.9%\n\n[3] KBR (KBR) Up 1.8% Since Last Earnings Report: Can It Continue?\nURL: https://finance.yahoo.com/markets/stocks/articles/kbr-kbr-1-8-since-153019341.html\n# KBR (KBR) Up 1.8% Since Last Earnings Report: Can It Continue? A month has gone by since the last earnings report for KBR Inc. Shares have added about 1.8% in that time frame, underperforming the S&P 500. Before we dive into how investors and analysts have reacted as of late, let's take a quick look at its most recent earnings report in order to get a better handle on the important drivers. KBR posted adjusted earnings of 96 cents per share in the first quarter of fiscal 2026, down 5% year over year from $1.01 per share, but ahead of the Zacks Consensus Estimate of 92 cents by 4.3%. Quarterly revenues came in at $1.923 billion, down 4.7% from $2.018 billion a year ago and above the consensus mark of $1.855 billion by 3.7%. For full-year fiscal 2026, the company reaffirmed guidance calling for revenues of $7.90-$8.36 billion, adjusted EBITDA of $980 million-$1.04 billion, adjusted EPS of $3.87-$4.22 and adjusted operating cash flows of $560-$600 million.\n",
     "quarterly_earnings_date": null,
     "quarterly_eps_actuals": [
       {
@@ -1850,49 +1923,82 @@
     "ticker": "KBR",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
-    "moat_classification": "narrow",
-    "moat_sources": [
-      "brand",
-      "regulatory"
-    ],
+    "model_used": "gpt-6-luna",
+    "moat_classification": "none",
+    "moat_sources": [],
     "peer_roic_comparison": [],
     "citations": [
       {
-        "claim": "KBR provides professional services and technologies, specializing in engineering, construction, and government services sectors.",
-        "source_url": "Web (Tavily)",
-        "excerpt": "KBR provides professional services and technologies, specializing in engineering, construction, and government services sectors.",
-        "confidence": 0.9,
-        "gaap_vs_nongaap_flag": null,
-        "verified": true,
-        "verification_note": null
-      },
-      {
-        "claim": "ROIC series: FY2025: 15.9%, FY2024: 14.9%, FY2023: 11.3%, FY2022: 7.5%, FY2021: 3.9%",
+        "claim": "ROIC has improved, but it was above 15% only in FY2025; the supplied series does not establish sustained high ROIC or show that ROIC exceeded WACC.",
         "source_url": "Financial data",
         "excerpt": "ROIC series: FY2025: 15.9%, FY2024: 14.9%, FY2023: 11.3%, FY2022: 7.5%, FY2021: 3.9%",
-        "confidence": 0.9,
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "KBR has won a project management contract from Zallaf Exploration, Production and Refining of Oil and Gas Company to support the development of the South Refinery Project in Ubari, Southwest Libya.",
+        "claim": "The provided data gives invested capital only for FY2025, so it does not establish whether the capital base is growing or stable.",
+        "source_url": "Financial data",
+        "excerpt": "Invested capital: $3.6B (FY2025)",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The supplied context does not include revenue history, so a three-year revenue CAGR cannot be assessed.",
+        "source_url": "Financial data",
+        "excerpt": "ROIC series: FY2025: 15.9%, FY2024: 14.9%, FY2023: 11.3%, FY2022: 7.5%, FY2021: 3.9%",
+        "confidence": 0.98,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "KBR has participated in NASA-related contract work, but the cited award does not establish a structural barrier to competition or a documented moat.",
         "source_url": "Web (Tavily)",
-        "excerpt": "KBR has won a project management contract from Zallaf Exploration, Production and Refining of Oil and Gas Company to support the development of the South Refinery Project in Ubari, Southwest Libya.",
+        "excerpt": "Space & Technology Solutions, the DBA for Space Networks Solutions LLC, a joint venture led by Intuitive Machines Inc (NASDAQ: LUNR) with KBR, Inc. (NYSE: KBR), has secured a contract from the National Aeronautics and Space Administration (NASA).",
+        "confidence": 0.94,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The research identifies KBR's technical and project-management work in oil and gas infrastructure, but does not document a qualifying structural advantage such as market leadership, switching costs, or an entry barrier.",
+        "source_url": "Web (Tavily)",
+        "excerpt": "The work scope for KBR includes contract management, project management and supporting technical services throughout the EPC phases of the project.",
         "confidence": 0.9,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "The company exited 2025 with a $4.2 billion backlog in its STS segment, underpinned by a 1.2x trailing 12-month book-to-burn ratio.",
-        "source_url": "https://finance.yahoo.com/sectors/energy/articles/kbr-lands-libya-deal-zallaf-155800421.html",
-        "excerpt": "The company exited 2025 with a $4.2 billion backlog in its STS segment, underpinned by a 1.2x trailing 12-month book-to-burn ratio.",
-        "confidence": 0.0,
+        "claim": "Margins have improved over the supplied years, but the data alone does not show a durable structural advantage or provide an industry comparison for gross or operating margins.",
+        "source_url": "Financial data",
+        "excerpt": "Gross margin: FY2025: 14.8%, FY2024: 14.2%, FY2023: 14.0%\nOperating margin: FY2025: 10.0%, FY2024: 8.6%, FY2023: 6.4%",
+        "confidence": 0.97,
         "gaap_vs_nongaap_flag": null,
-        "verified": false,
-        "verification_note": "excerpt not found in source (fuzzy=33)"
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "A cited article reports KBR's average free-cash-flow margin was below what its author expected for an industrials business, a cash-generation concern rather than evidence of disruption.",
+        "source_url": "Web (Tavily)",
+        "excerpt": "Its free cash flow margin averaged 5.2%, below what we'd expect for an industrials business.",
+        "confidence": 0.91,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The supplied research does not identify a specific disruption threat to KBR or document that it is either a disruptor or being disrupted.",
+        "source_url": "Web (Tavily)",
+        "excerpt": "KBR Inc. KBR has won a project management contract from Zallaf Exploration, Production and Refining of Oil and Gas Company to support the development of the South Refinery Project in Ubari, Southwest Libya.",
+        "confidence": 0.86,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
       }
     ]
   },

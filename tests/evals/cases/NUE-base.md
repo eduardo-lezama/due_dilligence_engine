@@ -1,9 +1,5 @@
 # Investment Analysis Context: NUE
 
-## DATA GAPS (specialists that failed or are missing — their evidence is ABSENT)
-- Filings: 0 verified citations — its narrative below is unverified
-Do not infer the content of missing sections. State explicitly in the affected sections that evidence is missing. Confidence is capped at 60% when Filings or Management are missing.
-
 ⚠️ DATA STALENESS WARNING: the 10-K data below is 283 days old (as-of 2025-12-31). If a QUARTERLY UPDATE section appears below, those figures are MORE RECENT and should take precedence for §4, §5, and §7.
 ## FINANCIALS (EDGAR XBRL — deterministic)
 Revenue: $32.5B (FY2025)
@@ -29,7 +25,6 @@ Quarterly Revenue: $10.4B
 
 ## MANAGEMENT REPORT
 Insider ownership (DEF 14A ownership table, deterministic): less than 1% (1,406,923 shares) [proxy filed 2026-03-27]
-Founder-CEO: No
 Form 4 open-market transactions (12m, deterministic): 28
 Form 4 transactions (Form 4, deterministic):
 OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the game):
@@ -61,22 +56,18 @@ OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the g
   David A Sumoski (Executive Vice President) | SELL | 244 shares @ $226.41 | 2026-04-30
   Leon J Topalian (Chair and CEO) | SELL | 6,454 shares @ $162.01 | 2026-03-23
   Leon J Topalian (Chair and CEO) | SELL | 5,046 shares @ $162.40 | 2026-03-23
-Insider transaction pattern (LLM summary, unverified): CEO Leon J. Topalian net seller: sold 25,898 shares on August 14, 2026, and multiple other sales totaling over 100K shares in the past 12 months. Overall insider sentiment: negative, indicating a lack of confidence in the stock's near-term performance.
-Compensation (LLM summary): Management compensation includes a mix of fixed and variable components, with a significant portion tied to performance metrics. Long-term incentives are likely linked to stock performance, but specific metrics such as ROIC or TSR are not detailed in the provided sources.
-Capital allocation (LLM summary): Nucor has demonstrated a disciplined approach to capital allocation, focusing on strategic investments and share buybacks. The company returned $479 million to shareholders through dividends and buybacks, representing 41% of net earnings, indicating a commitment to shareholder returns while maintaining a strong balance sheet.
+Insider transaction pattern (LLM summary, unverified): Leon J. Topalian is identified in the Form 4 data as Chair and CEO and is a seller in the listed transactions, including sales on March 23, May 15, and August 14, 2026. Other executives in the transaction list, including David A. Sumoski and Stephen D. Laxton, also sold; no purchases are shown in the provided activity. The listed pattern is net selling, a potentially negative insider signal, though the sources do not explain whether sales were discretionary or for other reasons. The ownership table shows modest management ownership; Topalian and Sumoski are among the larger individual insider holders listed.
+Compensation (LLM summary): Not available in provided sources. The supplied proxy excerpts do not describe the compensation plan’s fixed-versus-variable mix, long-term incentive metrics, or clawback provisions, so alignment with ROIC or other performance measures cannot be assessed.
+Capital allocation (LLM summary): Not available in provided sources. The supplied context does not provide information on M&A, buybacks, dividends, or the returns on reinvestment, so capital-allocation discipline cannot be assessed.
 Insider transaction evidence (verified citations; use for §3 price reconciliation):
   - Leon J Topalian (Chair and CEO) | SELL | 25,898 shares @ $268.52 | 2026-08-14
-  - The compensation paid to Nucor’s Executive Officers, as disclosed in this Proxy Statement pursuant to the compensation disclosure rules of the SEC, including the “Compensation Discussion and Analysis” section, the Executive Compensation Tables and the related narrative discussion included in this Proxy Statement, is hereby APPROVED.
-  - $479 million returned through dividends and share buybacks, representing 41% of net earnings.
+  - Leon J Topalian (Chair and CEO) | SELL | 6,454 shares @ $162.01 | 2026-03-23
+  - Stephen D Laxton (President and COO) | SELL | 3,968 shares @ $256.96 | 2026-07-30
 
 ## FILINGS REPORT (10-K)
-⚠️ UNVERIFIED — none of this agent's citations matched the source text. Treat its narrative lines as unverified claims, not evidence; deterministic lines (Form 4, DEF 14A ownership table) remain reliable.
 Business: Not available in provided sources.
-Key risks: In the ordinary course of business, Nucor is exposed to a variety of market risks including interest rate risk, commodity price risk, and foreign currency risk. Nucor manages these risks through a combination of fixed and variable-rate debt, negotiating raw material prices, and using derivative contracts. The company faces challenges in passing through higher raw material costs during periods of weaker demand, which can impact gross margins.
+Key risks: Nucor identifies exposure to price fluctuations in raw materials and energy, including scrap, steel, metals, alloys, and natural gas. Passing higher input costs through to product prices is more challenging when demand is weaker, which can pressure the ability to maintain gross margins. The filing also identifies foreign-currency exposure through operations in Canada, Europe, and Mexico. Interest-rate exposure is partly managed through fixed- and variable-rate debt; the filing says future rate changes are not expected to significantly impact earnings.
 MDA highlights (LLM summary): Not available in provided sources.
-
-## GOVERNANCE RED FLAGS (from 10-K)
-null
 
 ## MARKET DATA
 Current price: $250.33
@@ -96,32 +87,16 @@ Recent news: Recent news (last 30 days, 5 articles):
     Source: Yahoo | URL: https://finnhub.io/api/news?id=51825e67e16437e69c3f692597d92bda4c90b1a508c7dae69aa5dc20cb1ca6cb
     While Eaton Corporation plc (NYSE:ETN) and Nucor Corporation (NYSE:NUE) operate in different industries, for Cramer, it’s all about the data center. He believes that Nucor’s exposure to the data center is underappreciated, and during his morning appearance on October 2nd, while Cramer advised agains
 
-[4] Nucor to Expand Utility Towers & Structures Facility in Indiana
+[4] JP Morgan Maintains Overweight on Nucor, Lowers Price Target to $296
+    Source: Benzinga | URL: https://finnhub.io/api/news?id=d75f4d76d9132c2c3abcf6c3d0a17a84e37b831ffaab9d836e4f3de7a3274cb2
+    JP Morgan  analyst Bill Peterson   maintains Nucor (NYSE:NUE) with a Overweight and lowers the price target from $308 to $296.
+
+[5] Nucor to Expand Utility Towers & Structures Facility in Indiana
     Source: Yahoo | URL: https://finnhub.io/api/news?id=69b21d4589ed72b8acb74d4bcec948fa352caf784a168f5a640223320d806f41
     Nucor Corporation (NYSE: NUE) announced today that it is expanding production at its Nucor Towers & Structures facility in Crawfordsville, Indiana, pending receipt of regulatory and other approvals. The additional $105 million investment will add capacity to manufacture utility poles and related pro
 
-[5] Nucor To Expand Production At Its Towers & Structures Facility In Indiana Under Additional $105M Investment; Expected To Create 100 New Jobs
-    Source: Benzinga | URL: https://finnhub.io/api/news?id=8a4283b19b9673bd339b423d6db3e768c99796df9ec6fa10d96a07cf556e0fa4
-    The expansion includes more than 120,000 square feet of additional manufacturing space, incorporating advanced automation, modern production equipment, and the latest manufacturing technologies. These investments are
-
-## QUARTERLY UPDATE (8-K Item 2.02, filed ?)
-⚠️ This data is MORE RECENT than the 10-K annual report. You MUST integrate these figures into §4 Financial Quality and §5 Growth conclusions per Rule 13.
-[1] Nucor (NUE) to Announce Quarterly Earnings on Monday
-URL: https://www.marketbeat.com/instant-alerts/nucor-nue-to-announce-quarterly-earnings-on-monday-2026-07-20
-Title: Nucor (NUE) to Announce Quarterly Earnings on Monday
-The Stocks You'll Wish You Bought For Your Kids (Not For Yourself). Here's where the money's moving this week. # Nucor (NUE) to Announce Quarterly Earnings on Monday. Nucor logo with Basic Materials background. Nucor (NYSE:NUE - Get Free Report) is projected to release its Q2 2026 results after the market closes on Monday, July 27th. Analysts expect the company to announce earnings of $4.45 per share and revenue of $10.1402 billion for the quarter. Investors can check the company's upcoming Q2 2026 earning report for the latest details on the call scheduled for Tuesday, July 28, 2026 at 10:00 AM ET. Nucor (NYSE:NUE - Get Free Report) last announced its earnings results on Monday, April 27th. The basic materials company reported $3.23 earnings per share for the quarter, beating the consensus estimate of $2.82 by $0.41. Nucor had a return on equity of 10.68% and a net margin of 6.82%.The firm had revenue of $9.50 billion for the
-
-[2] NUE 2026 Earnings & EPS History - Quarterly & Annual Growth Reports
-URL: https://fullratio.com/stocks/nyse-nue/earnings
-# NUE Nucor Earnings and EPS analysis. Relative Growth:  Rel. Growth:  89. For the year 2025, the company recorded an earnings per share (EPS) of $7.53, which marks a drop compared to its EPS of $8.47 in 2024. Nucor's earnings per share for the quarterly report ending on Jul 4, 2026 reached $5.05. Historical annual and quarterly earnings per share (EPS) data for Nucor. The annual EPS for the year 2025 was $7.53, a drop of 11.1% from $8.47 in 2024. For the fiscal quarter that ended on Jul 4, 2026, the per-share earnings was $5.05, showing a 94.2% increase from the same quarter last year. For the year 2024, the yearly earnings per share was $8.47, marking a decrease of 53.1% from 2023. ## NUE EPS growth history. During the last 12 months, Nucor has seen an EPS growth of 94.2% (YoY, quarterly). Examining a broader timeline, the company maintained an average EPS growth rate of -36.1% per year for the last three years.
-
-[3] NUE Earnings History & Surprises | EPS & Revenue Results | ChartMill.com
-URL: https://www.chartmill.com/stock/quote/NUE/earnings
-# NUCOR CORP (NUE) Earnings History & Surprises. ## NUE Earnings overview. Past quarterly earnings results for NUCOR CORP (NUE), including EPS and
-
-
 ## COMPETITIVE / MOAT REPORT
-Moat: narrow (brand, cost_advantage)
+Moat: none (N/A)
 
 ## VALUATION REPORT
 Valuation basis: FCFF discounted at WACC → EV → equity bridge → per share (ADR-033)

@@ -2,7 +2,7 @@
   "ticker": "CALM",
   "cik": "0000016160",
   "as_of_date": "2026-05-30",
-  "run_id": "9824b1bf-7c4",
+  "run_id": "fffd3c34-56f",
   "financials": {
     "ticker": "CALM",
     "cik": "0000016160",
@@ -1732,28 +1732,82 @@
     "ticker": "CALM",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
+    "model_used": "gpt-6-luna",
     "insider_ownership_pct": 3.6,
     "insider_ownership_shares": 1697343,
     "insider_ownership_below_1pct": false,
     "insider_ownership_multi_class_row": null,
     "insider_ownership_as_of": "2026-08-18",
-    "founder_ceo": false,
+    "founder_ceo": null,
     "ceo_tenure_years": null,
     "form4_transactions_12m": 0,
     "form4_summary": "No open-market insider purchases or sales found in the last 12 months.",
-    "insider_transaction_pattern": "Not available in provided sources.",
-    "compensation_structure_notes": "Not available in provided sources.",
-    "capital_allocation_summary": "Not available in provided sources.",
+    "insider_transaction_pattern": "Sherman L. Miller is identified as President and CEO; the ownership table lists him below 1%. Adolphus B. Baker is the largest listed individual director/executive holder at 3.2%, while all directors and executive officers as a group hold 3.6%. No open-market insider purchases or sales were found in the last 12 months, so there is no clear buying-or-selling signal. Whether the current CEO is a founder and his prior track record are not available in the provided sources.",
+    "compensation_structure_notes": "The proxy says the Board aims to align executives’ long-term interests with stockholders, but the provided material does not give enough detail to assess fixed versus variable pay, long-term incentive metrics (including whether they are ROIC-linked), or clawbacks. Therefore, actual shareholder alignment and the balance between long-term and short-term incentives are not determinable from the provided sources.",
+    "capital_allocation_summary": "M&A discipline, buybacks and their pricing, dividend policy, and reinvestment quality are not available in the provided sources. No capital-allocation track record can be assessed from this material.",
     "citations": [
       {
-        "claim": "Insider ownership: all directors and executive officers as a group",
+        "claim": "The proxy identifies Sherman L. Miller as a director and President and Chief Executive Officer; it does not provide his appointment year.",
+        "source_url": "DEF 14A",
+        "excerpt": "Mr. Miller is a director and is President and Chief Executive Officer.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "CEO ownership is listed as less than 1%.",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "Sherman L. Miller | 34,464 shares | less than 1%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Adolphus B. Baker is the largest listed individual director/executive holder; the group ownership figure is also shown in the table.",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "Adolphus B. Baker | 1,504,175 shares | 3.2%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "All directors and executive officers as a group are listed at 3.6%.",
         "source_url": "DEF 14A ownership table",
         "excerpt": "All directors and executive officers as a group (14 persons) | 1,697,343 shares | 3.6%",
         "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
-        "verification_note": "deterministic: parsed from the DEF 14A beneficial ownership table (EC-93)"
+        "verification_note": null
+      },
+      {
+        "claim": "There were no open-market insider purchases or sales found in the last 12 months.",
+        "source_url": "Form 4",
+        "excerpt": "No open-market insider purchases or sales found in the last 12 months.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The proxy states the Board’s intended compensation-alignment objective, but the supplied excerpt does not establish the actual incentive design or metrics.",
+        "source_url": "DEF 14A",
+        "excerpt": "aligning the executives’ long-term interests with those of the stockholders",
+        "confidence": 0.98,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The recent filing identifies two directors as independent appointees; the provided material does not establish the independence of the full board or disclose enough to assess entrenchment or related-party concerns.",
+        "source_url": "8-K 5.02",
+        "excerpt": "appointed Haley R. Fisackerly as an independent Class II director and Michael J. Highfield as an independent Class III director",
+        "confidence": 0.97,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
       }
     ]
   },
@@ -1761,41 +1815,167 @@
     "ticker": "CALM",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
-    "business_description": "Cal-Maine Foods, Inc. is the largest egg company in the U.S. and a leading player in the egg-based food industry. The company sells a variety of egg products, including conventional and specialty eggs, as well as prepared foods such as pre-cooked egg patties and omelets. Its products are distributed to retail and foodservice customers nationwide, ensuring that nutritious and affordable egg options are accessible to households across the country.",
-    "risk_factors_summary": "The company faces several material risks, including volatility in wholesale shell egg prices, which can significantly impact revenues and profits. Additionally, agricultural risks such as outbreaks of avian diseases like HPAI can adversely affect production and supply. Competitive pressures from large customers and changing consumer preferences also pose risks to the company's market position.",
-    "mda_highlights": "Management highlights that net sales for fiscal 2026 were $2.9 billion, a decrease from $4.3 billion in fiscal 2025, primarily due to lower conventional shell egg prices. The company has expanded its prepared foods segment, which accounted for $244.8 million in sales, indicating a strategic shift towards diversifying its product offerings. Management is focused on leveraging its scale and operational excellence to navigate market challenges and drive growth.",
+    "model_used": "gpt-6-luna",
+    "business_description": "Cal-Maine sells shell eggs across conventional and specialty categories, including cage-free, organic, and free-range eggs, to retail and foodservice customers nationwide. It also sells prepared foods such as egg patties, omelets, pancakes, waffles, and specialty wraps. The filing identifies three reportable product segments: Conventional Shell Eggs, Specialty Shell Eggs, and Prepared Foods; it also describes other operations, including co-pack shell eggs and egg products, that are not reportable segments. It sells through grocery and club stores, other supermarket-serving companies, and foodservice distributors, and prices shell eggs using market-based, cost-based, or hybrid arrangements.",
+    "risk_factors_summary": "Wholesale shell egg prices are volatile and outside the company’s control, exposing revenue and profits to supply, demand, and seasonal changes. Feed is the largest element of shell egg production cost, and feed prices are affected by factors including weather, supply and demand, trade policies, and geopolitical instability. HPAI outbreaks can require depopulation and disrupt production; the filing reports a March 2026 outbreak at the company’s Maryland pullet facility. Customer concentration is significant: the top three customers represented 43.1% of fiscal 2026 net sales, and Walmart accounted for 30.0%. The filing also identifies prepared-food acquisition integration and changing consumer preferences as risks; technology-specific risks are not available in provided sources.",
+    "mda_highlights": "Fiscal 2026 net sales were $2.9 billion and net income was $316.7 million. Net sales decreased 31.7% from fiscal 2025, primarily as conventional shell egg prices fell while the layer population recovered from HPAI-related disruption. Average conventional shell egg price per dozen declined 50.9%; prepared foods contributed $244.8 million, or 8.4%, of fiscal 2026 net sales, primarily following the Echo Lake Foods acquisition. Management attributed the recent decline in wholesale egg prices primarily to improved supply and reduced panic-driven purchasing and retailer and foodservice inventory builds. Item 7 describes a change to three reportable operating segments effective in the fourth quarter of fiscal 2026; further information about accounting-policy changes, going-concern language, or capital raises is not available in provided sources.",
     "backlog_usd": null,
     "revenue_guidance": null,
     "geographic_revenue_breakdown": null,
     "key_regulatory_events": null,
-    "governance_red_flags": "null",
+    "governance_red_flags": null,
     "active_sec_investigation": false,
     "material_weakness": false,
     "citations": [
       {
-        "claim": "Cal-Maine Foods, Inc. is the largest egg company in the U.S. and a leading player in the egg-based food industry.",
+        "claim": "10-K Item 1: The company sells shell eggs in conventional and specialty categories to retail and foodservice customers.",
         "source_url": "10-K Item 1",
-        "excerpt": "We are the largest egg company in the United States (“U.S.”) and a leading player in the egg-based food industry.",
-        "confidence": 1.0,
+        "excerpt": "The Company’s shell egg portfolio spans the full egg value ladder—from conventional to specialty, including cage-free, nutritionally enhanced, organic, brown, pasture-raised, and free-range eggs—serving both retail and foodservice customers nationwide.",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "The company faces several material risks, including volatility in wholesale shell egg prices, which can significantly impact revenues and profits.",
+        "claim": "10-K Item 1: Prepared Foods includes the production and sale of prepared egg and other food offerings.",
+        "source_url": "10-K Item 1",
+        "excerpt": "The Prepared Foods segment consists primarily of the production, packaging, marketing and distribution of prepared foods product offerings such as pre-cooked egg patties, omelets, folded and scrambled egg formats, pancakes, waffles and specialty wraps.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1: The company has three reportable product segments and other nonreportable operations.",
+        "source_url": "10-K Item 1",
+        "excerpt": "As a result, we identified three reportable segments: Conventional Shell Eggs, Specialty Shell Eggs, and Prepared Foods.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 7: The company sells to retail and foodservice-related customers.",
+        "source_url": "10-K Item 7",
+        "excerpt": "We sell our products to a diverse group of customers, including national and regional grocery store chains, club stores, companies servicing independent supermarkets in the U.S., and foodservice distributors serving restaurants, convenience stores, healthcare and education facilities, and hotels throughout the majority of the U.S.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1: Shell egg prices use market-based, cost-based, and hybrid arrangements.",
+        "source_url": "10-K Item 1",
+        "excerpt": "We sell our shell eggs at prices based on formulas that take into account, in varying ways, one of the independently quoted regional wholesale market prices for shell eggs, our costs of production, such as grain-based, or hybrid models which include elements of cost of production and wholesale market prices.",
+        "confidence": 0.98,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1A: Wholesale shell egg market prices fluctuate widely and are outside the company’s control.",
         "source_url": "10-K Item 1A",
-        "excerpt": "Market prices of wholesale shell eggs are volatile and decreases in these prices have had, and in the future may have, a materially adverse impact on our revenues and profits.",
-        "confidence": 1.0,
+        "excerpt": "Our operating results are significantly affected by wholesale shell egg market prices, which fluctuate widely and are outside our control.",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Management highlights that net sales for fiscal 2026 were $2.9 billion, a decrease from $4.3 billion in fiscal 2025, primarily due to lower conventional shell egg prices.",
+        "claim": "10-K Item 1A: Feed costs are the largest element of shell egg production cost and depend on factors outside the company’s control.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Feed costs are the largest element of our shell egg production cost, typically exceeding 50% of our total farm production costs.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1A: HPAI outbreaks have affected the company’s facilities, including its Maryland pullet facility in March 2026.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "For example, during the third and fourth quarters of fiscal 2024, we experienced HPAI outbreaks within our facilities located in Kansas and Texas, and in March of 2026 we experienced a HPAI outbreak within our pullet facility in Maryland, resulting in the depopulation of approximately 352,000 pullets.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1A: The company has significant customer concentration.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Our top three customers accounted for an aggregate of 43.1%, 49.2% and 49.0% of our net sales for fiscal 2026, 2025 and 2024, respectively.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1A: Walmart accounted for 30.0% of fiscal 2026 net sales.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Our largest customer, Walmart Inc. (including Sam's Club), accounted for 30.0%, 33.6% and 34.0% of net sales dollars for fiscal 2026, 2025 and 2024, respectively.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1A: The company faces risks integrating prepared-food businesses and brands it acquires.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Accordingly, we have experienced and in the future may experience unexpected challenges in integrating and managing the prepared foods businesses and brands that we acquire from time to time.",
+        "confidence": 0.98,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 7: Fiscal 2026 net sales and net income.",
         "source_url": "10-K Item 7",
         "excerpt": "For fiscal 2026, we recognized net sales of $2.9 billion and net income of $316.7 million.",
-        "confidence": 1.0,
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 7: Fiscal 2026 net sales declined primarily because conventional shell egg prices fell as the layer population recovered.",
+        "source_url": "10-K Item 7",
+        "excerpt": "The decrease was primarily due to the decrease in prices for conventional shell egg, as the layer population recovered in 2025 from the recent HPAI outbreaks, partially offset by sales growth due to acquisitions made during fiscal 2026, particularly Echo Lake Foods.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 7: Average conventional shell egg prices declined 50.9% in fiscal 2026.",
+        "source_url": "10-K Item 7",
+        "excerpt": "Our average conventional shell egg price per dozen for fiscal 2026 declined 50.9% compared to fiscal 2025.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 7: Prepared foods sales and their share of net sales in fiscal 2026.",
+        "source_url": "10-K Item 7",
+        "excerpt": "In fiscal 2026, prepared foods accounted for $244.8 million or 8.4% of our net sales.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 7: Management attributes recent wholesale egg price declines primarily to improved supply.",
+        "source_url": "10-K Item 7",
+        "excerpt": "We believe the recent decline in wholesale egg prices primarily reflects improved egg supply, following disruptions associated with HPAI in fiscal year 2025.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 7: Management reports a segment-reporting reorganization effective in the fourth quarter of fiscal 2026.",
+        "source_url": "10-K Item 7",
+        "excerpt": "Effective in the fourth quarter of fiscal 2026, the Company determined its operations are organized into three reportable operating segments: (1) Conventional Shell Eggs; (2) Specialty Shell Eggs; and (3) Prepared Foods.",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
@@ -1837,7 +2017,7 @@
       "currency_code": "USD",
       "gaap_vs_nongaap": "GAAP"
     },
-    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] What Investors Might Expect From September's Inflation Report\n    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=ab1b1a32a85fa00bd1e0a239e6c664b7a40ee1b134688d75c63d2b07240e92fd\n    U.S. bond yields surged to multi-decade highs ahead of the October 2026 CPI report. Read more on the US economy here.\n\n[2] Cal-Maine points to egg supply, demand rebalance\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=50a1adcabce9084074ec6741574d8617282ab0dc2243bf845915d0f1c8280209\n    Fewer hatched chicks from breeder eggs and a reduction in U.S. flock are helping ease the current glut, President and CEO Sherman Miller said.\n\n[3] 1 Cash-Heavy Stock to Target This Week and 2 Facing Headwinds\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=09d23c7f60267407beea5107d974aa9b21eaf4a3c293837d0769f794b26057d4\n    A surplus of cash can mean financial stability, but it can also indicate a reluctance (or inability) to invest in growth. Some of these companies also face challenges like stagnating revenue, declining market share, or limited scalability.\n\n[4] Is Cal-Maine’s (CALM) Egg Slump Already Priced Into the Stock?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=82c41692aba29073a5eb9cccf2cb69f42ed434361561e57df41defb962563110\n    As the largest producer and distributor of fresh shell eggs in the US, Cal-Maine Foods (NASDAQ:CALM) commands approximately 20% of the domestic market, backed by an unlevered, debt-free balance sheet holding $767.6 million in cash. Despite the inherent volatility of egg market cycles, the company’s \n\n[5] Should Cal-Maine’s Q1 Loss, Dividend Pause and Shift Toward Specialty Eggs Require Action From CALM Investors?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=15f668c06be4b230b71b3ac78c48c13504c0b5a5f0ef3c3efd13088c07cbe75a\n    In late September 2026, Cal-Maine Foods reported first-quarter fiscal 2027 results showing sales of US$539.61 million, down sharply from US$922.60 million a year earlier, and a net loss of US$58.62 million versus prior net income, as oversupplied egg markets and lower conventional pricing weighed on\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\n[1] HelloFresh Shares Drop After Profit Warning - MarketWatch\nURL: https://www.marketwatch.com/story/hellofresh-shares-drop-after-profit-warning-06eae965\nHelloFresh shares dropped after the German meal-kit company warned it added fewer customers than anticipated during its back-to-school campaign, prompting third-quarter results to miss expectations and a cut to its full-year outlook. The company said it expected both revenue and adjusted earnings before interest, taxes, depreciation and amortization for the third quarter to fall short of analysts' expectations. It projects third-quarter revenue to decline by between 11% and 12% excluding currency changes, against the 6.8% decline anticipated by the average of analysts' forecasts. As a result, \n\n[2] HelloFresh Shares Drop After Profit Warning - MarketWatch\nURL: https://www.marketwatch.com/story/hellofresh-shares-drop-after-profit-warning-06eae965?mod=dj-newswires\nHelloFresh shares dropped after the German meal-kit company warned it added fewer customers than anticipated during its back-to-school campaign, prompting third-quarter results to miss expectations and a cut to its full-year outlook. The company said it expected both revenue and adjusted earnings before interest, taxes, depreciation and amortization for the third quarter to fall short of analysts' expectations. It projects third-quarter revenue to decline by between 11% and 12% excluding currency changes, against the 6.8% decline anticipated by the average of analysts' forecasts. As a result, \n\n[3] HelloFresh Shares Drop After Profit Warning - MarketWatch\nURL: https://www.marketwatch.com/story/hellofresh-shares-drop-after-profit-warning-06eae965?mod=markets\nHelloFresh shares dropped after the German meal-kit company warned it added fewer customers than anticipated during its back-to-school campaign, prompting third-quarter results to miss expectations and a cut to its full-year outlook. The company said it expected both revenue and adjusted earnings before interest, taxes, depreciation and amortization for the third quarter to fall short of analysts' expectations. It projects third-quarter revenue to decline by between 11% and 12% excluding currency changes, against the 6.8% decline anticipated by the average of analysts' forecasts. As a result, \n\n[4] What's Keeping Supply Chains Afloat Amidst The Tariffs ...\nURL: https://www.forbes.com/sites/alexanderpuutio/2025/08/25/whats-keeping-supply-chains-afloat-amidst-the-tariffs-and-uncertainty\n“A single miscalculation on tariffs can erase the margin on an entire product line. In this climate, our users are not just asking for insights;\n\n[5] ‘Fewer Choices and Higher Prices’: The Supply Chain of the Future - WSJ\nURL: https://www.wsj.com/economy/trade/fewer-choices-and-higher-prices-the-supply-chain-of-the-future-8e8cc994\nAmerican consumers should brace for price increases and fewer options in the store, say people involved in the global networks that supply U.S. retailers. The companies that built up Asian supply chains over decades operate on slim margins, and many say they have little choice but to pass on the cost of President Trump’s higher tariffs, assuming he sticks by his plan. They say it is impossible to make many labor-intensive products in the U.S., and shifting around production to ease the tariff burden will be time-consuming and costly. Copyright ©2026 Dow Jones & Company, Inc. All Rights Reserve\n\n[6] Trade War Roils Logistics Sector After 2024’s Relative Calm - WSJ\nURL: https://www.wsj.com/articles/trade-war-roils-logistics-sector-after-2024s-relative-calm-a21ec101\nU.S. companies face rising logistics costs, supply-chain upheaval and uncertain consumer demand this year amid a global trade war, freight-sector experts say. The renewed uncertainty follows a year in which U.S. business logistics costs as a share of gross domestic product stayed flat with the prior year as some logistics activity returned to more normal prepandemic seasonal patterns, according to the latest annual Council of Supply Chain Management Professionals State of Logistics Report, released Tuesday. Copyright ©2026 Dow Jones & Company, Inc. All Rights Reserved.\n\n[7] Exclusive | SEC Investigating Former Chair of Auditing Industry Regulator - WSJ\nURL: https://www.wsj.com/finance/regulation/sec-investigating-former-chair-of-auditing-industry-regulator-11623943373\nThe Securities and Exchange Commission is investigating whether the recently dismissed chairman of the auditing industry’s oversight board violated any rules in his handling of internal complaints at the regulator, according to people familiar with the matter. The SEC’s enforcement investigation is examining the actions of William Duhnke, who was dismissed from his job as chairman of the Public Company Accounting Oversight Board two weeks ago, according to the people. The investigation is the latest sign of trouble for the struggling regulator, which oversees the accounting firms that audit U.\n\n[8] United States Securities and Exchange Commission\nURL: https://www.wsj.com/topics/subject/securities-and-exchange-commission-sec?page=15\nPG&E said the SEC has opened an investigation into its disclosures and accounting for losses related to California wildfires.\n\n[9] Everybody Calm Down About GameStop - WSJ\nURL: https://www.wsj.com/opinion/everybody-calm-down-about-gamestop-11613083812\nThings aren’t looking good for those of us who hoped the GameStop frenzy would quickly give way to GameStop fatigue. We have seen pretty much every take imaginable—about hedge-fund managers, trading apps and lonely men in their basements. Politicians are calling for investigations by congressional committees and regulators. Treasury Secretary Janet Yellen reportedly convened a meeting to discuss the matter with the leaders of the Securities and Exchange Commission, the Commodity Futures Trading Commission and the Federal Reserve. The Journal reported on Thursday that the Justice Department—inc\n",
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] What Investors Might Expect From September's Inflation Report\n    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=ab1b1a32a85fa00bd1e0a239e6c664b7a40ee1b134688d75c63d2b07240e92fd\n    U.S. bond yields surged to multi-decade highs ahead of the October 2026 CPI report. Read more on the US economy here.\n\n[2] Cal-Maine points to egg supply, demand rebalance\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=50a1adcabce9084074ec6741574d8617282ab0dc2243bf845915d0f1c8280209\n    Fewer hatched chicks from breeder eggs and a reduction in U.S. flock are helping ease the current glut, President and CEO Sherman Miller said.\n\n[3] 1 Cash-Heavy Stock to Target This Week and 2 Facing Headwinds\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=09d23c7f60267407beea5107d974aa9b21eaf4a3c293837d0769f794b26057d4\n    A surplus of cash can mean financial stability, but it can also indicate a reluctance (or inability) to invest in growth. Some of these companies also face challenges like stagnating revenue, declining market share, or limited scalability.\n\n[4] Is Cal-Maine’s (CALM) Egg Slump Already Priced Into the Stock?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=82c41692aba29073a5eb9cccf2cb69f42ed434361561e57df41defb962563110\n    As the largest producer and distributor of fresh shell eggs in the US, Cal-Maine Foods (NASDAQ:CALM) commands approximately 20% of the domestic market, backed by an unlevered, debt-free balance sheet holding $767.6 million in cash. Despite the inherent volatility of egg market cycles, the company’s \n\n[5] Should Cal-Maine’s Q1 Loss, Dividend Pause and Shift Toward Specialty Eggs Require Action From CALM Investors?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=15f668c06be4b230b71b3ac78c48c13504c0b5a5f0ef3c3efd13088c07cbe75a\n    In late September 2026, Cal-Maine Foods reported first-quarter fiscal 2027 results showing sales of US$539.61 million, down sharply from US$922.60 million a year earlier, and a net loss of US$58.62 million versus prior net income, as oversupplied egg markets and lower conventional pricing weighed on\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\n[1] Cal-Maine Foods Inc (CALM) Q3 2026 Earnings Call Highlights: Navigating Challenges with ...\nURL: https://finance.yahoo.com/markets/stocks/articles/cal-maine-foods-inc-calm-190055450.html\n2. Best 0% APR cards. 2. Best high-yield savings accounts. 3. Best money market accounts. # Cal-Maine Foods Inc (CALM) Q3 2026 Earnings Call Highlights: Navigating Challenges with ... * Cal-Maine Foods Inc (NASDAQ:CALM) reported a significant increase in specialty egg sales, accounting for 50.5% of total shell egg sales in Q3 2026, compared to 24.4% in the previous year. * Prepared Foods sales saw a substantial rise, contributing 9.5% to net sales, up from 0.8% in the previous year. * The company is strategically investing in high-return organic growth opportunities, including specialty egg ca\n\n[2] Cal-Maine Foods (CALM) Dropped, So What Is Behind The Latest Attention?\nURL: https://finance.yahoo.com/markets/stocks/articles/cal-maine-foods-calm-dropped-042409801.html\n2. Best 0% APR cards. 3. Best balance transfer cards. 2. Best high-yield savings accounts. 3. Best money market accounts. The weak quarter has quickly fed into sentiment around Cal-Maine Foods, with the share price sliding about 21% over the past three months and roughly 17% year to date, while the 1-year total shareholder return is down about 27% despite still very strong 3 and 5-year total returns. This suggests recent momentum is fading as investors reassess both earnings risk and the pace at which the Specialty and Prepared Foods shift can reshape the business mix. On the most followed nar\n\n[3] Is Cal Maine Foods (CALM) Fairly Valued On Full Year Earnings?\nURL: https://finance.yahoo.com/markets/stocks/articles/cal-maine-foods-calm-fairly-221054931.html\n3. Best balance transfer cards. 2. Best high-yield savings accounts. # Is Cal Maine Foods (CALM) Fairly Valued On Full Year Earnings? Get insights on thousands of stocks from the global community of over 7 million individual investors at Simply Wall St. Cal-Maine Foods (CALM) has drawn attention after reporting full year earnings to May 30, 2026. For Cal-Maine Foods, a 15% upswing after a weak quarter raises a simple question: are investors responding to the company's long term earnings power or just a swing in sentiment that the valuation section can help unpack? Cal-Maine Foods closed at $87\n\n[4] How Supply Chains Impact Tariffs - Forbes\nURL: https://www.forbes.com/sites/cfo/2025/02/25/how-supply-chains-impact-tariffs\nFeb 25, 2025 · Most companies that manufacture products will find themselves impacted in some way by tariffs, even if primary facilities are in the U.S. because of their material sources and their supply chain\n\n[5] U.S. companies have finally gotten $71 billion in tariff ...\nURL: https://finance.yahoo.com/economy/policy/articles/u-companies-finally-gotten-71-070000840.html?fr=sycsrp_catchall\nJul 17, 2026 · But even as companies adjust supply chains and margins to account for increased tariff costs, they are finding headwinds elsewhere.\n\n[6] Trump’s Tariffs Enter New Phase, Ending Months of Calm - WSJ\nURL: https://www.wsj.com/economy/trade/trumps-tariffs-enter-new-phase-ending-months-of-calm-65f33e3e\nWASHINGTON—President Trump is preparing to reshape the legal justification for his tariff regime this week and push negotiations with North American trading partners into high gear, setting off a new phase of trade uncertainty for businesses after months of relative calm. When the Supreme Court in February struck down most of Trump’s second-term tariffs, he immediately replaced the illegal duties with a temporary 10% tariff that applied to nearly all U.S. imports. That 10% duty is legally limited to 150 days, which ends early Friday. The interim period ushered in relative stability in trade po\n\n[7] Exclusive | SEC Investigating Former Chair of Auditing Industry Regulator - WSJ\nURL: https://www.wsj.com/finance/regulation/sec-investigating-former-chair-of-auditing-industry-regulator-11623943373\nThe Securities and Exchange Commission is investigating whether the recently dismissed chairman of the auditing industry’s oversight board violated any rules in his handling of internal complaints at the regulator, according to people familiar with the matter. The SEC’s enforcement investigation is examining the actions of William Duhnke, who was dismissed from his job as chairman of the Public Company Accounting Oversight Board two weeks ago, according to the people. The investigation is the latest sign of trouble for the struggling regulator, which oversees the accounting firms that audit U.\n\n[8] SEC Drops Zcash Probe: Rare Clarity for Privacy Coins, ZEC Crypto To $1,000?\nURL: https://finance.yahoo.com/news/sec-drops-zcash-probe-rare-061520982.html\n2. Best high-yield savings accounts. 3. Best money market accounts. # SEC Drops Zcash Probe: Rare Clarity for Privacy Coins, ZEC Crypto To $1,000? The US Securities and Exchange Commission (SEC) used to terrorize crypto firms under Gary Gensler during the Biden administration so much so that it was pointless for founders to innovate. ZEC crypto, which is undoubtedly one of the top cryptos to consider in this cycle, reacted calmly, holding its recent range after months of pressure tied to regulatory fear. ZEC USDT is firm above $400, and remains one of the top performers, standing out from the \n\n[9] Everybody Calm Down About GameStop - WSJ\nURL: https://www.wsj.com/opinion/everybody-calm-down-about-gamestop-11613083812\nThings aren’t looking good for those of us who hoped the GameStop frenzy would quickly give way to GameStop fatigue. We have seen pretty much every take imaginable—about hedge-fund managers, trading apps and lonely men in their basements. Politicians are calling for investigations by congressional committees and regulators. Treasury Secretary Janet Yellen reportedly convened a meeting to discuss the matter with the leaders of the Securities and Exchange Commission, the Commodity Futures Trading Commission and the Federal Reserve. The Journal reported on Thursday that the Justice Department—inc\n",
     "material_events": [
       {
         "filing_date": "2026-09-30",
@@ -1959,46 +2139,52 @@
     "ticker": "CALM",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
-    "moat_classification": "narrow",
-    "moat_sources": [
-      "brand",
-      "switching_costs"
-    ],
+    "model_used": "gpt-6-luna",
+    "moat_classification": "none",
+    "moat_sources": [],
     "peer_roic_comparison": [],
     "citations": [
       {
-        "claim": "The company has a competitive moat due to its brand strength and customer loyalty in the mental health app market.",
-        "source_url": "Web (Tavily)",
-        "excerpt": "...digital therapy platform growth across BetterHelp (Teladoc Health), Talkspace, Calm, Lyra Health, and Spring Health...",
-        "confidence": 0.9,
-        "gaap_vs_nongaap_flag": null,
-        "verified": true,
-        "verification_note": null
-      },
-      {
-        "claim": "The ROIC for CALM has been above WACC, indicating a sustainable competitive advantage, with a series of high ROIC values.",
+        "claim": "ROIC is highly variable rather than sustained above the rubric’s 15% threshold for four consecutive years: FY2022 was 13.0%, while FY2023–FY2026 were above 15%. This alone does not establish a durable moat.",
         "source_url": "Financial data",
         "excerpt": "ROIC series: FY2026: 18.8%, FY2025: 108.3%, FY2024: 24.6%, FY2023: 77.7%, FY2022: 13.0%",
-        "confidence": 0.9,
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "The company's gross margin of 23.1% and operating margin of 12.0% in FY2026 are below typical industry levels for high-margin software and app companies, suggesting vulnerability.",
-        "source_url": "SOURCE 1",
-        "excerpt": "Gross margin: FY2026: 23.1%, FY2025: 43.4%, Operating margin: FY2026: 12.0%, FY2025: 36.1%",
-        "confidence": 0.0,
+        "claim": "Margins fluctuate substantially across the supplied years, and the data do not demonstrate sustained brand pricing power at scale.",
+        "source_url": "Financial data",
+        "excerpt": "Gross margin: FY2026: 23.1%, FY2025: 43.4%, FY2024: 23.3%",
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
-        "verified": false,
-        "verification_note": "excerpt not found in source (fuzzy=84)"
+        "verified": true,
+        "verification_note": null
       },
       {
-        "claim": "The company is facing competition from other mental health apps, which poses a disruption threat in the market.",
+        "claim": "The provided research identifies Cal-Maine as a farm-products company, but does not document a specific structural advantage such as market leadership, switching costs, network effects, or a regulatory barrier.",
         "source_url": "Web (Tavily)",
-        "excerpt": "...the industry is undergoing structural transformation...",
-        "confidence": 0.9,
+        "excerpt": "NASDAQ: CALM· CONSUMER DEFENSIVE· FARM PRODUCTS.",
+        "confidence": 0.84,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The supplied data give only one invested-capital figure, so they do not establish a rising or stable capital base; they also provide no revenue series from which to establish a three-year revenue CAGR.",
+        "source_url": "Financial data",
+        "excerpt": "Invested capital: $1.7B (FY2026)",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The supplied sources do not identify specific disruption threats or provide evidence that the moat is widening or eroding. The classification is therefore none: no specific structural advantage is established by this record.",
+        "source_url": "Web (Tavily)",
+        "excerpt": "digital therapy platform growth across BetterHelp (Teladoc Health), Talkspace, Calm, Lyra Health, and Spring Health",
+        "confidence": 0.82,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null

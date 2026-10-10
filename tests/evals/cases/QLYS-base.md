@@ -1,9 +1,5 @@
 # Investment Analysis Context: QLYS
 
-## DATA GAPS (specialists that failed or are missing — their evidence is ABSENT)
-- Filings: 0 verified citations — its narrative below is unverified
-Do not infer the content of missing sections. State explicitly in the affected sections that evidence is missing. Confidence is capped at 60% when Filings or Management are missing.
-
 ⚠️ DATA STALENESS WARNING: the 10-K data below is 283 days old (as-of 2025-12-31). If a QUARTERLY UPDATE section appears below, those figures are MORE RECENT and should take precedence for §4, §5, and §7.
 ## FINANCIALS (EDGAR XBRL — deterministic)
 Revenue: $669M (FY2025)
@@ -27,7 +23,6 @@ Quarterly Gross Profit: $152M
 
 ## MANAGEMENT REPORT
 Insider ownership (DEF 14A ownership table, deterministic): less than 1% (255,155 shares) [proxy filed 2026-04-22]
-Founder-CEO: No
 Form 4 open-market transactions (12m, deterministic): 107
 Form 4 transactions (Form 4, deterministic):
 No discretionary officer/director open-market transactions in the last 12 months.
@@ -141,22 +136,19 @@ No discretionary officer/director open-market transactions in the last 12 months
   Sumedh S Thakar (CEO & PRESIDENT) | SELL | 3,200 shares @ $134.21 | 2026-01-14
   Sumedh S Thakar (CEO & PRESIDENT) | SELL | 200 shares @ $134.75 | 2026-01-14
   [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]
-Insider transaction pattern (LLM summary, unverified): CEO Sumedh S Thakar net seller: sold 12,000 shares in June 2026, no open-market purchases in 12m. CFO Joo Mi Kim net seller: sold 1,000 shares in June 2026, no open-market purchases in 12m. Overall insider sentiment: negative.
-Compensation (LLM summary): Management compensation is linked to performance measures such as revenue growth, adjusted EBITDA margin, and non-GAAP earnings per diluted share. The compensation program reflects a pay-for-performance philosophy, with a focus on revenue growth as a key metric for corporate bonuses and performance-based restricted stock units (PRSUs).
-Capital allocation (LLM summary): The capital allocation strategy emphasizes reinvestment in growth, as evidenced by increased sales and marketing investments. There is no mention of dividends or share buybacks in the provided sources, indicating a focus on reinvestment rather than returning capital to shareholders.
+Insider transaction pattern (LLM summary, unverified): Sumedh S. Thakar is identified as CEO & President in the Form 4 data. The listed CEO, CFO, legal officer, and director transactions are 10b5-1 plan sales; the source reports no discretionary officer/director open-market transactions and no purchases. The reported activity is therefore sales-only, but because the sales were pre-arranged, it does not provide a clear current-conviction signal. Insider ownership is modest: the CEO, CFO, and Chief Legal Officer each hold less than 1%; institutional holders BlackRock and Vanguard are the largest listed holders.
+Compensation (LLM summary): The proxy says revenue growth is used to set goals for the corporate bonus plan and PRSUs, and identifies bookings, revenues, adjusted EBITDA margin, and non-GAAP earnings per diluted share as important performance measures. This indicates meaningful emphasis on revenue and other operating/non-GAAP metrics; the provided material does not establish ROIC-linked targets, clawbacks, or the full fixed-versus-variable and long-term compensation structure.
+Capital allocation (LLM summary): Not available in provided sources. The context does not provide information on M&A discipline, buybacks, dividends, or reinvestment quality.
 Insider transaction evidence (verified citations; use for §3 price reconciliation):
   - Sumedh S Thakar (CEO & PRESIDENT) | SELL | 100 shares @ $154.39 | 2026-09-14
-  - While we utilize several performance measures to align executive compensation with Company performance, not all of those measures are presented in the Pay Versus Performance table.
-  - Operating Expenses: Increased 8% to $73.2 million, driven by a 14% increase in sales and marketing investments.
+  - No discretionary officer/director open-market transactions in the last 12 months.
+  - Sumedh S. Thakar | 155,940 shares | less than 1%
 
 ## FILINGS REPORT (10-K)
-⚠️ UNVERIFIED — none of this agent's citations matched the source text. Treat its narrative lines as unverified claims, not evidence; deterministic lines (Form 4, DEF 14A ownership table) remain reliable.
-Business: Not available in provided sources.
-Key risks: The company faces significant risks related to fluctuating operating results, competition, and economic conditions. Variability in customer demand, pricing pressures, and the need to innovate in a rapidly changing technology landscape are critical challenges. Additionally, geopolitical factors and regulatory changes could adversely impact business performance.
+Business: Qualys sells cloud-delivered IT, security and compliance solutions through a software-as-a-service subscription model. Its customers subscribe to the platform and integrated suite of solutions, generally for one-year periods, and the filing says subscriptions are sold primarily to IT departments. Product-level revenue segments, the customer breakdown by industry, and a stated competitive advantage are not available in provided sources.
+Key risks: Demand, renewals, subscription expansion and sales timing may fluctuate, and customers may not renew or buy additional solutions. The company faces intense competition and rapid technological change that could pressure pricing and margins or make its solutions less attractive. Cybersecurity incidents, service interruptions and failures to scale the cloud platform could harm customers, reputation and revenue. Economic weakness and reduced IT spending may lower demand, while tariffs could raise costs or reduce customers’ purchasing power.
+SPECIFIC REGULATORY EVENTS: U.S. administration — the filing refers to the imposition of tariffs on certain countries; date and countries are not specified in the provided text. Exact excerpt: “For example, uncertainty as to the impact of the imposition of tariffs on certain countries by the current U.S. administration, as well as any potential retaliatory measures by impacted trade partners, could adversely impact trade relations, result in higher costs, and thereby decrease the purchasing power of our customers.” (10-K Item 1A)
 MDA highlights (LLM summary): Not available in provided sources.
-
-## GOVERNANCE RED FLAGS (from 10-K)
-null
 
 ## MARKET DATA
 Current price: $202.42
@@ -184,23 +176,8 @@ Recent news: Recent news (last 30 days, 5 articles):
     Source: Yahoo | URL: https://finnhub.io/api/news?id=6aeb14e85f4d695a185f26eeb94a179938554f9553cb828fce84b4a1937841d5
     Earnings results often indicate what direction a company will take in the months ahead. With Q2 behind us, let’s have a look at Qualys (NASDAQ:QLYS) and its peers.
 
-## QUARTERLY UPDATE (8-K Item 2.02, filed ?)
-⚠️ This data is MORE RECENT than the 10-K annual report. You MUST integrate these figures into §4 Financial Quality and §5 Growth conclusions per Rule 13.
-[1] Qualys Announces Second Quarter 2026 Financial Results
-URL: https://finance.yahoo.com/markets/stocks/articles/qualys-announces-second-quarter-2026-200500485.html
-For the quarter, the Company reported revenues of $182.2 million, net income under United States Generally Accepted Accounting Principles ("GAAP") of $52.4 million, non-GAAP net income of $69.2 million, Adjusted EBITDA of $83.8 million, GAAP net income per diluted share of $1.50, and non-GAAP net income per diluted share of $1.98. **Revenues:** Revenues for the second quarter of 2026 increased by 11% to $182.2 million compared to $164.1 million for the same quarter in 2025. **Operating Income:** GAAP operating income for the second quarter of 2026 increased by 20% to $61.9 million compared to $51.4 million for the same quarter in 2025. Non-GAAP operating income for the second quarter of 2026 increased by 16% to $81.4 million compared to $70.1 million for the same quarter in 2025. **Net Income:** GAAP net income for the second quarter of 2026 increased by 11% to $52.4 million, or $1.50 per diluted share, compared to $47.3 million, or $1.29 per diluted share, for the same quarter in 2025
-
-[2] Qualys Inc (QLYS) (Q2 2026) Earnings Call Highlights: AI-Driven Innovation and Raised Guidance ...
-URL: https://finance.yahoo.com/markets/stocks/articles/qualys-inc-qlys-q2-2026-050140231.html
-# Qualys Inc (QLYS) (Q2 2026) Earnings Call Highlights: AI-Driven Innovation and Raised Guidance ... * **Revenue:** $182.2 million, up 11% year-over-year. * **Operating Expenses:** Increased 8% to $73.2 million, driven by a 14% increase in sales and marketing investments. * **ETM/CSAM Bookings:** Combined made up 12% of total bookings and 14% of new bookings on an LTM basis, up from 9% and 10% respectively last year. * **Patch Management Bookings:** Made up 9% of total bookings and 16% of new bookings on an LTM basis, compared to 7% and 16% respectively in Q2 of last year. * **Total Cloud Bookings:** Made up 5% of total LTM bookings in Q2, unchanged from a year ago. * **Full-Year 2026 Revenue Guidance:** Raised to $732 to $738 million, representing growth of 9% to 10%. * Qualys Inc (NASDAQ:QLYS) delivered strong Q2 2026 results with revenue growth of 11% to $182.2 million, beating expectations and raising full-year revenue guidance to $732-$738 million.
-
-[3] Qualys Announces First Quarter 2026 Financial Results
-URL: https://finance.yahoo.com/markets/stocks/articles/qualys-announces-first-quarter-2026-200500610.html
-Fo
-
-
 ## COMPETITIVE / MOAT REPORT
-Moat: narrow (brand, switching_costs)
+Moat: none (N/A)
 
 ## VALUATION REPORT
 Valuation basis: FCFF discounted at WACC → EV → equity bridge → per share (ADR-033)

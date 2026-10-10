@@ -2,7 +2,7 @@
   "ticker": "BBW",
   "cik": "0001113809",
   "as_of_date": "2026-01-31",
-  "run_id": "e1b16cf4-932",
+  "run_id": "35ecfd2b-9ca",
   "financials": {
     "ticker": "BBW",
     "cik": "0001113809",
@@ -1563,25 +1563,88 @@
     "ticker": "BBW",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
+    "model_used": "gpt-6-luna",
     "insider_ownership_pct": 4.0,
     "insider_ownership_shares": 502388,
     "insider_ownership_below_1pct": false,
     "insider_ownership_multi_class_row": null,
     "insider_ownership_as_of": "2026-04-30",
     "founder_ceo": false,
-    "ceo_tenure_years": 0.0,
+    "ceo_tenure_years": 0.3,
     "form4_transactions_12m": 2,
     "form4_summary": "OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the game):\n  George Carrara (Director) | SELL | 3,000 shares @ $34.52 | 2026-06-05\n\n10b5-1 PRE-ARRANGED PLAN transactions (NOT informative about current sentiment):\n  Sharon Price John (Director) | SELL | 6,818 shares @ $40.03 | 2026-08-24\n  [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]",
-    "insider_transaction_pattern": "CEO Chris Hurt net seller: sold 6,818 shares in August 2026, no open-market purchases in 12m. Largest holder Divisadero Street Capital Management, LP net buyer. Overall insider sentiment: neutral to slightly negative.",
-    "compensation_structure_notes": "The executive compensation program is designed to align with shareholder interests, focusing on long-term performance. However, specific metrics such as ROIC or TSR are not detailed in the provided sources, indicating a potential reliance on short-term adjusted metrics.",
-    "capital_allocation_summary": "The capital allocation strategy is not explicitly detailed in the provided sources. However, the company has a history of adjusting its revenue guidance and managing its operational expenses, which suggests a cautious approach to reinvestment and capital allocation.",
+    "insider_transaction_pattern": "CEO J. Christopher Hurt has no transaction listed in the provided Form 4 activity. The sole listed discretionary transaction is Director George Carrara selling 3,000 shares; former CEO Sharon Price John’s 6,818-share sale was under a 10b5-1 plan and should not be treated as a current-conviction signal. Overall, the listed discretionary activity is a net seller, but the evidence is limited to one sale and does not establish a broad insider pattern. The ownership table shows Hurt with 61,119 shares, while the largest named insider holding is Sharon John with 225,426 shares; institutional holders are the largest holders overall.",
+    "compensation_structure_notes": "The provided proxy excerpt confirms an annual advisory say-on-pay vote, but does not provide the compensation mix, long-term incentive metrics, ROIC or TSR targets, or clawback provisions needed to assess shareholder alignment. Whether pay is primarily fixed or variable, and whether incentives emphasize long-term returns or short-term adjusted results, is not available in provided sources.",
+    "capital_allocation_summary": "M&A discipline, buyback pricing, dividend policy, and reinvestment quality are not available in provided sources; there is not enough evidence here to assess the company’s capital allocation track record.",
     "citations": [
       {
-        "claim": "On March 12, 2026, the Board of Directors of the Company announced that as part of a multi-year planned succession process, Sharon Price John intends to retire from her role effective June 11, 2026, the date of the Company’s Annual Shareholders’ Meeting upon which she will be succeeded by Chris Hurt.",
+        "claim": "Hurt joined the company in 2015 and is not identified in the provided biography as its founder; his prior experience includes operational leadership at the company and senior retail roles elsewhere.",
         "source_url": "10-K Item 10",
-        "excerpt": "On March 12, 2026, the Board of Directors of the Company announced that as part of a multi-year planned succession process, Sharon Price John intends to retire from her role effective June 11, 2026, the date of the Company’s Annual Shareholders’ Meeting upon which she will be succeeded by Chris Hurt.",
-        "confidence": 0.9,
+        "excerpt": "Mr. Hurt joined the Company in 2015 as Chief Operations Officer, and, from June 2020 until June 11, 2026, served as Chief Operations and Experience Officer.",
+        "confidence": 0.88,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Hurt beneficially owned 61,119 shares according to the proxy ownership table.",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "J. Christopher Hurt | 61,119 shares | less than 1%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Sharon John’s reported beneficial ownership was 225,426 shares.",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "Sharon John | 225,426 shares | 1.8%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The largest listed beneficial owner is Divisadero Street Capital Management, LP.",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "Divisadero Street Capital Management, LP | 1,251,224 shares | 10%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The provided Form 4 activity lists a discretionary sale by Director George Carrara.",
+        "source_url": "Form 4",
+        "excerpt": "George Carrara (Director) | SELL | 3,000 shares @ $34.52 | 2026-06-05",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Sharon Price John’s listed sale was identified as a pre-arranged 10b5-1 plan transaction.",
+        "source_url": "Form 4",
+        "excerpt": "Sharon Price John (Director) | SELL | 6,818 shares @ $40.03 | 2026-08-24",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The provided proxy excerpt states that the company holds say-on-pay votes annually.",
+        "source_url": "DEF 14A",
+        "excerpt": "We currently hold our “Say-on-Pay” vote every year.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Board independence, related-party transaction details, and possible entrenchment cannot be assessed from the provided excerpts.",
+        "source_url": "10-K Item 10",
+        "excerpt": "Information concerning directors, appearing in the sections titled “Directors,” “The Board of Directors and its Committees,” and “Committee Charters, Corporate Governance Guidelines, Business Conduct Policy and Code of Ethics” in our Proxy Statement (the “Proxy Statement”) to be filed with the SEC pursuant to Regulation 14A in connection with our Annual Meeting of Stockholders scheduled to be held on June 11, 2026, is incorporated by reference in response to this Item 10.",
+        "confidence": 0.94,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
@@ -1594,6 +1657,15 @@
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": "deterministic: parsed from the DEF 14A beneficial ownership table (EC-93)"
+      },
+      {
+        "claim": "J. Christopher Hurt succeeded Sharon Price John as CEO effective June 11, 2026; tenure is approximately 0.3 years as of October 10, 2026.",
+        "source_url": "SOURCE 3 (10-K Item 10)",
+        "excerpt": "On March 12, 2026, the Board of Directors of the Company announced that as part of a multi-year planned succession process, Sharon Price John intends to retire from her role effective June 11, 2026, the date of the Company’s Annual Shareholders’ Meeting upon which she will be succeeded by Chris Hurt, the Company’s tenured Chief Operations and Experience Officer.",
+        "confidence": 0.9,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
       }
     ]
   },
@@ -1601,50 +1673,113 @@
     "ticker": "BBW",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
-    "business_description": "Build-A-Bear Workshop, Inc. is a specialty retailer that allows customers, primarily children and families, to create personalized stuffed animals through an interactive experience. The company operates a unique retail model that combines entertainment and retail, offering both in-store experiences and e-commerce options. Build-A-Bear generates revenue through direct-to-consumer sales, commercial transactions, and international franchising, leveraging its brand strength and pop-culture appeal to attract a diverse customer base.",
-    "risk_factors_summary": "The company faces several material risks including macroeconomic uncertainties that could reduce discretionary consumer spending, competitive pressures from both traditional retailers and online platforms, and the impact of inflation and tariffs on costs and profitability. Additionally, the reliance on shopping malls and tourist locations for foot traffic poses a risk to sales, particularly in light of changing consumer behaviors and economic conditions.",
-    "mda_highlights": "Management highlights that fiscal 2025 was marked by a significant increase in net retail sales, driven by growth in corporately-operated locations and a successful omnichannel strategy. The company reported a pre-tax profit of $67.2 million, the highest in its history, and ended the year with no borrowings under its credit agreement. However, challenges such as rising labor costs and inflationary pressures were noted as ongoing concerns that could impact future profitability.",
+    "model_used": "gpt-6-luna",
+    "business_description": "Build-A-Bear sells customizable stuffed animals and related clothing, accessories, pre-stuffed plush, licensed and collectible products, and gifting merchandise through an interactive retail experience and e-commerce. Its customers include families with children in stores and, online, collectors and gift givers who are primarily tweens, teens, and adults. Revenue comes from three segments: direct-to-consumer retail and e-commerce, commercial wholesale and licensing, and international franchising. The company also expands through corporately managed stores, partner-operated locations, and franchise locations.",
+    "risk_factors_summary": "The business is exposed to discretionary-spending weakness, inflation, tariffs, and other trade-policy changes that may increase product costs, pressure margins, disrupt supply, or reduce demand. Competition includes toy and mass-market retailers, online sellers, entertainment businesses, and other make-your-own plush experiences; the filing also notes that consumer preferences and demand for licensed products can change. The company sources a substantial portion of inventory from China and Vietnam, creating sourcing and tariff exposure. Increasing use of AI creates potential cybersecurity, data, operational, legal, and competitive risks.",
+    "mda_highlights": "Fiscal 2025 total revenue increased by $33.4 million, with net retail sales up 5.6%, commercial revenue up 23.5%, and international franchising revenue up 8.5%. Retail sales growth was attributed primarily to increased transactions at corporately operated locations and new store openings, partly offset by lower web demand. Retail gross margin rose to 56.1% from 55.0%, reflecting lower merchandise and freight costs partly offset by higher occupancy and tariff-related costs. Management also cited higher store-level wages, corporate payroll, and inflationary pressures, and highlighted uncertainty around tariffs and their potential effects on costs and margins.",
     "backlog_usd": null,
     "revenue_guidance": null,
     "geographic_revenue_breakdown": null,
-    "key_regulatory_events": "On February 20, 2026, the U.S. Supreme Court issued a ruling striking down certain tariffs previously imposed under the International Emergency Economic Powers Act (\"IEEPA\"). Following this decision, the U.S. presidential administration announced its intention to invoke other laws to collect tariffs and announced new tariffs on imports from all countries, in addition to any existing non-IEEPA tariffs.",
+    "key_regulatory_events": "The filing reports that on February 20, 2026, the U.S. Supreme Court struck down certain tariffs previously imposed under IEEPA. It also reports that, following that decision, the U.S. presidential administration announced its intention to invoke other laws to collect tariffs and announced new tariffs on imports from all countries; the filing does not specify a date for that announcement.",
     "governance_red_flags": null,
     "active_sec_investigation": false,
     "material_weakness": false,
     "citations": [
       {
-        "claim": "Build-A-Bear Workshop, Inc. is a specialty retailer that allows customers, primarily children and families, to create personalized stuffed animals through an interactive experience.",
+        "claim": "The company offers an interactive personalized plush experience and also sells pre-stuffed plush, gifting, licensed and collectible products, and original content.",
         "source_url": "10-K Item 1",
-        "excerpt": "Build-A-Bear Workshop, Inc., a Delaware corporation, was formed in 1997 as a mall-based, experiential specialty retailer for children.",
-        "confidence": 1.0,
+        "excerpt": "Beyond its signature retail experience, our brand also offers pre-stuffed plush, gifting, partnerships with best-in-class licensed and collectible characters, and original storytelling through Build‑A‑Bear Entertainment, LLC.",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "The company faces several material risks including macroeconomic uncertainties that could reduce discretionary consumer spending, competitive pressures from both traditional retailers and online platforms, and the impact of inflation and tariffs on costs and profitability.",
-        "source_url": "10-K Item 1A",
-        "excerpt": "Any uncertainty or decline in general global economic conditions, caused by inflation, rising interest rates, geo-political conflicts, or other external factors, could lead to disproportionately reduced discretionary consumer spending and a corresponding reduction in demand for our products and have an adverse effect on our liquidity and profitability.",
-        "confidence": 1.0,
+        "claim": "The company serves store customers and online collectors and gift givers, with different target audiences across channels.",
+        "source_url": "10-K Item 1",
+        "excerpt": "While the primary consumer target for our retail stores is families with children, our e-commerce sites focus on collectors and gift givers that are primarily tweens, teens and adults.",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Management highlights that fiscal 2025 was marked by a significant increase in net retail sales, driven by growth in corporately-operated locations and a successful omnichannel strategy.",
+        "claim": "The company reports DTC, commercial, and international franchising as its three segments, with the stated revenue sources.",
         "source_url": "10-K Item 7",
-        "excerpt": "The retail revenue increase was primarily the result of an increase in sales from corporately-operated retail locations through growth in the number of transactions, as our traffic outpaced national retail traffic data, and the opening of a net seven new corporately-managed locations in the fiscal year.",
-        "confidence": 1.0,
+        "excerpt": "We operate in three segments that share the same infrastructure, including management, systems, merchandising and marketing, and generate revenues as follows:\n\n  Direct to Consumer (“DTC”) – Corporately-managed retail stores located in the U.S., Canada, the U.K., Ireland, and two e-commerce sites;\n\n  Commercial – Transactions with other businesses, mainly comprised of wholesale product sales and licensing our intellectual property, including entertainment properties, for third-party use; and\n\n  International franchising – Royalties as well as product and fixture sales from other international operations under franchise agreements.",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "On February 20, 2026, the U.S. Supreme Court issued a ruling striking down certain tariffs previously imposed under the International Emergency Economic Powers Act (\"IEEPA\"). Following this decision, the U.S. presidential administration announced its intention to invoke other laws to collect tariffs and announced new tariffs on imports from all countries, in addition to any existing non-IEEPA tariffs.",
+        "claim": "The company’s competitive strategy emphasizes omnichannel integration, location expansion, wholesale and licensing, and gifting and personalization.",
+        "source_url": "10-K Item 1",
+        "excerpt": "These four pillars are as follows:\n\n  Pillar One is Organic Growth.",
+        "confidence": 0.97,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The company identifies macroeconomic and trade-policy risks, including tariffs and potential cost and supply-chain effects.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "These and future changes in tariffs, trade policies, trade actions, or retaliatory trade measures in response, have resulted and may continue to result in additional inventory costs or supply chain disruptions, higher product prices, potentially reducing consumer demand and impacting our sales volume volatility, which could adversely impact our future sales volume, business, financial condition, and results of operations, materially or in ways that we cannot predict.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The filing identifies competition and changing consumer preferences as risks to sales and profitability.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "We operate in a highly competitive environment characterized by low barriers to entry.",
+        "confidence": 0.98,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The filing identifies AI-related cybersecurity, data, operational, legal, and competitive risks.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Any failure by such third parties to adequately protect our data, comply with applicable privacy, security or intellectual property laws or deliver reliable and effective AI solutions could result in operational disruptions, regulatory investigations, litigation, reputational harm, loss of competitive advantage and significant costs.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The filing identifies the February 20, 2026 U.S. Supreme Court tariff ruling and the administration's subsequent tariff announcement.",
         "source_url": "10-K Item 1A",
         "excerpt": "On February 20, 2026, the U.S. Supreme Court issued a ruling striking down certain tariffs previously imposed under the International Emergency Economic Powers Act (\"IEEPA\"). Following the Supreme Court’s decision, the U.S. presidential administration announced its intention to invoke other laws to collect tariffs and announced new tariffs on imports from all countries, in addition to any existing non-IEEPA tariffs.",
-        "confidence": 1.0,
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Fiscal 2025 revenue increased, and management described the principal retail and commercial revenue drivers.",
+        "source_url": "10-K Item 7",
+        "excerpt": "The retail revenue increase was primarily the result of an increase in sales from corporately-operated retail locations through growth in the number of transactions, as our traffic outpaced national retail traffic data, and the opening of a net seven new corporately-managed locations in the fiscal year. The increased sales were partially offset by a decrease in web demand for the year.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Retail gross margin improved, while higher occupancy and tariff-related costs partially offset lower merchandise and freight costs.",
+        "source_url": "10-K Item 7",
+        "excerpt": "The increase in gross margin was the result of lower merchandise and freight costs partially offset by higher occupancy and tariff and related costs, net of mitigating actions.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Management reported higher selling, general and administrative expenses associated with wages, payroll, and inflation.",
+        "source_url": "10-K Item 7",
+        "excerpt": "The increase in overall expense was driven by higher store-level wages due to minimum wage increases, higher corporate payroll and other costs and general inflationary pressures.",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
@@ -1686,7 +1821,7 @@
       "currency_code": "USD",
       "gaap_vs_nongaap": "GAAP"
     },
-    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Build-A-Bear Introduces a Whole New Vibe With Mellow Moodies™\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=cc9cf3d8f6981808b64c3cb095b4c9a57e56f047bff463ccf24b3b13be6a04d5\n    Build-A-Bear Workshop®, the beloved retailtainment brand known for \"adding a little more heart to life,\" today introduced Mellow Moodies™, created for teens and young adults. Inspired by a generation that embraces self-expression, emotional openness and finding comfort in the everyday, Mellow Moodie\n\n[2] Build-A-Bear Unveils New ICON Park Experiences Ahead of Grand Opening\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=42500d5e7d8cb3ddd83cb8d1b6f3144060d62c48ef7df87ae25920fb8c444b0d\n    Build-A-Bear Workshop, the brand known for adding a little more heart to life, today unveiled a selection of the signature experiences coming to its highly anticipated retailtainment Workshop at Orlando's ICON Park, giving guests a preview of what is inside the brand's largest and most ambitious exp\n\n[3] Scholastic Posts Downbeat Q1 Results, Joins Legacy Education, Zscaler And Other Big Stocks Moving Lower In Friday’s Pre-Market Session\n    Source: Benzinga | URL: https://finnhub.io/api/news?id=1384adf3ac22ede769bf057dbc0ade768cff77843f11fb8790c2b46a467bec0b\n    U.S. stock futures rose, but Scholastic plunged 9.9% after missing Q1 loss and sales estimates; several other stocks also fell premarket.\n\n[4] Buy The Crash: 2 Dividend Bargains Down 50%+ With Massive Upside Potential\n    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=030f0851a1e6a92b794ffc6c235b6e22106252fe174ecc716c41b09ceb2143f8\n    Oracle (ORCL) and Build-A-Bear (BBW) are down big, but cloud growth and buybacks fuel 144%â225% upside. Read the full analysis here.\n\n[5] Michael Burry keeps pointing at unloved stocks for a reason\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=46e2870515e2ed1ba613b3921dd85801bfcf5e20d1c7fea93657957cb2944552\n    While shorting the market’s favorites, he’s quietly going all in on names most investors have written off.\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\n[1] Financial Analysis for BBWI\nURL: https://finance.yahoo.com/quote/BBWI/\nStock: BBWI\nFinancial Analysis:\nLatest Open Price: 17.54 Latest Close Price: 17.34 Highest Close Price: 38.81 Lowest Close Price: 14.41 Average Close Price (2 years): 24.92 Standard Deviation of Close Price: 5.97 Volume Traded (2 years): 2954206200 Total Return (2 years): -40.53% Annualized Return (2 years): -22.88% CAGR (2 years): -22.88% Sharpe Ratio (2 years): -3.83 Max Drawdown (2 years): -0.59% \n\n[2] Build-A-Bear Workshop Inc (BBW) (Q2 2026) Earnings Call ...\nURL: https://finance.yahoo.com/markets/stocks/articles/build-bear-workshop-inc-bbw-210655699.html\nQ2 revenue declined 7.2% year-over-year, falling short of projections due to underperforming summer trend products and macroeconomic pressures.\n\n[3] Bath & Body Works’ Strategy to Win Back Younger Consumers - WSJ\nURL: https://www.wsj.com/business/retail/bath-body-works-younger-consumers-aab0fa17\nBath & Body Works hopes to earn more dollars and cents from selling better scents—assisted by thousands of influencers. It’s part of Chief Executive Daniel Heaf’s drive to make the struggling brand cool among Gen Z and millennial shoppers. The executive aims to modernize the Columbus, Ohio-based retailer of fragrances, scented candles, body creams and decorative soaps through an expanded digital presence, refreshed product mix and more-creative marketing. For years, he says, “we weren’t visible in places where young people go to discover brands.”. Digital sales represent only 20% of the compan\n\n[4] How this 'furry friends' maker that produces in China is navigating Trump tariffs\nURL: https://finance.yahoo.com/news/how-this-furry-friends-maker-that-produces-in-china-is-navigating-trump-tariffs-143337822.html\n# How this 'furry friends' maker that produces in China is navigating Trump tariffs. \"[Tariffs are the] question of the moment right now,\" Build-A-Bear Workshop (BBW) CEO Sharon Price John told Yahoo Finance Executive Editor Brian Sozzion the Opening Bid podcast (see the video above or listen below). John says tariffs could lead to higher prices for the \"furry friends\" she sells to parents and collectors. She is currently chair of the Toy Association and has spent 12 years helming Build-A-Bear. \"Six years ago, we started the diversification process for our supply chains because there were disc\n\n[5] Build-A-Bear Workshop pulls forward inventory to deflect tariff impact\nURL: https://finance.yahoo.com/news/build-bear-workshop-pulls-forward-111800585.html\n2. Best 0% APR cards. 3. Best balance transfer cards. 2. Best high-yield savings accounts. 3. Best money market accounts. Supply Chain Dive · Daphne Howland/Supply Chain Dive. *This story was originally published on* *Supply Chain Dive**. To receive daily news and insights, subscribe to our free daily* *Supply Chain Dive newsletter**.*. * Build-A-Bear Workshop is pulling forward inventory purchases, especially for core products, to mitigate the impact of tariffs from the Trump administration, CFO Voin Todorovic said during a March 13 earnings call. This year, Build-A-Bear expects less than 50%\n\n[6] Build-A-Bear Workshop Q4 Earnings Call Highlights\nURL: https://finance.yahoo.com/news/build-bear-workshop-q4-earnings-202704293.html\n* **Record revenue**: Build‑A‑Bear reported fiscal 2025 revenue near $530 million (≈7% growth) and record pretax income of $67.2 million, but tariffs and higher labor/medical costs reduced results by roughly $11 million (~$0.65 EPS); management guides to mid‑single‑digit revenue growth for 2026 while assuming a ~$16 million tariff impact on the year. * **Expansion and wholesale momentum**: The company plans at least **50 net new locations** in 2026, favoring partner‑operated asset‑light growth as its international footprint doubled to 36 countries, and is growing wholesale (Mini Beans surpasse\n\n[7] Bath & Body Works, Inc. Declares Cash Dividend\nURL: https://finance.yahoo.com/news/bath-body-works-inc-declares-140000206.html\n3, 2021 to shareholders of record at the close of business on Aug. 20, 2021. We caution that any forward-looking statements (as such term is defined in the Private Securities Litigation Reform Act of 1995) contained in this press release or made by our Company or our management involve risks and uncertainties and are subject to change based on various factors, many of which are beyond our control. Risks associated with the following factors, among others, in some cases have affected and in the future could affect our financial performance and actual results and could cause actual results to di\n\n[8] Bath & Body Works Appoints Heather Hollander Vice President, Investor Relations\nURL: https://ca.finance.yahoo.com/news/bath-body-works-appoints-heather-130000167.html\nHollander is a well-established voice in the institutional investor and research analyst community with an impressive career of financial leadership roles spanning investor relations, finance, analytics and strategy at leading consumer brand companies, including Nordstrom, Lowe's, Bloomin' Brands and Burger King. We caution that any forward-looking statements (as such term is defined in the Private Securities Litigation Reform Act of 1995) contained in this press release or made by our company or our management involve risks and uncertainties and are subject to change based on various factors,\n\n[9] BBW | Build-A-Bear Workshop Inc. Company Profile & Executives\nURL: https://www.wsj.com/market-data/quotes/BBW/company-people\nCompany profile for Build-A-Bear Workshop Inc. including key executives, insider trading, ownership, revenue and average growth rates. View detailed BBW\n",
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Build-A-Bear Introduces a Whole New Vibe With Mellow Moodies™\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=cc9cf3d8f6981808b64c3cb095b4c9a57e56f047bff463ccf24b3b13be6a04d5\n    Build-A-Bear Workshop®, the beloved retailtainment brand known for \"adding a little more heart to life,\" today introduced Mellow Moodies™, created for teens and young adults. Inspired by a generation that embraces self-expression, emotional openness and finding comfort in the everyday, Mellow Moodie\n\n[2] Build-A-Bear Unveils New ICON Park Experiences Ahead of Grand Opening\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=42500d5e7d8cb3ddd83cb8d1b6f3144060d62c48ef7df87ae25920fb8c444b0d\n    Build-A-Bear Workshop, the brand known for adding a little more heart to life, today unveiled a selection of the signature experiences coming to its highly anticipated retailtainment Workshop at Orlando's ICON Park, giving guests a preview of what is inside the brand's largest and most ambitious exp\n\n[3] Scholastic Posts Downbeat Q1 Results, Joins Legacy Education, Zscaler And Other Big Stocks Moving Lower In Friday’s Pre-Market Session\n    Source: Benzinga | URL: https://finnhub.io/api/news?id=1384adf3ac22ede769bf057dbc0ade768cff77843f11fb8790c2b46a467bec0b\n    U.S. stock futures rose, but Scholastic plunged 9.9% after missing Q1 loss and sales estimates; several other stocks also fell premarket.\n\n[4] Buy The Crash: 2 Dividend Bargains Down 50%+ With Massive Upside Potential\n    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=030f0851a1e6a92b794ffc6c235b6e22106252fe174ecc716c41b09ceb2143f8\n    Oracle (ORCL) and Build-A-Bear (BBW) are down big, but cloud growth and buybacks fuel 144%â225% upside. Read the full analysis here.\n\n[5] Michael Burry keeps pointing at unloved stocks for a reason\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=46e2870515e2ed1ba613b3921dd85801bfcf5e20d1c7fea93657957cb2944552\n    While shorting the market’s favorites, he’s quietly going all in on names most investors have written off.\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\n[1] Financial Analysis for BBWI\nURL: https://finance.yahoo.com/quote/BBWI/\nStock: BBWI\nFinancial Analysis:\nLatest Open Price: 17.54 Latest Close Price: 17.34 Highest Close Price: 38.81 Lowest Close Price: 14.41 Average Close Price (2 years): 24.92 Standard Deviation of Close Price: 5.97 Volume Traded (2 years): 2954206200 Total Return (2 years): -40.53% Annualized Return (2 years): -22.88% CAGR (2 years): -22.88% Sharpe Ratio (2 years): -3.83 Max Drawdown (2 years): -0.59% \n\n[2] HelloFresh Shares Drop After Profit Warning - MarketWatch\nURL: https://www.marketwatch.com/story/hellofresh-shares-drop-after-profit-warning-06eae965\nHelloFresh shares dropped after the German meal-kit company warned it added fewer customers than anticipated during its back-to-school campaign, prompting third-quarter results to miss expectations and a cut to its full-year outlook. The company said it expected both revenue and adjusted earnings before interest, taxes, depreciation and amortization for the third quarter to fall short of analysts' expectations. It projects third-quarter revenue to decline by between 11% and 12% excluding currency changes, against the 6.8% decline anticipated by the average of analysts' forecasts. As a result, \n\n[3] HelloFresh Shares Drop After Profit Warning - MarketWatch\nURL: https://www.marketwatch.com/story/hellofresh-shares-drop-after-profit-warning-06eae965?mod=dj-newswires\nHelloFresh shares dropped after the German meal-kit company warned it added fewer customers than anticipated during its back-to-school campaign, prompting third-quarter results to miss expectations and a cut to its full-year outlook. The company said it expected both revenue and adjusted earnings before interest, taxes, depreciation and amortization for the third quarter to fall short of analysts' expectations. It projects third-quarter revenue to decline by between 11% and 12% excluding currency changes, against the 6.8% decline anticipated by the average of analysts' forecasts. As a result, \n\n[4] How this 'furry friends' maker that produces in China is navigating Trump tariffs\nURL: https://finance.yahoo.com/news/how-this-furry-friends-maker-that-produces-in-china-is-navigating-trump-tariffs-143337822.html\n# How this 'furry friends' maker that produces in China is navigating Trump tariffs. \"[Tariffs are the] question of the moment right now,\" Build-A-Bear Workshop (BBW) CEO Sharon Price John told Yahoo Finance Executive Editor Brian Sozzion the Opening Bid podcast (see the video above or listen below). John says tariffs could lead to higher prices for the \"furry friends\" she sells to parents and collectors. She is currently chair of the Toy Association and has spent 12 years helming Build-A-Bear. \"Six years ago, we started the diversification process for our supply chains because there were disc\n\n[5] Build-A-Bear Workshop pulls forward inventory to deflect tariff impact\nURL: https://finance.yahoo.com/news/build-bear-workshop-pulls-forward-111800585.html\n2. Best 0% APR cards. 3. Best balance transfer cards. 2. Best high-yield savings accounts. 3. Best money market accounts. Supply Chain Dive · Daphne Howland/Supply Chain Dive. *This story was originally published on* *Supply Chain Dive**. To receive daily news and insights, subscribe to our free daily* *Supply Chain Dive newsletter**.*. * Build-A-Bear Workshop is pulling forward inventory purchases, especially for core products, to mitigate the impact of tariffs from the Trump administration, CFO Voin Todorovic said during a March 13 earnings call. This year, Build-A-Bear expects less than 50%\n\n[6] Build-A-Bear Workshop Q4 Earnings Call Highlights\nURL: https://finance.yahoo.com/news/build-bear-workshop-q4-earnings-202704293.html\n* **Record revenue**: Build‑A‑Bear reported fiscal 2025 revenue near $530 million (≈7% growth) and record pretax income of $67.2 million, but tariffs and higher labor/medical costs reduced results by roughly $11 million (~$0.65 EPS); management guides to mid‑single‑digit revenue growth for 2026 while assuming a ~$16 million tariff impact on the year. * **Expansion and wholesale momentum**: The company plans at least **50 net new locations** in 2026, favoring partner‑operated asset‑light growth as its international footprint doubled to 36 countries, and is growing wholesale (Mini Beans surpasse\n\n[7] Swedbank’s Regulatory Risks and Strategic Resilience in a Post-SEC Investigation Landscape\nURL: https://www.ainvest.com/news/swedbank-regulatory-risks-strategic-resilience-post-sec-investigation-landscape-2509\n# Swedbank’s Regulatory Risks and Strategic Resilience in a Post-SEC Investigation Landscape. - SEC closes 2019 investigation into Swedbank without penalties, but DoJ and DFS probes remain unresolved. According to a report by _Reuters_, the SEC concluded its probe without enforcement action, signaling a resolution to one chapter of regulatory scrutiny [1]. However, the broader landscape remains fraught with uncertainty, as ongoing investigations by the U.S. Department of Justice (DoJ) and the New York Department of Financial Services (DFS) linger in the background. For investors, the question \n\n[8] Swedbank’s Regulatory Risk Resolution: A Post-SEC Probe Investment Opportunity Assessment\nURL: https://www.ainvest.com/news/swedbank-regulatory-risk-resolution-post-sec-probe-investment-opportunity-assessment-2509\n# Swedbank’s Regulatory Risk Resolution: A Post-SEC Probe Investment Opportunity Assessment. - Ongoing U.S. DoJ/DFS investigations and a €1.15M fine for security lapses highlight unresolved regulatory risks. According to a report by _MLQ.ai_, the SEC concluded its probe in September 2025 without imposing penalties or enforcement actions, signaling a regulatory “clean bill of health” for the Swedish bank [1]. The bank reported a **15.4% return on equity (ROE)** and a **19.7% CET1 capital ratio** as of 2025, figures that speak to its robust capital position and profitability [1]. Swedbank Latvij\n\n[9] SEC investigation\nURL: https://capwolf.com/tag/sec-investigation\nThe SEC just cleared the Zcash Foundation of any enforcement risk after a multi-year probe, yet ZEC is sliding hard... SEC Ends Zcash Probe: No Enforcement Action. After more than two years of uncertainty, the SEC has finally closed its investigation into the Zcash Foundation with no... AppLovin Stock Plunges Amid SEC Data Probe Concerns. AppLovin’s stock tanks 15% after an SEC probe into its data practices. What’s behind the crash, and could this shake... AppLovin Stock Plunge: SEC Probes Data Privacy Issues. AppLovin’s stock crashed after an SEC probe into its data practices. What does this \n",
     "material_events": [
       {
         "filing_date": "2026-09-09",
@@ -1840,46 +1975,61 @@
     "ticker": "BBW",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
-    "moat_classification": "narrow",
-    "moat_sources": [
-      "brand",
-      "switching_costs"
-    ],
+    "model_used": "gpt-6-luna",
+    "moat_classification": "none",
+    "moat_sources": [],
     "peer_roic_comparison": [],
     "citations": [
       {
-        "claim": "Build-A-Bear Workshop has a strong brand presence and customer loyalty, which contributes to its competitive advantage.",
-        "source_url": "Web (Tavily)",
-        "excerpt": "Build-A-Bear's stock surged from $2 to $65. stock traded for barely two dollars a share. Today it trades above twenty-five, in structural",
-        "confidence": 0.9,
-        "gaap_vs_nongaap_flag": null,
-        "verified": true,
-        "verification_note": null
-      },
-      {
-        "claim": "The company's ROIC has shown significant improvement, with FY2026 at 43.1%, FY2024 at 64.2%, FY2023 at 69.7%, and FY2022 at 101.3%.",
+        "claim": "The supplied ROIC series shows high values in FY2022–FY2024 and FY2026, but also -32.1% in FY2021 and no FY2025 figure. It therefore does not establish four consecutive years of ROIC above 15%; no WACC is provided to establish sustained returns above WACC.",
         "source_url": "Financial data",
         "excerpt": "ROIC series: FY2026: 43.1%, FY2024: 64.2%, FY2023: 69.7%, FY2022: 101.3%, FY2021: -32.1%",
-        "confidence": 0.95,
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "The company's gross margin is at 55.8%, which is above typical industry levels, indicating strong pricing power.",
+        "claim": "Gross margin was above 50% in FY2024–FY2026, but the supplied evidence contains no premium-pricing data or industry comparison. The margins alone do not establish brand pricing power or superior margins versus the industry.",
         "source_url": "Financial data",
         "excerpt": "Gross margin: FY2026: 55.8%, FY2025: 54.9%, FY2024: 54.4%",
-        "confidence": 0.9,
+        "confidence": 0.98,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "The company has a loyal customer base that creates switching costs, as customers are likely to return for their unique products.",
+        "claim": "The evidence points to brand challenges rather than a demonstrated durable brand advantage: management is seeking to make the brand cool among younger consumers. This supports an erosion concern, not evidence of a widening moat.",
         "source_url": "Web (Tavily)",
-        "excerpt": "Build-A-Bear's stock surged from $2 to $65. stock traded for barely two dollars a share. Today it trades above twenty-five, in structural",
-        "confidence": 0.9,
+        "excerpt": "It’s part of Chief Executive Daniel Heaf’s drive to make the struggling brand cool among Gen Z and millennial shoppers.",
+        "confidence": 0.96,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "A credible competitive challenge is digital reach: the article reports digital sales are a smaller share than rivals and notes the company has only recently begun selling on Amazon with a limited assortment. This suggests BBW is responding to a channel weakness rather than being evidenced here as a disruptor.",
+        "source_url": "Web (Tavily)",
+        "excerpt": "Digital sales represent only 20% of the company’s annual sales, a smaller share than rivals. It recently began selling on Amazon.com—though with a limited assortment of nearly 100 items, or about 7% of its in-store offerings.",
+        "confidence": 0.96,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The provided data report invested capital only for FY2026, so they do not establish whether the capital base is growing or stable.",
+        "source_url": "Financial data",
+        "excerpt": "Invested capital: $128M (FY2026)",
+        "confidence": 0.98,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Operating margins are reported for FY2023, FY2024, and FY2026, but no industry benchmark is supplied; a comparison with typical industry levels cannot be established from this context.",
+        "source_url": "Financial data",
+        "excerpt": "Operating margin: FY2026: 12.5%, FY2024: 13.5%, FY2023: 13.2%",
+        "confidence": 0.97,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null

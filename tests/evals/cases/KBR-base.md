@@ -1,9 +1,5 @@
 # Investment Analysis Context: KBR
 
-## DATA GAPS (specialists that failed or are missing — their evidence is ABSENT)
-- Filings: 0 verified citations — its narrative below is unverified
-Do not infer the content of missing sections. State explicitly in the affected sections that evidence is missing. Confidence is capped at 60% when Filings or Management are missing.
-
 ⚠️ DATA STALENESS WARNING: the 10-K data below is 281 days old (as-of 2026-01-02). If a QUARTERLY UPDATE section appears below, those figures are MORE RECENT and should take precedence for §4, §5, and §7.
 ## FINANCIALS (EDGAR XBRL — deterministic)
 Revenue: $7.8B (FY2025)
@@ -27,7 +23,6 @@ Quarterly Gross Profit: $293M
 
 ## MANAGEMENT REPORT
 Insider ownership (DEF 14A ownership table, deterministic): 1.2% (1,459,870 shares) [proxy filed 2026-03-30]
-Founder-CEO: No
 Form 4 open-market transactions (12m, deterministic): 4
 Form 4 transactions (Form 4, deterministic):
 OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the game):
@@ -35,22 +30,18 @@ OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the g
   Carlos A. Sabater (Director) | BUY | 14,500 shares @ $32.47 | 2026-05-19
   Lewis Von Thaer (Director) | BUY | 3,000 shares @ $30.77 | 2026-05-14
   Shad E. Evans (EVP & Chief Financial Officer) | BUY | 8,375 shares @ $30.60 | 2026-05-13
-Insider transaction pattern (LLM summary, unverified): CEO Stuart J. B. Bradie net buyer: purchased 750,093 shares, no recent open-market sales. Directors Jack B. Moore, Carlos A. Sabater, and Lewis Von Thaer net buyers: bought 4,000, 14,500, and 3,000 shares respectively in May 2026. Overall insider sentiment: positive.
-Compensation (LLM summary): Management's compensation is linked to performance metrics such as Adjusted EPS, Adjusted OCF, Relative TSR, and Sustainability, indicating a mix of short-term and long-term incentives. The use of equity compensation plans suggests alignment with shareholder interests, although specific long-term metrics like ROIC are not mentioned.
-Capital allocation (LLM summary): KBR's capital allocation strategy appears focused on growth through strategic investments and a planned spin-off of its Mission Technology Solutions business. There is no mention of recent buybacks or dividends, indicating a potential focus on reinvestment rather than returning capital to shareholders.
+Insider transaction pattern (LLM summary, unverified): The provided current-role sources do not identify the CEO, so I cannot attribute the reported activity to the CEO. The listed Form 4 discretionary transactions are purchases by directors Jack B. Moore, Carlos A. Sabater, and Lewis Von Thaer, and by Shad E. Evans, identified there as EVP & Chief Financial Officer; no sales appear in the supplied entries, so the observed activity is buying-positive but limited to the transactions provided. Among the listed executives, Stuart J. B. Bradie has the largest reported holding, followed by Mark W. Sopp; the provided sources do not establish Bradie's current role.
+Compensation (LLM summary): The proxy describes short- and long-term incentive plans using adjusted EPS, adjusted OCF, relative TSR, book-to-bill, and sustainability measures. This mixes adjusted financial measures with a shareholder-return measure, but the provided material does not specify their weights, ROIC targets, or clawback terms, so alignment on those dimensions cannot be assessed.
+Capital allocation (LLM summary): Not available in provided sources. The supplied material does not provide a sufficient track record to assess M&A discipline, buybacks, dividends, or reinvestment quality.
 Insider transaction evidence (verified citations; use for §3 price reconciliation):
-  - Stuart J. B. Bradie | 750,093 shares | less than 1%
-  - the most important financial performance measures (including the Company-Selected Measure) that we used to link executive compensation actually paid to the NEOs to our performance, which are the performance metrics the Committee chose for our short-term and long-term incentive plans
-  - Management **reiterated its full-year Adjusted EPS guidance** of $4.05 at the midpoint.
+  - Jack B Moore (Director) | BUY | 4,000 shares @ $31.44 | 2026-05-20
+  - Carlos A. Sabater (Director) | BUY | 14,500 shares @ $32.47 | 2026-05-19
+  - Lewis Von Thaer (Director) | BUY | 3,000 shares @ $30.77 | 2026-05-14
 
 ## FILINGS REPORT (10-K)
-⚠️ UNVERIFIED — none of this agent's citations matched the source text. Treat its narrative lines as unverified claims, not evidence; deterministic lines (Form 4, DEF 14A ownership table) remain reliable.
 Business: Not available in provided sources.
-Key risks: The company faces risks related to changes in estimated contract costs and losses, which can materially impact future reported earnings. Additionally, the company is exposed to market risks associated with foreign currency exchange rates and interest rate fluctuations. Legal and tax contingencies also pose risks, as outcomes can significantly affect financial results.
+Key risks: The available Item 1A text says changes in contract estimates can materially affect future reported earnings, including through cumulative catch-up adjustments and reversals of previously recognized revenue. It also identifies uncertainty in pension estimates: actual market and economic conditions, regulatory changes, and participant experience may differ from actuarial assumptions and materially affect financial position or results. Specific competitive or technology risks and dated, company-specific government actions are not available in the provided sources.
 MDA highlights (LLM summary): Not available in provided sources.
-
-## GOVERNANCE RED FLAGS (from 10-K)
-null
 
 ## MARKET DATA
 Current price: $35.34
@@ -94,7 +85,7 @@ URL: https://finance.yahoo.com/markets/stocks/articles/kbr-kbr-1-8-since-1530193
 
 
 ## COMPETITIVE / MOAT REPORT
-Moat: narrow (brand, regulatory)
+Moat: none (N/A)
 
 ## VALUATION REPORT
 Valuation basis: FCFF discounted at WACC → EV → equity bridge → per share (ADR-033)

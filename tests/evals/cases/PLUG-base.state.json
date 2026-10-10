@@ -2,7 +2,7 @@
   "ticker": "PLUG",
   "cik": "0001093691",
   "as_of_date": "2025-12-31",
-  "run_id": "ea110b03-fb0",
+  "run_id": "16fb2862-a31",
   "financials": {
     "ticker": "PLUG",
     "cik": "0001093691",
@@ -1532,70 +1532,97 @@
     "ticker": "PLUG",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
+    "model_used": "gpt-6-luna",
     "insider_ownership_pct": 1.37,
     "insider_ownership_shares": 19043496,
     "insider_ownership_below_1pct": false,
     "insider_ownership_multi_class_row": null,
     "insider_ownership_as_of": "2026-04-30",
-    "founder_ceo": false,
+    "founder_ceo": null,
     "ceo_tenure_years": null,
     "form4_transactions_12m": 9,
     "form4_summary": "No discretionary officer/director open-market transactions in the last 12 months.\n\n10b5-1 PRE-ARRANGED PLAN transactions (NOT informative about current sentiment):\n  Benjamin Haycraft (CSO & GM EMEA) | SELL | 200,000 shares @ $2.14 | 2026-09-18\n  Benjamin Haycraft (CSO & GM EMEA) | SELL | 13,810 shares @ $2.14 | 2026-09-11\n  Benjamin Haycraft (CSO & GM EMEA) | SELL | 18,750 shares @ $2.06 | 2026-09-11\n  Maureen O Helmer (Director) | SELL | 50,000 shares @ $3.23 | 2026-06-08\n  Benjamin Haycraft (CSO & GM EMEA) | SELL | 40,000 shares @ $2.17 | 2026-01-12\n  Jose Luis Crespo (President & Chief Revenue Officer) | BUY | 37,300 shares @ $2.34 | 2025-12-15\n  Benjamin Haycraft (CSO & GM EMEA) | SELL | 10,000 shares @ $3.80 | 2025-10-10\n  Benjamin Haycraft (CSO & GM EMEA) | SELL | 40,000 shares @ $2.20 | 2025-10-10\n  Benjamin Haycraft (CSO & EVP of EMEA Region) | SELL | 10,000 shares @ $2.92 | 2025-11-10\n  [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]",
-    "insider_transaction_pattern": "Jose Luis Crespo (CEO) has not made any open-market transactions in the last 12 months. Jose Luis Crespo is a net buyer, having bought 37,300 shares in December 2025. Benjamin Haycraft (CSO & GM EMEA) is a net seller, having sold 200,000 shares in September 2026 and other shares throughout the year. Overall insider sentiment: mixed, with Crespo showing confidence while Haycraft's selling raises concerns.",
-    "compensation_structure_notes": "Management compensation includes a significant portion tied to equity, aligning their interests with shareholders. The structure emphasizes long-term incentives, although specific metrics such as ROIC targets are not detailed in the provided sources.",
-    "capital_allocation_summary": "The company has focused on disciplined growth and improving operational efficiency, as indicated by their Project Quantum Leap initiative. There is no mention of recent M&A activity, buybacks, or dividends, suggesting a focus on reinvestment into core business areas rather than returning capital to shareholders.",
+    "insider_transaction_pattern": "The current CEO cannot be identified from the available current-role sources, so CEO-specific trading and prior track record cannot be assessed. The Form 4 summary reports no discretionary officer/director open-market transactions in the last 12 months. The listed 10b5-1 activity includes sales by Benjamin Haycraft and Maureen O. Helmer and a purchase by Jose Luis Crespo; because the source says these trades were pre-arranged, they do not establish current conviction. Overall, there is no clear discretionary insider-trading signal. The ownership table reports 1.37% ownership for all current executive officers and directors as a group; Andrew J. Marsh is the largest named individual in that table.",
+    "compensation_structure_notes": "The proxy excerpt indicates that Andrew J. Marsh elected to receive a portion of base salary and bonus in shares, but the provided material does not establish the overall fixed-versus-variable structure or disclose enough to assess executive performance metrics, ROIC or TSR linkage, or clawbacks. The proxy also describes a request for 25 million additional plan shares, which would add potential dilution if approved.",
+    "capital_allocation_summary": "The proxy describes efforts to reduce costs and improve execution and returns, as well as asset monetization and non-dilutive financing initiatives. It does not provide enough information to assess M&A discipline, buyback pricing, dividends, or the returns earned on reinvestment; those aspects are not available in the provided sources.",
     "citations": [
       {
-        "claim": "I became Chief Executive Officer on March 2nd.",
+        "claim": "The proxy letter says its unnamed speaker became CEO on March 2, but gives no year; SOURCE 3 is unavailable, so the current CEO identity and tenure cannot be confirmed from the provided current-role sources.",
         "source_url": "DEF 14A",
         "excerpt": "I became Chief Executive Officer on March 2nd.",
-        "confidence": 0.9,
+        "confidence": 0.97,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "All current executive officers and directors as a group (14 persons) | 19,043,496 shares | 1.37%",
+        "claim": "The proxy beneficial ownership table reports aggregate ownership of 1.37% for current executive officers and directors.",
         "source_url": "DEF 14A ownership table",
         "excerpt": "All current executive officers and directors as a group (14 persons) | 19,043,496 shares | 1.37%",
-        "confidence": 0.9,
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Jose Luis Crespo (CEO) has not made any open-market transactions in the last 12 months.",
+        "claim": "Andrew J. Marsh has the largest individual share count among the named individuals in the provided ownership table.",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "Andrew J. Marsh | 5,125,257 shares | less than 1%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The supplied Form 4 summary reports no discretionary officer or director open-market transactions in the last 12 months.",
         "source_url": "Form 4",
         "excerpt": "No discretionary officer/director open-market transactions in the last 12 months.",
-        "confidence": 0.9,
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Jose Luis Crespo is a net buyer, having bought 37,300 shares in December 2025.",
-        "source_url": "Form 4",
-        "excerpt": "Jose Luis Crespo (President & Chief Revenue Officer) | BUY | 37,300 shares @ $2.34 | 2025-12-15",
-        "confidence": 0.9,
-        "gaap_vs_nongaap_flag": null,
-        "verified": true,
-        "verification_note": null
-      },
-      {
-        "claim": "Management compensation includes a significant portion tied to equity, aligning their interests with shareholders.",
+        "claim": "The proxy identifies a share-based salary and bonus election by Andrew J. Marsh; this alone does not establish the compensation structure for management as a whole.",
         "source_url": "DEF 14A",
-        "excerpt": "We encourage stockholders to read closely the “Executive Compensation” section of this proxy statement beginning with “Compensation Discussion and Analysis” for additional details on the Company’s executive compensation programs and philosophy.",
-        "confidence": 0.9,
+        "excerpt": "Andrew J. Marsh filed a Form 4 disclosing awards of common stock made on August 1, 2025 and August 29, 2025 pursuant to his election to receive a portion of his base salary and bonus in shares of the Company’s common stock;",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "The company has focused on disciplined growth and improving operational efficiency, as indicated by their Project Quantum Leap initiative.",
+        "claim": "The proxy describes a proposed increase of 25 million shares available under the incentive plan, subject to stockholder approval.",
         "source_url": "DEF 14A",
-        "excerpt": "Beginning in 2024, we initiated a company-wide effort to streamline operations, reduce structural costs, and improve execution across the business.",
-        "confidence": 0.9,
+        "excerpt": "a request for 25,000,000 additional shares, which is subject to stockholder approval at the Company’s 2026 Annual Meeting",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The proxy describes a focus on converting prior investments into improved margins, execution, growth, and returns.",
+        "source_url": "DEF 14A",
+        "excerpt": "We are now focused on ensuring these investments translate into improved margins, stronger execution, growth, and better returns over time.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The proxy reports asset monetization and non-dilutive financing initiatives, but the provided material does not establish M&A, buyback, or dividend track records.",
+        "source_url": "DEF 14A",
+        "excerpt": "In parallel, we are strengthening our financial position through a more disciplined capital strategy, including asset monetization initiatives and non-dilutive financing structures.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The proxy describes a related-person transaction policy with Audit Committee review; the provided excerpts do not establish board independence or disclose specific related-party transactions.",
+        "source_url": "DEF 14A",
+        "excerpt": "Under the policy, potential related person transactions are identified and reviewed in consultation with the Company’s Chief Legal Officer (referred to in the policy as the “General Counsel”), and are then submitted to the Audit Committee for review, approval or ratification.",
+        "confidence": 0.98,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
@@ -1606,18 +1633,64 @@
     "ticker": "PLUG",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
+    "model_used": "gpt-6-luna",
     "business_description": "Not available in provided sources.",
-    "risk_factors_summary": "The company faces significant risks including the inability to successfully execute and operate hydrogen production facilities, which may cost more and take longer to complete than expected. Additionally, the company is dependent on the availability of hydrogen, which could be adversely affected by supply chain issues and competition from established companies in the energy sector. Economic uncertainties, inflation, and customer concentration also pose material risks to the company's financial performance.",
+    "risk_factors_summary": "The company says its hydrogen production facilities may be delayed, cost more than expected, or underperform, and that difficulty executing its production strategy could require it to buy hydrogen from third parties at higher or more volatile costs. It also relies on third-party hydrogen suppliers, and past supply constraints have delayed deployments and service margin improvements. Customer concentration, macroeconomic conditions, and constrained or volatile supplies of key materials such as platinum, titanium, and iridium could also adversely affect results. International expansion involves regulatory and compliance complexity, but the provided text does not identify a specific government action against the company.",
     "mda_highlights": "Not available in provided sources.",
     "backlog_usd": null,
     "revenue_guidance": null,
-    "geographic_revenue_breakdown": null,
+    "geographic_revenue_breakdown": "Not available in provided sources.",
     "key_regulatory_events": null,
-    "governance_red_flags": "null",
+    "governance_red_flags": null,
     "active_sec_investigation": false,
     "material_weakness": false,
-    "citations": []
+    "citations": [
+      {
+        "claim": "Hydrogen production facilities may be delayed, cost more, or underperform; execution problems could increase reliance on third-party hydrogen.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "If we are unable to successfully execute, operate or scale our hydrogen production facilities, or if new or expanded facilities cost more or take longer than we expect, we may be required to source hydrogen from third parties at potentially higher or more volatile costs, may be unable to meet customer demand, and our business, financial condition, results of operations and prospects could be materially adversely affected.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Third-party hydrogen supply issues have constrained volumes and affected deployment and service margin improvements.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "We have experienced supply chain issues relating to the availability of hydrogen, including but not limited to suppliers utilizing force majeure provisions under existing contracts, which has led to volume constraints, delays in deployment and service margin improvements, and negatively impacted the amount of hydrogen we have been able to provide under certain supply and other agreements.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "A limited number of customers account for a significant portion of revenue, receivables, backlog, or expected deployments in certain periods.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "A limited number of customers account for a significant portion of our revenue, receivables, backlog, or expected future deployments in certain periods.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Key materials used in the company's products include nickel, platinum, titanium, and iridium; constrained supply or price increases could adversely affect production costs and margins.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "For example, nickel, platinum, titanium and iridium are key materials used in our PEM fuel cells, electrolyzers, and hydrogen infrastructure.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "International operations involve regulatory and compliance complexity.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Our international operations continue to expand and involve increasing operational, regulatory and compliance complexity, including developing and manufacturing our products to comply with the commercial and legal requirements of international markets.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      }
+    ]
   },
   "market": {
     "ticker": "PLUG",
@@ -1654,9 +1727,9 @@
       "currency_code": "USD",
       "gaap_vs_nongaap": "GAAP"
     },
-    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Plug Power (PLUG) Stock Sinks As Market Gains: Here's Why\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=e337f569a84ae6f0f505f99cec9983540ab4fa1e2614f96d70fd5bb732532a31\n    In the most recent trading session, Plug Power (PLUG) closed at $1.68, indicating a -2.89% shift from the previous trading day.\n\n[2] What Did Bloom Energy Stock Investors Miss Before The Run?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=93d68fac38d58e0c93732bcadc05c4e976d3ffbf98e2302549ae44f236dcc19b\n    Bloom Energy (BE) stock returned 234.9% in the twelve months to October 7, 2026. That performance was driven by AI data centers buying the company's fuel cells to generate their own power on site. Investors who missed out likely want to know if those orders were visible ahead of time. So what had Bl\n\n[3] Plug Power, Inc. (PLUG) Is a Trending Stock: Facts to Know Before Betting on It\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=abb3e9da090b42c07f65b9a58742a79c983ce26a773cc51a80713c0d5440358f\n    Plug Power (PLUG) has received quite a bit of attention from Zacks.com users lately. Therefore, it is wise to be aware of the facts that can impact the stock's prospects.\n\n[4] 1 Cash-Burning Stock for Long-Term Investors and 2 We Avoid\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=53dc74e036597a3fb7cbf2caf616b85d3462c2a6a28b4836976ab3b9a2de7eac\n    Rapid spending isn’t always a sign of progress. Some cash-burning businesses fail to convert investments into meaningful competitive advantages, leaving them vulnerable.\n\n[5] Bloom Energy Crosses Key SMAs: Should Investors Buy the Stock Now?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=425604a6229d18c2a929186e8841f40b96cdc0dd58134a62728b5e98f994dc83\n    BE's bullish momentum, surging earnings outlook and AI power opportunity are offset by high debt and a premium valuation.\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\n[1] Financial Analysis for PLUG\nURL: https://finance.yahoo.com/quote/PLUG/\nStock: PLUG\nFinancial Analysis:\nLatest Open Price: 1.74 Latest Close Price: 1.68 Highest Close Price: 4.14 Lowest Close Price: 0.70 Average Close Price (2 years): 2.11 Standard Deviation of Close Price: 0.69 Volume Traded (2 years): 41486101600 Total Return (2 years): -14.72% Annualized Return (2 years): -7.65% CAGR (2 years): -7.65% Sharpe Ratio (2 years): -11.08 Max Drawdown (2 years): -1.85% \n\n[2] Plug Power: Is Another Post-Earnings Drop For ...\nURL: https://www.forbes.com/sites/greatspeculations/2025/08/07/plug-power-is-another-post-earnings-drop-for-plug-stock-inbound\nPLUG has recorded a one-day decrease following earnings in 61% of the cases, showing a median loss of -5.9% and a maximum one-day decline of -\n\n[3] Plug Power Reports $178 Million in Revenue and Raises Its 2026 Guidance. Here's What PLUG Investors Need to Know.\nURL: https://finance.yahoo.com/markets/stocks/articles/plug-power-reports-178-million-151601522.html\n2. Best 0% APR cards. 3. Best money market accounts. **Plug Power** (NASDAQ:PLUG) — a popular hydrogen fuel stock — popped after announcing second-quarter earnings on Aug. 10. Investors and analysts alike were impressed by the company's progress towards profitability. For the first time in years, that same \"Total Conviction\" signal is flashing for a company 1/100th the size of Nvidia.****Continue »***. Narrowed losses were helped by a 15% spike in hydrogen fuel sales, which, in turn, was driven by rising demand among the company's growing installed customer base. Sales overall ticked higher by\n\n[4] Is Margin Pressure From Rising Costs Altering The ...\nURL: https://finance.yahoo.com/markets/stocks/articles/margin-pressure-rising-costs-altering-171111986.html\nThe latest results, with US$1.46 billion in revenue and margin pressure from higher R&D and supply chain costs, mainly sharpen the near term\n\n[5] GD Q4 Deep Dive: Orders Surge, Supply Chain and Margin Pressures Persist\nURL: https://finance.yahoo.com/news/gd-q4-deep-dive-orders-053751772.html\n3. Best money market accounts. Aerospace and defense company General Dynamics (NYSE:GD) reported Q4 CY2025 results beating Wall Street's revenue expectations , with sales up 7.8% year on year to $14.38 billion. * **Revenue:** $14.38 billion vs analyst estimates of $13.82 billion (7.8% year-on-year growth, 4.1% beat). Management cited robust demand across its portfolio, particularly in Aerospace and Combat Systems, but also acknowledged margin pressures from tariffs, supply chain bottlenecks, and product mix. Management attributed the quarter's performance to strong order intake in defense segm\n\n[6] MSI Q1 Deep Dive: Margin Pressure and Supply Chain Headwinds Overshadow Solid Revenue Gains\nURL: https://finance.yahoo.com/markets/stocks/articles/msi-q1-deep-dive-margin-172455785.html\nPublic safety technology company Motorola Solutions (NYSE:MSI) reported Q1 CY2026 results exceeding the market's revenue expectations , with sales up 7.4% year on year to $2.71 billion. The company expects next quarter's revenue to be around $3 billion, close to analysts' estimates. Management cited robust demand for safety and security solutions, with record orders and backlog, notably driven by strong momentum in Software and Services and the Silvus business. Winkler noted ongoing pressure from tariffs and rising memory costs, stating that the company \"continues to project $60 million in tar\n\n[7] Plug Power Investor Alert: Kaplan Fox Investigates Potential Securities Fraud at Plug Power\nURL: https://finance.yahoo.com/news/plug-power-investor-alert-kaplan-230000741.html\n3. Best money market accounts. NEW YORK, April 09, 2021 (GLOBE NEWSWIRE) -- Kaplan Fox & Kilsheimer LLP (www.kaplanfox.com) is investigating claims on behalf of investors of Plug Power Inc. On March 2, 2021, Plug Power filed a Notification of Late Filing with the SEC stating that it could not timely file its annual report for the period ending December 31, 2020 because the Company was completing a \"review and assessment of the treatment of certain costs with regard to the classification between Research and Development versus Costs of Goods sold, the recoverability of right of use assets assoc\n\n[8] PLUG 8-K & SEC Filings\nURL: https://ca.finance.yahoo.com/sec-filing/PLUG/0001104659-26-082854_1093691\nPLUG 8-K and SEC filings offer investors the in-depth insights and information you've come to expect from Yahoo Finance.\n\n[9] PLUG DEFA14A & SEC Filings\nURL: https://nz.finance.yahoo.com/sec-filing/PLUG/0001104659-25-125660_1093691\nPLUG DEFA14A and SEC filings offer investors the in-depth insights and information you've come to expect from Yahoo Finance.\n",
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Plug Power (PLUG) Stock Sinks As Market Gains: Here's Why\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=e337f569a84ae6f0f505f99cec9983540ab4fa1e2614f96d70fd5bb732532a31\n    In the most recent trading session, Plug Power (PLUG) closed at $1.68, indicating a -2.89% shift from the previous trading day.\n\n[2] What Did Bloom Energy Stock Investors Miss Before The Run?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=93d68fac38d58e0c93732bcadc05c4e976d3ffbf98e2302549ae44f236dcc19b\n    Bloom Energy (BE) stock returned 234.9% in the twelve months to October 7, 2026. That performance was driven by AI data centers buying the company's fuel cells to generate their own power on site. Investors who missed out likely want to know if those orders were visible ahead of time. So what had Bl\n\n[3] Plug Power, Inc. (PLUG) Is a Trending Stock: Facts to Know Before Betting on It\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=abb3e9da090b42c07f65b9a58742a79c983ce26a773cc51a80713c0d5440358f\n    Plug Power (PLUG) has received quite a bit of attention from Zacks.com users lately. Therefore, it is wise to be aware of the facts that can impact the stock's prospects.\n\n[4] 1 Cash-Burning Stock for Long-Term Investors and 2 We Avoid\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=53dc74e036597a3fb7cbf2caf616b85d3462c2a6a28b4836976ab3b9a2de7eac\n    Rapid spending isn’t always a sign of progress. Some cash-burning businesses fail to convert investments into meaningful competitive advantages, leaving them vulnerable.\n\n[5] Bloom Energy Crosses Key SMAs: Should Investors Buy the Stock Now?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=425604a6229d18c2a929186e8841f40b96cdc0dd58134a62728b5e98f994dc83\n    BE's bullish momentum, surging earnings outlook and AI power opportunity are offset by high debt and a premium valuation.\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\nNo web search results available.",
     "material_events": [],
-    "quarterly_earnings_text": "[1] Plug Power Inc Earnings Report: Quarterly & Annual Financial Results as of Jun, 2026\nURL: https://us.trendlyne.com/us/fundamentals/financials/1554604/PLUG/plug-power-inc\n### **Quarterly Revenue** Plug Power Inc Jun-2026 Quarterly Revenue is $178 Million which is growth of 2.5% YoY. ### **Quarterly Net Profit** Plug Power Inc Jun-2026 Quarterly Net Profit is $-188 Million which is growth of 17.1% YoY. Plug Power Inc, Earnings Report - Quarterly Results, standalone, All financials are in USD Million and price data in USD. | Net Non Operations Interest Incuding Expenses ⌄ | -14.3 | -13.5 | -17.1 | -12.1 | -10.1 | -6.3 | -10.4 | -1.7 | -1.7 | -2.1 | -0.1 | -1.4 | 5.1 |. | Other Interest Earned | 2.6 | 3.8 | 4.1 | 4.3 | 5.8 | 5.2 | 6.2 | 7.4 | 7.8 | 9.3 | 11.4 | 10.4 | 16.4 |. | Net Income Common Stockholders ⌄ | -188.2 | -245.3 | -846 | -361.9 | -227.1 | -196.7 | -1,335.4 | -211.2 | -262.3 | -295.8 | -642.4 | -283.5 | -236.4 |.\n\n[2] Plug Power (NASDAQ:PLUG) Issues Quarterly Earnings Results, Beats Expectations By $0.01 EPS - Ticker Report\nURL: https://www.tickerreport.com/banking-finance/13437085/plug-power-nasdaqplug-issues-quarterly-earnings-results-beats-expectations-by-0-01-eps.html\nTitle: Plug Power (NASDAQ:PLUG) Issues Quarterly Earnings Results, Beats Expectations By $0.01 EPS - Ticker Report\n# Plug Power (NASDAQ:PLUG) Issues Quarterly Earnings Results, Beats Expectations By $0.01 EPS. Plug Power logoPlug Power (NASDAQ:PLUG – Get Free Report) issued its quarterly earnings results on Monday. The electronics maker reported ($0.08) EPS for the quarter, beating the consensus estimate of ($0.09) by $0.01, FiscalAI reports. The business had revenue of $163.51 million during the quarter, compared to the consensus estimate of $139.87 million. Plug Power had a negative net margin of 229.83% and a negative return on equity of 45.97%. Plug Power has a 1 year low of $0.69 and a 1 year high of $4.58. The company has a current ratio of 2.31, a quick ratio of 1.46 and a debt-to-equity ratio of 0.64. * Positive Sentiment: Plug Power delivered Q1 2026 results that beat revenue and EPS estimates, with management highlighting strong execution, improving unit economics, and contin\n\n[3] Plug Power (PLUG) Is Up 11.1% After Raising 2026 Revenue Guidance and Narrowing Quarterly Loss\nURL: https://www.sahmcapital.com/news/content/plug-power-plug-is-up-111-after-raising-2026-revenue-guidance-and-narrowing-quarterly-loss-2026-08-14\nTitle: Plug Power (PLUG) Is Up 11.1% After Raising 2026 Revenue Guidance and Narrowing Quarterly Loss\nPlug Power (PLUG) Is Up 11.1% After Raising 2026 Revenue Guidance and Narrowing Quarterly Loss. * In the past week, Plug Power Inc. reported its second-quarter 2026 results, with revenue rising to US$178.30 million from US$173.97 million a year earlier and quarterly net loss narrowing to US$188.21 million, while also raising full-year 2026 revenue growth guidance to 15%–16%. * Alongside improved gross margins and a smaller quarterly loss per share of US$0.14 from continuing operations, management’s focus on converting its commercial backlog and targeting positive adjusted EBITDA by year-end has sharpened attention on whether operational progress can ease long-running concerns about liquidity and capital needs. * With Plug Power lifting its 2026 revenue growth guidance, we’ll now examine how this optimism reshapes the company’s hydrogen turnaround investment narrative. The latest quarte\n\n[4] Plug Power Stock Slides On Q3 Earnings: Revenue Miss, EPS Miss, Soft Guidance And More — TradingView News\nURL: https://www.tradingview.com/news/benzinga:3f8a2a90f094b:0-plug-power-stock-slides-on-q3-earnings-revenue-miss-eps-miss-soft-guidance-and-more\nPlug Power Inc PLUG reported third-quarter financial results before the market opened on Tuesday. **Q3 Earnings:** Plug Power reported third-quarter revenue of $173.73 million, missing analyst estimates of $210.23 million. The company reported a quarterly loss of 25 cents per share, missing analyst estimates for a loss of 24 cents per share, according to Benzinga Pro. Plug Power said its results were driven by an inflection in electrolyzer deployments, continued expansion of its internally produced hydrogen network and increased leverage on the company’s manufacturing footprint. Planned downtime and maintenance at the company’s Georgia and Tennessee facilities limited margin contribution in the third quarter, but it’s expected to improve with higher utilization in the fourth quarter. Our progress in electrolyzer deployments, advancements in hydrogen production, and expansion into new markets reflect our team’s dedication to leading the build out of the hydrogen economy,” said **Andy Ma\n\n[5] Plug Power Stock Slides On Q3 Earnings: Revenue Miss, EPS Miss, Soft Guidance And More - Plug Power (NASD - Benzinga\nURL: https://www.benzinga.com/news/earnings/24/11/41912702/plug-power-stock-slides-on-q3-earnings-revenue-miss-eps-miss-soft-guidance-and-more\nPlug Power Inc (NASDAQ:PLUG) reported third-quarter financial results before the market opened on Tuesday. Here’s a look at the key metrics from the quarter. **Q3 Earnings:** Plug Power reported third-quarter revenue of $173.73 million, missing analyst estimates of $210.23 million. The company reported a quarterly loss of 25 cents per share, missing analyst estimates for a loss of 24 cents per share, according to Benzinga Pro. Plug Power said its results were driven by an inflection in electrolyzer deployments, continued expansion of its internally produced hydrogen network and increased leverage on the company’s manufacturing footprint. Planned downtime and maintenance at the company’s Georgia and Tennessee facilities limited margin contribution in the third quarter, but it’s expected to improve with higher utilization in the fourth quarter. **PLUG Price Action:** Plug Power shares were down 8.29% at $1.83 at the time of publication Tuesday, per Benzinga Pro. Market News and Data brou\n\n[6] FinancialContent - Plug Power’s (NASDAQ:PLUG) Q1 Sales Beat Estimates, Quarterly Revenue Guidance Slightly Exceeds Expectations\nURL: https://markets.financialcontent.com/stocks/article/stockstory-2025-5-12-plug-powers-nasdaqplug-q1-sales-beat-estimates-quarterly-revenue-guidance-slightly-exceeds-expectations\nTitle: FinancialContent - Plug Power’s (NASDAQ:PLUG) Q1 Sales Beat Estimates, Quarterly Revenue Guidance Slightly Exceeds Expectations\n# Plug Power’s (NASDAQ:PLUG) Q1 Sales Beat Estimates, Quarterly Revenue Guidance Slightly Exceeds Expectations. Fuel cell technology Plug Power (NASDAQ: PLUG) announced better-than-expected revenue in Q1 CY2025, with sales up 11.2% year on year to $133.7 million. Guidance for next quarter’s revenue was better than expected at $160 million at the midpoint, 1.2% above analysts’ estimates. Its GAAP loss of $0.21 per share was 10.9% below analysts’ consensus estimates. Is now the time to buy Plug Power? ### Plug Power (PLUG) Q1 CY2025 Highlights:. * **Revenue:** $133.7 million vs analyst estimates of $132 million (11.2% year-on-year growth, 1.3% beat). * **EPS (GAAP):** -$0.21 vs analyst expectations of -$0.19 (10.9% miss). * **Revenue Guidance for Q2 CY2025** is $160 million at the midpoint, above analyst estimates of $158.1 million. * **Operating Margin:*\n",
+    "quarterly_earnings_text": null,
     "quarterly_earnings_date": null,
     "quarterly_eps_actuals": [
       {
@@ -1701,43 +1774,43 @@
     "ticker": "PLUG",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
+    "model_used": "gpt-6-luna",
     "moat_classification": "none",
     "moat_sources": [],
     "peer_roic_comparison": [],
     "citations": [
       {
-        "claim": "Plug Power has a declining ROIC series with negative values for the last five years.",
+        "claim": "ROIC is negative in each of the five reported fiscal years, so the supplied data do not show sustained high returns supporting a moat.",
         "source_url": "Financial data",
         "excerpt": "ROIC series: FY2025: -99.9%, FY2024: -69.2%, FY2023: -41.1%, FY2022: -33.6%, FY2021: -63.5%",
-        "confidence": 0.9,
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "The company has negative gross and operating margins, indicating poor profitability.",
+        "claim": "Reported gross and operating margins are negative across all supplied years; no industry benchmark is provided for comparison.",
         "source_url": "Financial data",
-        "excerpt": "Gross margin: FY2025: -34.1%, FY2024: -99.4%, FY2023: -57.0%; Operating margin: FY2025: -206.7%, FY2024: -321.2%, FY2023: -150.7%",
-        "confidence": 0.9,
+        "excerpt": "Gross margin: FY2025: -34.1%, FY2024: -99.4%, FY2023: -57.0%\nOperating margin: FY2025: -206.7%, FY2024: -321.2%, FY2023: -150.7%",
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Plug Power's free cash flow has been negative for the last three years, indicating financial distress.",
+        "claim": "Free cash flow was negative in each reported year, and the provided data do not establish a growing or stable capital base.",
         "source_url": "Financial data",
-        "excerpt": "Free cash flow: FY2025: $-647M, FY2024: $-1.0B, FY2023: $-1.8B",
-        "confidence": 0.9,
+        "excerpt": "Free cash flow: FY2025: $-647M, FY2024: $-1.0B, FY2023: $-1.8B\nInvested capital: $638M (FY2025)",
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "The company does not exhibit any specific competitive advantage or moat.",
-        "source_url": "Financial data",
-        "excerpt": "Invested capital: $638M (FY2025)",
-        "confidence": 0.9,
+        "claim": "No specific structural advantage, moat trend, or credible disruption threat can be identified from the supplied web research.",
+        "source_url": "Web (Tavily)",
+        "excerpt": "No web search results available.",
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null

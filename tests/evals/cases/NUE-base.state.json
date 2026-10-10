@@ -2,7 +2,7 @@
   "ticker": "NUE",
   "cik": "0000073309",
   "as_of_date": "2025-12-31",
-  "run_id": "adcb0cf3-1fe",
+  "run_id": "98ce4926-ed5",
   "financials": {
     "ticker": "NUE",
     "cik": "0000073309",
@@ -1740,55 +1740,82 @@
     "ticker": "NUE",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
+    "model_used": "gpt-6-luna",
     "insider_ownership_pct": null,
     "insider_ownership_shares": 1406923,
     "insider_ownership_below_1pct": true,
     "insider_ownership_multi_class_row": null,
     "insider_ownership_as_of": "2026-03-27",
-    "founder_ceo": false,
+    "founder_ceo": null,
     "ceo_tenure_years": null,
     "form4_transactions_12m": 28,
     "form4_summary": "OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the game):\n  Leon J Topalian (Chair and CEO) | SELL | 25,898 shares @ $268.52 | 2026-08-14\n  Leon J Topalian (Chair and CEO) | SELL | 102 shares @ $269.29 | 2026-08-14\n  Allen C Behr (Executive Vice President) | SELL | 5,127 shares @ $274.00 | 2026-08-14\n  Allen C Behr (Executive Vice President) | SELL | 2,612 shares @ $274.42 | 2026-08-14\n  Thomas J. Batterbee (Executive Vice President) | SELL | 4,000 shares @ $261.02 | 2026-08-03\n  Stephen D Laxton (President and COO) | SELL | 3,968 shares @ $256.96 | 2026-07-30\n  John J Hollatz (Executive Vice President) | SELL | 5,522 shares @ $258.57 | 2026-06-03\n  John J Hollatz (Executive Vice President) | SELL | 5,038 shares @ $258.33 | 2026-06-03\n  Kenneth Rex Query (Executive Vice President) | SELL | 8,380 shares @ $251.42 | 2026-06-01\n  Kenneth Rex Query (Executive Vice President) | SELL | 5,149 shares @ $251.30 | 2026-06-01\n  Randy J Spicer (Executive Vice President) | SELL | 2,500 shares @ $225.00 | 2026-05-18\n  Leon J Topalian (Chair and CEO) | SELL | 16,239 shares @ $226.84 | 2026-05-15\n  Leon J Topalian (Chair and CEO) | SELL | 21,954 shares @ $227.58 | 2026-05-15\n  Leon J Topalian (Chair and CEO) | SELL | 9,366 shares @ $228.63 | 2026-05-15\n  Leon J Topalian (Chair and CEO) | SELL | 4,441 shares @ $229.32 | 2026-05-15\n  Bradley Ford (Executive Vice President) | SELL | 1,940 shares @ $232.11 | 2026-05-05\n  Bradley Ford (Executive Vice President) | SELL | 300 shares @ $232.23 | 2026-05-05\n  Allen C Behr (Executive Vice President) | SELL | 1,558 shares @ $225.93 | 2026-05-04\n  Allen C Behr (Executive Vice President) | SELL | 100 shares @ $225.94 | 2026-05-04\n  Allen C Behr (Executive Vice President) | SELL | 8,438 shares @ $226.10 | 2026-05-04\n  Michael D Keller (Vice Pres. and Corp. Contro) | SELL | 4,554 shares @ $225.86 | 2026-05-04\n  Daniel R. Needham (Executive Vice President) | SELL | 5,149 shares @ $226.00 | 2026-05-01\n  Daniel R. Needham (Executive Vice President) | SELL | 7,739 shares @ $226.00 | 2026-05-01\n  Noah C Hanners (Executive Vice President) | SELL | 6,472 shares @ $226.50 | 2026-05-01\n  David A Sumoski (Executive Vice President) | SELL | 32,824 shares @ $225.66 | 2026-04-30\n  David A Sumoski (Executive Vice President) | SELL | 244 shares @ $226.41 | 2026-04-30\n  Leon J Topalian (Chair and CEO) | SELL | 6,454 shares @ $162.01 | 2026-03-23\n  Leon J Topalian (Chair and CEO) | SELL | 5,046 shares @ $162.40 | 2026-03-23",
-    "insider_transaction_pattern": "CEO Leon J. Topalian net seller: sold 25,898 shares on August 14, 2026, and multiple other sales totaling over 100K shares in the past 12 months. Overall insider sentiment: negative, indicating a lack of confidence in the stock's near-term performance.",
-    "compensation_structure_notes": "Management compensation includes a mix of fixed and variable components, with a significant portion tied to performance metrics. Long-term incentives are likely linked to stock performance, but specific metrics such as ROIC or TSR are not detailed in the provided sources.",
-    "capital_allocation_summary": "Nucor has demonstrated a disciplined approach to capital allocation, focusing on strategic investments and share buybacks. The company returned $479 million to shareholders through dividends and buybacks, representing 41% of net earnings, indicating a commitment to shareholder returns while maintaining a strong balance sheet.",
+    "insider_transaction_pattern": "Leon J. Topalian is identified in the Form 4 data as Chair and CEO and is a seller in the listed transactions, including sales on March 23, May 15, and August 14, 2026. Other executives in the transaction list, including David A. Sumoski and Stephen D. Laxton, also sold; no purchases are shown in the provided activity. The listed pattern is net selling, a potentially negative insider signal, though the sources do not explain whether sales were discretionary or for other reasons. The ownership table shows modest management ownership; Topalian and Sumoski are among the larger individual insider holders listed.",
+    "compensation_structure_notes": "Not available in provided sources. The supplied proxy excerpts do not describe the compensation plan’s fixed-versus-variable mix, long-term incentive metrics, or clawback provisions, so alignment with ROIC or other performance measures cannot be assessed.",
+    "capital_allocation_summary": "Not available in provided sources. The supplied context does not provide information on M&A, buybacks, dividends, or the returns on reinvestment, so capital-allocation discipline cannot be assessed.",
     "citations": [
       {
-        "claim": "Overall insider sentiment: negative, indicating a lack of confidence in the stock's near-term performance.",
+        "claim": "The Form 4 transaction data identifies Leon J. Topalian as Chair and CEO.",
         "source_url": "Form 4",
         "excerpt": "Leon J Topalian (Chair and CEO) | SELL | 25,898 shares @ $268.52 | 2026-08-14",
-        "confidence": 0.9,
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Management compensation includes a mix of fixed and variable components, with a significant portion tied to performance metrics.",
-        "source_url": "DEF 14A",
-        "excerpt": "The compensation paid to Nucor’s Executive Officers, as disclosed in this Proxy Statement pursuant to the compensation disclosure rules of the SEC, including the “Compensation Discussion and Analysis” section, the Executive Compensation Tables and the related narrative discussion included in this Proxy Statement, is hereby APPROVED.",
-        "confidence": 0.8,
+        "claim": "The CEO is among the listed sellers in the provided Form 4 activity.",
+        "source_url": "Form 4",
+        "excerpt": "Leon J Topalian (Chair and CEO) | SELL | 6,454 shares @ $162.01 | 2026-03-23",
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Nucor has demonstrated a disciplined approach to capital allocation, focusing on strategic investments and share buybacks.",
-        "source_url": "Transcripts",
-        "excerpt": "$479 million returned through dividends and share buybacks, representing 41% of net earnings.",
-        "confidence": 0.9,
+        "claim": "David A. Sumoski and Stephen D. Laxton are also listed as sellers.",
+        "source_url": "Form 4",
+        "excerpt": "Stephen D Laxton (President and COO) | SELL | 3,968 shares @ $256.96 | 2026-07-30",
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Insider ownership: all directors and executive officers as a group",
+        "claim": "David A. Sumoski is listed as a seller in the provided Form 4 activity.",
+        "source_url": "Form 4",
+        "excerpt": "David A Sumoski (Executive Vice President) | SELL | 32,824 shares @ $225.66 | 2026-04-30",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Leon J. Topalian is one of the larger individual insider holders shown in the ownership table.",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "Leon J. Topalian | 475,278 shares | less than 1%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "David A. Sumoski is also among the larger individual insider holders shown in the ownership table.",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "David A. Sumoski | 305,433 shares | less than 1%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The ownership table reports aggregate holdings for all directors and executive officers as a group.",
         "source_url": "DEF 14A ownership table",
         "excerpt": "All 19 directors and executive officers as a group | 1,406,923 shares | less than 1%",
         "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
-        "verification_note": "deterministic: parsed from the DEF 14A beneficial ownership table (EC-93)"
+        "verification_note": null
       }
     ]
   },
@@ -1796,18 +1823,64 @@
     "ticker": "NUE",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
+    "model_used": "gpt-6-luna",
     "business_description": "Not available in provided sources.",
-    "risk_factors_summary": "In the ordinary course of business, Nucor is exposed to a variety of market risks including interest rate risk, commodity price risk, and foreign currency risk. Nucor manages these risks through a combination of fixed and variable-rate debt, negotiating raw material prices, and using derivative contracts. The company faces challenges in passing through higher raw material costs during periods of weaker demand, which can impact gross margins.",
+    "risk_factors_summary": "Nucor identifies exposure to price fluctuations in raw materials and energy, including scrap, steel, metals, alloys, and natural gas. Passing higher input costs through to product prices is more challenging when demand is weaker, which can pressure the ability to maintain gross margins. The filing also identifies foreign-currency exposure through operations in Canada, Europe, and Mexico. Interest-rate exposure is partly managed through fixed- and variable-rate debt; the filing says future rate changes are not expected to significantly impact earnings.",
     "mda_highlights": "Not available in provided sources.",
     "backlog_usd": null,
     "revenue_guidance": null,
     "geographic_revenue_breakdown": null,
     "key_regulatory_events": null,
-    "governance_red_flags": "null",
+    "governance_red_flags": null,
     "active_sec_investigation": false,
     "material_weakness": false,
-    "citations": []
+    "citations": [
+      {
+        "claim": "Nucor is exposed to price fluctuations in raw materials and energy, including scrap, steel, metals, alloys, and natural gas.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "In the ordinary course of business, Nucor is exposed to market risk for price fluctuations of raw materials and energy, principally scrap, steel, other ferrous and non-ferrous metals, alloys and natural gas.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Passing higher input costs through to product prices is more challenging when demand is weaker.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "When demand for our products is weaker, this becomes more challenging.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Nucor has foreign-currency exposure through operations in Canada, Europe, and Mexico.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Nucor is exposed to foreign currency risk primarily through its operations in Canada, Europe and Mexico.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Future interest-rate changes are not expected to significantly impact earnings.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Future changes in interest rates are not expected to significantly impact earnings.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Management concluded that internal control over financial reporting was effective as of December 31, 2025.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Based on its assessment, management concluded that Nucor’s internal control over financial reporting was effective as of December 31, 2025.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      }
+    ]
   },
   "market": {
     "ticker": "NUE",
@@ -1844,9 +1917,9 @@
       "currency_code": "USD",
       "gaap_vs_nongaap": "GAAP"
     },
-    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Nucor (NYSE:NUE) Combines High Growth Momentum With a Breakout Setup\n    Source: ChartMill | URL: https://finnhub.io/api/news?id=9b809015fb09a22e9e4e406d02f7983913a5951739fb10f29f4babafa370198a\n    Nucor pairs strong earnings and sales momentum with a tight consolidation, earning high growth and setup ratings for a potential breakout.\n\n[2] Nucor (NUE) Beats Stock Market Upswing: What Investors Need to Know\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=286910500e3b67b70960c05cc1a786afec86422fe14992353fe353fbbcdc16a2\n    Nucor (NUE) closed at $250.33 in the latest trading session, marking a +1.7% move from the prior day.\n\n[3] Eaton (NYSE:ETN) and Nucor (NYSE:NUE): Jim Cramer Likes Both But One Might Be A Hidden Data Center Stock\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=51825e67e16437e69c3f692597d92bda4c90b1a508c7dae69aa5dc20cb1ca6cb\n    While Eaton Corporation plc (NYSE:ETN) and Nucor Corporation (NYSE:NUE) operate in different industries, for Cramer, it’s all about the data center. He believes that Nucor’s exposure to the data center is underappreciated, and during his morning appearance on October 2nd, while Cramer advised agains\n\n[4] Nucor to Expand Utility Towers & Structures Facility in Indiana\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=69b21d4589ed72b8acb74d4bcec948fa352caf784a168f5a640223320d806f41\n    Nucor Corporation (NYSE: NUE) announced today that it is expanding production at its Nucor Towers & Structures facility in Crawfordsville, Indiana, pending receipt of regulatory and other approvals. The additional $105 million investment will add capacity to manufacture utility poles and related pro\n\n[5] Nucor To Expand Production At Its Towers & Structures Facility In Indiana Under Additional $105M Investment; Expected To Create 100 New Jobs\n    Source: Benzinga | URL: https://finnhub.io/api/news?id=8a4283b19b9673bd339b423d6db3e768c99796df9ec6fa10d96a07cf556e0fa4\n    The expansion includes more than 120,000 square feet of additional manufacturing space, incorporating advanced automation, modern production equipment, and the latest manufacturing technologies. These investments are",
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Nucor (NYSE:NUE) Combines High Growth Momentum With a Breakout Setup\n    Source: ChartMill | URL: https://finnhub.io/api/news?id=9b809015fb09a22e9e4e406d02f7983913a5951739fb10f29f4babafa370198a\n    Nucor pairs strong earnings and sales momentum with a tight consolidation, earning high growth and setup ratings for a potential breakout.\n\n[2] Nucor (NUE) Beats Stock Market Upswing: What Investors Need to Know\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=286910500e3b67b70960c05cc1a786afec86422fe14992353fe353fbbcdc16a2\n    Nucor (NUE) closed at $250.33 in the latest trading session, marking a +1.7% move from the prior day.\n\n[3] Eaton (NYSE:ETN) and Nucor (NYSE:NUE): Jim Cramer Likes Both But One Might Be A Hidden Data Center Stock\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=51825e67e16437e69c3f692597d92bda4c90b1a508c7dae69aa5dc20cb1ca6cb\n    While Eaton Corporation plc (NYSE:ETN) and Nucor Corporation (NYSE:NUE) operate in different industries, for Cramer, it’s all about the data center. He believes that Nucor’s exposure to the data center is underappreciated, and during his morning appearance on October 2nd, while Cramer advised agains\n\n[4] JP Morgan Maintains Overweight on Nucor, Lowers Price Target to $296\n    Source: Benzinga | URL: https://finnhub.io/api/news?id=d75f4d76d9132c2c3abcf6c3d0a17a84e37b831ffaab9d836e4f3de7a3274cb2\n    JP Morgan  analyst Bill Peterson   maintains Nucor (NYSE:NUE) with a Overweight and lowers the price target from $308 to $296.\n\n[5] Nucor to Expand Utility Towers & Structures Facility in Indiana\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=69b21d4589ed72b8acb74d4bcec948fa352caf784a168f5a640223320d806f41\n    Nucor Corporation (NYSE: NUE) announced today that it is expanding production at its Nucor Towers & Structures facility in Crawfordsville, Indiana, pending receipt of regulatory and other approvals. The additional $105 million investment will add capacity to manufacture utility poles and related pro",
     "material_events": [],
-    "quarterly_earnings_text": "[1] Nucor (NUE) to Announce Quarterly Earnings on Monday\nURL: https://www.marketbeat.com/instant-alerts/nucor-nue-to-announce-quarterly-earnings-on-monday-2026-07-20\nTitle: Nucor (NUE) to Announce Quarterly Earnings on Monday\nThe Stocks You'll Wish You Bought For Your Kids (Not For Yourself). Here's where the money's moving this week. # Nucor (NUE) to Announce Quarterly Earnings on Monday. Nucor logo with Basic Materials background. Nucor (NYSE:NUE - Get Free Report) is projected to release its Q2 2026 results after the market closes on Monday, July 27th. Analysts expect the company to announce earnings of $4.45 per share and revenue of $10.1402 billion for the quarter. Investors can check the company's upcoming Q2 2026 earning report for the latest details on the call scheduled for Tuesday, July 28, 2026 at 10:00 AM ET. Nucor (NYSE:NUE - Get Free Report) last announced its earnings results on Monday, April 27th. The basic materials company reported $3.23 earnings per share for the quarter, beating the consensus estimate of $2.82 by $0.41. Nucor had a return on equity of 10.68% and a net margin of 6.82%.The firm had revenue of $9.50 billion for the\n\n[2] NUE 2026 Earnings & EPS History - Quarterly & Annual Growth Reports\nURL: https://fullratio.com/stocks/nyse-nue/earnings\n# NUE Nucor Earnings and EPS analysis. Relative Growth:  Rel. Growth:  89. For the year 2025, the company recorded an earnings per share (EPS) of $7.53, which marks a drop compared to its EPS of $8.47 in 2024. Nucor's earnings per share for the quarterly report ending on Jul 4, 2026 reached $5.05. Historical annual and quarterly earnings per share (EPS) data for Nucor. The annual EPS for the year 2025 was $7.53, a drop of 11.1% from $8.47 in 2024. For the fiscal quarter that ended on Jul 4, 2026, the per-share earnings was $5.05, showing a 94.2% increase from the same quarter last year. For the year 2024, the yearly earnings per share was $8.47, marking a decrease of 53.1% from 2023. ## NUE EPS growth history. During the last 12 months, Nucor has seen an EPS growth of 94.2% (YoY, quarterly). Examining a broader timeline, the company maintained an average EPS growth rate of -36.1% per year for the last three years.\n\n[3] NUE Earnings History & Surprises | EPS & Revenue Results | ChartMill.com\nURL: https://www.chartmill.com/stock/quote/NUE/earnings\n# NUCOR CORP (NUE) Earnings History & Surprises. ## NUE Earnings overview. Past quarterly earnings results for NUCOR CORP (NUE), including EPS and revenue actuals, analyst estimates, and surprise percentages. ## Quarterly Earnings Historical Results. EPS & Revenue History (in USD): Actual vs estimated values, surprises, q2q growth and acceleration numbers quarterly history. | Quarter | EPS | EPS Est | EPS Surprise | EPS Q2Q | Revenue | Revenue Est | Revenue Surprise | Revenue Q2Q |. ### EPS Historical Q2Q growth and Acceleration. ### Revenue Historical Q2Q growth and Acceleration. #### Revenue beat statistics. #### Analysis. ### Related analysis. ## NUCOR CORP / NUE Earnings FAQ. ### **When did NUCOR CORP (NUE) report earnings last quarter?**. NUCOR CORP (NUE) last reported earnings on **7/27/2026**. ### **Did NUCOR CORP (NUE) beat earnings estimates last quarter?**. NUCOR CORP (NUE) beat EPS estimates and beat revenue estimates in the most recent quarter. ### **How often does NUCOR CO\n\n[4] Nucor Sees Stronger Q1 Earnings on Steel Mills Unit Gains\nURL: https://finance.yahoo.com/markets/stocks/articles/nucor-sees-stronger-q1-earnings-120100098.html\n**Nucor Corporation**NUE has released its earnings guidance for the first quarter of 2026, indicating higher profitability supported by improved performance across its core operating segments, especially the steel mills. The company projects earnings per share in the range of $2.70 to $2.80, higher than the fourth-quarter 2025 net earnings of $1.64 and adjusted earnings of $1.73. Earnings in the steel mills segment are expected to increase sequentially on higher average selling prices and volumes. At present, BHP, BCPC and CRS carry a Zacks Rank #2 (Buy) each. The Zacks Consensus Estimate for BHP's current-year earnings is pegged at $4.93 per share, indicating a rise of 35.44% year over year. The Zacks Consensus Estimate for BCPC's current fiscal-year earnings is pinned at $5.47 per share, indicating a 6.21% year-over-year increase. The Zacks Consensus Estimate for CRS' current-year earnings is pegged at $10.28 per share, implying a 37.43% year-over-year increase. Nucor Corporation (NU\n\n[5] Earnings Preview: What to Expect From Nucor's Report\nURL: https://finance.yahoo.com/markets/stocks/articles/earnings-preview-expect-nucors-report-122155312.html\n2. Best 0% APR cards. 3. Best balance transfer cards. 2. Best high-yield savings accounts. 3. Best money market accounts. # Earnings Preview: What to Expect From Nucor's Report. Nucor Corporation (NUE), based in Charlotte, North Carolina, manufactures and sells steel and steel products. The steel titan is expected to announce its fiscal third-quarter earnings for 2026 after the market closes on Monday, Oct. 26. Ahead of the event, analysts expect Nucor to report a profit of $5.83 per share on a diluted basis, up 121.7% from $2.63 per share in the year-ago quarter. For the full year, analysts expect Nucor to report EPS of $18.89, up 145% from $7.71 in fiscal 2025. Its EPS is expected to rise 7.6% year over year to $20.33 in fiscal 2027. Out of 16 analysts covering the stock, 12 advise a \"Strong Buy\" rating, and four give a \"Hold.\" NUE's average analyst price target is $289.31, indicating a potential upside of 15.1% from the current levels.\n\n[6] Nucor Expects Q4 Earnings to Dip on Seasonality, Stays Bullish on 2026\nURL: https://finance.yahoo.com/news/nucor-expects-q4-earnings-dip-124300306.html\n3. Best money market accounts. **Nucor Corporation** NUE has provided an earnings outlook for the fourth quarter ended Dec. 31, 2025, in the range of $1.65 to $1.75 per share. While this guidance implies a sequential decline from the $2.63 reported in the third quarter of 2025, it indicates an improvement over $1.22 per share recorded in the fourth quarter of 2024. During the quarter, the company repurchased around 0.7 million shares at an average price of approximately $145.23, bringing total year-to-date repurchases to about 5.4 million shares at an average cost of roughly $128.66 per share. The Zacks Consensus Estimate for CMC's current fiscal-year earnings is pegged at $7.05 per share, indicating a 125.24%% year-over-year increase. The Zacks Consensus Estimate for TX's current fiscal-year earnings stands at $2.96 per share, implying a 84% year-over-year increase. The Zacks Consensus Estimate for CGAU's current fiscal-year earnings is pegged at 97 cents per share, indicating a 37% y\n",
+    "quarterly_earnings_text": null,
     "quarterly_earnings_date": null,
     "quarterly_eps_actuals": [
       {
@@ -1891,46 +1964,34 @@
     "ticker": "NUE",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
-    "moat_classification": "narrow",
-    "moat_sources": [
-      "brand",
-      "cost_advantage"
-    ],
+    "model_used": "gpt-6-luna",
+    "moat_classification": "none",
+    "moat_sources": [],
     "peer_roic_comparison": [],
     "citations": [
       {
-        "claim": "Nucor has strong pricing power and guaranteed market share, creating an insulated revenue moat.",
+        "claim": "The available research does not identify evidence for a specific structural competitive advantage; no web search results are available.",
         "source_url": "Web (Tavily)",
-        "excerpt": "This gives domestic U.S. producers strong pricing power and guaranteed market share, creating an insulated revenue moat (sustainable)",
-        "confidence": 0.9,
+        "excerpt": "No web search results available.",
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Nucor's ROIC has been declining, with FY2025 at 8.4%, down from 47.2% in FY2021.",
+        "claim": "ROIC does not meet the rubric's sustained-high-return test: it was above 15% in FY2022 and FY2023, then below 15% in FY2024 and FY2025. WACC and industry comparisons are not provided.",
         "source_url": "Financial data",
         "excerpt": "ROIC series: FY2025: 8.4%, FY2024: 10.6%, FY2023: 24.0%, FY2022: 43.3%, FY2021: 47.2%",
-        "confidence": 0.9,
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "The operating margin for Nucor has decreased to 7.9% in FY2025, indicating potential erosion of profitability.",
+        "claim": "Operating margin declined from FY2023 to FY2025; the provided data do not include gross margin or industry benchmarks, so a comparison with typical industry levels cannot be made.",
         "source_url": "Financial data",
         "excerpt": "Operating margin: FY2025: 7.9%, FY2024: 9.4%, FY2023: 18.1%",
-        "confidence": 0.9,
-        "gaap_vs_nongaap_flag": null,
-        "verified": true,
-        "verification_note": null
-      },
-      {
-        "claim": "Nucor's free cash flow has turned negative in FY2025, which may indicate financial strain.",
-        "source_url": "Financial data",
-        "excerpt": "Free cash flow: FY2025: $-188M, FY2024: $806M, FY2023: $4.9B",
-        "confidence": 0.9,
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null

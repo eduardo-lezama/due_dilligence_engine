@@ -2,7 +2,7 @@
   "ticker": "PATH",
   "cik": "0001734722",
   "as_of_date": "2026-01-31",
-  "run_id": "c0aa68f9-698",
+  "run_id": "6a8e449b-14c",
   "financials": {
     "ticker": "PATH",
     "cik": "0001734722",
@@ -849,31 +849,22 @@
     "ticker": "PATH",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
+    "model_used": "gpt-6-luna",
     "insider_ownership_pct": null,
     "insider_ownership_shares": null,
     "insider_ownership_below_1pct": false,
     "insider_ownership_multi_class_row": "All executive officers and directors as a group (11 persons) | 52,117,848 | 11.4% | 64,690,706 | 100% | 85.2%",
     "insider_ownership_as_of": "2026-05-12",
-    "founder_ceo": true,
+    "founder_ceo": null,
     "ceo_tenure_years": null,
     "form4_transactions_12m": 24,
     "form4_summary": "No discretionary officer/director open-market transactions in the last 12 months.\n\n10b5-1 PRE-ARRANGED PLAN transactions (NOT informative about current sentiment):\n  Ashim Gupta (COO) | SELL | 66,052 shares @ $13.17 | 2026-10-01\n  Raghavendra Malpani (CPO & CTO) | SELL | 40,464 shares @ $14.00 | 2026-09-17\n  Raghavendra Malpani (CPO & CTO) | SELL | 98,429 shares @ $13.81 | 2026-09-16\n  Ashim Gupta (COO) | SELL | 117,339 shares @ $13.85 | 2026-09-11\n  Daniel Dines (CEO and Chairman) | SELL | 1,402,347 shares @ $16.07 | 2026-08-19\n  Hitesh Ramani (Chief Accounting Officer) | SELL | 25,000 shares @ $16.50 | 2026-08-13\n  Hitesh Ramani (Chief Accounting Officer) | SELL | 25,000 shares @ $16.75 | 2026-08-13\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.02 | 2026-01-22\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.23 | 2026-01-22\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.01 | 2026-01-22\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.38 | 2026-01-15\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.68 | 2026-01-14\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $17.18 | 2026-01-13\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $16.61 | 2026-01-12\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $17.17 | 2026-01-09\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $17.49 | 2026-01-08\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $17.32 | 2026-01-07\n  Hitesh Ramani (Chief Accounting Officer) | SELL | 5,000 shares @ $15.47 | 2025-10-22\n  Ashim Gupta (COO & CFO) | SELL | 67,468 shares @ $16.10 | 2026-01-02\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.99 | 2026-01-06\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.73 | 2026-01-05\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $16.38 | 2026-01-02\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $16.82 | 2025-12-30\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $16.55 | 2025-12-30\n  [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]",
-    "insider_transaction_pattern": "CEO Daniel Dines net seller: sold 1,402,347 shares in August 2026, with no open-market purchases in 12m. Overall insider sentiment: negative.",
-    "compensation_structure_notes": "Management compensation is likely structured with a mix of fixed and variable components, but specific details on long-term incentives or performance metrics are not provided in the sources. The advisory vote on executive compensation indicates that the board values shareholder opinions, suggesting some alignment with shareholder interests.",
-    "capital_allocation_summary": "Details on capital allocation strategies, including M&A discipline, buybacks, and dividends, are not available in the provided sources. However, the company has achieved its first GAAP profitability, indicating a focus on improving financial performance and potentially prudent reinvestment strategies.",
+    "insider_transaction_pattern": "The Form 4 identifies Daniel Dines as CEO and Chairman. He is the largest disclosed individual holder in the ownership table. Dines had reported 10b5-1 plan sales, including the August 19, 2026 sale cited below; the source says there were no discretionary officer/director open-market transactions in the last 12 months, so the plan sales do not establish current buying or selling conviction. No transactions are provided for other large holders. Overall discretionary insider signal: unavailable/neutral.",
+    "compensation_structure_notes": "Not available in provided sources. The proxy excerpt includes an advisory vote on NEO compensation, but does not provide the compensation mix, long-term incentive metrics, or clawback terms needed to assess alignment.",
+    "capital_allocation_summary": "Not available in provided sources. The materials do not provide evidence on M&A discipline, buybacks, dividends, or reinvestment quality.",
     "citations": [
       {
-        "claim": "Daniel Dines | 37,508,882 | 8.2% | 64,690,706 | 100% | 84.6%",
-        "source_url": "DEF 14A ownership table",
-        "excerpt": "Daniel Dines | 37,508,882 | 8.2% | 64,690,706 | 100% | 84.6%",
-        "confidence": 1.0,
-        "gaap_vs_nongaap_flag": null,
-        "verified": true,
-        "verification_note": null
-      },
-      {
-        "claim": "CEO Daniel Dines net seller: sold 1,402,347 shares in August 2026, with no open-market purchases in 12m. Overall insider sentiment: negative.",
+        "claim": "The Form 4 identifies Daniel Dines as CEO and Chairman.",
         "source_url": "Form 4",
         "excerpt": "Daniel Dines (CEO and Chairman) | SELL | 1,402,347 shares @ $16.07 | 2026-08-19",
         "confidence": 1.0,
@@ -882,31 +873,31 @@
         "verification_note": null
       },
       {
-        "claim": "Management compensation is likely structured with a mix of fixed and variable components, but specific details on long-term incentives or performance metrics are not provided in the sources.",
-        "source_url": "DEF 14A",
-        "excerpt": "The board of directors values our stockholders’ opinions, and our board of directors and the compensation committee will take into account the outcome of the advisory vote when considering future executive compensation decisions.",
+        "claim": "The proxy ownership table lists Daniel Dines as holding 8.2% of Class A shares and all Class B shares, with 84.6% voting power.",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "Daniel Dines | 37,508,882 | 8.2% | 64,690,706 | 100% | 84.6%",
         "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Details on capital allocation strategies, including M&A discipline, buybacks, and dividends, are not available in the provided sources.",
-        "source_url": "Transcripts",
-        "excerpt": "The results marked UiPath's first quarter of GAAP profitability, with management attributing performance to growing adoption of its AI-powered automation products and stronger customer expansion.",
-        "confidence": 1.0,
-        "gaap_vs_nongaap_flag": null,
-        "verified": true,
-        "verification_note": null
-      },
-      {
-        "claim": "Insider ownership: all directors and executive officers as a group",
+        "claim": "The proxy lists executive officers and directors as a group with 11.4% of Class A shares and 85.2% voting power.",
         "source_url": "DEF 14A ownership table",
         "excerpt": "All executive officers and directors as a group (11 persons) | 52,117,848 | 11.4% | 64,690,706 | 100% | 85.2%",
         "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
-        "verification_note": "deterministic: parsed from the DEF 14A beneficial ownership table (EC-93)"
+        "verification_note": null
+      },
+      {
+        "claim": "No discretionary officer/director open-market transactions were reported in the last 12 months.",
+        "source_url": "Form 4",
+        "excerpt": "No discretionary officer/director open-market transactions in the last 12 months.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
       }
     ]
   },
@@ -914,49 +905,85 @@
     "ticker": "PATH",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
-    "business_description": "Not available in provided sources.",
-    "risk_factors_summary": "We have incurred net losses in the past, anticipate continuing to incur significant operating expenses in the future, and may not sustain consistent profitability. Macroeconomic conditions, including volatile and weakened global economic conditions, and geopolitical tensions and conflicts, including changes to trade policies and regulations, present significant risks to us in several jurisdictions. Adverse changes in global or regional economic conditions periodically occur, including recession or slowing growth; changes or uncertainty in fiscal, monetary, or trade policy; volatility in foreign exchange markets; tighter credit; fluctuating inflation and interest rates; lower capital expenditures by businesses including on IT infrastructure; increases in unemployment; and lower consumer confidence and spending.",
-    "mda_highlights": "Not available in provided sources.",
+    "model_used": "gpt-6-luna",
+    "business_description": "UiPath derives substantially all of its revenue from its UiPath Platform, an automation platform used by customers. It earns revenue from software licenses, maintenance and support, hosted SaaS access, and professional services; license revenue is recognized when the license is transferred, while SaaS and maintenance and support revenue are recognized over time. The filing describes investments intended to expand customer adoption and sales, develop platform capabilities including AI, and grow distribution channels. (10-K Item 1A)",
+    "risk_factors_summary": "The company warns that it has incurred net losses and may not sustain profitability, including because of significant operating expenses and non-cancellable cloud-capacity commitments. It identifies macroeconomic and geopolitical conditions, trade-policy changes, tariffs, and reduced customer spending as potential pressures on demand and operations. The company also faces risks from competition, technology change including AI and ML, customer renewal and expansion, and the possibility that its platform may not meet customer needs. (10-K Item 1A)",
+    "mda_highlights": "Not available in provided sources. Item 7 is not available; the provided text only states in Item 1A that fiscal 2026 revenue was $1,610.6 million, up from $1,429.7 million in fiscal 2025, and that ARR was $1,852.6 million at January 31, 2026, up from $1,666.1 million at January 31, 2025. (10-K Item 1A)",
     "backlog_usd": null,
     "revenue_guidance": null,
-    "geographic_revenue_breakdown": "sales outside the U.S. accounted for 54% of our revenue for fiscal year 2026.",
+    "geographic_revenue_breakdown": "Sales outside the U.S. accounted for 54% of fiscal 2026 revenue. A China-specific split and a fuller U.S./other geographic revenue breakdown are not available in provided sources. (10-K Item 1A)",
     "key_regulatory_events": null,
-    "governance_red_flags": "null",
+    "governance_red_flags": "The filing refers to securities class action suits as a possible category of lawsuits, but does not identify a specific pending or threatened securities class action, claim period, or allegations. This is a risk disclosure, not a disclosed specific lawsuit. (10-K Item 1A)",
     "active_sec_investigation": false,
     "material_weakness": false,
     "citations": [
       {
-        "claim": "We have incurred net losses in the past, anticipate continuing to incur significant operating expenses in the future, and may not sustain consistent profitability.",
+        "claim": "Revenue sources and recognition model (10-K Item 1A).",
         "source_url": "10-K Item 1A",
-        "excerpt": "We have incurred net losses in the past, anticipate continuing to incur significant operating expenses in the future, and may not sustain consistent profitability.",
+        "excerpt": "We derive our revenue from the sale of our software licenses for use of our proprietary software, maintenance and support for our licenses, right to access certain products that are hosted by us (i.e., SaaS), and professional services.",
         "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Macroeconomic conditions, including volatile and weakened global economic conditions, and geopolitical tensions and conflicts, including changes to trade policies and regulations, present significant risks to us in several jurisdictions.",
+        "claim": "The company derives substantially all revenue from its platform (10-K Item 1A).",
         "source_url": "10-K Item 1A",
-        "excerpt": "Macroeconomic conditions, including volatile and weakened global economic conditions, and geopolitical tensions and conflicts, including changes to trade policies and regulations, present significant risks to us in several jurisdictions.",
+        "excerpt": "We derive and expect to continue to derive substantially all of our revenue from our UiPath Platform™.",
         "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Adverse changes in global or regional economic conditions periodically occur, including recession or slowing growth; changes or uncertainty in fiscal, monetary, or trade policy; volatility in foreign exchange markets; tighter credit; fluctuating inflation and interest rates; lower capital expenditures by businesses including on IT infrastructure; increases in unemployment; and lower consumer confidence and spending.",
+        "claim": "Growth and competitive strategy includes platform development, customer expansion, international penetration, and channel development (10-K Item 1A).",
         "source_url": "10-K Item 1A",
-        "excerpt": "Adverse changes in global or regional economic conditions periodically occur, including recession or slowing growth; changes or uncertainty in fiscal, monetary, or trade policy; volatility in foreign exchange markets; tighter credit; fluctuating inflation and interest rates; lower capital expenditures by businesses including on IT infrastructure; increases in unemployment; and lower consumer confidence and spending.",
+        "excerpt": "These initiatives include increasing our overall customer base and expanding sales within our current customer base, continuing to penetrate international markets, investing in research and development to improve the capabilities of our platform (including AI capabilities), acquiring businesses, technology, talent, and related integration efforts, growing our distribution channels and channel partner ecosystem, deepening our user community, hiring additional employees and investing in our existing workforce, expanding our operations and infrastructures both domestically and internationally, and incurring expenses related to legal, accounting, and other administrative expenses aspects of operating as a public company.",
         "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "sales outside the U.S. accounted for 54% of our revenue for fiscal year 2026.",
+        "claim": "The company identifies profitability and cloud capacity commitments as risks (10-K Item 1A).",
         "source_url": "10-K Item 1A",
-        "excerpt": "sales outside the U.S. accounted for 54% of our revenue for fiscal year 2026.",
+        "excerpt": "We have entered into non-cancellable multi-year capacity commitments with certain third-party cloud providers for cloud infrastructure services.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The company identifies macroeconomic, geopolitical, trade-policy, and tariff risks (10-K Item 1A).",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Trade policies and disputes have resulted and may in the future result in increased tariffs, trade barriers, and other protectionist measures, which can make our products less competitive, reduce demand for our products, limit our ability to sell to certain customers, or impede or slow the movement of our products across borders.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The filing states that sales outside the U.S. accounted for 54% of fiscal 2026 revenue (10-K Item 1A).",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Moreover, sales outside the U.S. accounted for 54% of our revenue for fiscal year 2026.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The filing mentions securities class action suits in a general risk disclosure, without identifying a particular pending case (10-K Item 1A).",
+        "source_url": "10-K Item 1A",
+        "excerpt": "If our quarterly or annual results of operations fall below the expectations of securities analysts or investors who follow our stock, the price of our Class A common stock could decline substantially, and we have faced and could in the future face lawsuits that are costly and may divert management’s attention, including securities class action suits and derivative actions.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Fiscal 2026 and fiscal 2025 revenue and ARR figures stated in the available text (10-K Item 1A).",
+        "source_url": "10-K Item 1A",
+        "excerpt": "We generated revenue of $1,610.6 million and $1,429.7 million for fiscal years 2026 and 2025, respectively, representing a growth rate of 13%. Our ARR was $1,852.6 million and $1,666.1 million at January 31, 2026 and 2025, respectively, representing a growth rate of 11%.",
         "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
@@ -999,9 +1026,9 @@
       "currency_code": "USD",
       "gaap_vs_nongaap": "GAAP"
     },
-    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Can UiPath (PATH) Cash Flow Support Its Fair Value Question?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=52d380e41737df9da8b087a3d92c4f9ea6ebd7154f48424cccd7d457f49dbf79\n    UiPath has ridden a wave of interest in automation and AI, yet the share price today still raises a simple question for investors who care about valuation. Do the company’s cash flows support where the stock currently trades, or has sentiment moved faster than the underlying economics of the busines\n\n[2] UiPath Recognized as a Leader in the 2026 Gartner® Magic Quadrant™ for Agentic Software Quality Assurance Platforms\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=8ccc40367b961db3b629bb228bcf0240b087cd91905a41e8ff5b3034950a9a28\n    NEW YORK, October 09, 2026--UiPath has been recognized as a Leader in the Gartner® Magic Quadrant™ for Agentic Software Quality Assurance Platforms.\n\n[3] Robotics Stocks Diverge as AI and Semiconductor Automation Leaders Pull Ahead\n    Source: ChartMill | URL: https://finnhub.io/api/news?id=27e8d3f00645503716d12005bb437ba0b6b20dbe570fc2a96917ce4cb616786e\n    Robotics and automation stocks are splitting: AI, semiconductor, and healthcare robotics lead while traditional industrial and software automation lag.\n\n[4] UiPath (PATH) Lands Forrester Leader Nod As New AI Partnerships Build Enterprise Reach\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=d4311af8fd6f0539a59386f842dfcffc165f92748f0468fc6dad444a6eb798d6\n    UiPath (NYSE:PATH) was named a Leader in The Forrester Wave for Adaptive Process Orchestration in a recent 2026 report. The automation provider expanded its collaboration with BDO USA to build AI-driven internal audit solutions for corporate clients. UiPath deepened its integration with Snowflake, t\n\n[5] UiPath (PATH) Rises As Market Takes a Dip: Key Facts\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=fd2628a9225fa34b48fce4621ae10a7412ebdc46002a6f293adebb1886c230f8\n    The latest trading day saw UiPath (PATH) settling at $13.25, representing a +1.38% change from its previous close.\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\n[1] UiPath Stock Tumbles as Guidance Fails to Excite Investors\nURL: https://finance.yahoo.com/news/uipath-stock-tumbles-guidance-fails-111419387.html\nShares of UiPath (NYSE:PATH) fell about 7% on early Thursday, even after the automation software company reported quarterly results that topped\n\n[2] PATH Stock Down 38%: Genuine Bargain or Value Trap?\nURL: https://finance.yahoo.com/markets/stocks/articles/path-stock-down-38-genuine-121734086.html\nYet the market has put a surprisingly low price on this business. After a steep decline, the stock trades about 38% below its 52-week high,\n\n[3] Stock market today: Dow, S&P 500, Nasdaq drop as chip ...\nURL: https://finance.yahoo.com/markets/stocks/live/stock-market-today-tuesday-april-28-dow-nasdaq-sp-oil-rises-earnings-in-focus-225503557.html\n... stock tanked 11% after its second quarter operating income guidance missed the mark. For Q2, Spotify guided for an operating income of 630\n\n[4] Under Armour (UAA): Do Tariff Rollbacks Mark a Turning Point in Its Margin Reset Strategy?\nURL: https://finance.yahoo.com/news/under-armour-uaa-tariff-rollbacks-170706347.html\n2. Best 0% APR cards. 2. Best high-yield savings accounts. # Under Armour (UAA): Do Tariff Rollbacks Mark a Turning Point in Its Margin Reset Strategy? * For Under Armour, the rollback of these trade barriers could ease a key source of margin pressure that has weighed on its cost base. * We'll now explore how this tariff relief might influence Under Armour's evolving brand-reset narrative, particularly its margin recovery efforts. Tariff relief now has the potential to work alongside ongoing cost and assortment efforts, but investors are still weighing whether that is enough to support a convi\n\n[5] US Tariffs: What's the Impact? | J.P. Morgan Global Research\nURL: https://links.message.bloomberg.com/s/c/8djF0q5zDvmV-Qp5fn4kXxdQmshH4Dj_673XGoRGDyRbrVmzIbya2dRMzi-7pIi4ilv1j8UmPtcaimLjWjLvBLq3ewPe34p3UU3FcBLevaj-hgWF1_YxK21pNw5FQt0gjy56BKA8y5MEY5wgUFJ5oPBN9srgOUb11lP6ObUmbFgvFVLkTmMt5hna0me-MuFhp-Wcz7E-kAyQ3YFpIOxCepCZxdIBETVVFuDVIxlXM5L261Uf7yfSloNIwJDZt05ZF3S4mJVqxT25aa2kQPX5sOe-GUt7dWMzI7bmIjuOuLG0KPEsN-Vz5ncFTdvnxceJ81AkiW_qid7hAvlZ4OjKUj9BUvLYXIwQc-xzaExD1Mt9n0YXRMevJ_rPxiesHYu7sfd3B0jFGed-PlQmxqAeEdhLPlKD0wf8CT1oQLw3iepPXLsdPJKOtMQJg1a34aFKyDs/RQbzMnzXCyWIB27p7Dz8gPcW0C69e6Bt/8\nGiven imperfect pass-through and margin compression, a more likely estimate is 0.2 to 0.3 percentage points. We think this bolsters the case for the Fed to\n\n[6] US Moves Past Tariffs to Focus on Supply Chain Revamps in China Trade Policy - Bloomberg\nURL: https://www.bloomberg.com/news/newsletters/2026-08-11/us-moves-past-tariffs-to-focus-on-supply-chain-revamps-in-china-trade-policy\n# US Moves Past Tariffs to Focus on Supply Chain Revamps in China Trade Policy. Washington has been steadily moving to revamp supply chains away from China. This article is for subscribers only. I’m Chris Anstey, a senior economics editor in Boston. Today we’re looking at a series of US supply-chain moves with China in mind. Send us feedback and tips to ecodaily@bloomberg.net. And if you aren’t yet signed up to receive this newsletter, you can do so here. Trump used to like saying that “tariff” was his favorite word. No country was a bigger target than China, as he took US levies on the geostr\n\n[7] Zcash Foundation in the Clear: SEC Ends Years-Long Probe With No Enforcement Action\nURL: https://finance.yahoo.com/news/zcash-foundation-clear-sec-ends-205059906.html\n2. Best 0% APR cards. 2. Best high-yield savings accounts. 3. Best money market accounts. # Zcash Foundation in the Clear: SEC Ends Years-Long Probe With No Enforcement Action. The Zcash Foundation said this week that a years-long investigation by the US Securities and Exchange Commission has ended without any enforcement action, bringing regulatory clarity to one of the crypto industry's most closely watched privacy projects at a time of heightened volatility for the token. In a notice published Wednesday, the foundation confirmed that the SEC had \"concluded its review\" of an inquiry tied to \n\n[8] How the SEC is clearing the path for more companies to go public\nURL: https://finance.yahoo.com/markets/article/how-the-sec-is-clearing-the-path-for-more-companies-to-go-public-195256159.html\n# How the SEC is clearing the path for more companies to go public. \"We've changed the whole attitude here at the SEC to basically welcome companies to go public,\" Atkins said in an interview with Yahoo Finance on Thursday. To that end, the SEC has proposed new rules this year intended to reduce regulations and encourage more companies to go public. \"We're basically looking at the other segment of the market to encourage more companies to come in where they have a longer glide path,\" Atkins said. \"That's the Supreme Court's standard, and that's what we want to adhere to and make sure that our \n\n[9] Coinbase Says SEC Is Investigating Its Crypto Lending Program - WSJ\nURL: https://www.wsj.com/finance/regulation/coinbase-says-sec-plans-enforcement-action-over-crypto-lending-program-11631110478\nThe Securities and Exchange Commission is investigating Coinbase Global Inc. COIN 0.55%increase; up pointing triangle over a lending program the company plans to market and has indicated it would sue the company over the offering, Coinbase said Tuesday. Coinbase co-founder and Chief Executive Brian Armstrong disclosed the dispute in a series of tweets late Tuesday. He called the SEC’s actions “sketchy” and “intimidation tactics behind closed doors,” and said other crypto companies are able to offer such programs. Copyright ©2026 Dow Jones & Company, Inc. All Rights Reserved.\n",
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Can UiPath (PATH) Cash Flow Support Its Fair Value Question?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=52d380e41737df9da8b087a3d92c4f9ea6ebd7154f48424cccd7d457f49dbf79\n    UiPath has ridden a wave of interest in automation and AI, yet the share price today still raises a simple question for investors who care about valuation. Do the company’s cash flows support where the stock currently trades, or has sentiment moved faster than the underlying economics of the busines\n\n[2] UiPath Recognized as a Leader in the 2026 Gartner® Magic Quadrant™ for Agentic Software Quality Assurance Platforms\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=8ccc40367b961db3b629bb228bcf0240b087cd91905a41e8ff5b3034950a9a28\n    NEW YORK, October 09, 2026--UiPath has been recognized as a Leader in the Gartner® Magic Quadrant™ for Agentic Software Quality Assurance Platforms.\n\n[3] Robotics Stocks Diverge as AI and Semiconductor Automation Leaders Pull Ahead\n    Source: ChartMill | URL: https://finnhub.io/api/news?id=27e8d3f00645503716d12005bb437ba0b6b20dbe570fc2a96917ce4cb616786e\n    Robotics and automation stocks are splitting: AI, semiconductor, and healthcare robotics lead while traditional industrial and software automation lag.\n\n[4] UiPath (PATH) Lands Forrester Leader Nod As New AI Partnerships Build Enterprise Reach\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=d4311af8fd6f0539a59386f842dfcffc165f92748f0468fc6dad444a6eb798d6\n    UiPath (NYSE:PATH) was named a Leader in The Forrester Wave for Adaptive Process Orchestration in a recent 2026 report. The automation provider expanded its collaboration with BDO USA to build AI-driven internal audit solutions for corporate clients. UiPath deepened its integration with Snowflake, t\n\n[5] UiPath (PATH) Rises As Market Takes a Dip: Key Facts\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=fd2628a9225fa34b48fce4621ae10a7412ebdc46002a6f293adebb1886c230f8\n    The latest trading day saw UiPath (PATH) settling at $13.25, representing a +1.38% change from its previous close.\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\nNo web search results available.",
     "material_events": [],
-    "quarterly_earnings_text": "[1] UiPath Inc (PATH) Q3 2026 Earnings Call Highlights: Strong Revenue Growth and First GAAP ...\nURL: https://finance.yahoo.com/news/uipath-inc-path-q3-2026-230418936.html\n2. Best 0% APR cards. 3. Best money market accounts. # UiPath Inc (PATH) Q3 2026 Earnings Call Highlights: Strong Revenue Growth and First GAAP ... * **Revenue:** $411 million, an increase of 16% year-over-year. * **Annual Recurring Revenue (ARR):** $1.78 billion, up 11% year-over-year. * **Non-GAAP Operating Income:** $88 million, representing a 21% margin. * **GAAP Operating Income:** $13 million, marking the first GAAP profitable third quarter. * **Non-GAAP Net Income:** $85 million. * **Guidance for Q4 2026 Revenue:** $462 million to $467 million. * **Guidance for Q4 2026 ARR:** $1.844 billion to $1.849 billion. * **Guidance for Q4 2026 Non-GAAP Operating Income:** Approximately $140 million. * UiPath Inc (NYSE:PATH) reported a strong third quarter with revenue increasing by 16% to $411 million. * The company achieved its first GAAP profitable third quarter, with a GAAP operating income of $13 million. * UiPath Inc (NYSE:PATH) saw a significant increase in annual recurring revenue \n\n[2] Why Is UiPath (PATH) Down 12.6% Since Last Earnings Report?\nURL: https://finance.yahoo.com/markets/stocks/articles/why-uipath-path-down-12-153002763.html\nA month has gone by since the last earnings report for UiPath (PATH). ## Quarter: Fourth Quarter of fiscal 2026. **UiPath**'s quarterly earnings of 30 cents per share beat the Zacks Consensus Estimate by 20% and increased 15.4% year over year. Revenues of $481.1 million for the quarter surpassed the Zacks Consensus Estimate by 3.5% and increased 13.6% year over year. The company also generated strong cash flows, producing $182 million in adjusted free cash flow in the fourth quarter and $372 million for the fiscal year. ARR rose from $1.78 billion in the third quarter of fiscal 2026 to $1.85 billion in the fourth quarter of fiscal 2026, with year-over-year ARR growth running about 11%. Customer scale is increasing: customers with more than $100k ARR and more than $1 million ARR grew year over year as of the fourth quarter of fiscal 2026 versus the third quarter of fiscal 2025.\n\n[3] UiPath, Inc. (PATH) Q4 FY2026 earnings call transcript\nURL: https://finance.yahoo.com/quote/PATH/earnings/PATH-Q4-2026-earnings_call-412609.html\nSkip to navigation  Skip to right column. # Yahoo Finance. 3. Most Active Penny Stocks. 2. Best 0% APR Cards. 2. Best High-Yield Savings. 5. Paying Off Student Loans. 2. Types of Car Insurance. # UiPath, Inc. (PATH) Q4 FY2026 earnings call transcript. Powered by Quartr  Mar 11, 2026, 5:00 PM EDT. Greetings, and welcome to UiPath Fourth Quarter and Full Year 2026 Earnings Conference Call. At this time, all participants are in a listen-only mode. A question and answer session will follow the formal presentation. If anyone should require operator assistance during the conference, please press star zero on your telephone keypad. Please note this conference is being recorded. I will now turn the conference over to Allise Furlani, Head of Investor Relations. ## Upgrade to unlock our full archive of historical earnings transcripts and get so much more. A Silver or Gold subscription plan is required to access historical transcripts.\n\n[4] UiPath (NYSE:PATH) Beats Q1 CY2026 Sales Expectations\nURL: https://finance.yahoo.com/markets/stocks/articles/uipath-nyse-path-beats-q1-204216481.html\nAutomation software company UiPath (NYSE:PATH) announced better-than-expected revenue in Q1 CY2026, with sales up 17.3% year on year to $418.4 million. The company expects next quarter's revenue to be around $397.5 million, close to analysts' estimates. * **Revenue:** $418.4 million vs analyst estimates of $397.6 million (17.3% year-on-year growth, 5.2% beat). * The company **lifted its revenue guidance for the full year** to $1.78 billion at the midpoint from $1.76 billion, a 1.3% increase. * **Annual Recurring Revenue:** $1.90 billion vs analyst estimates of $1.90 billion (12.3% year-on-year growth, in line). UiPath's recent performance shows its demand has slowed as its annualized revenue growth of 11.2% over the last two years was below its five-year trend. UiPath Year-On-Year Revenue Growth. This quarter, UiPath reported year-on-year revenue growth of 17.3%, and its $418.4 million of revenue exceeded Wall Street's estimates by 5.2%. UiPath's ARR came in at $1.90 billion in Q1, and\n\n[5] UiPath (PATH) Is Up 19.9% After First GAAP Profit And Higher 2027 Guidance - Has The Bull Case Changed?\nURL: https://finance.yahoo.com/markets/stocks/articles/uipath-path-19-9-first-061109266.html\n* In late May 2026, UiPath, Inc. reported first-quarter revenue of US$418.38 million versus US$356.62 million a year earlier, swinging from a net loss of US$22.56 million to net income of US$22.53 million and issuing revenue guidance of US$395 million to US$400 million for the second quarter and US$1.78 billion for fiscal 2027. * The results marked UiPath's first quarter of GAAP profitability, with management attributing performance to growing adoption of its AI-powered automation products and stronger customer expansion. * Next, we'll examine how UiPath's first-ever GAAP profitability and higher full-year revenue guidance influence its existing automation-led investment narrative. Deloitte's use of UiPath Test Cloud and agentic testing is directly tied to the same AI and automation capabilities management credits for stronger revenue and net income. UiPath's narrative projects $2.1 billion revenue and $147.2 million earnings by 2029. Some of the most optimistic analysts were already b\n\n[6] Why UiPath (PATH) Stock Is Trading Lower Today\nURL: https://finance.yahoo.com/markets/stocks/articles/why-uipath-path-stock-trading-002318041.html\n2. Best 0% APR cards. 2. Best high-yield savings accounts. 3. Best money market accounts. 4. Best free checking accounts. Shares of automation software company UiPath (NYSE:PATH) fell 7.5% in the afternoon session after the midpoint of its fiscal third-quarter revenue guidance missed consensus expectations, overshadowing a second-quarter revenue beat. According to a company press release, UiPath reported second-quarter revenue of $410.3 million, up 13.4% year-over-year to beat analyst estimates of $397.9 million by 3.1%, while adjusted earnings came in line with expectations at $0.15 per share. The previous big move we wrote about was 4 days ago when the stock dropped 16.4% on the news that the company reported its second-quarter CY2026 financial results which failed to live up to the high expectations set for AI-linked companies. UiPath reported second-quarter revenue of $410.3 million, according to the company's press release, an increase of 13.4% year on year that topped Wall Street\n",
+    "quarterly_earnings_text": null,
     "quarterly_earnings_date": null,
     "quarterly_eps_actuals": [
       {
@@ -1046,13 +1073,13 @@
     "ticker": "PATH",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
+    "model_used": "gpt-6-luna",
     "moat_classification": "none",
     "moat_sources": [],
     "peer_roic_comparison": [],
     "citations": [
       {
-        "claim": "ROIC series: FY2026: 14.4%, FY2023: -162.9%",
+        "claim": "The provided ROIC series does not establish sustained high returns: it reports 14.4% for FY2026 and -162.9% for FY2023, with no intervening years supplied. This does not demonstrate the sustained ROIC required for a moat classification.",
         "source_url": "Financial data",
         "excerpt": "ROIC series: FY2026: 14.4%, FY2023: -162.9%",
         "confidence": 1.0,
@@ -1061,7 +1088,16 @@
         "verification_note": null
       },
       {
-        "claim": "Gross margin: FY2026: 83.2%, FY2025: 82.7%, FY2024: 85.0%",
+        "claim": "No specific structural competitive advantage is identifiable from the provided research; no web search results are available to substantiate a moat source.",
+        "source_url": "Web (Tavily)",
+        "excerpt": "No web search results available.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The available margin data show gross margins of 82.7%–85.0% for FY2024–FY2026, but no industry benchmark is provided, so comparison with typical industry levels cannot be established.",
         "source_url": "Financial data",
         "excerpt": "Gross margin: FY2026: 83.2%, FY2025: 82.7%, FY2024: 85.0%",
         "confidence": 1.0,
@@ -1070,7 +1106,7 @@
         "verification_note": null
       },
       {
-        "claim": "Operating margin: FY2026: 3.5%, FY2025: -11.4%, FY2024: -12.6%",
+        "claim": "Operating margins were negative in FY2024 and FY2025 and 3.5% in FY2026; this short series does not establish sustained operating profitability or a widening moat.",
         "source_url": "Financial data",
         "excerpt": "Operating margin: FY2026: 3.5%, FY2025: -11.4%, FY2024: -12.6%",
         "confidence": 1.0,
@@ -1079,27 +1115,18 @@
         "verification_note": null
       },
       {
-        "claim": "Free cash flow: FY2026: $352M, FY2025: $306M, FY2024: $292M",
+        "claim": "The provided sources do not identify credible disruption threats or establish whether PATH is the disruptor or the disrupted.",
+        "source_url": "Web (Tavily)",
+        "excerpt": "No web search results available.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Free cash flow increased from $292M in FY2024 to $352M in FY2026, but the supplied data do not provide a basis to attribute this trend to a structural competitive advantage.",
         "source_url": "Financial data",
         "excerpt": "Free cash flow: FY2026: $352M, FY2025: $306M, FY2024: $292M",
-        "confidence": 1.0,
-        "gaap_vs_nongaap_flag": null,
-        "verified": true,
-        "verification_note": null
-      },
-      {
-        "claim": "Invested capital: $393M (FY2026)",
-        "source_url": "Financial data",
-        "excerpt": "Invested capital: $393M (FY2026)",
-        "confidence": 1.0,
-        "gaap_vs_nongaap_flag": null,
-        "verified": true,
-        "verification_note": null
-      },
-      {
-        "claim": "UiPath is an enterprise automation software vendor focused on RPA and newer agentic automation capabilities. The core moat is demand-side switching and change costs: once automations are built and governed at scale, customers tend to expand use cases and renew.",
-        "source_url": "Web (Tavily)",
-        "excerpt": "UiPath is an enterprise automation software vendor focused on RPA and newer agentic automation capabilities. The core moat is demand-side switching and change costs: once automations are built and governed at scale, customers tend to expand use cases and renew.",
         "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,

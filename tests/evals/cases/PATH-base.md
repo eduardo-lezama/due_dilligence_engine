@@ -24,7 +24,6 @@ Quarterly Gross Profit: $330M
 
 ## MANAGEMENT REPORT
 Insider ownership (DEF 14A ownership table, deterministic): multi-class shares — directors and officers as a group (per class / voting power): All executive officers and directors as a group (11 persons) | 52,117,848 | 11.4% | 64,690,706 | 100% | 85.2% [proxy filed 2026-05-12]
-Founder-CEO: Yes
 Form 4 open-market transactions (12m, deterministic): 24
 Form 4 transactions (Form 4, deterministic):
 No discretionary officer/director open-market transactions in the last 12 months.
@@ -55,22 +54,22 @@ No discretionary officer/director open-market transactions in the last 12 months
   Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $16.82 | 2025-12-30
   Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $16.55 | 2025-12-30
   [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]
-Insider transaction pattern (LLM summary, unverified): CEO Daniel Dines net seller: sold 1,402,347 shares in August 2026, with no open-market purchases in 12m. Overall insider sentiment: negative.
-Compensation (LLM summary): Management compensation is likely structured with a mix of fixed and variable components, but specific details on long-term incentives or performance metrics are not provided in the sources. The advisory vote on executive compensation indicates that the board values shareholder opinions, suggesting some alignment with shareholder interests.
-Capital allocation (LLM summary): Details on capital allocation strategies, including M&A discipline, buybacks, and dividends, are not available in the provided sources. However, the company has achieved its first GAAP profitability, indicating a focus on improving financial performance and potentially prudent reinvestment strategies.
+Insider transaction pattern (LLM summary, unverified): The Form 4 identifies Daniel Dines as CEO and Chairman. He is the largest disclosed individual holder in the ownership table. Dines had reported 10b5-1 plan sales, including the August 19, 2026 sale cited below; the source says there were no discretionary officer/director open-market transactions in the last 12 months, so the plan sales do not establish current buying or selling conviction. No transactions are provided for other large holders. Overall discretionary insider signal: unavailable/neutral.
+Compensation (LLM summary): Not available in provided sources. The proxy excerpt includes an advisory vote on NEO compensation, but does not provide the compensation mix, long-term incentive metrics, or clawback terms needed to assess alignment.
+Capital allocation (LLM summary): Not available in provided sources. The materials do not provide evidence on M&A discipline, buybacks, dividends, or reinvestment quality.
 Insider transaction evidence (verified citations; use for §3 price reconciliation):
-  - Daniel Dines | 37,508,882 | 8.2% | 64,690,706 | 100% | 84.6%
   - Daniel Dines (CEO and Chairman) | SELL | 1,402,347 shares @ $16.07 | 2026-08-19
-  - The board of directors values our stockholders’ opinions, and our board of directors and the compensation committee will take into account the outcome of the advisory vote when considering future executive compensation decisions.
+  - Daniel Dines | 37,508,882 | 8.2% | 64,690,706 | 100% | 84.6%
+  - All executive officers and directors as a group (11 persons) | 52,117,848 | 11.4% | 64,690,706 | 100% | 85.2%
 
 ## FILINGS REPORT (10-K)
-Business: Not available in provided sources.
-Revenue by geography: sales outside the U.S. accounted for 54% of our revenue for fiscal year 2026.
-Key risks: We have incurred net losses in the past, anticipate continuing to incur significant operating expenses in the future, and may not sustain consistent profitability. Macroeconomic conditions, including volatile and weakened global economic conditions, and geopolitical tensions and conflicts, including changes to trade policies and regulations, present significant risks to us in several jurisdictions. Adverse changes in global or regional economic conditions periodically occur, including recession or slowing growth; changes or uncertainty in fiscal, monetary, or trade policy; volatility in foreign exchange markets; tighter credit; fluctuating inflation and interest rates; lower capital expenditures by businesses including on IT infrastructure; increases in unemployment; and lower consumer confidence and spending.
-MDA highlights (LLM summary): Not available in provided sources.
+Business: UiPath derives substantially all of its revenue from its UiPath Platform, an automation platform used by customers. It earns revenue from software licenses, maintenance and support, hosted SaaS access, and professional services; license revenue is recognized when the license is transferred, while SaaS and maintenance and support revenue are recognized over time. The filing describes investments intended to expand customer adoption and sales, develop platform capabilities including AI, and grow distribution channels. (10-K Item 1A)
+Revenue by geography: Sales outside the U.S. accounted for 54% of fiscal 2026 revenue. A China-specific split and a fuller U.S./other geographic revenue breakdown are not available in provided sources. (10-K Item 1A)
+Key risks: The company warns that it has incurred net losses and may not sustain profitability, including because of significant operating expenses and non-cancellable cloud-capacity commitments. It identifies macroeconomic and geopolitical conditions, trade-policy changes, tariffs, and reduced customer spending as potential pressures on demand and operations. The company also faces risks from competition, technology change including AI and ML, customer renewal and expansion, and the possibility that its platform may not meet customer needs. (10-K Item 1A)
+MDA highlights (LLM summary): Not available in provided sources. Item 7 is not available; the provided text only states in Item 1A that fiscal 2026 revenue was $1,610.6 million, up from $1,429.7 million in fiscal 2025, and that ARR was $1,852.6 million at January 31, 2026, up from $1,666.1 million at January 31, 2025. (10-K Item 1A)
 
 ## GOVERNANCE RED FLAGS (from 10-K)
-null
+The filing refers to securities class action suits as a possible category of lawsuits, but does not identify a specific pending or threatened securities class action, claim period, or allegations. This is a risk disclosure, not a disclosed specific lawsuit. (10-K Item 1A)
 
 ## MARKET DATA
 Current price: $13.48
@@ -99,57 +98,7 @@ Recent news: Recent news (last 30 days, 5 articles):
     The latest trading day saw UiPath (PATH) settling at $13.25, representing a +1.38% change from its previous close.
 
 ## Extended news coverage (drawdown context — Tavily, last 12 months)
-[1] UiPath Stock Tumbles as Guidance Fails to Excite Investors
-URL: https://finance.yahoo.com/news/uipath-stock-tumbles-guidance-fails-111419387.html
-Shares of UiPath (NYSE:PATH) fell about 7% on early Thursday, even after the automation software company reported quarterly results that topped
-
-[2] PATH Stock Down 38%: Genuine Bargain or Value Trap?
-URL: https://finance.yahoo.com/markets/stocks/articles/path-stock-down-38-genuine-121734086.html
-Yet the market has put a surprisingly low price on this business. After a steep decline, the stock trades about 38% below its 52-week high,
-
-[3] Stock market today: Dow, S&P 500, Nasdaq drop as chip ...
-URL: https://finance.yahoo.com/markets/stocks/live/stock-market-today-tuesday-april-28-dow-nasdaq-sp-oil-rises-earnings-in-focus-225503557.html
-... stock tanked 11% after its second quarter operating income guidance missed the mark. For Q2, Spotify guided for an operating income of 630
-
-[4] Under Armour (UAA): Do Tariff Rollbacks Mark a Turning Point in Its Margin Reset Strategy?
-URL: https://finance.yahoo.com/news/under-armour-uaa-tariff-rollbacks-170706347.html
-2. Best 0% APR cards. 2. Best high-yield savings accounts. # Under Armour (UAA): Do Tariff Rollbacks Mark a Turning Point in Its Margin Reset Strategy? * For Under Armour, the rollback of these trade barriers could ease a key source of margin pressure that has weighed on its cost base. * We'll now explore how this tariff relief might influence Under Armour's evolving brand-reset narrative, particularly its margin recovery efforts. Tariff relief now has the potential to work alongside ongoing cost and assortment efforts, but investors are still weighing whether that is enough to support a convi
-
-[5] US Tariffs: What's the Impact? | J.P. Morgan Global Research
-URL: https://links.message.bloomberg.com/s/c/8djF0q5zDvmV-Qp5fn4kXxdQmshH4Dj_673XGoRGDyRbrVmzIbya2dRMzi-7pIi4ilv1j8UmPtcaimLjWjLvBLq3ewPe34p3UU3FcBLevaj-hgWF1_YxK21pNw5FQt0gjy56BKA8y5MEY5wgUFJ5oPBN9srgOUb11lP6ObUmbFgvFVLkTmMt5hna0me-MuFhp-Wcz7E-kAyQ3YFpIOxCepCZxdIBETVVFuDVIxlXM5L261Uf7yfSloNIwJDZt05ZF3S4mJVqxT25aa2kQPX5sOe-GUt7dWMzI7bmIjuOuLG0KPEsN-Vz5ncFTdvnxceJ81AkiW_qid7hAvlZ4OjKUj9BUvLYXIwQc-xzaExD1Mt9n0YXRMevJ_rPxiesHYu7sfd3B0jFGed-PlQmxqAeEdhLPlKD0wf8CT1oQLw3iepPXLsdPJKOtMQJg1a34aFKyDs/RQbzMnzXCyWIB27p7Dz8gPcW0C69e6Bt/8
-Given imperfect pass-through and margin compression, a more likely estimate is 0.2 to 0.3 percentage points. We think this bolsters the case for the Fed to
-
-[6] US Moves Past Tariffs to Focus on Supply Chain Revamps in China Trade Policy - Bloomberg
-URL: https://www.bloomberg.com/news/newsletters/2026-08-11/us-moves-past-tariffs-to-focus-on-supply-chain-revamps-in-china-trade-policy
-# US Moves Past Tariffs to Focus on Supply Chain Revamps in China Trade Policy. Washington has been steadily moving to revamp supply chains away from China. This article is for subscribers only. I’m Chris Anstey, a senior economics editor in Boston. Today we’re looking at a series of US supply-chain moves with China in mind. Send us feedback and tips to ecodaily@bloomberg.net. And if you aren’t yet signed up to receive this newsletter, you can do so here. Trump used to like saying that “tariff” was his favorite word. No country was a bigger target than China, as he took US levies on the geostr
-
-[7] Zcash Foundation in the Clear: SEC Ends Years-Long Probe With No Enforcement Action
-URL: https://finance.yahoo.com/news/zcash-foundation-clear-sec-ends-205059906.html
-2. Best 0% APR cards. 2. Best high-yield savings accounts. 3. Best money market accounts. # Zcash Foundation in the Clear: SEC Ends Years-Long Probe With No Enforcement Action. The Zcash Foundation said this week that a years-long investigation by the US Securities and Exchange Commission has ended without any enforcement action, bringing regulatory clarity to one of the crypto industry's most closely watched privacy projects at a time of heightened volatility for the token. In a notice published Wednesday, the foundation confirmed that the SEC had "concluded its review" of an inquiry tied to 
-
-[8] How the SEC is clearing the path for more companies to go public
-URL: https://finance.yahoo.com/markets/article/how-the-sec-is-clearing-the-path-for-more-companies-to-go-public-195256159.html
-# How the SEC is clearing the path for more companies to go public. "We've changed the whole attitude here at the SEC to basically welcome companies to go public," Atkins said in an interview with Yahoo Finance on Thursday. To that end, the SEC has proposed new rules this year intended to reduce regulations and encourage more companies to go public. "We're basically looking at the other segment of the market to encourage more companies to come in where they have a longer glide path," Atkins said. "That's the Supreme Court's standard, and that's what we want to adhere to and make sure that our 
-
-[9] Coinbase Says SEC Is Investigating Its Crypto Lending Program - WSJ
-URL: https://www.wsj.com/finance/regulation/coinbase-says-sec-plans-enforcement-action-over-crypto-lending-program-11631110478
-The Securities and Exchange Commission is investigating Coinbase Global Inc. COIN 0.55%increase; up pointing triangle over a lending program the company plans to market and has indicated it would sue the company over the offering, Coinbase said Tuesday. Coinbase co-founder and Chief Executive Brian Armstrong disclosed the dispute in a series of tweets late Tuesday. He called the SEC’s actions “sketchy” and “intimidation tactics behind closed doors,” and said other crypto companies are able to offer such programs. Copyright ©2026 Dow Jones & Company, Inc. All Rights Reserved.
-
-
-## QUARTERLY UPDATE (8-K Item 2.02, filed ?)
-⚠️ This data is MORE RECENT than the 10-K annual report. You MUST integrate these figures into §4 Financial Quality and §5 Growth conclusions per Rule 13.
-[1] UiPath Inc (PATH) Q3 2026 Earnings Call Highlights: Strong Revenue Growth and First GAAP ...
-URL: https://finance.yahoo.com/news/uipath-inc-path-q3-2026-230418936.html
-2. Best 0% APR cards. 3. Best money market accounts. # UiPath Inc (PATH) Q3 2026 Earnings Call Highlights: Strong Revenue Growth and First GAAP ... * **Revenue:** $411 million, an increase of 16% year-over-year. * **Annual Recurring Revenue (ARR):** $1.78 billion, up 11% year-over-year. * **Non-GAAP Operating Income:** $88 million, representing a 21% margin. * **GAAP Operating Income:** $13 million, marking the first GAAP profitable third quarter. * **Non-GAAP Net Income:** $85 million. * **Guidance for Q4 2026 Revenue:** $462 million to $467 million. * **Guidance for Q4 2026 ARR:** $1.844 billion to $1.849 billion. * **Guidance for Q4 2026 Non-GAAP Operating Income:** Approximately $140 million. * UiPath Inc (NYSE:PATH) reported a strong third quarter with revenue increasing by 16% to $411 million. * The company achieved its first GAAP profitable third quarter, with a GAAP operating income of $13 million. * UiPath Inc (NYSE:PATH) saw a significant increase in annual recurring revenue 
-
-[2] Why Is UiPath (PATH) Down 12.6% Since Last Earnings Report?
-URL: https://finance.yahoo.com/markets/stocks/articles/why-uipath-path-down-12-153002763.html
-A month has gone by since the last earnings report for UiPath (PATH). ## Quarter: Fourth Quarter of fiscal 2026. **UiPath**'s quarterly earnings of 30 cents per share beat the Zacks Consensus Estimate by 20% and increased 15.4% year over year. Revenues of $481.1 million for the quarter surpassed the Zacks Consensus Estimate by 3.5% and increased 13.6% year over year. The company also generated strong cash flows, producing $182 million in adjusted free cash flow in the fourth quarter and $372 million for the fiscal year. ARR rose from $1.78 billion in the third quarter of fiscal 2026 to $1.85 billion in the fourth quarter of fiscal 2026, with year-over-year ARR growth running about 11%. Customer scale is increasing: customers with more than $100k ARR and more than $1 million ARR grew year over year as of the fourth quarter of fiscal 2026 versus the third quarter of fiscal 2025.
-
-[3] UiPath, Inc. (PATH) Q4 FY2026 earnings call transcript
-URL: https://finance.yahoo.com/quote/PATH/earnings/PATH-Q4-2026-earnings_call-412609.html
-Skip to navigation  Skip to right column. # Yahoo Finance. 3. Most Active Penny Stocks. 2. Best 0% APR Cards. 2. Best High-Yield
-
+No web search results available.
 
 ## COMPETITIVE / MOAT REPORT
 Moat: none (N/A)

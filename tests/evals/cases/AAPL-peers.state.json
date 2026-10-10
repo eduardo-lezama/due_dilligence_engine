@@ -2,7 +2,7 @@
   "ticker": "AAPL",
   "cik": "0000320193",
   "as_of_date": "2025-09-27",
-  "run_id": "f3d7bc14-250",
+  "run_id": "5a5e2810-94b",
   "financials": {
     "ticker": "AAPL",
     "cik": "0000320193",
@@ -1660,46 +1660,73 @@
     "ticker": "AAPL",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
+    "model_used": "gpt-6-luna",
     "insider_ownership_pct": null,
     "insider_ownership_shares": 9079765,
     "insider_ownership_below_1pct": true,
     "insider_ownership_multi_class_row": null,
     "insider_ownership_as_of": "2026-01-08",
-    "founder_ceo": false,
+    "founder_ceo": null,
     "ceo_tenure_years": null,
     "form4_transactions_12m": 38,
     "form4_summary": "OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the game):\n  Arthur D Levinson (Director) | SELL | 50,000 shares @ $311.02 | 2026-05-27\n  Arthur D Levinson (Director) | SELL | 149,527 shares @ $284.57 | 2026-05-06\n  Arthur D Levinson (Director) | SELL | 100,473 shares @ $285.04 | 2026-05-06\n  Chris Kondo (Principal Accounting Officer) | SELL | 3,752 shares @ $271.23 | 2025-11-07\n\n10b5-1 PRE-ARRANGED PLAN transactions (NOT informative about current sentiment):\n  Jennifer Newstead (SVP, GC and Government Affairs) | SELL | 2,399 shares @ $332.01 | 2026-10-06\n  Timothy D Cook (Executive Chair) | SELL | 23,143 shares @ $331.44 | 2026-10-01\n  Timothy D Cook (Executive Chair) | SELL | 39,492 shares @ $332.16 | 2026-10-01\n  Timothy D Cook (Executive Chair) | SELL | 88,239 shares @ $333.26 | 2026-10-01\n  Timothy D Cook (Executive Chair) | SELL | 40,879 shares @ $333.94 | 2026-10-01\n  Deirdre O'Brien (Senior Vice President) | SELL | 40,764 shares @ $333.35 | 2026-10-01\n  Deirdre O'Brien (Senior Vice President) | SELL | 5,625 shares @ $333.91 | 2026-10-01\n  John Ternus (CEO) | SELL | 3,564 shares @ $331.38 | 2026-10-01\n  John Ternus (CEO) | SELL | 5,348 shares @ $332.26 | 2026-10-01\n  John Ternus (CEO) | SELL | 12,746 shares @ $333.34 | 2026-10-01\n  John Ternus (CEO) | SELL | 3,754 shares @ $334.05 | 2026-10-01\n  Jennifer Newstead (SVP, GC and Government Affairs) | SELL | 2,399 shares @ $336.18 | 2026-09-29\n  Jennifer Newstead (SVP, GC and Government Affairs) | SELL | 2,399 shares @ $340.06 | 2026-09-22\n  Jennifer Newstead (SVP, GC and Government Affairs) | SELL | 1,438 shares @ $330.19 | 2026-09-15\n  Jennifer Newstead (SVP, GC and Government Affairs) | SELL | 1,438 shares @ $317.23 | 2026-09-08\n  Jennifer Newstead (SVP, GC and Government Affairs) | SELL | 1,439 shares @ $317.01 | 2026-09-01\n  Jennifer Newstead (SVP, GC and Secretary) | SELL | 1,439 shares @ $310.95 | 2026-08-25\n  Jennifer Newstead (SVP, GC and Secretary) | SELL | 1,439 shares @ $307.49 | 2026-08-18\n  Jennifer Newstead (SVP, GC and Secretary) | SELL | 1,439 shares @ $307.75 | 2026-08-11\n  Ben Borders (Principal Accounting Officer) | SELL | 116 shares @ $295.14 | 2026-06-15\n  Ben Borders (Principal Accounting Officer) | SELL | 1,274 shares @ $290.00 | 2026-05-08\n  Kevan Parekh (Senior Vice President, CFO) | SELL | 1,534 shares @ $275.00 | 2026-04-23\n  Deirdre O'Brien (Senior Vice President) | SELL | 20,338 shares @ $255.12 | 2026-04-01\n  Deirdre O'Brien (Senior Vice President) | SELL | 9,664 shares @ $255.82 | 2026-04-01\n  Timothy D Cook (Chief Executive Officer) | SELL | 5,087 shares @ $251.25 | 2026-04-01\n  Timothy D Cook (Chief Executive Officer) | SELL | 9,147 shares @ $252.11 | 2026-04-01\n  Timothy D Cook (Chief Executive Officer) | SELL | 1,878 shares @ $253.13 | 2026-04-01\n  Timothy D Cook (Chief Executive Officer) | SELL | 16,083 shares @ $254.37 | 2026-04-01\n  Timothy D Cook (Chief Executive Officer) | SELL | 28,188 shares @ $255.17 | 2026-04-01\n  Timothy D Cook (Chief Executive Officer) | SELL | 4,566 shares @ $256.00 | 2026-04-01\n  Kevan Parekh (Senior Vice President, CFO) | SELL | 500 shares @ $245.89 | 2025-10-15\n  Kevan Parekh (Senior Vice President, CFO) | SELL | 1,665 shares @ $247.04 | 2025-10-15\n  Kevan Parekh (Senior Vice President, CFO) | SELL | 1,534 shares @ $247.82 | 2025-10-15\n  Kevan Parekh (Senior Vice President, CFO) | SELL | 500 shares @ $248.73 | 2025-10-15\n  [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]",
-    "insider_transaction_pattern": "CEO John Ternus net seller: sold 3,564 shares on October 1, 2026, and no open-market purchases in the last 12 months. Largest holder Tim Cook net seller: sold 23,143 shares on October 1, 2026, and no open-market purchases in the last 12 months. Overall insider sentiment: negative.",
-    "compensation_structure_notes": "John Ternus, the new CEO, has a compensation package that includes a $3 million annual salary and a target equity award of $55 million for fiscal 2027, with performance-based RSUs tied to total shareholder return. Tim Cook, now Executive Chair, will receive a $2 million salary and a target equity award of $45 million for fiscal 2027. This structure aligns management incentives with shareholder interests through significant equity components.",
-    "capital_allocation_summary": "Apple has a disciplined approach to capital allocation, focusing on share buybacks and dividends while maintaining strong reinvestment in product development and innovation. The company has historically prioritized returning capital to shareholders through buybacks and dividends, reflecting a commitment to enhancing shareholder value.",
+    "insider_transaction_pattern": "The current CEO is John Ternus, formerly Apple’s Senior Vice President of Hardware Engineering; his broader prior track record is not available in the provided sources. No insider purchases are listed. The discretionary transactions shown are sales by director Arthur D. Levinson and Principal Accounting Officer Chris Kondo; Levinson’s are the largest discretionary sales shown. Ternus’s listed sales are identified as 10b5-1 pre-arranged-plan transactions and therefore are not a clear current-sentiment signal. On the transactions provided, insiders were net sellers, but the listed activity does not establish a broad conviction signal. The ownership table lists Art Levinson and Tim Cook among the largest individual insider holders; it does not provide John Ternus’s ownership. Board independence and any governance red flags are not available in the provided sources.",
+    "compensation_structure_notes": "Not available in provided sources. The proxy excerpt does not provide enough detail to assess fixed versus variable compensation, long-term incentive metrics, or clawbacks. Board independence and related-party governance information are also not available in the provided sources.",
+    "capital_allocation_summary": "Not available in provided sources. The provided context does not give evidence sufficient to assess M&A discipline, repurchase prices, dividends, or reinvestment quality.",
     "citations": [
       {
-        "claim": "CEO John Ternus, the new CEO, has a compensation package that includes a $3 million annual salary and a target equity award of $55 million for fiscal 2027, with performance-based RSUs tied to total shareholder return.",
-        "source_url": "Web (Tavily)",
-        "excerpt": "Ternus will also receive a prorated restricted stock unit award with a target value of $2.5 million for fiscal 2026, while Apple has approved an annual equity award for him with a target value of $55 million for fiscal 2027.",
-        "confidence": 0.9,
+        "claim": "The CEO transition to John Ternus became effective September 1, 2026.",
+        "source_url": "8-K 5.02",
+        "excerpt": "On April 20, 2026, Apple Inc. (“Apple”) announced that Tim Cook will transition from his role as Chief Executive Officer to Executive Chair of Apple’s Board of Directors (the “Board”), effective September 1, 2026 (the “Transition Date”).",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "CEO John Ternus net seller: sold 3,564 shares on October 1, 2026, and no open-market purchases in the last 12 months. Largest holder Tim Cook net seller: sold 23,143 shares on October 1, 2026, and no open-market purchases in the last 12 months. Overall insider sentiment: negative.",
+        "claim": "Art Levinson beneficial ownership in the proxy table.",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "Art Levinson | 4,126,689 shares | less than 1%",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Tim Cook beneficial ownership in the proxy table.",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "Tim Cook | 3,280,295 shares | less than 1%",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Levinson’s listed discretionary Form 4 sales.",
         "source_url": "Form 4",
-        "excerpt": "John Ternus (CEO) | SELL | 3,564 shares @ $331.38 | 2026-10-01",
-        "confidence": 0.9,
+        "excerpt": "Arthur D Levinson (Director) | SELL | 50,000 shares @ $311.02 | 2026-05-27\n  Arthur D Levinson (Director) | SELL | 149,527 shares @ $284.57 | 2026-05-06\n  Arthur D Levinson (Director) | SELL | 100,473 shares @ $285.04 | 2026-05-06",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Apple has a disciplined approach to capital allocation, focusing on share buybacks and dividends while maintaining strong reinvestment in product development and innovation. The company has historically prioritized returning capital to shareholders through buybacks and dividends, reflecting a commitment to enhancing shareholder value.",
-        "source_url": "https://finance.yahoo.com/markets/stocks/articles/apple-outlines-ternus-cook-compensation-212632700.html",
-        "excerpt": "Apple has a disciplined approach to capital allocation, focusing on share buybacks and dividends while maintaining strong reinvestment in product development and innovation.",
-        "confidence": 0.0,
+        "claim": "Kondo’s listed discretionary Form 4 sale.",
+        "source_url": "Form 4",
+        "excerpt": "Chris Kondo (Principal Accounting Officer) | SELL | 3,752 shares @ $271.23 | 2025-11-07",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
-        "verified": false,
-        "verification_note": "excerpt not found in source (fuzzy=46)"
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Ternus’s listed sales are categorized as 10b5-1 pre-arranged-plan transactions.",
+        "source_url": "Form 4",
+        "excerpt": "John Ternus (CEO) | SELL | 3,564 shares @ $331.38 | 2026-10-01\n  John Ternus (CEO) | SELL | 5,348 shares @ $332.26 | 2026-10-01\n  John Ternus (CEO) | SELL | 12,746 shares @ $333.34 | 2026-10-01\n  John Ternus (CEO) | SELL | 3,754 shares @ $334.05 | 2026-10-01",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
       },
       {
         "claim": "Insider ownership: all directors and executive officers as a group",
@@ -1709,6 +1736,15 @@
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": "deterministic: parsed from the DEF 14A beneficial ownership table (EC-93)"
+      },
+      {
+        "claim": "John Ternus was appointed CEO on April 17, 2026; the transition to the CEO role was effective September 1, 2026.",
+        "source_url": "2026-04-20 8-K Item 5.02",
+        "excerpt": "On April 17, 2026, the Board appointed John Ternus, Apple’s Senior Vice President of Hardware Engineering, as Chief Executive Officer and a member of the Board",
+        "confidence": 0.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": false,
+        "verification_note": "excerpt not found in source (fuzzy=50)"
       }
     ]
   },
@@ -1716,42 +1752,168 @@
     "ticker": "AAPL",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
-    "business_description": "The Company designs, manufactures and markets smartphones, personal computers, tablets, wearables and accessories, and sells a variety of related services. Its products include iPhone, Mac, iPad, and wearables, while services encompass advertising, AppleCare, cloud services, digital content, and payment services. The Company operates primarily through direct sales to consumers and businesses, as well as through indirect channels like third-party carriers and resellers.",
-    "risk_factors_summary": "The most material risks include adverse macroeconomic conditions affecting consumer spending, intense competition leading to pricing pressures, and regulatory challenges related to international trade and tariffs. Additionally, reliance on a complex global supply chain exposes the Company to risks from geopolitical tensions and supply shortages. The Company also faces risks from technological changes and potential disruptions in product manufacturing.",
-    "mda_highlights": "Management highlights that net sales increased in the Americas and Europe, driven by higher sales of iPhone and Services, while Greater China saw a decline in iPhone sales. Gross margins are subject to volatility due to product mix and tariff costs. The Company continues to invest in R&D to maintain its competitive edge and address challenges in supply chain management and product introductions.",
+    "model_used": "gpt-6-luna",
+    "business_description": "Apple designs, manufactures and markets iPhone smartphones, Mac computers, iPad tablets, wearables and accessories, and sells related services. Its customers include consumers, small and mid-sized businesses, education, enterprise and government markets; it sells through its own retail and online stores and sales force, as well as carriers and other resellers. Services include advertising, AppleCare, cloud services, digital content and payment services. Apple manages its business geographically, with reportable segments in the Americas, Europe, Greater China, Japan and Rest of Asia Pacific. [C1–C4]",
+    "risk_factors_summary": "Apple faces intense competition, price pressure and rapid technological change, and its ability to compete depends on timely innovation and successful product introductions. It relies on outsourcing partners and single or limited sources for some components, exposing it to supply disruptions, shortages and price increases. International trade restrictions and tariffs may increase costs, constrain component availability and disrupt supply chains; the filing describes U.S. tariffs announced beginning in Q2 2025 and a Commerce Department investigation into semiconductor-related imports. Macroeconomic conditions, currency movements and geopolitical events may also weaken demand or disrupt operations. [C5–C8]",
+    "mda_highlights": "2025 net sales increased 6% to $416.161 billion; Services grew 14% and iPhone grew 4%, while Wearables, Home and Accessories declined 4%. Management attributed Services growth primarily to advertising, the App Store and cloud services, and iPhone growth to higher Pro-model sales. Total gross margin percentage rose to 46.9% from 46.2%, while product gross margin percentage declined to 36.8% from 37.2%; management cited tariff costs and product mix as factors. Management also highlighted uncertainty around tariffs and other measures, and stated that future gross margins are generally subject to volatility and downward pressure. [C9–C12]",
     "backlog_usd": null,
     "revenue_guidance": null,
-    "geographic_revenue_breakdown": "Americas: $178,353 million, Europe: $111,032 million, Greater China: $64,377 million, Japan: $28,703 million, Rest of Asia Pacific: $33,696 million.",
-    "key_regulatory_events": "U.S. Department of Commerce has initiated an investigation under Section 232 of the Trade Expansion Act of 1962, into, among other things, imports of semiconductors, semiconductor manufacturing equipment, and their derivative products, including downstream products that contain semiconductors. (Date: 2025)",
+    "geographic_revenue_breakdown": "2025 reportable-segment net sales were: Americas $178.353 billion (approximately 42.9% of total), Europe $111.032 billion (26.7%), Greater China $64.377 billion (15.5%), Japan $28.703 billion (6.9%), and Rest of Asia Pacific $33.696 billion (8.1%). Percentages are calculated from the reported segment figures and total net sales of $416.161 billion. The filing does not separately disclose U.S.-only or China-only revenue; Greater China includes China mainland, Hong Kong and Taiwan. [C13–C14]",
+    "key_regulatory_events": "• U.S. tariffs: The filing states, “Beginning in the second quarter of 2025, new U.S. Tariffs were announced, including additional tariffs on imports from China, India, Japan, South Korea, Taiwan, Vietnam and the EU, among others.” It also reports reciprocal tariffs or threatened tariffs by several countries. (10-K Item 7; specific announcement date beyond Q2 2025 is not provided.) [C15] • U.S. Department of Commerce Section 232 investigation: “The U.S. Department of Commerce has initiated an investigation under Section 232 of the Trade Expansion Act of 1962, as amended, into, among other things, imports of semiconductors, semiconductor manufacturing equipment, and their derivative products, including downstream products that contain semiconductors.” (10-K Item 7; initiation date is not stated beyond the surrounding Q2 2025 tariffs discussion.) [C16] • State Aid Decision: Item 7 says the year-over-year tax provision decrease included “a $10.7 billion year-over-year decrease in the provision for income taxes related to the State Aid Decision.” The government entity and date are not provided in the supplied text. [C17] The supplied text does not disclose an entity-list addition, export restriction, BIS/OFAC action or sanctions against Apple.",
     "governance_red_flags": null,
     "active_sec_investigation": false,
     "material_weakness": false,
     "citations": [
       {
-        "claim": "The Company’s operations and performance depend significantly on global and regional economic conditions and adverse economic conditions can materially adversely affect the Company’s business, results of operations, financial condition and stock price.",
-        "source_url": "10-K Item 1A",
-        "excerpt": "The Company’s operations and performance depend significantly on global and regional economic conditions and adverse economic conditions can materially adversely affect the Company’s business, results of operations, financial condition and stock price.",
-        "confidence": 0.9,
-        "gaap_vs_nongaap_flag": "null",
+        "claim": "Business: Apple’s product and service offerings. (10-K Item 1)",
+        "source_url": "10-K Item 1",
+        "excerpt": "The Company designs, manufactures and markets smartphones, personal computers, tablets, wearables and accessories, and sells a variety of related services.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Beginning in the second quarter of 2025, new U.S. Tariffs were announced, including additional tariffs on imports from China, India, Japan, South Korea, Taiwan, Vietnam and the EU, among others.",
+        "claim": "Business: customer markets and distribution model. (10-K Item 1)",
+        "source_url": "10-K Item 1",
+        "excerpt": "The Company’s customers are primarily in the consumer, small and mid-sized business, education, enterprise and government markets. The Company sells its products and resells third-party products in most of its major markets directly to customers through its retail and online stores and its direct sales force. The Company sells its services in the same markets through its various service platforms. The Company also employs a variety of indirect distribution channels, such as third-party cellular network carriers and other resellers, for the sale of its products and certain of its services.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Business: services categories. (10-K Item 1)",
+        "source_url": "10-K Item 1",
+        "excerpt": "The Company’s services include advertising, AppleCare, cloud services, digital content and payment services.",
+        "confidence": 0.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": false,
+        "verification_note": "excerpt not found in source (fuzzy=60)"
+      },
+      {
+        "claim": "Business: geographic reportable segments and Greater China definition. (10-K Item 1)",
+        "source_url": "10-K Item 1",
+        "excerpt": "The Company’s reportable segments consist of the Americas, Europe, Greater China, Japan and Rest of Asia Pacific. Americas includes both North and South America. Europe includes European countries, as well as India, the Middle East and Africa. Greater China includes China mainland, Hong Kong and Taiwan.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Risks: competition and technology. (10-K Item 1A)",
+        "source_url": "10-K Item 1A",
+        "excerpt": "The Company’s products and services are offered in highly competitive global markets. These markets are characterized by aggressive price competition, downward pressure on gross margins, continual improvement in product performance, and price sensitivity on the part of consumers and businesses. These markets are further defined by frequent introduction of new products and services, short product life cycles, evolving industry standards, and rapid adoption of technological advancements.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Risks: reliance on outsourcing and reduced direct control. (10-K Item 1A)",
+        "source_url": "10-K Item 1A",
+        "excerpt": "While these arrangements can lower operating costs, they also reduce the Company’s direct control over production and distribution.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Risks: component supply and pricing exposure. (10-K Item 1A)",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Because the Company currently obtains certain components from single or limited sources, the Company is subject to significant supply and pricing risks.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Risks and regulatory events: new U.S. tariffs announced beginning in Q2 2025. (10-K Item 1A)",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Beginning in the second quarter of 2025, new tariffs were announced on imports to the U.S. (“U.S. Tariffs”), including additional tariffs on imports from China, India, Japan, South Korea, Taiwan, Vietnam and the European Union (“EU”), among others.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Risks and regulatory events: Commerce Department Section 232 investigation scope. (10-K Item 1A)",
+        "source_url": "10-K Item 1A",
+        "excerpt": "For example, the U.S. Department of Commerce has initiated an investigation under Section 232 of the Trade Expansion Act of 1962, as amended, into, among other things, imports of semiconductors, semiconductor manufacturing equipment, and their derivative products, including downstream products that contain semiconductors.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "MD&A: 2025 net sales by product category. (10-K Item 7)",
         "source_url": "10-K Item 7",
-        "excerpt": "Beginning in the second quarter of 2025, new U.S. Tariffs were announced, including additional tariffs on imports from China, India, Japan, South Korea, Taiwan, Vietnam and the EU, among others.",
-        "confidence": 0.9,
-        "gaap_vs_nongaap_flag": "null",
+        "excerpt": "2025  Change  2024  Change  2023\niPhone  $  209,586  4%  $  201,183  —%  $  200,583\nMac  33,708  12%  29,984  2%  29,357\niPad  28,023  5%  26,694  (6)%  28,300\nWearables, Home and Accessories  35,686  (4)%  37,005  (7)%  39,845\nServices (1)  109,158  14%  96,169  13%  85,200\nTotal net sales  $  416,161  6%  $  391,035  2%  $  383,285",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "The U.S. Department of Commerce has initiated an investigation under Section 232 of the Trade Expansion Act of 1962, as amended, into, among other things, imports of semiconductors, semiconductor manufacturing equipment, and their derivative products, including downstream products that contain semiconductors.",
-        "source_url": "10-K Item 1A",
-        "excerpt": "The U.S. Department of Commerce has initiated an investigation under Section 232 of the Trade Expansion Act of 1962, as amended, into, among other things, imports of semiconductors, semiconductor manufacturing equipment, and their derivative products, including downstream products that contain semiconductors.",
-        "confidence": 0.9,
-        "gaap_vs_nongaap_flag": "null",
+        "claim": "MD&A: Services and iPhone growth drivers. (10-K Item 7)",
+        "source_url": "10-K Item 7",
+        "excerpt": "Services net sales increased during 2025 compared to 2024 primarily due to higher net sales from advertising, the App Store and cloud services.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "MD&A: 2025 gross margin percentages and tariff/mix drivers. (10-K Item 7)",
+        "source_url": "10-K Item 7",
+        "excerpt": "Products gross margin percentage decreased during 2025 compared to 2024 primarily due to a different mix of products and tariff costs, partially offset by other favorable costs.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "MD&A: outlook on gross margin volatility. (10-K Item 7)",
+        "source_url": "10-K Item 7",
+        "excerpt": "As a result, the Company believes, in general, gross margins will be subject to volatility and downward pressure.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Geographic revenue: 2025 segment net sales. (10-K Item 7)",
+        "source_url": "10-K Item 7",
+        "excerpt": "2025  Change  2024  Change  2023\nAmericas  $  178,353  7%  $  167,045  3%  $  162,560\nEurope  111,032  10%  101,328  7%  94,294\nGreater China  64,377  (4)%  66,952  (8)%  72,559\nJapan  28,703  15%  25,052  3%  24,257\nRest of Asia Pacific  33,696  10%  30,658  4%  29,615\nTotal net sales  $  416,161  6%  $  391,035  2%  $  383,285",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Regulatory event: U.S. tariff announcements and responsive measures. (10-K Item 7)",
+        "source_url": "10-K Item 7",
+        "excerpt": "Beginning in the second quarter of 2025, new U.S. Tariffs were announced, including additional tariffs on imports from China, India, Japan, South Korea, Taiwan, Vietnam and the EU, among others. In response, several countries have imposed, or threatened to impose, reciprocal tariffs on imports from the U.S. and other retaliatory measures.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Government-related tax event mentioned in MD&A: State Aid Decision. (10-K Item 7)",
+        "source_url": "10-K Item 7",
+        "excerpt": "The Company’s effective tax rate for 2025 was lower compared to 2024 due to a $10.7 billion year-over-year decrease in the provision for income taxes related to the State Aid Decision (refer to Note 7, “Income Taxes” in the Notes to Consolidated Financial Statements in Part II, Item 8 of this Form 10-K) and the impact of changes in unrecognized tax benefits, partially offset by a change in valuation allowance and a higher effective tax rate on foreign earnings.",
+        "confidence": 0.96,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Accounting changes: future adoption of the income tax disclosure standard. (10-K Item 7)",
+        "source_url": "10-K Item 7",
+        "excerpt": "The Company will adopt ASU 2023-09 in its fourth quarter of 2026 using a prospective transition method.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       }
@@ -1792,7 +1954,7 @@
       "currency_code": "USD",
       "gaap_vs_nongaap": "GAAP"
     },
-    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Solana’s New Addresses Surge 124% While SOL Price Drops 9%. What’s Going On?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=f4d8924b618ca4a58d40427d6c2d578c4ffc9c4bf24238e10541fa427d857176\n    Solana is minting millions of new wallets while its token quietly bleeds value, and the reason reveals something uncomfortable about how blockchain growth gets measured.\n\n[2] S&P 500 Index Concentration - Room At The Top\n    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=5222804a331d6195d734c895846797694e420afaf28c306ce296846077083e17\n    The combined market cap of the bottom 434 companies in the S&P 500 equals that of the top 5.\n\n[3] The Hidden Risk In This Record-Breaking Market\n    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=25c9fd3aa4181b193f642f12cb69304ac2130209a29d310805872cba84474226\n    Most serious investors would agree that AI has dominated the S&P 500 and the QQQ index for the last 4 years. \n\n[4] Why Apple (AAPL) Stock Is Trading Lower Today\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=dac188d3fe108e15a980f6d755d0aae4e2d5ef86a0bd3b03a3bc4878bf89d7d9\n    Shares of iPhone and iPad maker Apple (NASDAQ:AAPL) fell 2.3% in the morning session after a supply-chain report revealed the tech giant instructed suppliers to reduce component orders for its iPhone 18 Pro and iPhone 18 Pro Max by at least 15% for October.\n\n[5] Black British Business Awards 2026 winners revealed\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=d682df35f5091f4b0db2d20cfa0348acf9f50cba8a89f80585061d29ef6b749f\n    The chief executive of Dr. Martens has been named the Black British Business Person of the Year at the 2026 Black British Business Awards (BBBAwards).",
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Like Meta's Muse AI Agents? 4 AI Semiconductor Stocks Set to Benefit From the Rise of AI Agents.\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=87aa4058395473aae0eed03fd47870d3316533882eab8ea7c7df043f96c300b4\n    The data center CPU market looks set to explode.\n\n[2] Broadcom vs. Intel: Which Chip Stock Is a Better Buy in 2026?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=a07a1f0cae3dbe4e693111a1dd0253e8b8fdfe5e60cb9b6055d1b42fe8cbe862\n    Broadcom's 36% net margin and dominant AI accelerator position contrast sharply with Intel's foundry turnaround and negative free cash flow.\n\n[3] The Back-Office Agent Wave Is Already Redesigning Jobs in Procurement, Finance, and Accounting\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=900e1ab199df9eb7291edb11fdff316d03dba0b1fbb8754ed908ed029c3c966a\n    Earlier this month, we reported on Apple’s shelved plan to replace 5,000 AppleCare advisers with AI agents. The technology — an AI phone support assistant — is already live on the phone line. The job cuts are paused. The displacement is being partially deployed while the headline is on hold. That sa\n\n[4] Tim Cook's Final Apple Earnings Call Showed the Company Made More Quarterly Revenue Than It Booked in All of Fiscal 2011, the Year He Became CEO. What Does That Growth Curve Mean for Apple Under John Ternus?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=263f2f821607813f449e6d755990abdba91f2ab782261180438ea449f97d80ae\n    CEO John Ternus is inheriting a much larger, more concentrated company than Tim Cook did.\n\n[5] Did Softer iPhone 18 Pro Demand and Memory Costs Just Rewire Apple’s (AAPL) AI Investment Narrative?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=dfc7e049a13bee0c77318b03588a564c350b8379e682b26cfc626fc15012e65a\n    In early October 2026, reports indicated Apple asked suppliers to cut October component orders for its new iPhone 18 Pro and Pro Max by at least 15% to 20% amid softer demand and sharply higher memory chip costs linked to AI infrastructure. The move highlights how pressure from elevated component pr",
     "material_events": [
       {
         "filing_date": "2026-09-01",
@@ -1904,14 +2066,9 @@
     "ticker": "AAPL",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
-    "moat_classification": "narrow",
-    "moat_sources": [
-      "brand",
-      "switching_costs",
-      "network_effects",
-      "efficient_scale"
-    ],
+    "model_used": "gpt-6-luna",
+    "moat_classification": "none",
+    "moat_sources": [],
     "peer_roic_comparison": [
       {
         "ticker": "MSFT",
@@ -1954,37 +2111,37 @@
     ],
     "citations": [
       {
-        "claim": "Apple has built a comprehensive network of products, services and solutions to encourage",
-        "source_url": "Web (Tavily)",
-        "excerpt": "One such example is the Apple ecosystem. Apple has built a comprehensive network of products, services and solutions to encourage",
-        "confidence": 0.9,
-        "gaap_vs_nongaap_flag": null,
-        "verified": true,
-        "verification_note": null
-      },
-      {
-        "claim": "ROIC series: FY2025: 272.5%, FY2017: 21.8%, FY2016: 22.9%",
+        "claim": "The supplied ROIC data do not establish sustained high returns: values are provided for FY2016, FY2017, and FY2025, but not for four consecutive years.",
         "source_url": "Financial data",
         "excerpt": "ROIC series: FY2025: 272.5%, FY2017: 21.8%, FY2016: 22.9%",
-        "confidence": 0.95,
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "The success of the iPhone 17 also showed up in Apple's earnings.",
-        "source_url": "Web (Tavily)",
-        "excerpt": "The success of the iPhone 17 also showed up in Apple's earnings.",
-        "confidence": 0.85,
+        "claim": "Gross and operating margins increased over FY2023–FY2025, but the supplied data do not establish a specific structural advantage or how these margins compare with industry levels.",
+        "source_url": "Financial data",
+        "excerpt": "Gross margin: FY2025: 46.9%, FY2024: 46.2%, FY2023: 44.1%",
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Apple's stock commands a premium price among its peers, but its growth and profit metrics tell a different story.",
+        "claim": "The available FCF figures vary across FY2023–FY2025 and do not by themselves establish a growing capital base or the extent of shareholder payouts.",
+        "source_url": "Financial data",
+        "excerpt": "Free cash flow: FY2025: $98.8B, FY2024: $108.8B, FY2023: $99.6B",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "No web research was provided to substantiate a specific competitive advantage, assess moat direction, or identify credible disruption threats; therefore, the available evidence does not support classifying a moat.",
         "source_url": "Web (Tavily)",
-        "excerpt": "Apple's stock commands a premium price among its peers, but its growth and profit metrics tell a different story.",
-        "confidence": 0.8,
+        "excerpt": "No web search results available.",
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null

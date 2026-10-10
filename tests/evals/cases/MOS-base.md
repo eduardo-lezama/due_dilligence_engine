@@ -28,18 +28,19 @@ Form 4 transactions (Form 4, deterministic):
 OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the game):
   Walter F. Precourt III (SVP - Chief Admin Officer) | SELL | 23,000 shares @ $22.12 | 2026-08-19
   Jody Lynne Kuzenko (Director) | BUY | 685 shares @ $25.53 | 2025-11-11
-Insider transaction pattern (LLM summary, unverified): Walter F. Precourt III net seller: sold 23,000 shares in August 2026, no open-market purchases in 12m. Jody Lynne Kuzenko net buyer: bought 685 shares in November 2025. Overall insider sentiment: slightly negative due to net selling by a senior officer.
-Compensation (LLM summary): Not available in provided sources.
-Capital allocation (LLM summary): The Mosaic Company has a disciplined capital allocation strategy, returning $893 million to shareholders through Q3 2023. They are committed to maintaining a strong balance sheet and have capital expenditures expected between $1.3 and $1.4 billion for the year, indicating a focus on reinvestment quality.
+Insider transaction pattern (LLM summary, unverified): The current CEO is not identifiable from the provided sources, so CEO buying or selling cannot be assessed. The largest individual insider holdings shown are Karen A. Swager and Gregory L. Ebel; neither appears in the Form 4 activity provided. The listed transactions are mixed, but net selling by share count: officer Walter F. Precourt III sold 23,000 shares, while director Jody Lynne Kuzenko bought 685. This is a modestly negative signal from the limited transactions shown, not enough on its own to establish a broad insider pattern.
+Compensation (LLM summary): The proxy says the executive compensation program is intended to support financial performance, operational excellence, and strategic priorities. The provided excerpt does not specify fixed versus variable pay, long-term incentive metrics such as ROIC or TSR, or clawback provisions, so shareholder alignment on those terms cannot be assessed.
+Capital allocation (LLM summary): Not available in provided sources. The supplied material does not describe M&A discipline, repurchases, dividends, or the quality of reinvestment.
 Insider transaction evidence (verified citations; use for §3 price reconciliation):
-  - Walter F. Precourt III (SVP - Chief Admin Officer) | SELL | 23,000 shares @ $22.12 | 2026-08-19   Jody Lynne Kuzenko (Director) | BUY | 685 shares @ $25.53 | 2025-11-11
-  - All directors and executive officers as a group (18 persons) | 988,177 shares | less than 1%
+  - Karen A. Swager | 175,598 shares | less than 1%
+  - Gregory L. Ebel | 150,431 shares | less than 1%
+  - Walter F. Precourt III (SVP - Chief Admin Officer) | SELL | 23,000 shares @ $22.12 | 2026-08-19
 
 ## FILINGS REPORT (10-K)
-Business: Not available in provided sources.
-Revenue by geography: In 2025, we derived approximately 64% of our net sales from customers located outside of the U.S.
-Key risks: Our operating results are highly dependent upon and fluctuate based upon business, economic and other conditions and governmental policies affecting the agricultural industry in which we or our customers operate. These factors are outside of our control and may significantly affect our profitability. Economic and market conditions, including inflation, supply chain challenges, high interest rates and foreign exchange volatility, have and may continue to have an impact on our business. Our crop nutrient business is seasonal and varies based on application rates, which may result in carrying significant amounts of inventory and seasonal variations in working capital, and our inability to predict future seasonal crop nutrient demand accurately may result in excess inventory or product shortages.
-SPECIFIC REGULATORY EVENTS: In 2021, the U.S. Department of Commerce (“ DOC ”) issued countervailing duty (“ CVD ”) orders on imports of phosphate fertilizers from Morocco and Russia, in response to petitions filed by Mosaic.
+Business: Not available in provided sources. Item 1 is unavailable, so the filing text provided does not fully describe what the company sells, its customers, its business model, or its product segments. Item 1A refers to crop nutrients and phosphate and potash products, but does not provide a complete business description.
+Revenue by geography: Customers outside the U.S.: approximately 64% of 2025 net sales. A China-specific percentage and a complete country-by-country breakdown are not available in provided sources.
+Key risks: The company says its results depend on agricultural conditions and government policies, including factors outside its control. Seasonal demand, weather, and transportation conditions can affect sales, production, inventory, and working capital. The filing also identifies exposure to input-cost volatility, international-market conditions, and disruptions at key facilities; it notes that cyberattacks are among possible disruption causes. Its international operations create exposure to tariffs, currency movements, and other government actions, while the filing also describes U.S. countervailing duty orders on phosphate fertilizer imports from Morocco and Russia.
+SPECIFIC REGULATORY EVENTS: U.S. tariff action (February–March 2025): the filing states, "In February 2025, the U.S. imposed a 25% tariff on most imports from Canada, including potash crop nutrients. This tariff went into effect on March 4, 2025, but beginning March 7, 2025, the U.S. exempted from this tariff goods that qualify as wholly originating in Canada under the United States‑Mexico‑Canada Agreement, including potash from Mosaic’s Canadian operations." U.S. Department of Commerce and U.S. International Trade Commission countervailing duty action (2021): the filing states, "In 2021, the U.S. Department of Commerce (“ DOC ”) issued countervailing duty (“ CVD ”) orders on imports of phosphate fertilizers from Morocco and Russia, in response to petitions filed by Mosaic. The orders were based on DOC’s determination that the imports were unfairly subsidized, and the U.S. International Trade Commission’s (“ ITC ”) determination that the imports materially injured the U.S. phosphate fertilizer industry." Florida Department of Environmental Protection action (date not stated): the filing states, "High water balances in the past at phosphate facilities in Florida also led the Florida Department of Environmental Protection (“ FDEP ”) to adopt rules requiring phosphate production facilities to meet more stringent process water management objectives for phosphogypsum stack systems."
 MDA highlights (LLM summary): Not available in provided sources.
 
 ## MARKET DATA
@@ -69,59 +70,7 @@ Recent news: Recent news (last 30 days, 5 articles):
     Stay updated with the movements of the S&P500 index in the middle of the day on Wednesday. Discover which stocks are leading as top gainers and losers in today's session.
 
 ## Extended news coverage (drawdown context — Tavily, last 12 months)
-[1] Financial Analysis for MOS
-URL: https://finance.yahoo.com/quote/MOS/
-Stock: MOS
-Financial Analysis:
-Latest Open Price: 19.81 Latest Close Price: 18.74 Highest Close Price: 36.22 Lowest Close Price: 18.74 Average Close Price (2 years): 26.43 Standard Deviation of Close Price: 4.14 Volume Traded (2 years): 3368928400 Total Return (2 years): -24.15% Annualized Return (2 years): -12.91% CAGR (2 years): -12.91% Sharpe Ratio (2 years): -3.12 Max Drawdown (2 years): -0.36% 
-
-[2] Mosaic (MOS) Is Down 9.9% After Q4 Loss But Strong FY25 Profit – Has The Bull Case Changed?
-URL: https://finance.yahoo.com/news/mosaic-mos-down-9-9-200809509.html
-2. Best high-yield savings accounts. 3. Best money market accounts. * The Mosaic Company reported its fourth-quarter 2025 results, with sales rising to US$2,973.7 million but swinging from US$169.0 million in net income a year earlier to a US$519.5 million net loss and a diluted loss per share from continuing operations of US$1.64. * Despite that quarterly setback, full-year 2025 sales increased to US$12.05 billion and net income climbed to US$540.7 million, while management emphasized record mining output, cost savings and plans to lift phosphate and potash production and expand its fast-grow
-
-[3] Mosaic Q4 Earnings Call Highlights
-URL: https://finance.yahoo.com/news/mosaic-q4-earnings-call-highlights-173547051.html
-* U.S. phosphate demand fell sharply late in 2025 but Mosaic says spring buying is emerging and global fundamentals remain supportive, with the company claiming **market share gains** and stronger international DAP pricing versus NOLA. * Mosaic expects at least **7 million tons** of phosphate and roughly **9 million tons** of potash in 2026, sees a potential $300–500 million working‑capital release and aims to generate **free cash flow in 2026** despite elevated ~ $1.5 billion CapEx that year. Mosaic (NYSE:MOS) executives said they are entering 2026 with improving demand signals and stronger o
-
-[4] Factbox-How big global companies are dealing with tariff ...
-URL: https://ca.finance.yahoo.com/news/factbox-big-global-companies-dealing-165955829.html
-We have a complex States margins costs related to tariffs U.S. in Q2 will come buyback program by supply chain. tariff-affected pressure given
-
-[5] Gildan's Vertically Integrated Supply Chain Could Be the ...
-URL: https://ca.finance.yahoo.com/news/gildan-vertically-integrated-supply-chain-014500100.html
-Gildan's vertically integrated supply chain and trade-friendly manufacturing footprint could help it protect margins as tariffs shift.
-
-[6] Tariffs linger over earnings, even as companies get used to ...
-URL: https://ca.finance.yahoo.com/news/tariffs-linger-over-earnings-even-110845876.html
-The company said in October that tariffs would cut its margins by 0.7%, up from a previous 0.5% estimate. The company reported a fifth straight
-
-[7] SEC investigating AI-focused hedge fund Situational ...
-URL: https://ca.finance.yahoo.com/news/sec-investigating-ai-focused-hedge-135035982.html
-The SEC investigates any fund that has large losses, and Situational Awareness has not been accused of any wrongdoing. "It is to be expected
-
-[8] SEC subpoenas 4 banks in Situational Awareness probe after 67% portfolio wipeout
-URL: https://ca.finance.yahoo.com/news/sec-subpoenas-4-banks-situational-210211658.html
-Investing.com -- The SEC has subpoenaed Bank of America, Citi, Goldman Sachs and JPMorgan Chase as part of an early-stage investigation into the near-collapse of Situational Awareness, the AI-focused hedge fund that saw roughly 67% of its portfolio value wiped out in July, the New York Times reported Monday, citing three people briefed on the outreach. The subpoenas seek details on the timing of Situational Awareness's trades and its communications with lenders about borrowed money, or leverage, according to the Times. Situational Awareness held a $5.7 billion stake in SanDisk and $5.6 billion
-
-[9] Exclusive: SEC probes Schwab, Merrill, for anti-money laundering violations - sources
-URL: https://ca.finance.yahoo.com/news/exclusive-schwab-merrill-face-sec-probe-anti-money-205109825--sector.html
-# Yahoo Finance Canada. ### Canada markets closed. # Exclusive: SEC probes Schwab, Merrill, for anti-money laundering violations - sources. Schwab is conducting an internal investigation, one of the sources said. Spokesmen for the SEC declined to comment and Merrill declined to comment. A Schwab spokeswoman said the company does not comment on regulatory agency investigations but takes its due-diligence responsibilities regarding clients very seriously. The investigations are part of the SEC's sweep of the brokerage industry to make sure brokerages are following anti-money laundering rules. Co
-
-
-## QUARTERLY UPDATE (8-K Item 2.02, filed ?)
-⚠️ This data is MORE RECENT than the 10-K annual report. You MUST integrate these figures into §4 Financial Quality and §5 Growth conclusions per Rule 13.
-[1] Mosaic (MOS) Q2 Earnings Top Estimates
-URL: https://finance.yahoo.com/markets/stocks/articles/mosaic-mos-q2-earnings-top-214007569.html
-Mosaic (MOS) came out with quarterly earnings of $0.13 per share, beating the Zacks Consensus Estimate of $0.09 per share. This compares to earnings of $0.51 per share a year ago. A quarter ago, it was expected that this fertilizer maker would post earnings of $0.2 per share when it actually produced earnings of $0.05, delivering a surprise of -75%. Mosaic, which belongs to the Zacks Fertilizers industry, posted revenues of $2.82 billion for the quarter ended June 2026, missing the Zacks Consensus Estimate by 7.3%. While Mosaic has underperformed the market so far this year, the question that comes to investors' minds is: what's next for the stock? The current consensus EPS estimate is $0.26 on $3.25 billion in revenues for the coming quarter and $0.73 on $12.72 billion in revenues for the current fiscal year. This potash and fertilizer producer is expected to post quarterly earnings of $0.11 per share in its upcoming report, which represents a year-over-year change of +22.2%.
-
-[2] Mosaic (MOS) Q1 Earnings Miss Estimates
-URL: https://finance.yahoo.com/markets/stocks/articles/mosaic-mos-q1-earnings-miss-114503200.html
-Mosaic (MOS) came out with quarterly earnings of $0.05 per share, missing the Zacks Consensus Estimate of $0.2 per share. This compares to earnings of $0.49 per share a year ago. Mosaic, which belongs to the Zacks Fertilizers industry, posted revenues of $3 billion for the quarter ended March 2026, surpassing the Zacks Consensus Estimate by 9.04%. This compares to year-ago revenues of $2.62 billion. While Mosaic has underperformed the market so far this year, the question that comes to investors' minds is: what's next for the stock? While the magnitude and direction of estimate revisions could change following the company's just-released earnings report, the current status translates into a Zacks Rank #3 (Hold) for the stock. The current consensus EPS estimate is $0.23 on $3.16 billion in revenues for the coming quarter and $1.56 on $12.79 billion in revenues for the current fiscal year. This potash and fertilizer producer is expected to post quarterly earnings of $0.10 per share in it
-
-[3] Mosaic Company (The) (MOS) Q2 FY2026 earnings call transcript
-URL: https://finance.yahoo.com/quote/MOS/earnings/MOS-Q2-2026-earnings_call-665961.html
-Good morning, and welcome to The Mosaic Company's second quarter 2026
-
+No web search results available.
 Material 8-K events:
   [2026-09-25] Items Item 5.02: [Item 5.02] Item 5.02 - Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers.
 

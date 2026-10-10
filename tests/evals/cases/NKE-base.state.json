@@ -2,7 +2,7 @@
   "ticker": "NKE",
   "cik": "0000320187",
   "as_of_date": "2026-05-31",
-  "run_id": "d165550d-cc0",
+  "run_id": "a201476d-236",
   "financials": {
     "ticker": "NKE",
     "cik": "0000320187",
@@ -1600,37 +1600,91 @@
     "ticker": "NKE",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
+    "model_used": "gpt-6-luna",
     "insider_ownership_pct": null,
     "insider_ownership_shares": null,
     "insider_ownership_below_1pct": false,
     "insider_ownership_multi_class_row": "All directors and executive officers as a group (18 persons) | Class B | 13,323,115 | 1.1 | %",
     "insider_ownership_as_of": "2026-07-15",
-    "founder_ceo": false,
+    "founder_ceo": null,
     "ceo_tenure_years": null,
     "form4_transactions_12m": 15,
     "form4_summary": "OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the game):\n  Elliott Hill (PRESIDENT & CEO) | BUY | 23,660 shares @ $42.27 | 2026-04-13\n\n10b5-1 PRE-ARRANGED PLAN transactions (NOT informative about current sentiment):\n  Philip Mccartney (EVP: CHIEF INN,PROD&DSG OFCR) | SELL | 2,559 shares @ $37.59 | 2026-09-09\n  Robert Leinwand (EVP: Chief Legal Officer) | SELL | 3,646 shares @ $37.59 | 2026-09-09\n  Venkatesh Alagirisamy (EVP: CHIEF OPERATING OFFICER) | SELL | 3,671 shares @ $37.59 | 2026-09-09\n  Amy Montagne (PRESIDENT, NIKE) | SELL | 4,867 shares @ $42.05 | 2026-08-07\n  Robert Leinwand (EVP: Chief Legal Officer) | SELL | 821 shares @ $41.60 | 2026-08-05\n  Venkatesh Alagirisamy (EVP: CHIEF OPERATING OFFICER) | SELL | 890 shares @ $41.60 | 2026-08-05\n  Philip Mccartney (EVP: CHIEF INN,PROD&DSG OFCR) | SELL | 524 shares @ $41.60 | 2026-08-05\n  Matthew Friend (EVP: CFO) | SELL | 2,463 shares @ $41.60 | 2026-08-05\n  Philip Mccartney (EVP: CHIEF INN,PROD&DSG OFCR) | SELL | 17,398 shares @ $46.18 | 2026-06-10\n  Elliott Hill (PRESIDENT & CEO) | BUY | 23,660 shares @ $42.27 | 2026-04-13\n  Timothy D Cook (Director) | BUY | 25,000 shares @ $42.43 | 2026-04-10\n  John W Rogers JR (Director) | BUY | 4,000 shares @ $43.34 | 2026-04-09\n  Robert Holmes Swan (Director) | BUY | 11,781 shares @ $42.44 | 2026-04-07\n  Robert Leinwand (EVP: Chief Legal Officer) | SELL | 9,065 shares @ $62.33 | 2026-02-12\n  [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]",
-    "insider_transaction_pattern": "CEO Elliott Hill net buyer: bought 23,660 shares in April 2026. Overall insider sentiment: positive, with additional purchases from directors Timothy Cook and John Rogers Jr.",
-    "compensation_structure_notes": "Elliott Hill's compensation includes a significant portion linked to performance metrics, aligning his interests with shareholders. The structure appears to favor long-term equity incentives, although specific metrics are not detailed in the provided sources.",
-    "capital_allocation_summary": "Nike has returned approximately $2.5 billion to shareholders in fiscal 2026, primarily through dividends, indicating a commitment to returning capital while maintaining some level of reinvestment. The company has also engaged in share repurchases, though the focus appears to be on dividends as the primary method of capital allocation.",
+    "insider_transaction_pattern": "Elliott Hill is identified as President & CEO and has a reported discretionary purchase of 23,660 shares. This is a positive signal, but the provided sources do not establish a broader discretionary trading pattern. The listed pre-arranged plan transactions should not be treated as current sentiment; overall, the available discretionary evidence is limited but positive.",
+    "compensation_structure_notes": "Not available in provided sources. The excerpted proxy material does not provide enough detail to assess fixed versus variable pay, long-term incentive metrics, or clawback provisions.",
+    "capital_allocation_summary": "Not available in provided sources. The materials provided do not describe M&A, buybacks, dividends, or reinvestment decisions sufficiently to assess capital-allocation discipline.",
     "citations": [
       {
-        "claim": "Elliott Hill returned from retirement 20 months ago to revive the brand.",
-        "source_url": "Web (Tavily)",
-        "excerpt": "Elliott Hill returned from retirement 20 months ago to revive the brand.",
-        "confidence": 0.9,
+        "claim": "Elliott Hill is identified as President & CEO in the Form 4 transaction information.",
+        "source_url": "Form 4",
+        "excerpt": "Elliott Hill (PRESIDENT & CEO) | BUY | 23,660 shares @ $42.27 | 2026-04-13",
+        "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Insider ownership: all directors and executive officers as a group",
+        "claim": "The proxy identifies Elliott Hill as CEO for fiscal 2026, but the provided sources do not state when he was appointed.",
+        "source_url": "SOURCE 1: DEF 14A",
+        "excerpt": "2026    Elliott Hill",
+        "confidence": 0.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": false,
+        "verification_note": "excerpt too short to verify"
+      },
+      {
+        "claim": "Elliott Hill's reported Class B shareholding is 225,951 shares; all directors and executive officers as a group are reported with 13,323,115 Class B shares and 1.1%.",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "Elliott Hill | Class B | 225,951 | —",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The proxy reports the aggregate Class B ownership of directors and executive officers.",
         "source_url": "DEF 14A ownership table",
         "excerpt": "All directors and executive officers as a group (18 persons) | Class B | 13,323,115 | 1.1 | %",
         "confidence": 1.0,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
-        "verification_note": "deterministic: parsed from the DEF 14A beneficial ownership table (EC-93)"
+        "verification_note": null
+      },
+      {
+        "claim": "Pre-arranged plan transactions are identified in the source as not informative about current sentiment.",
+        "source_url": "Form 4",
+        "excerpt": "[NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The proxy states that the Compensation Committee consisted solely of independent, non-employee directors; this does not establish the independence of the full Board.",
+        "source_url": "DEF 14A",
+        "excerpt": "The committee is composed solely of independent, non-employee directors.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The proxy discloses compensation to Chairman Emeritus Philip Knight and his Board-observer arrangement.",
+        "source_url": "DEF 14A",
+        "excerpt": "Philip Knight, the father of NIKE director Travis Knight, serves as Chairman Emeritus, which provides a standing invitation for Philip Knight to attend meetings of the Board and its committees as a non-voting observer.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The proxy describes a policy for committee review and approval or ratification of reportable related-person transactions.",
+        "source_url": "DEF 14A",
+        "excerpt": "The Company's written policy requires the Corporate Responsibility, Sustainability & Governance Committee to review any transaction or proposed transaction with a related person that would be required to be reported under Item 404(a) of Regulation S-K, and to determine whether to ratify or approve the transaction, with ratification or approval to occur only if the committee determines that the transaction is fair to the Company and that approval or ratification of the transaction is in the interest of the Company.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
       }
     ]
   },
@@ -1638,24 +1692,96 @@
     "ticker": "NKE",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
-    "business_description": "Not available in provided sources.",
-    "risk_factors_summary": "Despite these factors, we are focused on driving distinction within key sports, building a complete product portfolio, creating stories to inspire and emotionally connect with consumers, and elevating and growing the entire marketplace as we continue to take actions across the following areas: Product Management: Accelerating product innovation and reducing the supply of certain footwear products in the marketplace to rebalance the mix of our footwear portfolio. Marketplace Management: Repositioning NIKE Brand Digital as a full-price platform and reinvesting in wholesale distribution. This includes liquidating inventory through increased markdowns across NIKE Direct, and higher sales returns and discounts with our wholesale partners to reduce inventory and create capacity for new product. We are also making investments to elevate the presentation of our brands in physical retail. Brand Management: Increasing investment in demand creation including brand marketing and sports marketing, to support key product launches and sports moments.",
-    "mda_highlights": "Not available in provided sources.",
+    "model_used": "gpt-6-luna",
+    "business_description": "NIKE sells NIKE Brand footwear and apparel. It sells through NIKE Direct, including NIKE Brand Digital and NIKE-owned stores, and through wholesale partners; the filing identifies consumers and wholesale partners in describing its marketplace. Its stated strategy includes product innovation, brand and sports marketing, and managing its direct and wholesale channels. A more detailed company description and a stated durable competitive edge are not available in the provided sources.",
+    "risk_factors_summary": "NIKE says its product, marketplace and brand-management actions have negatively affected, and may continue to negatively affect, revenue and profitability. In Greater China, declining store traffic, promotional activity and elevated inventory are hurting revenue and profitability; Converse is undergoing a strategic reset, with negative impacts from both expected throughout fiscal 2027. The company also describes uncertainty around U.S. and other countries’ import and export policies, tariff refunds and litigation. Competitive and technology-specific risk details are not available in the provided sources.",
+    "mda_highlights": "Fiscal 2026 revenue was $46.4 billion versus $46.3 billion in fiscal 2025, while currency-neutral revenue decreased 2%, primarily due to lower revenue in Greater China, Converse and EMEA. Footwear revenue was flat as lower average selling prices offset unit sales, while apparel revenue increased, supported by higher unit sales and average selling prices. Management said it expects to complete its product, marketplace and brand-management actions by the end of December 2026, and expects negative impacts from Greater China and Converse throughout fiscal 2027. The provided sources do not include Item 7, so additional MD&A discussion, including accounting changes, going-concern language or capital-raise announcements, is not available in the provided sources.",
     "backlog_usd": null,
     "revenue_guidance": null,
     "geographic_revenue_breakdown": null,
-    "key_regulatory_events": "On February 20, 2026, the U.S. Supreme Court ruled that U.S. tariffs imposed under the International Emergency Economic Powers Act (\"IEEPA\") on goods imported into the U.S. were unauthorized.",
+    "key_regulatory_events": "10-K Item 1A: On February 20, 2026, the U.S. Supreme Court ruled that U.S. tariffs imposed under the International Emergency Economic Powers Act (IEEPA) on goods imported into the U.S. were unauthorized. The filing also reports tariff-recovery receivables and says NIKE will monitor related policy, refund and litigation developments.",
     "governance_red_flags": null,
     "active_sec_investigation": false,
     "material_weakness": false,
     "citations": [
       {
-        "claim": "Despite these factors, we are focused on driving distinction within key sports, building a complete product portfolio, creating stories to inspire and emotionally connect with consumers, and elevating and growing the entire marketplace as we continue to take actions across the following areas: Product Management: Accelerating product innovation and reducing the supply of certain footwear products in the marketplace to rebalance the mix of our footwear portfolio. Marketplace Management: Repositioning NIKE Brand Digital as a full-price platform and reinvesting in wholesale distribution. This includes liquidating inventory through increased markdowns across NIKE Direct, and higher sales returns and discounts with our wholesale partners to reduce inventory and create capacity for new product. We are also making investments to elevate the presentation of our brands in physical retail. Brand Management: Increasing investment in demand creation including brand marketing and sports marketing, to support key product launches and sports moments.",
+        "claim": "10-K Item 1A — Product categories sold: NIKE Brand footwear and apparel.",
         "source_url": "10-K Item 1A",
-        "excerpt": "Despite these factors, we are focused on driving distinction within key sports, building a complete product portfolio, creating stories to inspire and emotionally connect with consumers, and elevating and growing the entire marketplace as we continue to take actions across the following areas: Product Management: Accelerating product innovation and reducing the supply of certain footwear products in the marketplace to rebalance the mix of our footwear portfolio. Marketplace Management: Repositioning NIKE Brand Digital as a full-price platform and reinvesting in wholesale distribution. This includes liquidating inventory through increased markdowns across NIKE Direct, and higher sales returns and discounts with our wholesale partners to reduce inventory and create capacity for new product. We are also making investments to elevate the presentation of our brands in physical retail. Brand Management: Increasing investment in demand creation including brand marketing and sports marketing, to support key product launches and sports moments.",
-        "confidence": 1.0,
-        "gaap_vs_nongaap_flag": "null",
+        "excerpt": "NIKE Brand footwear revenues were $29.5 billion in fiscal 2026 compared to $29.5 billion in fiscal 2025.",
+        "confidence": 0.98,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1A — Sales channels include NIKE Direct and wholesale partners.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Repositioning NIKE Brand Digital as a full-price platform and reinvesting in wholesale distribution.",
+        "confidence": 0.98,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1A — Stated strategy emphasizes product innovation and brand and sports marketing.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Accelerating product innovation and reducing the supply of certain footwear products in the marketplace to rebalance the mix of our footwear portfolio.",
+        "confidence": 0.98,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1A — NIKE describes its goal of connecting with consumers.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "creating stories to inspire and emotionally connect with consumers",
+        "confidence": 0.96,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1A — Product, marketplace and brand actions may weigh on revenue and profitability.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "While these product, marketplace and brand management actions taken across our portfolio have had, and in the future may have, a negative impact on our Revenues and overall profitability, we believe they will reignite brand momentum and reposition our business to drive long-term shareholder value.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1A — Greater China marketplace conditions and the Converse reset are challenges, with impacts expected to continue through fiscal 2027.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Additionally, in Greater China, a trend of declining store traffic, elevated promotional activity and higher levels of inventory across the marketplace are negatively impacting revenues and overall profitability, while Converse is in the midst of a strategic reset of the brand and marketplace. We expect negative impacts from Greater China and Converse to continue throughout fiscal 2027.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1A — U.S. Supreme Court tariff ruling dated February 20, 2026.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "On February 20, 2026, the U.S. Supreme Court ruled that U.S. tariffs imposed under the International Emergency Economic Powers Act (\"IEEPA\") on goods imported into the U.S. were unauthorized.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1A — Fiscal 2026 revenue and currency-neutral trend.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "NIKE, Inc. Revenues were $46.4 billion in fiscal 2026 compared to $46.3 billion in fiscal 2025. On a currency-neutral basis, NIKE, Inc. Revenues decreased 2%, primarily due to lower revenues in Greater China, Converse and Europe, Middle East & Africa (\"EMEA\"), which decreased NIKE, Inc. Revenues by approximately 2, 1 and 1 percentage points, respectively. Higher revenues in North America increased NIKE, Inc. Revenues by approximately 2 percentage points.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "10-K Item 1A — Management's stated completion timing for its actions.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Our reportable operating segments are at different stages of progress, and we expect to complete these actions by the end of December 2026.",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       }
@@ -1696,9 +1822,9 @@
       "currency_code": "USD",
       "gaap_vs_nongaap": "GAAP"
     },
-    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Nike (NKE) Stock May Trade At A 15% Discount Despite 10Q Surprises\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=574b1f860e504b5c4bf68d4fafb0b5e097f3e9fa081307be1c1841a6316bf988\n    NIKE is trading near US$34.71 after a long slide, and the question now is whether that market price still lines up with the cash flows the business can plausibly generate over time. Over the past 5 years the stock has fallen 75.9%, which puts fresh focus on whether investors are now pricing NIKE’s c\n\n[2] Estimates Keep Rising as Q3 Earnings Season Takes Center Stage\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=73b59c6d79519f821571c067bc86a653580406c019b010d3e65a46f0a8aaa077\n    Upcoming reports from the big banks next week will shift the Q3 earnings season into a higher gear, with a total of 29 S&P 500 members on the week's reporting docket. Estimates remain positive, with S&P 500 earnings expected to grow 24.3% YoY on 11.5% higher revenues.\n\n[3] Friday's session: top gainers and losers in the dow jones index\n    Source: ChartMill | URL: https://finnhub.io/api/news?id=e8e3b8da2da0d6ae4d9558e72857a3ca0885d2701f5b383c0d396564a0c319c7\n    Uncover the latest developments among dow jones stocks in today's session. Stay tuned to the dow jones index's top gainers and losers on Friday.\n\n[4] Micron Is Now Worth More Than Coca-Cola, PepsiCo, McDonald’s, Disney, Starbucks, Nike and Chipotle Combined\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=c7f6e3804de728fe3e8bef0a8aa80cae68a688d8632fec207846315df7c9ca01\n    Most Americans can name a Coca-Cola before they can name a single Micron product, yet Wall Street just handed the obscure memory chip maker a valuation that leaves seven of the world's most recognized consumer brands in the dust.\n\n[5] Deckers: A 9% Earnings Yield With Q2 Approaching\n    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=d59f0dba90df061503030285a551bc48d1f501eee736259f9e998e8d59e2f7b0\n    Deckers Outdoor is a Strong Buy, with significant upside potential at ~$80/sh, trading at 11x fwd earnings & a 9%+ earnings yield. Click for more on DECK stock.\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\n[1] Financial Analysis for NKE\nURL: https://finance.yahoo.com/quote/NKE/\nStock: NKE\nFinancial Analysis:\nLatest Open Price: 34.58 Latest Close Price: 34.71 Highest Close Price: 79.50 Lowest Close Price: 33.87 Average Close Price (2 years): 59.35 Standard Deviation of Close Price: 12.65 Volume Traded (2 years): 9588399000 Total Return (2 years): -55.36% Annualized Return (2 years): -33.19% CAGR (2 years): -33.19% Sharpe Ratio (2 years): -2.62 Max Drawdown (2 years): -0.42% \n\n[2] NIKE (NKE) Is Down 6.7% After Guiding For High-Single-Digit 2027 Revenue Decline - Has The Bull Case Changed?\nURL: https://finance.yahoo.com/markets/stocks/articles/nike-nke-down-6-7-020836969.html\n# NIKE (NKE) Is Down 6.7% After Guiding For High-Single-Digit 2027 Revenue Decline - Has The Bull Case Changed? * NIKE, Inc. reported first-quarter 2026 results showing sales of US$11,213 million and net income of US$712 million, alongside earnings guidance for fiscal 2027 that anticipates a high-single-digit revenue decline. * Next, we'll examine how NIKE's expectation for a high-single-digit fiscal 2027 revenue decline reshapes the previously outlined investment narrative. While the payout is not well covered by free cash flow, NIKE's choice to maintain the dividend matters for investors wat\n\n[3] Why Nike (NKE) Shares Are Getting Obliterated Today\nURL: https://finance.yahoo.com/markets/stocks/articles/why-nike-nke-shares-getting-215003918.html\nShares of athletic apparel brand Nike (NYSE:NKE) fell 5.5% in the morning session after the company reported a 4% sales decline and issued weaker-than-expected full-year profit guidance. According to the company's press release, Nike guided fiscal 2027 revenues to decline by high single digits and estimated adjusted diluted earnings per share between $1.15 and $1.35, missing analyst expectations of $1.68 per share amid product challenges and an ailing China business. The quarter was mixed: Nike fell short of the market's revenue expectations in calendar Q3 2026 (fiscal Q1 2027), with sales fal\n\n[4] NIKE's Gross Margin Drag & Tariff Costs Loom\nURL: https://finance.yahoo.com/markets/stocks/articles/nikes-gross-margin-drag-tariff-091300341.html\nNIKE reported gross margin contraction of 130 basis points to 40.2%, primarily reflecting a 300-basis-point impact from higher tariffs in North\n\n[5] Margin Headwinds Strengthen: Will Tariff Mitigation Be Enough for NKE?\nURL: https://finance.yahoo.com/news/margin-headwinds-strengthen-tariff-mitigation-135700772.html\n2. Best 0% APR cards. 3. Best balance transfer cards. 3. Best money market accounts. 4. Best free checking accounts. **NIKE, Inc.** NKE continues to face considerable margin pressure stemming from higher tariffs, unfavorable channel mix and soft demand in key markets. These pressures are further compounded by elevated promotional activity, a heightened competitive global athleticwear market and a heavier reliance on wholesale partners, which dilute margins compared with its higher-margin direct-to-consumer channel. In second-quarter fiscal 2026, NIKE's gross profit dipped 6.3% year over year t\n\n[6] Higher Tariffs and Production Costs: Is NIKE Ready to Adapt?\nURL: https://finance.yahoo.com/news/higher-tariffs-production-costs-nike-141100889.html\n# Higher Tariffs and Production Costs: Is NIKE Ready to Adapt? **NIKE, Inc.** NKE, like other industry players, remains exposed to the impact of rising tariffs and production costs. In second-quarter fiscal 2026, NIKE's gross profit dipped 6.3% year over year, while the gross margin contracted 300 basis points (bps) to 40.6%. However, NKE is implementing mitigation strategies to manage the impact of elevated tariffs and product costs. Excluding roughly 315 bps impacts of elevated gross product costs with respect to new tariffs, the gross margin is expected to be positive in the fiscal third qu\n\n[7] Nike Data Breach Lawsuit Adds Fresh Risk To Valuation And Brand Trust\nURL: https://finance.yahoo.com/markets/stocks/articles/nike-data-breach-lawsuit-adds-043342270.html\n3. Best balance transfer cards. # Nike Data Breach Lawsuit Adds Fresh Risk To Valuation And Brand Trust. * Nike (NYSE:NKE) is facing a nationwide class-action lawsuit alleging it failed to adequately protect customer data in a recent breach. * The lawsuit introduces a new legal and reputational risk for Nike that is separate from earnings, guidance, or valuation topics. For investors, this lawsuit is mainly about potential costs, management attention, and any longer term impact on brand trust. * 📊 This data breach lawsuit adds a separate legal and reputational issue on top of existing valuatio\n\n[8] Nike Data Leak Claims Test Cybersecurity And Turnaround Story\nURL: https://finance.yahoo.com/news/nike-data-leak-claims-test-002150517.html\n3. Best money market accounts. For investors, a potential breach touches on cyber risk, legal exposure, and brand perception, all of which matter for a company that relies heavily on customer loyalty and large retail partners. As Nike works through its investigation, investors may want to watch for any confirmed impact on internal systems, customer data, or partner information. The market often focuses on how a company responds to an incident like this, including remediation steps, transparency with stakeholders, and any changes to cybersecurity spending or governance. For a consumer brand tha\n\n[9] State Street Takes 5% Nike Stake As Tariff Lawsuits Cloud Outlook\nURL: https://finance.yahoo.com/news/state-street-takes-5-nike-092131412.html\nGet insights on thousands of stocks from the global community of over 7 million individual investors at Simply Wall St. * State Street Corp has disclosed a passive 5% stake in NIKE (NYSE:NKE), signaling a significant holding by a major institutional investor. The new 5% passive stake from State Street highlights how large institutions are positioning around NYSE:NKE at a time when the company is dealing with complex legal questions. There is only one way to know the right time to buy, sell or hold NIKE: head to Simply Wall St'scompany report for the latest analysis of NIKE's Fair Value. *This \n",
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Nike (NKE) Stock May Trade At A 15% Discount Despite 10Q Surprises\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=574b1f860e504b5c4bf68d4fafb0b5e097f3e9fa081307be1c1841a6316bf988\n    NIKE is trading near US$34.71 after a long slide, and the question now is whether that market price still lines up with the cash flows the business can plausibly generate over time. Over the past 5 years the stock has fallen 75.9%, which puts fresh focus on whether investors are now pricing NIKE’s c\n\n[2] Estimates Keep Rising as Q3 Earnings Season Takes Center Stage\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=73b59c6d79519f821571c067bc86a653580406c019b010d3e65a46f0a8aaa077\n    Upcoming reports from the big banks next week will shift the Q3 earnings season into a higher gear, with a total of 29 S&P 500 members on the week's reporting docket. Estimates remain positive, with S&P 500 earnings expected to grow 24.3% YoY on 11.5% higher revenues.\n\n[3] Friday's session: top gainers and losers in the dow jones index\n    Source: ChartMill | URL: https://finnhub.io/api/news?id=e8e3b8da2da0d6ae4d9558e72857a3ca0885d2701f5b383c0d396564a0c319c7\n    Uncover the latest developments among dow jones stocks in today's session. Stay tuned to the dow jones index's top gainers and losers on Friday.\n\n[4] 9 Consumer Discretionary Stocks Whale Activity In Today’s Session\n    Source: Benzinga | URL: https://finnhub.io/api/news?id=d3dc117ae8c3ad2c6d6c22ee249f61918611d6ec9dfefc12691240d365c35f97\n    This whale alert can help traders discover the next big trading opportunities.\nWhales are entities with large sums of money and we track their transactions here at Benzinga on our options activity scanner.\nTraders often\n\n[5] Micron Is Now Worth More Than Coca-Cola, PepsiCo, McDonald’s, Disney, Starbucks, Nike and Chipotle Combined\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=c7f6e3804de728fe3e8bef0a8aa80cae68a688d8632fec207846315df7c9ca01\n    Most Americans can name a Coca-Cola before they can name a single Micron product, yet Wall Street just handed the obscure memory chip maker a valuation that leaves seven of the world's most recognized consumer brands in the dust.\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\nNo web search results available.",
     "material_events": [],
-    "quarterly_earnings_text": "[1] Nike’s (NYSE:NKE) Q1 CY2026 Earnings Results: Revenue In Line With Expectations\nURL: https://finance.yahoo.com/markets/stocks/articles/nike-nyse-nke-q1-cy2026-202330742.html\n# Nike’s (NYSE:NKE) Q1 CY2026 Earnings Results: Revenue In Line With Expectations. Athletic apparel brand Nike (NYSE:NKE) met Wall Street's revenue expectations in Q1 CY2026, but sales were flat year on year at $11.28 billion. Its GAAP profit of $0.35 per share was 24.3% above analysts' consensus estimates. * **Revenue:** $11.28 billion vs analyst estimates of $11.23 billion (flat year on year, in line). * **Operating Margin:** 5.6%, down from 7% in the same quarter last year. * **Constant Currency Revenue** fell 3% year on year (-7% in the same quarter last year). Nike's performance shows it grew in the past but relinquished its gains over the last two years, as its revenue fell by 5% annually. Nike Year-On-Year Revenue Growth. Over the last two years, its constant currency sales averaged 4.8% year-on-year declines. This quarter, Nike's $11.28 billion of revenue was flat year on year and in line with Wall Street's estimates.\n\n[2] NIKE (NKE) Is Down 6.7% After Guiding For High-Single-Digit 2027 Revenue Decline - Has The Bull Case Changed?\nURL: https://finance.yahoo.com/markets/stocks/articles/nike-nke-down-6-7-020836969.html\n# NIKE (NKE) Is Down 6.7% After Guiding For High-Single-Digit 2027 Revenue Decline - Has The Bull Case Changed? * NIKE, Inc. reported first-quarter 2026 results showing sales of US$11,213 million and net income of US$712 million, alongside earnings guidance for fiscal 2027 that anticipates a high-single-digit revenue decline. * Next, we'll examine how NIKE's expectation for a high-single-digit fiscal 2027 revenue decline reshapes the previously outlined investment narrative. While the payout is not well covered by free cash flow, NIKE's choice to maintain the dividend matters for investors watching how management balances shareholder returns with the need to invest in product, marketing, and channel health at a time when short term revenue is under pressure. NIKE's narrative projects $48.5 billion revenue and $3.7 billion earnings by 2029. This requires 1.5% yearly revenue growth and about a $0.6 billion earnings increase from $3.1 billion today.\n\n[3] NIKE, Inc. (NKE) Analyst Ratings, Estimates & Forecasts - Yahoo Finance\nURL: https://finance.yahoo.com/quote/NKE/analysis\n2. Best 0% APR cards. 3. Best balance transfer cards. 2. Best high-yield savings accounts. 3. Best money market accounts. 4. Best free checking accounts. 3. How to get approved. # NIKE, Inc. 33.87  -1.28  (-3.64%). After hours: October 2 at 7:59:53 PM EDT. NKE Q1 2027 earnings call. ### Earnings Trends. ### Revenue Estimate. | High Estimate | 11.55B | 11.33B | 45.71B | 48.1B |. | Sales Growth (year/est) | -3.42% | -7.24% | -6.67% | 2.28% |. | Avg. Estimate | 0.44 | 0.39 | 1.31 | 1.74 |. | Year Ago EPS | 0.49 | 0.35 | 2.1 | 1.31 |. | Currency in USD | 11/30/2025 | 5/31/2026 | 8/31/2026 |. | EPS Actual | -- | 0.72 | 0.48 |. | Difference | -- | 0.59 | 0.04 |. | Current Estimate | 0.44 | 0.27 | 1.31 | 1.74 |. | 7 Days Ago | 0.45 | 0.42 | 1.68 | 2.13 |.\n\n[4] NIKE Q1 Earnings Beat on Margin Gain, Stock Falls on Revenue Miss\nURL: https://finance.yahoo.com/markets/stocks/articles/nike-q1-earnings-beat-margin-115700459.html\n**NIKE, Inc.** NKE reported first-quarter fiscal 2027 earnings of 48 cents per share, down 2% year over year. The figure beat the Zacks Consensus Estimate of 43 cents by 11.6%. Revenues fell 4.3% year over year to $11.2 billion and missed the Zacks Consensus Estimate of $11.4 billion by 1.6%. NIKE Direct revenues declined 8% to $4.14 billion, and fell 9% on a currency-neutral basis. We expect North America revenues to increase 2.2% year over year to $5.1 billion for the fiscal first quarter. EMEA revenues fell 5% to $3.2 billion, while Greater China revenues declined 22% on a reported basis to $1.2 billion and 26% on a currency-neutral basis. Our model anticipates revenues to decline 4.4% year over year to $3.2 billion for EMEA, 16.4% to $1.3 billion for Greater China and 1.7% to $1.5 billion for Asia Pacific & Latin America. NIKE Brand Footwear revenues declined 6% to $7 billion, while apparel revenues rose 2% to $3.4 billion.\n\n[5] NIKE (NKE) Is Down 6.7% After Guiding For High-Single-Digit 2027 Revenue Decline - Has The Bull Case Changed?\nURL: https://finance.yahoo.com/markets/stocks/articles/nike-nke-down-6-7-020836969.html\n# NIKE (NKE) Is Down 6.7% After Guiding For High-Single-Digit 2027 Revenue Decline - Has The Bull Case Changed? * NIKE, Inc. reported first-quarter 2026 results showing sales of US$11,213 million and net income of US$712 million, alongside earnings guidance for fiscal 2027 that anticipates a high-single-digit revenue decline. * Next, we'll examine how NIKE's expectation for a high-single-digit fiscal 2027 revenue decline reshapes the previously outlined investment narrative. While the payout is not well covered by free cash flow, NIKE's choice to maintain the dividend matters for investors watching how management balances shareholder returns with the need to invest in product, marketing, and channel health at a time when short term revenue is under pressure. NIKE's narrative projects $48.5 billion revenue and $3.7 billion earnings by 2029. This requires 1.5% yearly revenue growth and about a $0.6 billion earnings increase from $3.1 billion today.\n\n[6] Nike falls as revenue miss overshadows earnings beat\nURL: https://finance.yahoo.com/markets/stocks/articles/nike-falls-revenue-miss-overshadows-205104024.html\nInvesting.com -- Nike shares fell sharply after the sportswear giant delivered a mixed fiscal first quarter, with an earnings beat failing to offset weaker-than-expected revenue and another quarter of pressure across key parts of the business. Revenue, however, came in at $11.21 billion, below estimates of $11.35 billion and down 5% on a currency-neutral basis from a year earlier. The company expects fiscal 2027 revenue to decline by high-single digits, while adjusted EPS is expected at $1.15 to $1.35, excluding about $0.15 of restructuring expenses. Nike said its new Pace operating model is expected to generate approximately $2.5 billion in cumulative savings through fiscal 2031, through changes including supply-chain modernization, a new campus in India and a reorganization around three geographic regions. The more consequential issue is whether Hill's turnaround can eventually return the company to sustainable revenue growth, particularly in China and its direct-to-consumer business\n",
+    "quarterly_earnings_text": null,
     "quarterly_earnings_date": null,
     "quarterly_eps_actuals": [
       {
@@ -1743,46 +1869,61 @@
     "ticker": "NKE",
     "stub": false,
     "error": null,
-    "model_used": "gpt-4o-mini",
-    "moat_classification": "narrow",
-    "moat_sources": [
-      "brand",
-      "switching_costs"
-    ],
+    "model_used": "gpt-6-luna",
+    "moat_classification": "none",
+    "moat_sources": [],
     "peer_roic_comparison": [],
     "citations": [
       {
-        "claim": "Nike remains a \"Garden\" position as the thesis unfolds, but tangible evidence of progress in its turnaround strategy could transform it into a high-conviction investment.",
-        "source_url": "Web (Tavily)",
-        "excerpt": "NKE's trailing and forward P/E were 22.34 and 28.65 respectively according to Yahoo Finance. The company is now at an inflection point, driven by a revitalized innovation pipeline and strategic restructuring efforts aimed at regaining market leadership. The company's ability to reignite brand heat through its upcoming product launches will be critical to stimulating demand and capturing market share in a competitive landscape.",
-        "confidence": 0.9,
+        "claim": "ROIC was high in each of the five reported fiscal years, but the data does not provide WACC or industry comparisons, and high ROIC alone does not establish a specific structural advantage.",
+        "source_url": "Financial data",
+        "excerpt": "ROIC series: FY2026: 20.9%, FY2025: 22.6%, FY2024: 37.1%, FY2023: 30.6%, FY2022: 48.9%",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Nike is showing early signs of stabilization in its core footwear business following several quarters marked by inventory imbalances, elevated promotional activity and evolving consumer preferences.",
-        "source_url": "Web (Tavily)",
-        "excerpt": "NIKE Inc. NKE is showing early signs of stabilization in its core footwear business following several quarters marked by inventory imbalances, elevated promotional activity and evolving consumer preferences. As the largest contributor to the company's revenue base, footwear remains central to NIKE's turnaround efforts.",
-        "confidence": 0.85,
+        "claim": "Recent gross and operating margin figures do not establish brand pricing power at scale; industry benchmarks and evidence of premium pricing are not provided.",
+        "source_url": "Financial data",
+        "excerpt": "Gross margin: FY2026: 42.9%, FY2025: 42.7%, FY2024: 44.6%",
+        "confidence": 0.98,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "Nike's gross margin expanded 890 basis points to 49.2%.",
-        "source_url": "Web (Tavily)",
-        "excerpt": "The clearest trend in NIKE's portfolio is the split between performance and lifestyle. NIKE's fourth-quarter fiscal 2026 gross margin expanded 890 basis points to 49.2%.",
-        "confidence": 0.9,
+        "claim": "Operating margin decreased from FY2024 to FY2026. This is a deterioration in the reported figures, but by itself does not establish that a competitive moat is eroding.",
+        "source_url": "Financial data",
+        "excerpt": "Operating margin: FY2026: 8.2%, FY2025: 8.0%, FY2024: 12.3%",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null
       },
       {
-        "claim": "NIKE, Inc. NKE is trying to move past fiscal 2026 with a sport-led model and cleaner marketplace.",
+        "claim": "Reported free cash flow decreased across the three reported fiscal years; the supplied data does not establish whether this reflects moat erosion or another cause.",
+        "source_url": "Financial data",
+        "excerpt": "Free cash flow: FY2026: $2.2B, FY2025: $3.3B, FY2024: $6.6B",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Only one invested-capital figure is provided, so a trend in the capital base cannot be assessed.",
+        "source_url": "Financial data",
+        "excerpt": "Invested capital: $15.2B (FY2026)",
+        "confidence": 0.99,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "No web research was available to substantiate a brand, switching-cost, network-effect, cost, efficient-scale, intangible, or regulatory advantage, or to identify specific disruption threats. Therefore, no structural moat source is supported by the supplied evidence.",
         "source_url": "Web (Tavily)",
-        "excerpt": "NIKE Inc. NKE is trying to move past fiscal 2026 with a sport-led model and cleaner marketplace. Yet tariffs, NIKE Direct weakness and Greater China pressure keep the recovery incomplete.",
-        "confidence": 0.8,
+        "excerpt": "No web search results available.",
+        "confidence": 0.99,
         "gaap_vs_nongaap_flag": null,
         "verified": true,
         "verification_note": null

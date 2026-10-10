@@ -45,8 +45,12 @@ class Settings(BaseSettings):
 
     # --- Model Configuration ---
     default_model: str = Field("claude-sonnet-4-6", validation_alias="DEFAULT_MODEL")  # Modelo principal (Claude)
-    openai_fallback_model: str = Field("gpt-4.1", validation_alias="OPENAI_FALLBACK_MODEL")  # Fallback general (management, filings, competitive)
-    openai_expert_model: str = Field("gpt-5.4-mini", validation_alias="OPENAI_EXPERT_MODEL")    # Modelo para value_expert y critic
+    # Especialistas (management, filings, competitive). gpt-6-luna desde 2026-10-10 (ADR-039): ~3× más
+    # citas verificadas que gpt-4o-mini por +0,001 $/análisis; 5× más barato que gpt-5.4-mini con calidad similar.
+    openai_fallback_model: str = Field("gpt-6-luna", validation_alias="OPENAI_FALLBACK_MODEL")
+    # Value Expert y Critic. gpt-6.1-sol desde 2026-10-10 (ADR-040): pasó la puerta de evals con 0,07 cifras
+    # sin respaldo por informe (frente a 1,74) y la mitad de desacuerdo que gpt-5.4-mini.
+    openai_expert_model: str = Field("gpt-6.1-sol", validation_alias="OPENAI_EXPERT_MODEL")
     # Modelo cheap para validación post-hoc de thesis-break en value_expert (ADR-031).
     # Solo se invoca cuando el Python word-boundary trigger dispara — evento raro.
     # gpt-4o-mini es suficiente para clasificación binaria "condición futura vs hecho actual".

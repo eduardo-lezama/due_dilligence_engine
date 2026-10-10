@@ -22,7 +22,6 @@ Quarterly Operating Income: $55M
 
 ## MANAGEMENT REPORT
 Insider ownership (DEF 14A ownership table, deterministic): 1.5% (915,649 shares) [proxy filed 2026-04-09]
-Founder-CEO: No
 Form 4 open-market transactions (12m, deterministic): 21
 Form 4 transactions (Form 4, deterministic):
 OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the game):
@@ -50,17 +49,19 @@ OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the g
   Todd S Nelson (President and CEO) | SELL | 40,000 shares @ $29.40 | 2025-12-15
   Todd S Nelson (President and CEO) | SELL | 40,000 shares @ $29.42 | 2025-12-15
   [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]
-Insider transaction pattern (LLM summary, unverified): CEO Todd S. Nelson net seller: sold 46,199 shares in September 2026, no open-market purchases in 12m. Overall insider sentiment: negative, with multiple directors and executives also selling shares.
-Compensation (LLM summary): Management compensation includes a significant portion tied to performance metrics, with 80% of senior executives' bonuses linked to company-wide adjusted operating income and 20% to individual goals. This structure suggests alignment with shareholder interests, focusing on financial performance.
-Capital allocation (LLM summary): Perdoceo has demonstrated a commitment to returning capital to shareholders, as evidenced by a recent 13.3% increase in dividends. The company has also raised its 2026 earnings guidance, indicating a focus on funding growth initiatives while maintaining a disciplined approach to capital allocation.
+Insider transaction pattern (LLM summary, unverified): Todd S. Nelson is identified as President and CEO in the Form 4 data. His listed sales are under pre-arranged 10b5-1 plans, which the provided context says should not be treated as current-sentiment signals. The discretionary officer/director transactions shown are sales, including sales by directors Gregory L. Jackson, Kenda B. Gonzales, Patrick W. Gross and Leslie T. Thornton; no purchases are shown. Overall, the listed discretionary activity indicates net selling, but the CEO's plan sales are not a clear bearish signal. The proxy ownership table shows Todd Nelson with 50,082 shares and all directors and executive officers as a group with 1.46%; Dennis H. Chookaszian is the largest individually listed director/executive holder at 165,710 shares.
+Compensation (LLM summary): The proxy describes compensation as involving short- and long-term incentive programs tied to performance against predefined objectives, with a significant portion of executive compensation related to company financial performance and strategic and operating-plan factors. The proxy's incentive reconciliations use adjusted operating income measures, so the provided evidence indicates reliance on adjusted financial metrics; it does not establish ROIC-based targets or provide enough detail to assess the balance of fixed versus variable pay or clawback provisions.
+Capital allocation (LLM summary): Not enough information is available in the provided sources to assess M&A discipline, buyback pricing, or reinvestment quality. The sources also do not provide sufficient primary-source detail to evaluate dividend policy or its sustainability.
 Insider transaction evidence (verified citations; use for §3 price reconciliation):
-  - Todd S. NelsonPresident and Chief Executive Officer
-  - the plan continues to tie 80% of senior executives’ bonuses to company-wide adjusted operating income and 20% to individual goals
-  - the combination of stronger profitability, a 13.3% dividend increase, and projected operating income of up to US$226.2 million underscores management's emphasis on returning capital while funding growth initiatives.
+  - Todd S Nelson (President and CEO) | SELL | 46,199 shares @ $32.89 | 2026-09-15
+  - [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]
+  - Gregory L. Jackson (Director) | SELL | 11,271 shares @ $31.78 | 2026-08-11
 
 ## FILINGS REPORT (10-K)
-Key risks: The company operates in a highly regulated field, facing risks related to compliance with extensive federal and state regulations, which can be costly and time-consuming. Non-compliance could lead to financial penalties, operational restrictions, or loss of authorization to operate. Additionally, changes in regulatory environments, particularly under different presidential administrations, can significantly impact the company's operations and financial aid programs.
-SPECIFIC REGULATORY EVENTS: In July 2025, President Trump signed into law a reconciliation bill, H.R. 1 (P.L. 1119-21), sometimes referred to as the One Big Beautiful Bill Act (the “Reconciliation Act”), that made broad changes to many areas of federal spending.
+Business: Not available in provided sources.
+Key risks: The filing describes extensive federal, state, and accreditor requirements and says noncompliance could lead to financial penalties, operational restrictions or closure, loss of student financial-aid funding, or loss of authorization to operate. It also warns that changing regulations and interpretations may make compliance more complex, burdensome, and costly, and may require material operational changes. Accountability requirements could lead to program limitations or loss of Title IV eligibility, adversely affecting enrollment, revenue, and operating results. Competitive and technology risks are not available in the provided sources.
+SPECIFIC REGULATORY EVENTS: The Department made an information request in December 2021; the filing says the inquiry was closed in January 2025 without findings: “We received such a request from the Department in December 2021. The inquiry was subsequently closed in January 2025 without any findings.” In July 2025, President Trump signed the Reconciliation Act, which included changes to federal student aid programs: “In July 2025, President Trump signed into law a reconciliation bill, H.R. 1 (P.L. 1119-21), sometimes referred to as the One Big Beautiful Bill Act (the “Reconciliation Act”), that made broad changes to many areas of federal spending.”
+MDA highlights (LLM summary): Not available in provided sources.
 
 ## MARKET DATA
 Current price: $33.71
@@ -90,25 +91,20 @@ Recent news: Recent news (last 30 days, 5 articles):
 
 ## QUARTERLY UPDATE (8-K Item 2.02, filed ?)
 ⚠️ This data is MORE RECENT than the 10-K annual report. You MUST integrate these figures into §4 Financial Quality and §5 Growth conclusions per Rule 13.
-[1] Perdoceo Education Corp (PRDO) (Q2 2026) Earnings Call Highlights: Strong Profit Growth and ...
+[1] Perdoceo Education Corporation (PRDO) Q2 FY2026 earnings call transcript
+URL: https://finance.yahoo.com/quote/PRDO/earnings/PRDO-Q2-2026-earnings_call-662753.html
+Operating performance at our academic institutions has been ahead of our expectation for the first half of 2026, with year-to-date operating income growth of 14.4%, supported by revenue growth of 3%. Excluding Trident University, which is a part of AIUS, all of our academic institutions experienced enrollment growth supported by strong retention trends and healthy level of prospective students looking to pursue a degree at one of our academic institutions. We believe the university is on track to have a strong revenue and adjusted operating income for the full year of 2026, with further growth expected in 2027. Operating income for the quarter grew by 6.8% to $54.9 million, while adjusted operating income, which we believe is more indicative of the underlying operating performance and excludes depreciation and amortization, grew 4.4% to $64.2 million as compared to $61.5 million, resulting in an adjusted earnings per diluted share of $0.80, an increase of 19.4%.
+
+[2] Perdoceo Education Corp (PRDO) (Q2 2026) Earnings Call Highlights: Strong Profit Growth and ...
 URL: https://finance.yahoo.com/markets/stocks/articles/perdoceo-education-corp-prdo-q2-051134996.html
 * Perdoceo Education Corp (NASDAQ:PRDO) reported strong second-quarter 2026 results with net income of $48 million, or $0.75 per diluted share, up from $41 million, or $0.62 per share, in the prior year quarter. * Total student enrollments grew 0.7% year-over-year, with CTU achieving its 11th consecutive quarter of enrollment growth and the University of St. Augustine for Health Sciences seeing a 6% increase in enrollments. * The University of St. Augustine for Health Sciences delivered strong performance, with revenue up 10.2% and adjusted operating income nearly doubling to $10.7 million, supported by new program modalities and strong enrollment pipelines. * Total student enrollments at AIU System decreased 1% year-over-year, primarily due to lower enrollments at Trident University, which is part of the system. **A**: Todd Nelson (CEO) reported that operating performance was ahead of expectations for the first half of 2026, with year-to-date operating income growth of 14.4% on revenu
 
-[2] Perdoceo Education (PRDO) Matches Q2 Earnings Estimates
-URL: https://finance.yahoo.com/markets/stocks/articles/perdoceo-education-prdo-matches-q2-214009879.html
-posted revenues of $213 million for the quarter ended June 2026, surpassing the Zacks Consensus Estimate by 0.24%. revenues of $209.58 million.
-
-[3] Perdoceo Education (PRDO) Surpasses Q1 Earnings and ...
-URL: https://finance.yahoo.com/markets/stocks/articles/perdoceo-education-prdo-surpasses-q1-230520530.html
-Perdoceo Education (PRDO) delivered earnings and revenue surprises of +7.14% and +1.52%, respectively, for the quarter ended March 2026.
-
-[4] Q2 Earnings Outperformers: Perdoceo Education (NASDAQ:PRDO) And The Rest Of The Education Services Stocks
-URL: https://finance.yahoo.com/news/q2-earnings-outperformers-perdoceo-education-100035676.html
-# Q2 Earnings Outperformers: Perdoceo Education (NASDAQ:PRDO) And The Rest Of The Education Services Stocks. As the craze of earnings season draws to a close, here's a look back at some of the most exciting (and some less so) results from Q2. Today, we are looking at education services stocks, starting with Perdoceo Education (NASDAQ:PRDO). As a group, revenues beat analysts' consensus estimates by 1.6% while next quarter's revenue guidance was in line. Formerly known as
+[3] Perdoceo Education (PRDO) Surpasses Q1 Earnings and Revenue Estimates
+URL: https://finance.yahoo.com/markets/stocks/articles/perdoceo-education-prd
 
 
 ## COMPETITIVE / MOAT REPORT
-Moat: wide (brand, switching_costs, efficient_scale, regulatory)
+Moat: none (N/A)
 
 ## VALUATION REPORT
 Valuation basis: FCFF discounted at WACC → EV → equity bridge → per share (ADR-033)

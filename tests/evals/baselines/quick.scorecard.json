@@ -1,5 +1,5 @@
 {
- "label": "quick-1",
+ "label": "sol-quick",
  "cases": [
   "AAPL-base",
   "BBW-base",
@@ -13,23 +13,20 @@
  "repeat": 3,
  "quick": true,
  "prompt_sha": "ba6fe2a993e6",
- "expert_model_requested": "gpt-5.4-mini",
- "calls_by_model": {
-  "gpt-5.4-mini": 24,
-  "gpt-4o-mini": 13
- },
+ "expert_model_requested": "gpt-6.1-sol",
+ "calls_by_model": {},
  "manifest_frozen_with": {
-  "git_sha": "603520d-dirty",
+  "git_sha": "8d8028f-dirty",
   "date": "2026-10-10",
-  "specialist_model": "gpt-4o-mini"
+  "specialist_model": "gpt-6-luna"
  },
- "cost_usd": 0.359459,
+ "cost_usd": 0.0,
  "case_results": [
   {
    "case": "AAPL-base",
    "n_ok_runs": 3,
    "verdicts": {
-    "HOLD": 3
+    "SELL": 3
    },
    "disagreement": 0.0,
    "checks": {
@@ -41,17 +38,16 @@
     "rule24_hypotheses": null,
     "rationale_matches_verdict": true
    },
-   "mean_ungrounded": 3.333,
+   "mean_ungrounded": 0.0,
    "mean_repairs": 0.0
   },
   {
    "case": "BBW-base",
    "n_ok_runs": 3,
    "verdicts": {
-    "HOLD": 2,
-    "BUY": 1
+    "HOLD": 3
    },
-   "disagreement": 0.6667,
+   "disagreement": 0.0,
    "checks": {
     "sections_present": true,
     "rule21_count": true,
@@ -61,14 +57,14 @@
     "rule24_hypotheses": null,
     "rationale_matches_verdict": true
    },
-   "mean_ungrounded": 2.0,
-   "mean_repairs": 0.333
+   "mean_ungrounded": 0.0,
+   "mean_repairs": 0.0
   },
   {
    "case": "AZO-base",
    "n_ok_runs": 3,
    "verdicts": {
-    "HOLD": 3
+    "SELL": 3
    },
    "disagreement": 0.0,
    "checks": {
@@ -80,7 +76,7 @@
     "rule24_hypotheses": null,
     "rationale_matches_verdict": true
    },
-   "mean_ungrounded": 2.667,
+   "mean_ungrounded": 0.0,
    "mean_repairs": 0.0
   },
   {
@@ -99,7 +95,7 @@
     "rule24_hypotheses": null,
     "rationale_matches_verdict": true
    },
-   "mean_ungrounded": 0.333,
+   "mean_ungrounded": 0.0,
    "mean_repairs": 0.0
   },
   {
@@ -119,7 +115,7 @@
     "rationale_matches_verdict": true
    },
    "mean_ungrounded": 0.0,
-   "mean_repairs": 0.333
+   "mean_repairs": 0.0
   },
   {
    "case": "KBR-base",
@@ -137,7 +133,7 @@
     "rule24_hypotheses": null,
     "rationale_matches_verdict": true
    },
-   "mean_ungrounded": 2.333,
+   "mean_ungrounded": 0.0,
    "mean_repairs": 0.0
   },
   {
@@ -156,7 +152,7 @@
     "rule24_hypotheses": null,
     "rationale_matches_verdict": true
    },
-   "mean_ungrounded": 1.333,
+   "mean_ungrounded": 0.0,
    "mean_repairs": 0.0
   },
   {
@@ -175,13 +171,13 @@
     "rule24_hypotheses": null,
     "rationale_matches_verdict": true
    },
-   "mean_ungrounded": 1.667,
-   "mean_repairs": 0.667
+   "mean_ungrounded": 0.0,
+   "mean_repairs": 0.333
   }
  ],
- "hold_cases": 8,
- "mean_disagreement": 0.0833,
- "mean_ungrounded": 1.708,
+ "hold_cases": 6,
+ "mean_disagreement": 0.0,
+ "mean_ungrounded": 0.0,
  "n_errors_non_transport": 0,
  "n_errors_transport": 0
 }

@@ -8,7 +8,7 @@ Net Income: $112.0B (FY2025)
 Free Cash Flow: $98.8B (FY2025)
 Reinvestment rate (capex/OCF, FY2025): 11% — harvest mode
 ROIC series: FY2025: 272.5%, FY2017: 21.8%, FY2016: 22.9%
-ROIC trend interpretation (use in §5): RISING (avg ΔROIC: +31.3pp/year over 8 years)
+ROIC trend interpretation (use in §5): n/a (no ROIC data within the last 4 fiscal years to compare)
 Incremental ROIC: n/m (ΔIC too small or balance history unavailable) — do not infer reinvestment quality
 Total Debt: $99.9B
 Cash (ex-STI): $35.9B
@@ -24,7 +24,6 @@ Quarterly Gross Profit: $54.8B
 
 ## MANAGEMENT REPORT
 Insider ownership (DEF 14A ownership table, deterministic): less than 1% (9,079,765 shares) [proxy filed 2026-01-08]
-Founder-CEO: No
 Form 4 open-market transactions (12m, deterministic): 38
 Form 4 transactions (Form 4, deterministic):
 OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the game):
@@ -69,20 +68,20 @@ OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the g
   Kevan Parekh (Senior Vice President, CFO) | SELL | 1,534 shares @ $247.82 | 2025-10-15
   Kevan Parekh (Senior Vice President, CFO) | SELL | 500 shares @ $248.73 | 2025-10-15
   [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]
-Insider transaction pattern (LLM summary, unverified): CEO John Ternus net seller: sold 3,564 shares on October 1, 2026, and no open-market purchases in the last 12 months. Largest holder Tim Cook net seller: sold 23,143 shares on October 1, 2026, and no open-market purchases in the last 12 months. Overall insider sentiment: negative.
-Compensation (LLM summary): John Ternus, the new CEO, has a compensation package that includes a $3 million annual salary and a target equity award of $55 million for fiscal 2027, with performance-based RSUs tied to total shareholder return. Tim Cook, now Executive Chair, will receive a $2 million salary and a target equity award of $45 million for fiscal 2027. This structure aligns management incentives with shareholder interests through significant equity components.
-Capital allocation (LLM summary): Apple has a disciplined approach to capital allocation, focusing on share buybacks and dividends while maintaining strong reinvestment in product development and innovation. The company has historically prioritized returning capital to shareholders through buybacks and dividends, reflecting a commitment to enhancing shareholder value.
+Insider transaction pattern (LLM summary, unverified): The current CEO is John Ternus, formerly Apple’s Senior Vice President of Hardware Engineering; his broader prior track record is not available in the provided sources. No insider purchases are listed. The discretionary transactions shown are sales by director Arthur D. Levinson and Principal Accounting Officer Chris Kondo; Levinson’s are the largest discretionary sales shown. Ternus’s listed sales are identified as 10b5-1 pre-arranged-plan transactions and therefore are not a clear current-sentiment signal. On the transactions provided, insiders were net sellers, but the listed activity does not establish a broad conviction signal. The ownership table lists Art Levinson and Tim Cook among the largest individual insider holders; it does not provide John Ternus’s ownership. Board independence and any governance red flags are not available in the provided sources.
+Compensation (LLM summary): Not available in provided sources. The proxy excerpt does not provide enough detail to assess fixed versus variable compensation, long-term incentive metrics, or clawbacks. Board independence and related-party governance information are also not available in the provided sources.
+Capital allocation (LLM summary): Not available in provided sources. The provided context does not give evidence sufficient to assess M&A discipline, repurchase prices, dividends, or reinvestment quality.
 Insider transaction evidence (verified citations; use for §3 price reconciliation):
-  - Ternus will also receive a prorated restricted stock unit award with a target value of $2.5 million for fiscal 2026, while Apple has approved an annual equity award for him with a target value of $55 million for fiscal 2027.
-  - John Ternus (CEO) | SELL | 3,564 shares @ $331.38 | 2026-10-01
-  - All current directors and executive officers as a group (12 persons) | 9,079,765 shares | less than 1%
+  - On April 20, 2026, Apple Inc. (“Apple”) announced that Tim Cook will transition from his role as Chief Executive Officer to Executive Chair of Apple’s Board of Directors (the “Board”), effective September 1, 2026 (the “Transition Date”).
+  - Art Levinson | 4,126,689 shares | less than 1%
+  - Tim Cook | 3,280,295 shares | less than 1%
 
 ## FILINGS REPORT (10-K)
-Business: The Company designs, manufactures and markets smartphones, personal computers, tablets, wearables and accessories, and sells a variety of related services. Its products include iPhone, Mac, iPad, and wearables, while services encompass advertising, AppleCare, cloud services, digital content, and payment services. The Company operates primarily through direct sales to consumers and businesses, as well as through indirect channels like third-party carriers and resellers.
-Revenue by geography: Americas: $178,353 million, Europe: $111,032 million, Greater China: $64,377 million, Japan: $28,703 million, Rest of Asia Pacific: $33,696 million.
-Key risks: The most material risks include adverse macroeconomic conditions affecting consumer spending, intense competition leading to pricing pressures, and regulatory challenges related to international trade and tariffs. Additionally, reliance on a complex global supply chain exposes the Company to risks from geopolitical tensions and supply shortages. The Company also faces risks from technological changes and potential disruptions in product manufacturing.
-SPECIFIC REGULATORY EVENTS: U.S. Department of Commerce has initiated an investigation under Section 232 of the Trade Expansion Act of 1962, into, among other things, imports of semiconductors, semiconductor manufacturing equipment, and their derivative products, including downstream products that contain semiconductors. (Date: 2025)
-MDA highlights (LLM summary): Management highlights that net sales increased in the Americas and Europe, driven by higher sales of iPhone and Services, while Greater China saw a decline in iPhone sales. Gross margins are subject to volatility due to product mix and tariff costs. The Company continues to invest in R&D to maintain its competitive edge and address challenges in supply chain management and product introductions.
+Business: Apple designs, manufactures and markets iPhone smartphones, Mac computers, iPad tablets, wearables and accessories, and sells related services. Its customers include consumers, small and mid-sized businesses, education, enterprise and government markets; it sells through its own retail and online stores and sales force, as well as carriers and other resellers. Services include advertising, AppleCare, cloud services, digital content and payment services. Apple manages its business geographically, with reportable segments in the Americas, Europe, Greater China, Japan and Rest of Asia Pacific. [C1–C4]
+Revenue by geography: 2025 reportable-segment net sales were: Americas $178.353 billion (approximately 42.9% of total), Europe $111.032 billion (26.7%), Greater China $64.377 billion (15.5%), Japan $28.703 billion (6.9%), and Rest of Asia Pacific $33.696 billion (8.1%). Percentages are calculated from the reported segment figures and total net sales of $416.161 billion. The filing does not separately disclose U.S.-only or China-only revenue; Greater China includes China mainland, Hong Kong and Taiwan. [C13–C14]
+Key risks: Apple faces intense competition, price pressure and rapid technological change, and its ability to compete depends on timely innovation and successful product introductions. It relies on outsourcing partners and single or limited sources for some components, exposing it to supply disruptions, shortages and price increases. International trade restrictions and tariffs may increase costs, constrain component availability and disrupt supply chains; the filing describes U.S. tariffs announced beginning in Q2 2025 and a Commerce Department investigation into semiconductor-related imports. Macroeconomic conditions, currency movements and geopolitical events may also weaken demand or disrupt operations. [C5–C8]
+SPECIFIC REGULATORY EVENTS: • U.S. tariffs: The filing states, “Beginning in the second quarter of 2025, new U.S. Tariffs were announced, including additional tariffs on imports from China, India, Japan, South Korea, Taiwan, Vietnam and the EU, among others.” It also reports reciprocal tariffs or threatened tariffs by several countries. (10-K Item 7; specific announcement date beyond Q2 2025 is not provided.) [C15] • U.S. Department of Commerce Section 232 investigation: “The U.S. Department of Commerce has initiated an investigation under Section 232 of the Trade Expansion Act of 1962, as amended, into, among other things, imports of semiconductors, semiconductor manufacturing equipment, and their derivative products, including downstream products that contain semiconductors.” (10-K Item 7; initiation date is not stated beyond the surrounding Q2 2025 tariffs discussion.) [C16] • State Aid Decision: Item 7 says the year-over-year tax provision decrease included “a $10.7 billion year-over-year decrease in the provision for income taxes related to the State Aid Decision.” The government entity and date are not provided in the supplied text. [C17] The supplied text does not disclose an entity-list addition, export restriction, BIS/OFAC action or sanctions against Apple.
+MDA highlights (LLM summary): 2025 net sales increased 6% to $416.161 billion; Services grew 14% and iPhone grew 4%, while Wearables, Home and Accessories declined 4%. Management attributed Services growth primarily to advertising, the App Store and cloud services, and iPhone growth to higher Pro-model sales. Total gross margin percentage rose to 46.9% from 46.2%, while product gross margin percentage declined to 36.8% from 37.2%; management cited tariff costs and product mix as factors. Management also highlighted uncertainty around tariffs and other measures, and stated that future gross margins are generally subject to volatility and downward pressure. [C9–C12]
 
 ## MARKET DATA
 Current price: $336.64
@@ -90,25 +89,25 @@ Market cap: $4913.0B
 52w range: $243.42 – $345.34
 Recent news: Recent news (last 30 days, 5 articles):
 
-[1] Solana’s New Addresses Surge 124% While SOL Price Drops 9%. What’s Going On?
-    Source: Yahoo | URL: https://finnhub.io/api/news?id=f4d8924b618ca4a58d40427d6c2d578c4ffc9c4bf24238e10541fa427d857176
-    Solana is minting millions of new wallets while its token quietly bleeds value, and the reason reveals something uncomfortable about how blockchain growth gets measured.
+[1] Like Meta's Muse AI Agents? 4 AI Semiconductor Stocks Set to Benefit From the Rise of AI Agents.
+    Source: Yahoo | URL: https://finnhub.io/api/news?id=87aa4058395473aae0eed03fd47870d3316533882eab8ea7c7df043f96c300b4
+    The data center CPU market looks set to explode.
 
-[2] S&P 500 Index Concentration - Room At The Top
-    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=5222804a331d6195d734c895846797694e420afaf28c306ce296846077083e17
-    The combined market cap of the bottom 434 companies in the S&P 500 equals that of the top 5.
+[2] Broadcom vs. Intel: Which Chip Stock Is a Better Buy in 2026?
+    Source: Yahoo | URL: https://finnhub.io/api/news?id=a07a1f0cae3dbe4e693111a1dd0253e8b8fdfe5e60cb9b6055d1b42fe8cbe862
+    Broadcom's 36% net margin and dominant AI accelerator position contrast sharply with Intel's foundry turnaround and negative free cash flow.
 
-[3] The Hidden Risk In This Record-Breaking Market
-    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=25c9fd3aa4181b193f642f12cb69304ac2130209a29d310805872cba84474226
-    Most serious investors would agree that AI has dominated the S&P 500 and the QQQ index for the last 4 years. 
+[3] The Back-Office Agent Wave Is Already Redesigning Jobs in Procurement, Finance, and Accounting
+    Source: Yahoo | URL: https://finnhub.io/api/news?id=900e1ab199df9eb7291edb11fdff316d03dba0b1fbb8754ed908ed029c3c966a
+    Earlier this month, we reported on Apple’s shelved plan to replace 5,000 AppleCare advisers with AI agents. The technology — an AI phone support assistant — is already live on the phone line. The job cuts are paused. The displacement is being partially deployed while the headline is on hold. That sa
 
-[4] Why Apple (AAPL) Stock Is Trading Lower Today
-    Source: Yahoo | URL: https://finnhub.io/api/news?id=dac188d3fe108e15a980f6d755d0aae4e2d5ef86a0bd3b03a3bc4878bf89d7d9
-    Shares of iPhone and iPad maker Apple (NASDAQ:AAPL) fell 2.3% in the morning session after a supply-chain report revealed the tech giant instructed suppliers to reduce component orders for its iPhone 18 Pro and iPhone 18 Pro Max by at least 15% for October.
+[4] Tim Cook's Final Apple Earnings Call Showed the Company Made More Quarterly Revenue Than It Booked in All of Fiscal 2011, the Year He Became CEO. What Does That Growth Curve Mean for Apple Under John Ternus?
+    Source: Yahoo | URL: https://finnhub.io/api/news?id=263f2f821607813f449e6d755990abdba91f2ab782261180438ea449f97d80ae
+    CEO John Ternus is inheriting a much larger, more concentrated company than Tim Cook did.
 
-[5] Black British Business Awards 2026 winners revealed
-    Source: Yahoo | URL: https://finnhub.io/api/news?id=d682df35f5091f4b0db2d20cfa0348acf9f50cba8a89f80585061d29ef6b749f
-    The chief executive of Dr. Martens has been named the Black British Business Person of the Year at the 2026 Black British Business Awards (BBBAwards).
+[5] Did Softer iPhone 18 Pro Demand and Memory Costs Just Rewire Apple’s (AAPL) AI Investment Narrative?
+    Source: Yahoo | URL: https://finnhub.io/api/news?id=dfc7e049a13bee0c77318b03588a564c350b8379e682b26cfc626fc15012e65a
+    In early October 2026, reports indicated Apple asked suppliers to cut October component orders for its new iPhone 18 Pro and Pro Max by at least 15% to 20% amid softer demand and sharply higher memory chip costs linked to AI infrastructure. The move highlights how pressure from elevated component pr
 
 ## QUARTERLY UPDATE (8-K Item 2.02, filed 2026-07-30)
 ⚠️ This data is MORE RECENT than the 10-K annual report. You MUST integrate these figures into §4 Financial Quality and §5 Growth conclusions per Rule 13.
@@ -185,7 +184,7 @@ On December 4, 2025, Appl
 On October 30, 2025, Apple Inc. (“Apple”) issued a press release regarding Apple’s financial results for its fourth fiscal quarter
 
 ## COMPETITIVE / MOAT REPORT
-Moat: narrow (brand, switching_costs, network_effects, efficient_scale)
+Moat: none (N/A)
 Peer ROIC comparison (use in §2 — trail shows trend; flag cyclicals vs compounders):
   AAPL (subject): 272.5% (FY2025) | trend: 22.9% → 21.8% → 272.5%
   MSFT (peer): 33.0% (FY2026) | trend: 44.0% → 36.5% → 33.0%

@@ -354,7 +354,7 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 
 - **Detector cíclico — falsos positivos en empresas que pasan de pérdidas a beneficios (EC-92/ADR-034)**: al congelar el dataset de H2-1, PATH (software) y PLUG salen `is_cyclical=True`: con margen mediano ≤ 0 la regla acepta cualquier pico ≥ 8 pp, y un giro a beneficios lo es. Efecto: g1 = crecimiento terminal para una empresa en crecimiento. Calibración original con 7 empresas sin este perfil. Revisar con el harness (no cambiar el dataset congelado).
 - **BBW con +299 % de upside de DCF en el dataset H2-1**: revisar si es real o un artefacto de la base FCFF/crecimiento.
-- **Filings sin citas verificadas en 6/13 casos del dataset H2-1** (AZO, KBR, QLYS, NUE, PLUG + reintento incluido): gpt-4o-mini; lo medirá H2-6.
+- ~~**Filings sin citas verificadas en 6/13 casos del dataset H2-1**~~ — RESUELTO 2026-10-10 cambiando los especialistas a gpt-6-luna (ADR-039): 13/13 casos con evidencia en los tres especialistas.
 
 Hallazgos de la primera baseline del harness (H2-1, `tests/evals/baselines/full.run.json`, gpt-5.4-mini, 14 casos × 5):
 - **HOLD por defecto (síntoma de H1 confirmado con datos)**: 14/14 casos HOLD por mayoría en full-1 (13/14 en full-2). AZO con los 3 métodos calculables "expensive" (DCF −66 %) → HOLD; PLUG (ROIC −99,9 %, sin moat, FCF −647 M) → HOLD 4 de 5. HOLD absorbe "buena empresa cara" y "empresa rota". Fix previsto: H2-2 (taxonomía BUY/WATCHLIST/PASS/SELL), validado con la puerta.
@@ -749,3 +749,9 @@ Hallazgos de la primera baseline del harness (H2-1, `tests/evals/baselines/full.
 - **Causa raíz**: el fix de EC-96 caía al siguiente punto disponible (`roic_series[1]`) cuando ningún año estaba dentro de la ventana de 4 años fiscales.
 - **Fix**: sin ningún punto en 4 años → "n/a (no ROIC data within the last 4 fiscal years to compare)"; el check de la regla 22 no aplica. Test en `tests/test_period_alignment_minors.py`.
 - **Commit**: ver `git log --grep "EC-98"`
+
+### EC-99 — Modelos de razonamiento de OpenAI: 400 por `temperature` y truncación por tokens de razonamiento
+- **Síntoma** (al probar gpt-6-luna para los especialistas, ADR-039): (1) toda llamada fallaba con `400 Unsupported value: 'temperature' does not support 0.2 with this model`; (2) con el parámetro corregido, filings de BBW dio `LLMTruncatedError` con `max_tokens=4096`.
+- **Causa raíz**: (1) el cliente enviaba siempre `temperature=0.2` a OpenAI; las familias gpt-6 y gpt-5.6 solo aceptan la temperatura por defecto (mismo problema que ya resolvimos para Claude Opus 4.7+). (2) los tokens de razonamiento cuentan dentro de `max_completion_tokens`: luna gastó 7 655 tokens de salida en KBR frente a 1 376 de gpt-4o-mini.
+- **Fix**: `_openai_accepts_temperature` en `llm/client.py` omite el parámetro para `gpt-6*`/`gpt-5.6*` en `structured()` y `complete()`; techo de 16 384 tokens en management, filings (y su reintento) y competitive (un techo no es coste). Precios oficiales de gpt-6-luna, gpt-5.6-luna y gpt-6.1-sol añadidos a `_MODEL_PRICING` (el precio por defecto falseaba el coste). MCE-26: el validador de tesis (`max_tokens=200`, gpt-4o-mini) anotado inline como excepción. Tests en `tests/test_llm_structured*.py`.
+- **Commit**: ver `git log --grep "EC-99"`

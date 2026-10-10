@@ -1,0 +1,2153 @@
+{
+  "ticker": "BBW",
+  "cik": "0001113809",
+  "as_of_date": "2026-01-31",
+  "run_id": "e1b16cf4-932",
+  "financials": {
+    "ticker": "BBW",
+    "cik": "0001113809",
+    "as_of_date": "2026-01-31",
+    "revenue": [
+      {
+        "value": 529832000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 496404000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "facts:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 486114000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 467937000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 411522000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 255310000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 338543000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 336585000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "facts:RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 357866000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 357593000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 387725000.0,
+        "unit": "USD",
+        "period": "FY2014",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 373173000.0,
+        "unit": "USD",
+        "period": "FY2013",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "gross_profit": [
+      {
+        "value": 295629000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 272518000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "facts:GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 264392000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 245872000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 217955000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 97409000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 153623000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_income": [
+      {
+        "value": 66426000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "derived:GrossProfit-SellingGeneralAndAdministrativeExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 65400000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "derived:GrossProfit-SellingGeneralAndAdministrativeExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 61943000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "derived:GrossProfit-SellingGeneralAndAdministrativeExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 50705000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "derived:GrossProfit-SellingGeneralAndAdministrativeExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -20176000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "derived:GrossProfit-SellingGeneralAndAdministrativeExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1576000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "derived:GrossProfit-SellingGeneralAndAdministrativeExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "net_income": [
+      {
+        "value": 52203000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 51785000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "facts:NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 52805000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 47985000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 47265000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -22983000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 261000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -17933000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "facts:NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 7916000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1377000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 27345000.0,
+        "unit": "USD",
+        "period": "FY2015",
+        "source": "facts:NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 14362000.0,
+        "unit": "USD",
+        "period": "FY2014",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -2112000.0,
+        "unit": "USD",
+        "period": "FY2013",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_cash_flow": [
+      {
+        "value": 65052000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 47087000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "facts:NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 64310000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 47276000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 28077000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 13386000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 21609000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 9586000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "facts:NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 21088000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 16014000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "facts:NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "capex": [
+      {
+        "value": 25545000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 19317000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "facts:PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 18295000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 13634000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 8130000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5046000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 12384000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 11253000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "facts:PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 17763000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 27251000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "free_cash_flow": [
+      {
+        "value": 39507000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 27770000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 46015000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 33642000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 19947000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 8340000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 9225000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -1667000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3325000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -11237000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "buybacks": [
+      {
+        "value": 27735000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 31266000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "facts:PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 20500000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 24172000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 4358000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2228000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "facts:PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 4232000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1469000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "dividends": [
+      {
+        "value": 11533000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "PaymentsOfDividendsCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 11024000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "facts:PaymentsOfDividendsCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 22062000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "PaymentsOfDividendsCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 292000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "PaymentsOfDividendsCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 19933000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "PaymentsOfDividendsCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "PaymentsOfDividendsCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "total_assets": {
+      "value": 345453000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "Assets",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt": {
+      "value": 0.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "cash_and_equivalents": {
+      "value": 26755000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "CashAndCashEquivalentsAtCarryingValue",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "short_term_investments": null,
+    "long_term_investments": null,
+    "equity_method_investments": null,
+    "data_quality_flags": [],
+    "shares_outstanding": {
+      "value": 12319335.0,
+      "unit": "shares",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "interest_expense": [],
+    "interest_income": [],
+    "sbc": [
+      {
+        "value": 2930000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2175000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "facts:ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2089000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2559000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2631000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1525000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2877000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3439000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "facts:ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3423000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3025000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "depreciation_amortization": [
+      {
+        "value": 14952000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 14772000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "facts:DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 13657000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 12482000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 12276000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 13292000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 13705000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 16042000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "facts:DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 16165000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 16171000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "diluted_shares": [
+      {
+        "value": 13083436.0,
+        "unit": "shares",
+        "period": "FY2026",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 13621075.0,
+        "unit": "shares",
+        "period": "FY2025",
+        "source": "facts:WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 14471875.0,
+        "unit": "shares",
+        "period": "FY2024",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 15249819.0,
+        "unit": "shares",
+        "period": "FY2023",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 16122583.0,
+        "unit": "shares",
+        "period": "FY2022",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 14923304.0,
+        "unit": "shares",
+        "period": "FY2021",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 14759810.0,
+        "unit": "shares",
+        "period": "FY2020",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 14591270.0,
+        "unit": "shares",
+        "period": "FY2019",
+        "source": "facts:WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 15757060.0,
+        "unit": "shares",
+        "period": "FY2017",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 15622273.0,
+        "unit": "shares",
+        "period": "FY2016",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "basic_shares_weighted": {
+      "value": 13045394.0,
+      "unit": "shares",
+      "period": "FY2026",
+      "source": "WeightedAverageNumberOfSharesOutstandingBasic",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "operating_lease_liabilities": {
+      "value": 127298000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "facts:OperatingLeaseLiability",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "operating_rou_asset": {
+      "value": 121129000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "OperatingLeaseRightOfUseAsset",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "minority_interest": null,
+    "preferred_stock": {
+      "value": 0.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "PreferredStockValue",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "income_tax": [
+      {
+        "value": 15024000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 15356000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "facts:IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 13524000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 13939000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3445000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2797000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1300000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -574000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "facts:IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5897000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3932000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -9447000.0,
+        "unit": "USD",
+        "period": "FY2015",
+        "source": "facts:IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1662000.0,
+        "unit": "USD",
+        "period": "FY2014",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -6000.0,
+        "unit": "USD",
+        "period": "FY2013",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "pretax_income": [
+      {
+        "value": 67227000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 67141000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "facts:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 66329000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 61924000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 50710000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -20186000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1561000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -18507000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "facts:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 13813000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5309000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 17898000.0,
+        "unit": "USD",
+        "period": "FY2015",
+        "source": "facts:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 16024000.0,
+        "unit": "USD",
+        "period": "FY2014",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -2118000.0,
+        "unit": "USD",
+        "period": "FY2013",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "finance_lease_principal_payments": [
+      {
+        "value": 97000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "facts:RepaymentsOfLongTermCapitalLeaseObligations",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 76000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "facts:RepaymentsOfLongTermCapitalLeaseObligations",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "roic_series": [
+      {
+        "value": 0.4306,
+        "unit": "ratio",
+        "period": "FY2026",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.6418,
+        "unit": "ratio",
+        "period": "FY2024",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.6969,
+        "unit": "ratio",
+        "period": "FY2023",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1.013,
+        "unit": "ratio",
+        "period": "FY2022",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -0.3207,
+        "unit": "ratio",
+        "period": "FY2021",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0114,
+        "unit": "ratio",
+        "period": "FY2020",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "incremental_roic": {
+      "value": 0.0697,
+      "unit": "ratio",
+      "period": "FY2023→FY2026",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt_series": [
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "cash_series": [
+      {
+        "value": 26755000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 27758000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 44327000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 42198000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 32845000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 34840000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 26726000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 17894000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 30445000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 32483000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "equity_series": [
+      {
+        "value": 155028000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 139082000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 129662000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 119117000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 93683000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 67308000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 88631000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 94314000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 107315000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 99112000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "invested_capital": {
+      "value": 128273000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "equity+debt-cash",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "stockholders_equity": {
+      "value": 155028000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "source_filing": "10-K FY2026",
+    "citations": []
+  },
+  "mgmt": {
+    "ticker": "BBW",
+    "stub": false,
+    "error": null,
+    "model_used": "gpt-4o-mini",
+    "insider_ownership_pct": 4.0,
+    "insider_ownership_shares": 502388,
+    "insider_ownership_below_1pct": false,
+    "insider_ownership_multi_class_row": null,
+    "insider_ownership_as_of": "2026-04-30",
+    "founder_ceo": false,
+    "ceo_tenure_years": 0.0,
+    "form4_transactions_12m": 2,
+    "form4_summary": "OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the game):\n  George Carrara (Director) | SELL | 3,000 shares @ $34.52 | 2026-06-05\n\n10b5-1 PRE-ARRANGED PLAN transactions (NOT informative about current sentiment):\n  Sharon Price John (Director) | SELL | 6,818 shares @ $40.03 | 2026-08-24\n  [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]",
+    "insider_transaction_pattern": "CEO Chris Hurt net seller: sold 6,818 shares in August 2026, no open-market purchases in 12m. Largest holder Divisadero Street Capital Management, LP net buyer. Overall insider sentiment: neutral to slightly negative.",
+    "compensation_structure_notes": "The executive compensation program is designed to align with shareholder interests, focusing on long-term performance. However, specific metrics such as ROIC or TSR are not detailed in the provided sources, indicating a potential reliance on short-term adjusted metrics.",
+    "capital_allocation_summary": "The capital allocation strategy is not explicitly detailed in the provided sources. However, the company has a history of adjusting its revenue guidance and managing its operational expenses, which suggests a cautious approach to reinvestment and capital allocation.",
+    "citations": [
+      {
+        "claim": "On March 12, 2026, the Board of Directors of the Company announced that as part of a multi-year planned succession process, Sharon Price John intends to retire from her role effective June 11, 2026, the date of the Company’s Annual Shareholders’ Meeting upon which she will be succeeded by Chris Hurt.",
+        "source_url": "10-K Item 10",
+        "excerpt": "On March 12, 2026, the Board of Directors of the Company announced that as part of a multi-year planned succession process, Sharon Price John intends to retire from her role effective June 11, 2026, the date of the Company’s Annual Shareholders’ Meeting upon which she will be succeeded by Chris Hurt.",
+        "confidence": 0.9,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Insider ownership: all directors and executive officers as a group",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "All current Directors and executive officers as a group (11 persons) | 502,388 shares | 4%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": "deterministic: parsed from the DEF 14A beneficial ownership table (EC-93)"
+      }
+    ]
+  },
+  "filings": {
+    "ticker": "BBW",
+    "stub": false,
+    "error": null,
+    "model_used": "gpt-4o-mini",
+    "business_description": "Build-A-Bear Workshop, Inc. is a specialty retailer that allows customers, primarily children and families, to create personalized stuffed animals through an interactive experience. The company operates a unique retail model that combines entertainment and retail, offering both in-store experiences and e-commerce options. Build-A-Bear generates revenue through direct-to-consumer sales, commercial transactions, and international franchising, leveraging its brand strength and pop-culture appeal to attract a diverse customer base.",
+    "risk_factors_summary": "The company faces several material risks including macroeconomic uncertainties that could reduce discretionary consumer spending, competitive pressures from both traditional retailers and online platforms, and the impact of inflation and tariffs on costs and profitability. Additionally, the reliance on shopping malls and tourist locations for foot traffic poses a risk to sales, particularly in light of changing consumer behaviors and economic conditions.",
+    "mda_highlights": "Management highlights that fiscal 2025 was marked by a significant increase in net retail sales, driven by growth in corporately-operated locations and a successful omnichannel strategy. The company reported a pre-tax profit of $67.2 million, the highest in its history, and ended the year with no borrowings under its credit agreement. However, challenges such as rising labor costs and inflationary pressures were noted as ongoing concerns that could impact future profitability.",
+    "backlog_usd": null,
+    "revenue_guidance": null,
+    "geographic_revenue_breakdown": null,
+    "key_regulatory_events": "On February 20, 2026, the U.S. Supreme Court issued a ruling striking down certain tariffs previously imposed under the International Emergency Economic Powers Act (\"IEEPA\"). Following this decision, the U.S. presidential administration announced its intention to invoke other laws to collect tariffs and announced new tariffs on imports from all countries, in addition to any existing non-IEEPA tariffs.",
+    "governance_red_flags": null,
+    "active_sec_investigation": false,
+    "material_weakness": false,
+    "citations": [
+      {
+        "claim": "Build-A-Bear Workshop, Inc. is a specialty retailer that allows customers, primarily children and families, to create personalized stuffed animals through an interactive experience.",
+        "source_url": "10-K Item 1",
+        "excerpt": "Build-A-Bear Workshop, Inc., a Delaware corporation, was formed in 1997 as a mall-based, experiential specialty retailer for children.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The company faces several material risks including macroeconomic uncertainties that could reduce discretionary consumer spending, competitive pressures from both traditional retailers and online platforms, and the impact of inflation and tariffs on costs and profitability.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Any uncertainty or decline in general global economic conditions, caused by inflation, rising interest rates, geo-political conflicts, or other external factors, could lead to disproportionately reduced discretionary consumer spending and a corresponding reduction in demand for our products and have an adverse effect on our liquidity and profitability.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Management highlights that fiscal 2025 was marked by a significant increase in net retail sales, driven by growth in corporately-operated locations and a successful omnichannel strategy.",
+        "source_url": "10-K Item 7",
+        "excerpt": "The retail revenue increase was primarily the result of an increase in sales from corporately-operated retail locations through growth in the number of transactions, as our traffic outpaced national retail traffic data, and the opening of a net seven new corporately-managed locations in the fiscal year.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "On February 20, 2026, the U.S. Supreme Court issued a ruling striking down certain tariffs previously imposed under the International Emergency Economic Powers Act (\"IEEPA\"). Following this decision, the U.S. presidential administration announced its intention to invoke other laws to collect tariffs and announced new tariffs on imports from all countries, in addition to any existing non-IEEPA tariffs.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "On February 20, 2026, the U.S. Supreme Court issued a ruling striking down certain tariffs previously imposed under the International Emergency Economic Powers Act (\"IEEPA\"). Following the Supreme Court’s decision, the U.S. presidential administration announced its intention to invoke other laws to collect tariffs and announced new tariffs on imports from all countries, in addition to any existing non-IEEPA tariffs.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      }
+    ]
+  },
+  "market": {
+    "ticker": "BBW",
+    "stub": false,
+    "price_current": {
+      "value": 25.53,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_high": {
+      "value": 72.19,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_low": {
+      "value": 24.15,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "market_cap": {
+      "value": 314512622.55,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Build-A-Bear Introduces a Whole New Vibe With Mellow Moodies™\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=cc9cf3d8f6981808b64c3cb095b4c9a57e56f047bff463ccf24b3b13be6a04d5\n    Build-A-Bear Workshop®, the beloved retailtainment brand known for \"adding a little more heart to life,\" today introduced Mellow Moodies™, created for teens and young adults. Inspired by a generation that embraces self-expression, emotional openness and finding comfort in the everyday, Mellow Moodie\n\n[2] Build-A-Bear Unveils New ICON Park Experiences Ahead of Grand Opening\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=42500d5e7d8cb3ddd83cb8d1b6f3144060d62c48ef7df87ae25920fb8c444b0d\n    Build-A-Bear Workshop, the brand known for adding a little more heart to life, today unveiled a selection of the signature experiences coming to its highly anticipated retailtainment Workshop at Orlando's ICON Park, giving guests a preview of what is inside the brand's largest and most ambitious exp\n\n[3] Scholastic Posts Downbeat Q1 Results, Joins Legacy Education, Zscaler And Other Big Stocks Moving Lower In Friday’s Pre-Market Session\n    Source: Benzinga | URL: https://finnhub.io/api/news?id=1384adf3ac22ede769bf057dbc0ade768cff77843f11fb8790c2b46a467bec0b\n    U.S. stock futures rose, but Scholastic plunged 9.9% after missing Q1 loss and sales estimates; several other stocks also fell premarket.\n\n[4] Buy The Crash: 2 Dividend Bargains Down 50%+ With Massive Upside Potential\n    Source: SeekingAlpha | URL: https://finnhub.io/api/news?id=030f0851a1e6a92b794ffc6c235b6e22106252fe174ecc716c41b09ceb2143f8\n    Oracle (ORCL) and Build-A-Bear (BBW) are down big, but cloud growth and buybacks fuel 144%â225% upside. Read the full analysis here.\n\n[5] Michael Burry keeps pointing at unloved stocks for a reason\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=46e2870515e2ed1ba613b3921dd85801bfcf5e20d1c7fea93657957cb2944552\n    While shorting the market’s favorites, he’s quietly going all in on names most investors have written off.\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\n[1] Financial Analysis for BBWI\nURL: https://finance.yahoo.com/quote/BBWI/\nStock: BBWI\nFinancial Analysis:\nLatest Open Price: 17.54 Latest Close Price: 17.34 Highest Close Price: 38.81 Lowest Close Price: 14.41 Average Close Price (2 years): 24.92 Standard Deviation of Close Price: 5.97 Volume Traded (2 years): 2954206200 Total Return (2 years): -40.53% Annualized Return (2 years): -22.88% CAGR (2 years): -22.88% Sharpe Ratio (2 years): -3.83 Max Drawdown (2 years): -0.59% \n\n[2] Build-A-Bear Workshop Inc (BBW) (Q2 2026) Earnings Call ...\nURL: https://finance.yahoo.com/markets/stocks/articles/build-bear-workshop-inc-bbw-210655699.html\nQ2 revenue declined 7.2% year-over-year, falling short of projections due to underperforming summer trend products and macroeconomic pressures.\n\n[3] Bath & Body Works’ Strategy to Win Back Younger Consumers - WSJ\nURL: https://www.wsj.com/business/retail/bath-body-works-younger-consumers-aab0fa17\nBath & Body Works hopes to earn more dollars and cents from selling better scents—assisted by thousands of influencers. It’s part of Chief Executive Daniel Heaf’s drive to make the struggling brand cool among Gen Z and millennial shoppers. The executive aims to modernize the Columbus, Ohio-based retailer of fragrances, scented candles, body creams and decorative soaps through an expanded digital presence, refreshed product mix and more-creative marketing. For years, he says, “we weren’t visible in places where young people go to discover brands.”. Digital sales represent only 20% of the compan\n\n[4] How this 'furry friends' maker that produces in China is navigating Trump tariffs\nURL: https://finance.yahoo.com/news/how-this-furry-friends-maker-that-produces-in-china-is-navigating-trump-tariffs-143337822.html\n# How this 'furry friends' maker that produces in China is navigating Trump tariffs. \"[Tariffs are the] question of the moment right now,\" Build-A-Bear Workshop (BBW) CEO Sharon Price John told Yahoo Finance Executive Editor Brian Sozzion the Opening Bid podcast (see the video above or listen below). John says tariffs could lead to higher prices for the \"furry friends\" she sells to parents and collectors. She is currently chair of the Toy Association and has spent 12 years helming Build-A-Bear. \"Six years ago, we started the diversification process for our supply chains because there were disc\n\n[5] Build-A-Bear Workshop pulls forward inventory to deflect tariff impact\nURL: https://finance.yahoo.com/news/build-bear-workshop-pulls-forward-111800585.html\n2. Best 0% APR cards. 3. Best balance transfer cards. 2. Best high-yield savings accounts. 3. Best money market accounts. Supply Chain Dive · Daphne Howland/Supply Chain Dive. *This story was originally published on* *Supply Chain Dive**. To receive daily news and insights, subscribe to our free daily* *Supply Chain Dive newsletter**.*. * Build-A-Bear Workshop is pulling forward inventory purchases, especially for core products, to mitigate the impact of tariffs from the Trump administration, CFO Voin Todorovic said during a March 13 earnings call. This year, Build-A-Bear expects less than 50%\n\n[6] Build-A-Bear Workshop Q4 Earnings Call Highlights\nURL: https://finance.yahoo.com/news/build-bear-workshop-q4-earnings-202704293.html\n* **Record revenue**: Build‑A‑Bear reported fiscal 2025 revenue near $530 million (≈7% growth) and record pretax income of $67.2 million, but tariffs and higher labor/medical costs reduced results by roughly $11 million (~$0.65 EPS); management guides to mid‑single‑digit revenue growth for 2026 while assuming a ~$16 million tariff impact on the year. * **Expansion and wholesale momentum**: The company plans at least **50 net new locations** in 2026, favoring partner‑operated asset‑light growth as its international footprint doubled to 36 countries, and is growing wholesale (Mini Beans surpasse\n\n[7] Bath & Body Works, Inc. Declares Cash Dividend\nURL: https://finance.yahoo.com/news/bath-body-works-inc-declares-140000206.html\n3, 2021 to shareholders of record at the close of business on Aug. 20, 2021. We caution that any forward-looking statements (as such term is defined in the Private Securities Litigation Reform Act of 1995) contained in this press release or made by our Company or our management involve risks and uncertainties and are subject to change based on various factors, many of which are beyond our control. Risks associated with the following factors, among others, in some cases have affected and in the future could affect our financial performance and actual results and could cause actual results to di\n\n[8] Bath & Body Works Appoints Heather Hollander Vice President, Investor Relations\nURL: https://ca.finance.yahoo.com/news/bath-body-works-appoints-heather-130000167.html\nHollander is a well-established voice in the institutional investor and research analyst community with an impressive career of financial leadership roles spanning investor relations, finance, analytics and strategy at leading consumer brand companies, including Nordstrom, Lowe's, Bloomin' Brands and Burger King. We caution that any forward-looking statements (as such term is defined in the Private Securities Litigation Reform Act of 1995) contained in this press release or made by our company or our management involve risks and uncertainties and are subject to change based on various factors,\n\n[9] BBW | Build-A-Bear Workshop Inc. Company Profile & Executives\nURL: https://www.wsj.com/market-data/quotes/BBW/company-people\nCompany profile for Build-A-Bear Workshop Inc. including key executives, insider trading, ownership, revenue and average growth rates. View detailed BBW\n",
+    "material_events": [
+      {
+        "filing_date": "2026-09-09",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01\n\nOn September 9, 2026, the Board of Directors of Build-A-Bear Workshop, Inc. (the “Company”) declared a quarterly cash dividend of $0.23 per share to be paid on October 8, 2026, to all holders of record of issued and outstanding shares of the Company’s common stock as of the close of business on September 24, 2026.\n\nOn September 9, 2026, the Company issued a press release announcing the quarterly dividend. A copy of the press release has been filed as Exhibit 99.1 to this Current Report on Form 8-K and is incorporated herein by reference.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926029998/bbw20260904_8k.htm"
+      },
+      {
+        "filing_date": "2026-08-27",
+        "item_numbers": [
+          "Item 2.02",
+          "Item 5.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02.      Results of Operations and Financial Condition.\n\nOn August 27, 2026, Build-A-Bear Workshop, Inc. (the “Company”) issued a press release setting forth results for the Company’s 2026 fiscal quarter ended August 1, 2026.\n\nThe Company reported that for the second quarter of 2026, total revenues were $115.3 million, compared to $124.2 million in the second quarter of 2026, pre-tax income was $11.6 million, compared to $15.3 million in the second quarter of 2026, and second-quarter diluted earnings per share (“EPS”) totaled $0.70, compared to $0.94 in the second quarter of 2026.\n\nFor the first half of the year, total revenues were $240.6 million, a decrease of 4.8% from the first half of the prior year, pre-tax income was $35.5 million, or 14.8% of total revenues, compared to $34.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926029054/bbw20260826_8k.htm"
+      },
+      {
+        "filing_date": "2026-06-12",
+        "item_numbers": [
+          "Item 5.02"
+        ],
+        "summary_text": "[Item 5.02] Item 5.02. Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers.\n\nOn June 12, 2026, Build-A-Bear Workshop, Inc. (the “Company”) announced that the Company had promoted Voin Todorovic, to the additional role of Chief Administrative Officer effective as of June 11, 2026 (the “Promotion Effective Date”), while he will continue to serve as Chief Financial Officer of the Company.\n\nPrior to the promotion to serve as both Chief Financial Officer and Chief Administrative Officer, Mr. Todorovic, age 51, had served as our Chief Financial Officer since joining the Company in September 2014. Prior to joining the Company, Mr. Todorovic was employed at Wolverine World Wide, Inc., a leading global footwear and ap",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926020380/bbw20260610c_8k.htm"
+      },
+      {
+        "filing_date": "2026-06-11",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01      Other Events.\n\nOn June 11, 2026, the Board of Directors of Build-A-Bear Workshop, Inc. (the “Company”) declared a quarterly cash dividend of $0.23 per share to be paid on July 9, 2026, to all holders of record of issued and outstanding shares of the Company’s common stock as of the close of business on June 25, 2026.\n\nOn June 11, 2026, the Company issued a press release announcing the quarterly dividend. A copy of the press release has been filed as Exhibit 99.1 to this Current Report on Form 8-K and is incorporated herein by reference.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926020299/bbw20260605_8k.htm"
+      },
+      {
+        "filing_date": "2026-05-28",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02. Results of Operations and Financial Condition.\n\nOn May 28, 2026, Build-A-Bear Workshop, Inc. (the “Company”) issued a press release setting forth results for the Company’s 2026 fiscal quarter ended May 2, 2026. A copy of the Company’s press release is being furnished as Exhibit 99.1 and hereby incorporated by reference.\n\n* * * * *\n\nThe Company reports its financial results in accordance with generally accepted accounting principles (“GAAP”). In the press release furnished as Exhibit 99.1 hereto, the Company has supplemented the reporting of its financial information determined in accordance with GAAP with certain non-GAAP financial measures. These results are included as a complement to results provided in accordance with GAAP because management believes these non-GAAP financial",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926018669/bbw20260527_8k.htm"
+      },
+      {
+        "filing_date": "2026-03-12",
+        "item_numbers": [
+          "Item 5.02"
+        ],
+        "summary_text": "[Item 5.02] Item 5.02. Departure of Directors or Certain Officers; Election of Directors; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers.\n\nOn March 12, 2026, as part of a planned succession process, Build-A-Bear Workshop, Inc. (the “Company”) announced that Sharon Price John will retire as its President and Chief Executive Officer following a transition period, and that the Company had appointed J. Christopher Hurt, 59, to become Chief Executive Officer following such transition period. Ms. John’s employment agreement with the Company will terminate at the time of her retirement on June 11, 2026, the date of the Company’s 2026 annual meeting of stockholders, which will also be the effective date of Mr. Hurt’s promotion to Chief Executive Officer (the “Promotion Effectiv",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926007825/bbw20260311c_8k.htm"
+      },
+      {
+        "filing_date": "2026-03-12",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02. Results of Operations and Financial Condition.\n\nOn March 12, 2026, Build-A-Bear Workshop, Inc. (the “Company”) issued a press release setting forth results for the Company’s fourth quarter and fiscal year 2025 ended January 31, 2026. A copy of the Company’s press release is being furnished as Exhibit 99.1 and hereby incorporated by reference.\n\n* * * * *\n\nThe Company reports its financial results in accordance with generally accepted accounting principles (“GAAP”). In the press release furnished as Exhibit 99.1 hereto, the Company has supplemented the reporting of its financial information determined in accordance with GAAP with certain non-GAAP financial measures. These results are included as a complement to results provided in accordance with GAAP because management believes t",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926007824/bbw20260312_8k.htm"
+      },
+      {
+        "filing_date": "2026-03-11",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01\n\nOn March 11, 2026, the Board of Directors of Build-A-Bear Workshop, Inc. (the “Company”) declared a quarterly cash dividend of $0.23 per share to be paid on April 9, 2026, to all holders of record of issued and outstanding shares of the Company’s common stock as of the close of business on March 26, 2026.\n\nOn March 11, 2026, the Company issued a press release announcing the quarterly dividend. A copy of the press release has been filed as Exhibit 99.1 to this Current Report on Form 8-K and is incorporated herein by reference.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926007762/bbw20260311_8k.htm"
+      },
+      {
+        "filing_date": "2026-02-10",
+        "item_numbers": [
+          "Item 5.02",
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 5.02] Departure of Directors or Certain Officers; Appointment of Certain Officers; Compensatory Arrangements of Certain Officers\n\n.\n\n(d) On February 10, 2026, the Board of Directors (the “Board”) of Build-A-Bear Workshop, Inc. (the “Company”), increased the size of the Board to seven (7) members and appointed James A. Goldman to the Board. Mr. Goldman will serve as a Class I director with an initial term expiring at the Company’s 2026 Annual Meeting of Stockholders.\n\nThere is no arrangement or understanding between Mr. Goldman and any other person pursuant to which either Mr. Goldman was elected as a director. Mr. Goldman was determined by the Board to be independent under the applicable rules of the New York Stock Exchange (“NYSE”) and the rules and regulations of the U.S. Securities and Exchan",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926003641/bbw20260209_8k.htm"
+      },
+      {
+        "filing_date": "2026-01-05",
+        "item_numbers": [
+          "Item 1.01"
+        ],
+        "summary_text": "[Item 1.01] Item 1.01. Entry into a Material Definitive Agreement.\n\nOn December 31, 2025, Build-A-Bear Workshop, Inc. (the “Company”), as borrowing agent; Build-A-Bear Retail Management, Inc., together with the Company, as borrowers (collectively, the “Borrowers”); and Build-A-Bear Workshop Franchise Holdings, Inc., Build-A-Bear Entertainment, LLC, Build-A-Bear Card Services, LLC and Build-A-Bear Workshop Canada, Ltd. (collectively, the “Guarantors”); entered into a Third Amendment to Revolving Credit and Security Agreement (the “Third Amendment”) with the lenders party thereto (the “Lenders”) and PNC Bank, National Association, as agent for Lenders (in such capacity, “Agent”). The Third Amendment amended the Revolving Credit and Security Agreement, dated as of August 25, 2020 (the “Original Credit Ag",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774926000324/bbw20251231_8k.htm"
+      },
+      {
+        "filing_date": "2025-12-04",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02. Results of Operations and Financial Condition.\n\nOn December 4, 2025, Build-A-Bear Workshop, Inc. (the “Company”) issued a press release setting forth results for the Company’s 2025 fiscal quarter ended November 1, 2025. A copy of the Company’s press release is being furnished as Exhibit 99.1 and hereby incorporated by reference.\n\n* * * * *\n\nThe Company reports its financial results in accordance with generally accepted accounting principles (“GAAP”). In the press release furnished as Exhibit 99.1 hereto, the Company has supplemented the reporting of its financial information determined in accordance with GAAP with certain non-GAAP financial measures. These results are included as a complement to results provided in accordance with GAAP because management believes these non-GAAP ",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774925036932/bbw20251204_8ka.htm"
+      },
+      {
+        "filing_date": "2025-12-04",
+        "item_numbers": [
+          "Item 2.02"
+        ],
+        "summary_text": "[Item 2.02] Item 2.02. Results of Operations and Financial Condition.\n\nOn December 4, 2025, Build-A-Bear Workshop, Inc. (the “Company”) issued a press release setting forth results for the Company’s 2025 fiscal quarter ended November 1, 2025. A copy of the Company’s press release is being furnished as Exhibit 99.1 and hereby incorporated by reference.\n\n* * * * *\n\nThe Company reports its financial results in accordance with generally accepted accounting principles (“GAAP”). In the press release furnished as Exhibit 99.1 hereto, the Company has supplemented the reporting of its financial information determined in accordance with GAAP with certain non-GAAP financial measures. These results are included as a complement to results provided in accordance with GAAP because management believes these non-GAAP ",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774925036852/bbw20251203_8k.htm"
+      },
+      {
+        "filing_date": "2025-11-12",
+        "item_numbers": [
+          "Item 8.01"
+        ],
+        "summary_text": "[Item 8.01] Item 8.01\n\nOn November 12, 2025, the Board of Directors of Build-A-Bear Workshop, Inc. (the “Company”) declared a quarterly cash dividend of $0.22 per share to be paid on January 8, 2026, to all holders of record of issued and outstanding shares of the Company’s common stock as of the close of business on November 26, 2025.\n\nOn November 12, 2025, the Company issued a press release announcing the quarterly dividend. A copy of the press release has been filed as Exhibit 99.1 to this Current Report on Form 8-K and is incorporated herein by reference.",
+        "filing_url": "https://www.sec.gov/Archives/edgar/data/1113809/000143774925034454/bbw20251112_8k.htm"
+      }
+    ],
+    "quarterly_earnings_text": "Exhibit 99.1                                                                 \n                                                                               \n       BUILD-A-BEAR WORKSHOP REPORTS FISCAL SECOND QUARTER 2026 RESULTS        \nST. LOUIS, MO (August 27, 2026) – Build-A-Bear Workshop, Inc. (NYSE: BBW) today\nannounced results for the second quarter of fiscal year 2026 ended August 1,\n2026.\n                                                                               \n  ●  Second-quarter total revenues were $115.3 million, compared to $124.2     \n     million                                                                   \n                                                                               \n                                                                               \n  ●  Second-quarter pre-tax income was $11.6 million, compared to $15.3        \n     million                                                                   \n                                                                               \n                                                                               \n  ●  Second-quarter diluted earnings per share (“EPS”) totaled $0.70,          \n     compared to $0.94                                                         \n                                                                               \n                                                                               \n  ●  For the first half of fiscal 2026, the Company returned $22.7 million to  \n     shareholders through share repurchases and quarterly dividends            \n                                                                               \n                                                                               \n     The Company updates its fiscal 2026 expectations, including lowering its  \n  ●  revenue outlook to a range of $500 million to $525 million and its        \n     pre-tax income outlook to a range of $60 million to $68 million           \n                                                                               \n\"While we expected fiscal 2026 to be back-half weighted, second-quarter results\nfell short of our expectations, and certain wholesale opportunities may take\nlonger to realize than previously anticipated. Accordingly, we have moderated\nour outlook for the balance of the year. That said, we continue to execute\nagainst our long-term strategic growth initiatives, including the planned\nacceleration in experience location openings during the remainder of the year.\nWe also look forward to the upcoming grand opening of our new, highly\nimmersive, multi-level, largest retail-tainment destination at ICON Park in\nOrlando, which will showcase an elevated expression of the Build-A-Bear\nexperience,\" commented Chris Hurt, Chief Executive Officer of Build-A-Bear\nWorkshop.\n\nVoin Todorovic, Chief Financial Officer and Chief Administrative Officer of\nBuild-A-Bear Workshop, concluded, “Our continued strong profitability and\ndisciplined capital allocation drove the return of $49 million to shareholders\nover the past 12 months through share repurchases and quarterly dividends,\nincluding almost $23 million in the first half of this year. Looking ahead, we\nexpect cash generation to increase through the remainder of the year, supported\nby continued profitability, prudent expense management, and the timing of\ncapital expenditures.”\n\nSecond Quarter Fiscal 2026 Results\n\n(13 weeks ended August 1, 2026, compared to the 13 weeks ended August 2, 2025)\n                                                            \n  ●  Total revenues were $115.3 million and decreased 7.2%  \n                                                            \n                                                              \n  ●  Net retail sales were $106.5 million and decreased 7.1%  \n                                                              \n                                                                               \n  ●  Consolidated e-commerce demand (online orders fulfilled from either the   \n     Company’s warehouses or its stores) decreased 15.6%                       \n                                                                               \n                                                                               \n  ●  Commercial and international franchise revenues were a combined $8.8      \n     million and decreased 9.0%                                                \n                                                                               \n                                                                               \n     Pre-tax income was $11.6 million, or 10.1% of total revenues, compared    \n     to $15.3 million, or 12.3% of total revenues. The Company incurred        \n     approximately $1 million in tariffs and related costs during both         \n     periods. The 220-basis-point decrease in pre-tax margin reflects a        \n  ●  340-basis-point decrease in gross margin due to occupancy cost            \n     deleverage and increased promotional activity, partially offset by a      \n     80-basis-point decrease in selling, general, and administrative expense   \n     (“SG&A”), driven mainly by lower incentive compensation expense, as well  \n     as higher interest income.                                                \n                                                                               \n                                                                               \n     Diluted EPS totaled $0.70, compared to $0.94, reflecting lower pre-tax    \n  ●  income and a higher tax rate, partially offset by a reduction in share    \n     count.                                                                    \n                                                                               \n                                                                               \n     Earnings before interest, taxes, depreciation and amortization            \n  ●  (“EBITDA”) was $15.2 million, or 13.2% of total revenues, compared to     \n     $18.8 million, or 15.1% of total revenues.                                \n                                                                               \nFirst Half Fiscal 2026 Results\n\n(26 weeks ended August 1, 2026, compared to the 26 weeks ended August 2, 2025)\n                                                             \n  ●  Total revenues were $240.6 million and decreased 4.8%.  \n                                                             \n                                                               \n  o  Net retail sales were $220.0 million and decreased 6.1%.  \n                                                               \n                                                                               \n  o  Consolidated e-commerce demand (online orders fulfilled from either the   \n     Company’s warehouses or its stores) decreased 21.2%.                      \n                                                                               \n                                                                               \n  o  Commercial and international franchise revenues were a combined $20.6     \n     million and increased 11.6%.                                              \n                                                                               \n                                                                               \n     Pre-tax income was $35.5 million, or 14.8% of total revenues, compared    \n     to $34.9 million, or 13.8% of total revenues. The Company incurred        \n     approximately $1.5 million in tariffs and related costs, compared to      \n     approximately $1.0 million in the prior-year period. The 100-basis-point  \n     increase in pre-tax margin reflects a 200-basis-point increase in gross   \n     margin, including a 330-basis-point benefit from the $7 million           \n     International Emergency Economic Powers Act (“IEEPA”) tariff refund       \n     related to",
+    "quarterly_earnings_date": "2026-08-27",
+    "quarterly_eps_actuals": [
+      {
+        "period": "2026-09-30",
+        "actual": 0.7,
+        "estimate": 0.6843,
+        "surprise": 0.0157,
+        "surprisePercent": 2.2943,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-06-30",
+        "actual": 1.03,
+        "estimate": 0.7575,
+        "surprise": 0.2725,
+        "surprisePercent": 35.9736,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-03-31",
+        "actual": 1.26,
+        "estimate": 1.2322,
+        "surprise": 0.0278,
+        "surprisePercent": 2.2561,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-12-31",
+        "actual": 0.62,
+        "estimate": 0.5959,
+        "surprise": 0.0241,
+        "surprisePercent": 4.0443,
+        "revenueActual": null,
+        "revenueEstimate": null
+      }
+    ]
+  },
+  "competitive": {
+    "ticker": "BBW",
+    "stub": false,
+    "error": null,
+    "model_used": "gpt-4o-mini",
+    "moat_classification": "narrow",
+    "moat_sources": [
+      "brand",
+      "switching_costs"
+    ],
+    "peer_roic_comparison": [],
+    "citations": [
+      {
+        "claim": "Build-A-Bear Workshop has a strong brand presence and customer loyalty, which contributes to its competitive advantage.",
+        "source_url": "Web (Tavily)",
+        "excerpt": "Build-A-Bear's stock surged from $2 to $65. stock traded for barely two dollars a share. Today it trades above twenty-five, in structural",
+        "confidence": 0.9,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The company's ROIC has shown significant improvement, with FY2026 at 43.1%, FY2024 at 64.2%, FY2023 at 69.7%, and FY2022 at 101.3%.",
+        "source_url": "Financial data",
+        "excerpt": "ROIC series: FY2026: 43.1%, FY2024: 64.2%, FY2023: 69.7%, FY2022: 101.3%, FY2021: -32.1%",
+        "confidence": 0.95,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The company's gross margin is at 55.8%, which is above typical industry levels, indicating strong pricing power.",
+        "source_url": "Financial data",
+        "excerpt": "Gross margin: FY2026: 55.8%, FY2025: 54.9%, FY2024: 54.4%",
+        "confidence": 0.9,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The company has a loyal customer base that creates switching costs, as customers are likely to return for their unique products.",
+        "source_url": "Web (Tavily)",
+        "excerpt": "Build-A-Bear's stock surged from $2 to $65. stock traded for barely two dollars a share. Today it trades above twenty-five, in structural",
+        "confidence": 0.9,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      }
+    ]
+  },
+  "peers": [],
+  "peer_financials": [],
+  "quarterly_snapshot": {
+    "period": "2026-08-01 (Q3)",
+    "revenue": 115291000.0,
+    "operating_income": null,
+    "gross_profit": 62489000.0,
+    "filing_date": null
+  },
+  "historical_cagr_5y": 0.1572150463549864,
+  "historical_cagr_years": 5,
+  "checkpoint1_user_input": {
+    "proceed": true,
+    "peers": "",
+    "answers": {}
+  },
+  "checkpoint2_user_input": {
+    "wacc_pct": 9.2,
+    "terminal_growth_pct": 2.5,
+    "projection_years": 10,
+    "mid_year_convention": false,
+    "valuation_date": "2026-10-10"
+  },
+  "valuation": {
+    "ticker": "BBW",
+    "stub": false,
+    "error": null,
+    "dcf_intrinsic_value": {
+      "value": 1257347158.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "calculated (FCFF (median FCFF margin (3y) × latest revenue = 6.9%), EV − net claims)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_intrinsic_per_share": {
+      "value": 101.77,
+      "unit": "USD/share",
+      "period": "FY2026",
+      "source": "calculated (FCFF (median FCFF margin (3y) × latest revenue = 6.9%), bridge)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_upside_pct": 298.6,
+    "price_current": {
+      "value": 25.53,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "reverse_dcf_implied_growth": -0.1009,
+    "reverse_dcf_10y_equivalent": -0.0642,
+    "ev_ebit_multiple": {
+      "value": 4.35,
+      "unit": "x",
+      "period": "2026-10-10",
+      "source": "calculated (market EV / EBIT)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "ev_fcf_multiple": {
+      "value": 7.89,
+      "unit": "x",
+      "period": "2026-10-10",
+      "source": "calculated (market EV / FCFF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "pe_multiple": {
+      "value": 6.04,
+      "unit": "x",
+      "period": "2026-10-10",
+      "source": "calculated (price × shares / NI)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "earnings_yield_pct": 23.01,
+    "magic_formula_rank": null,
+    "sensitivity_table": [
+      {
+        "near_term_growth_pct": 20.7,
+        "values": {
+          "wacc_7.2pct": 179.08,
+          "wacc_9.2pct": 132.29,
+          "wacc_11.2pct": 103.2
+        }
+      },
+      {
+        "near_term_growth_pct": 15.7,
+        "values": {
+          "wacc_7.2pct": 136.55,
+          "wacc_9.2pct": 101.77,
+          "wacc_11.2pct": 80.1
+        }
+      },
+      {
+        "near_term_growth_pct": 10.7,
+        "values": {
+          "wacc_7.2pct": 103.56,
+          "wacc_9.2pct": 77.99,
+          "wacc_11.2pct": 62.02
+        }
+      }
+    ],
+    "assumptions": {
+      "checkpoint_id": "checkpoint2",
+      "user_notes": "",
+      "proceed": true,
+      "wacc_pct": 9.2,
+      "terminal_growth_pct": 2.5,
+      "projection_years": 10,
+      "stage1_years": null,
+      "fade_years": null,
+      "revenue_growth_yr1_pct": null,
+      "margin_assumption_pct": null,
+      "mid_year_convention": false,
+      "valuation_date": "2026-10-10"
+    },
+    "dcf_reliability_note": "Near-term FCF growth: 15.7% (FCF CAGR 5y, capped by revenue CAGR 15.7% — FCF growing faster than revenue is unsustainable long-term). ℹ️ EV capitalized 252 days from fiscal year-end to valuation date. ℹ️ FCFF inputs absent for specific years (counted as 0): interest_expense FY2026, interest_income FY2026, interest_expense FY2025, interest_income FY2025, interest_expense FY2024, interest_income FY2024. ℹ️ Bridge components unavailable (treated as 0): short_term_investments, long_term_investments, minority_interest. ⚠️ DCF spread note: forward DCF uses 15.7% near-term growth (historical CAGR) but the market currently prices only -10.1% (spread: 26pp). The DCF upside is conditional on the analyst's growth assumption being correct vs what the market discounts — not a free margin of safety. Reverse DCF is the more informative valuation anchor. ℹ️ EPV growth premium: price is 44% below the no-growth value (EPV).",
+    "fcf_quality_warning": null,
+    "near_term_growth_used_pct": 0.1572150463549864,
+    "near_term_growth_source": "fcf_cagr_5y_rev_capped",
+    "cyclicality": {
+      "is_cyclical": false,
+      "years": 6,
+      "median_margin": 0.12429257786019923,
+      "peak_margin": 0.13453634332687395,
+      "peak_period": "FY2024",
+      "evidence": "peak operating margin 13.5% (FY2024) vs 6y median 12.4%: +1.0 pp, 1.1x"
+    },
+    "stage1_years_used": 5,
+    "fade_years_used": 5,
+    "epv_enterprise": {
+      "value": 536605352.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "EPV (ebit_median_5y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_per_share": {
+      "value": 45.6,
+      "unit": "USD/share",
+      "period": "FY2026",
+      "source": "EPV (ebit_median_5y, bridge)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_upside_pct": 78.6,
+    "epv_source": "ebit_median_5y",
+    "epv_growth_premium": -0.786134,
+    "suggested_wacc_pct": 9.2,
+    "suggested_wacc_breakdown": "Ke 9.2% (CAPM: Rf=4.2% + β=1.0×ERP=5.0% + size_premium=1.5% (small cap) — OFF, not applied) × 100% + Kd 6.2% (fallback Rf+2% (EBIT or interest unavailable)) × (1−25%) × 0% = 9.2%",
+    "wacc_breakdown": {
+      "cost_of_equity": 0.092,
+      "cost_of_equity_source": "CAPM: Rf=4.2% + β=1.0×ERP=5.0% + size_premium=1.5% (small cap) — OFF, not applied",
+      "pre_tax_cost_of_debt": 0.062,
+      "cost_of_debt_source": "fallback Rf+2% (EBIT or interest unavailable)",
+      "tax_rate": 0.25,
+      "after_tax_cost_of_debt": 0.0465,
+      "equity_weight": 1.0,
+      "debt_weight": 0.0,
+      "wacc": 0.092
+    },
+    "valuation_methods_summary": [
+      {
+        "method": "DCF (3-stage Damodaran fade)",
+        "per_share": "$101.77",
+        "upside_pct": 298.6,
+        "display_upside": "+298.6%",
+        "classification": "cheap"
+      },
+      {
+        "method": "EPV (Greenwald — zero growth)",
+        "per_share": "$45.60",
+        "upside_pct": 78.6,
+        "display_upside": "+78.6%",
+        "classification": "cheap"
+      },
+      {
+        "method": "Reverse DCF (market-implied growth)",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "implied g1 -10.1% (10y-equiv -6.4%) vs historical 15.7% revenue CAGR",
+        "classification": "cheap"
+      },
+      {
+        "method": "EV/EBIT vs peer median",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "4.3x vs peer median N/A",
+        "classification": "n/a"
+      }
+    ],
+    "valuation_basis": "FCFF discounted at WACC → EV → equity bridge → per share (ADR-033)",
+    "fcff_base": {
+      "value": 36577000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "median FCFF margin (3y) × latest revenue = 6.9%",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "fcff_breakdown": {
+      "ocf": 65052000.0,
+      "after_tax_interest_addback": 0.0,
+      "after_tax_interest_income": 0.0,
+      "capex": 25545000.0,
+      "sbc_charge": 2930000.0,
+      "finance_lease_principal": 0.0,
+      "tax_rate": 0.2187576296606327,
+      "fcff": 36577000.0,
+      "missing_inputs": [
+        "interest_expense",
+        "interest_income"
+      ]
+    },
+    "dcf_base_source": "FCFF (median FCFF margin (3y) × latest revenue = 6.9%)",
+    "tax_rate_used": 0.2187576296606327,
+    "tax_rate_source": "effective Σtax/Σpretax (FY2026, FY2025, FY2024)",
+    "enterprise_value_dcf": {
+      "value": 1230592158.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "calculated (FCFF (median FCFF margin (3y) × latest revenue = 6.9%) at WACC)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "equity_bridge": {
+      "enterprise_value": 1230592158.2660377,
+      "total_debt": 0.0,
+      "minority_interest": 0.0,
+      "preferred_stock": 0.0,
+      "cash": 26755000.0,
+      "short_term_investments": 0.0,
+      "long_term_investments": 0.0,
+      "operating_lease_liabilities_memo": 127298000.0,
+      "net_claims": -26755000.0,
+      "equity_value": 1257347158.2660377,
+      "components_missing": [
+        "short_term_investments",
+        "long_term_investments",
+        "minority_interest"
+      ]
+    },
+    "market_enterprise_value": {
+      "value": 288674781.0,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "price × shares + net claims",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "share_count_used": 12355259.721175153,
+    "share_count_source": "shares_outstanding × diluted/basic (1.0029)",
+    "terminal_value_share": 0.5984261363336713,
+    "mid_year_convention_used": false,
+    "sensitivity_unit": "USD/share"
+  },
+  "citations": [],
+  "unverified_claims": [],
+  "cost_usd": 0.0
+}

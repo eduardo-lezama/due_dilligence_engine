@@ -1,0 +1,2187 @@
+{
+  "ticker": "AZO",
+  "cik": "0000866787",
+  "as_of_date": "2025-08-30",
+  "run_id": "88948ba8-675",
+  "financials": {
+    "ticker": "AZO",
+    "cik": "0000866787",
+    "as_of_date": "2025-08-30",
+    "revenue": [
+      {
+        "value": 18938717000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "SalesRevenueNet",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 18490268000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "SalesRevenueNet",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 17457209000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "SalesRevenueNet",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 16252230000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "SalesRevenueNet",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 14629585000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "SalesRevenueNet",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 12631967000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "SalesRevenueNet",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 11863743000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "SalesRevenueNet",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 11221077000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "SalesRevenueNet",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 10888676000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "SalesRevenueNet",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 10635676000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "SalesRevenueNet",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "gross_profit": [
+      {
+        "value": 9966474000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 9817052000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 9070422000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 8472650000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 7717785000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 6770753000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 6365001000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5973746000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5739620000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5608736000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_income": [
+      {
+        "value": 3610156000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3788708000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3473986000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3270729000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2944527000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2417679000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2216137000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1810856000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2080069000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2060395000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "net_income": [
+      {
+        "value": 2498247000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2662427000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2528426000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2429604000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2170314000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1732972000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1617221000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1337536000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1280869000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1241007000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_cash_flow": [
+      {
+        "value": 3117337000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3004116000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2940788000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3211135000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3518543000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2720108000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2128513000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2080292000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1570612000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "facts:NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1641060000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "facts:NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "capex": [
+      {
+        "value": 1327257000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1072696000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 796657000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 672391000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 621767000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 457736000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 496050000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 521788000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 553832000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 488791000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "free_cash_flow": [
+      {
+        "value": 1790080000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1931420000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2144131000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2538744000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2896776000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2262372000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1632463000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1558504000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1016780000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1152269000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "buybacks": [
+      {
+        "value": 1578186000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3140917000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3699552000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 4359991000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3378321000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 930903000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2004896000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1592013000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1071649000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1452462000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "dividends": [],
+    "total_assets": {
+      "value": 19355324000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "Assets",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt": {
+      "value": 9199715000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "cash_and_equivalents": {
+      "value": 271803000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "CashAndCashEquivalentsAtCarryingValue",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "short_term_investments": null,
+    "long_term_investments": null,
+    "equity_method_investments": null,
+    "data_quality_flags": [],
+    "shares_outstanding": {
+      "value": 16325355.0,
+      "unit": "shares",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "interest_expense": [
+      {
+        "value": 490025000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "InterestExpenseNonoperating",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 465191000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "InterestExpenseNonoperating",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 320121000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "InterestExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 198883000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "InterestExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 202326000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "InterestExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 208021000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "InterestExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 193671000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "InterestExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 181668000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "InterestExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 159329000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "InterestExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 150961000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "InterestExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "interest_income": [
+      {
+        "value": 10972000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 11312000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 12054000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 6048000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5417000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5689000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 7396000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5636000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3502000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2371000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "sbc": [
+      {
+        "value": 124717000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "AllocatedShareBasedCompensationExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 106246000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "AllocatedShareBasedCompensationExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 93087000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "AllocatedShareBasedCompensationExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 70612000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "AllocatedShareBasedCompensationExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 56112000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "AllocatedShareBasedCompensationExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 44835000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "AllocatedShareBasedCompensationExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 43255000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "AllocatedShareBasedCompensationExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 43674000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "AllocatedShareBasedCompensationExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 38244000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "AllocatedShareBasedCompensationExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 39825000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "AllocatedShareBasedCompensationExpense",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "depreciation_amortization": [
+      {
+        "value": 613199000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 549755000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 497577000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 442223000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 407683000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 397466000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 369957000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 345084000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 323051000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 297397000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "diluted_shares": [
+      {
+        "value": 17245000.0,
+        "unit": "shares",
+        "period": "FY2025",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 17803000.0,
+        "unit": "shares",
+        "period": "FY2024",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 19103000.0,
+        "unit": "shares",
+        "period": "FY2023",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 20733000.0,
+        "unit": "shares",
+        "period": "FY2022",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 22799000.0,
+        "unit": "shares",
+        "period": "FY2021",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 24093000.0,
+        "unit": "shares",
+        "period": "FY2020",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 25498000.0,
+        "unit": "shares",
+        "period": "FY2019",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 27424000.0,
+        "unit": "shares",
+        "period": "FY2018",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 29065000.0,
+        "unit": "shares",
+        "period": "FY2017",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 30488000.0,
+        "unit": "shares",
+        "period": "FY2016",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "basic_shares_weighted": {
+      "value": 16789000.0,
+      "unit": "shares",
+      "period": "FY2025",
+      "source": "WeightedAverageNumberOfSharesOutstandingBasic",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "operating_lease_liabilities": {
+      "value": 3377500000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "facts:OperatingLeaseLiability",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "operating_rou_asset": {
+      "value": 3194666000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "OperatingLeaseRightOfUseAsset",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "minority_interest": null,
+    "preferred_stock": null,
+    "income_tax": [
+      {
+        "value": 636085000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 674703000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 639188000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 649487000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 578876000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 483542000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 414112000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 298793000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 644620000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 671707000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "pretax_income": [
+      {
+        "value": 3134332000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3337130000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3167614000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3079091000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2749190000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2216514000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2031333000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1636329000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1925489000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1912714000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "finance_lease_principal_payments": [
+      {
+        "value": 96154000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "facts:FinanceLeasePrincipalPayments",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 85258000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "facts:FinanceLeasePrincipalPayments",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 81055000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "facts:FinanceLeasePrincipalPayments",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 67182000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "facts:FinanceLeasePrincipalPayments",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 59853000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "facts:FinanceLeasePrincipalPayments",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 52158000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "facts:FinanceLeasePrincipalPayments",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 53307000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "facts:FinanceLeasePrincipalPayments",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 49004000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "facts:FinanceLeasePrincipalPayments",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 47604000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "facts:RepaymentsOfLongTermCapitalLeaseObligations",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 36320000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "facts:RepaymentsOfLongTermCapitalLeaseObligations",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "roic_series": [
+      {
+        "value": 0.5015,
+        "unit": "ratio",
+        "period": "FY2025",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.6497,
+        "unit": "ratio",
+        "period": "FY2024",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.72,
+        "unit": "ratio",
+        "period": "FY2023",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.7636,
+        "unit": "ratio",
+        "period": "FY2022",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.6581,
+        "unit": "ratio",
+        "period": "FY2021",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.4716,
+        "unit": "ratio",
+        "period": "FY2020",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.4247,
+        "unit": "ratio",
+        "period": "FY2019",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.3566,
+        "unit": "ratio",
+        "period": "FY2018",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.3494,
+        "unit": "ratio",
+        "period": "FY2017",
+        "source": "calculated-avg-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.3594,
+        "unit": "ratio",
+        "period": "FY2016",
+        "source": "calculated-end-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "incremental_roic": {
+      "value": 0.1035,
+      "unit": "ratio",
+      "period": "FY2022→FY2025",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt_series": [
+      {
+        "value": 9199715000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 9423822000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 7956167000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 6432397000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5545874000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5736724000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5262590000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5005930000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 5081238000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 4924119000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "cash_series": [
+      {
+        "value": 271803000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 298172000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 277054000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 264380000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1171335000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1750815000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 176300000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 217824000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 293270000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 189734000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "equity_series": [
+      {
+        "value": -3414313000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -4749614000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -4349894000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -3538913000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -1797536000.0,
+        "unit": "USD",
+        "period": "FY2021",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -877977000.0,
+        "unit": "USD",
+        "period": "FY2020",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -1713851000.0,
+        "unit": "USD",
+        "period": "FY2019",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -1520355000.0,
+        "unit": "USD",
+        "period": "FY2018",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -1428377000.0,
+        "unit": "USD",
+        "period": "FY2017",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -1787538000.0,
+        "unit": "USD",
+        "period": "FY2016",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "invested_capital": {
+      "value": 6369458000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "operating: assets-cash-STI-LTI-ROU-NIBCL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "stockholders_equity": {
+      "value": -3414313000.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "source_filing": "10-K FY2025",
+    "citations": []
+  },
+  "mgmt": {
+    "ticker": "AZO",
+    "stub": false,
+    "error": null,
+    "model_used": "gpt-4o-mini",
+    "insider_ownership_pct": 2.6,
+    "insider_ownership_shares": 435783,
+    "insider_ownership_below_1pct": false,
+    "insider_ownership_multi_class_row": null,
+    "insider_ownership_as_of": "2025-10-28",
+    "founder_ceo": false,
+    "ceo_tenure_years": 0.0,
+    "form4_transactions_12m": 23,
+    "form4_summary": "OFFICER/DIRECTOR discretionary transactions (insider sentiment — skin in the game):\n  Dennis W. Leriche (Sr. Vice President) | SELL | 1,455 shares @ $3100.00 | 2026-08-07\n  Brian Hannasch (Director) | BUY | 165 shares @ $2987.00 | 2026-05-29\n  Earl G Graves JR (Director) | SELL | 50 shares @ $3478.72 | 2026-04-10\n  George R Mrkonic JR (Director) | SELL | 336 shares @ $3202.00 | 2024-12-31\n  Richard Craig Smith (Sr. Vice President) | SELL | 5,910 shares @ $3700.00 | 2026-01-23\n  Richard Craig Smith (Sr. Vice President) | SELL | 3,190 shares @ $3500.00 | 2026-01-16\n  George R Mrkonic JR (Director) | SELL | 1 shares @ $3344.57 | 2026-01-01\n  George R Mrkonic JR (Director) | SELL | 96 shares @ $3341.97 | 2026-01-01\n  Earl G Graves JR (Director) | SELL | 250 shares @ $3295.00 | 2026-01-01\n  Michael A George (Director) | BUY | 145 shares @ $3398.13 | 2025-12-22\n  Brian Hannasch (Director) | BUY | 147 shares @ $3393.09 | 2025-12-18\n  Jamere Jackson (CFO) | BUY | 55 shares @ $3413.50 | 2025-12-10\n  Philip B. Daniele (President & CEO) | SELL | 36 shares @ $4023.45 | 2025-10-17\n  Philip B. Daniele (President & CEO) | SELL | 92 shares @ $4025.10 | 2025-10-17\n  Philip B. Daniele (President & CEO) | SELL | 136 shares @ $4028.40 | 2025-10-17\n  Philip B. Daniele (President & CEO) | SELL | 207 shares @ $4018.18 | 2025-10-17\n  Philip B. Daniele (President & CEO) | SELL | 225 shares @ $4026.56 | 2025-10-17\n  Philip B. Daniele (President & CEO) | SELL | 283 shares @ $4016.53 | 2025-10-17\n  Philip B. Daniele (President & CEO) | SELL | 321 shares @ $4015.27 | 2025-10-17\n  Philip B. Daniele (President & CEO) | SELL | 351 shares @ $4022.77 | 2025-10-17\n  Philip B. Daniele (President & CEO) | SELL | 428 shares @ $4020.35 | 2025-10-17\n  Philip B. Daniele (President & CEO) | SELL | 454 shares @ $4021.71 | 2025-10-17\n\n10b5-1 PRE-ARRANGED PLAN transactions (NOT informative about current sentiment):\n  Michelle K. Borninkhof (Senior Vice President & CIO) | SELL | 300 shares @ $3775.00 | 2025-10-27\n  [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]",
+    "insider_transaction_pattern": "CEO Philip B. Daniele, III net seller: sold 1,000 shares in October 2025, no open-market purchases in 12m. Director Brian Hannasch net buyer: bought 312 shares in December 2025. Overall insider sentiment: neutral to slightly negative.",
+    "compensation_structure_notes": "Management compensation includes a mix of fixed and variable components, with a focus on long-term incentives. The structure appears to align with shareholder interests through equity-based compensation, although specific metrics such as ROIC or TSR are not detailed in the provided sources.",
+    "capital_allocation_summary": "The capital allocation strategy emphasizes store growth and reinvestment in the business, with a disciplined approach to M&A. There is no mention of dividends or share buybacks in the provided sources, indicating a focus on reinvestment rather than returning capital to shareholders.",
+    "citations": [
+      {
+        "claim": "Phil Daniele, who on January 2 nd, 2024, became AutoZone’s fifth CEO in our rich history.",
+        "source_url": "DEF 14A",
+        "excerpt": "Phil Daniele, who on January 2 nd, 2024, became AutoZone’s fifth CEO in our rich history.",
+        "confidence": 0.9,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Insider ownership: all directors and executive officers as a group",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "All current directors and executive officers as a group (26) persons | 435,783 shares | 2.6%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": "deterministic: parsed from the DEF 14A beneficial ownership table (EC-93)"
+      }
+    ]
+  },
+  "filings": {
+    "ticker": "AZO",
+    "stub": false,
+    "error": null,
+    "model_used": "gpt-4o-mini",
+    "business_description": "The company sells automotive parts, accessories, and maintenance items primarily to individual consumers and commercial customers. It operates a network of stores and distribution centers to provide these products and services. The business model focuses on offering quality merchandise and superior customer service to drive sales and customer loyalty.",
+    "risk_factors_summary": "The company faces several material risks including regulatory changes affecting trade tariffs, competitive pressures from other retailers, and macroeconomic factors such as inflation and consumer spending. Additionally, technological advancements and the increasing prevalence of electric vehicles may impact demand for traditional automotive parts. Supply chain disruptions and labor market challenges also pose significant risks to operations.",
+    "mda_highlights": "Management highlights that revenue growth has been driven by increases in same-store sales and the opening of new stores, with a compounded annual growth rate of approximately eight percent over the past five fiscal years. Key challenges include managing inventory costs, adapting to competitive pressures, and ensuring effective store expansion. The company emphasizes the importance of hiring and retaining qualified employees to maintain service quality and operational efficiency.",
+    "backlog_usd": null,
+    "revenue_guidance": null,
+    "geographic_revenue_breakdown": null,
+    "key_regulatory_events": null,
+    "governance_red_flags": "null",
+    "active_sec_investigation": false,
+    "material_weakness": false,
+    "citations": []
+  },
+  "market": {
+    "ticker": "AZO",
+    "stub": false,
+    "price_current": {
+      "value": 2939.85,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_high": {
+      "value": 4146.42,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_low": {
+      "value": 2730.65,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "market_cap": {
+      "value": 47546194050.0,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] AutoZone (AZO): Buy, Sell, or Hold Post Q3 Earnings?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=25b47f567fb6c8fff7110dfd6c44f1f6dc1c1349c52950147bb1f7db242487d7\n    Over the past six months, AutoZone’s shares (currently trading at $2,904) have posted a disappointing 18.2% loss, well below the S&P 500’s 14.3% gain. This may have investors wondering how to approach the situation.\n\n[2] AutoZone (AZO) Rebounds In Choppy Trade, Is It Undervalued Or Fully Valued?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=c74642ff67134edef6d212323e9510208e0bcc62a03a3fe5435bddc3789b856c\n    AutoZone Stock Triggered: What Recent Returns Signal Now AutoZone (AZO) has drawn fresh attention after a mixed run in its share performance, with the price near $2,910 and returns ranging from modest recent gains to double digit declines over longer periods. Recent trading has been choppy for AutoZ\n\n[3] O’Reilly Automotive (ORLY) vs. AZO and GPC: Why Auto Parts Stocks Are No Longer Safe Havens\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=8b170d2546eb8e514b6e0745d65478aa6cdde39726ce93e8e81b6c2afd7235e3\n    Is ORLY a good stock to buy? We came across a bullish thesis on O’Reilly Automotive, Inc. on Astute Optics’s Substack. In this article, we will summarize the bulls’ thesis on ORLY. O’Reilly Automotive, Inc.’s share was trading at $83.43 as of October 2nd 2026. ORLY’s trailing and forward P/E were 26\n\n[4] AutoZone (AZO) Stock Fair Value Edges Lower After Softer Q4 And DIY Pressure\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=fef77bfe220de560a9036c5b8ba50596089a993839cf7389f5fbb9bca9aba280\n    AutoZone's modeled fair value has been trimmed from about US$3,867.91 to roughly US$3,708.71, a reduction of around 4.1% that reflects updated assumptions in recent research. Analysts link this shift to softer Q4 comps and pressure in the DIY channel, while also considering AutoZone's push into comm\n\n[5] AutoZone hones in on domestic distribution network\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=ded55dafa3cb8198988df85078f08fa341b7ae91a7b64de9bf483b871c87fdd9\n    The auto parts retailer opened 16 mega hubs this quarter and 39 this year in total as it advances its inventory replenishment strategy.",
+    "material_events": [],
+    "quarterly_earnings_text": "[1] AutoZone Q4 Earnings Beat Estimates on Tariff Refunds, Sales Miss\nURL: https://finance.yahoo.com/markets/stocks/articles/autozone-q4-earnings-beat-estimates-135200571.html\n**AutoZone, Inc.** AZO reported fourth-quarter fiscal 2026 earnings per share of $56.05, which increased 15.1% year over year and beat the Zacks Consensus Estimate of $54.54 by 2.8%. Net sales rose 5.6% to $6.60 billion but missed the consensus mark of $6.69 billion by 1.4%. Total company same-store sales increased 1.5% on a constant-currency basis. Domestic same-store sales increased 1.6% in the 16-week quarter. International same-store sales advanced 10.7% on a reported basis, while constant-currency growth was 1.3%, reflecting the impact of currency movements. Total company same-store sales rose 2.7% on a reported basis. Domestic commercial sales reached $1.91 billion, up 8.6% from the year-ago quarter. The company ended the quarter with 6,443 domestic commercial programs, up 5.7% year over year. **Genuine Parts Company** GPC reported second-quarter 2026 adjusted earnings of $2.15 per share, beating the Zacks Consensus Estimate of $2.10 by 2.38%. Revenues rose 6% year over year to $\n\n[2] AutoZone (NYSE:AZO) Misses Q3 CY2026 Revenue Estimates\nURL: https://finance.yahoo.com/markets/stocks/articles/autozone-nyse-azo-misses-q3-114005433.html\nAuto parts and accessories retailer AutoZone (NYSE:AZO) fell short of the market's revenue expectations in Q3 CY2026, but sales rose 5.6% year on year to $6.59 billion. * **Free Cash Flow Margin:** 10.4%, up from 8.2% in the same quarter last year. * **Locations:** 8,031 at quarter end, up from 7,657 in the same quarter last year. * **Same-Store Sales** rose 2.7% year on year (4.5% in the same quarter last year). Over the last eight weeks of the quarter our sales results strengthened, and we feel we are well positioned for sales growth in fiscal 2027. As you can see below, AutoZone grew its sales at a tepid 5.2% compounded annual growth rate over the last three years, but to its credit, it opened new stores and increased sales at existing, established locations. This quarter, AutoZone's revenue grew by 5.6% year on year to $6.59 billion, missing Wall Street's estimates. In the latest quarter, AutoZone's same-store sales rose 2.7% year on year.\n\n[3] AutoZone Inc. Financial Statements - AZO\nURL: https://www.wsj.com/market-data/quotes/AZO/financials\n10/01/26 $2,818.97 USD. Q1 2026 Ann. EPS Est. +170.69 FY. Net Income Growth -5.26% Sales or Revenue 6.59 B Sales or Revenue Growth +2.41% EBITDA +1.54 B\n\n[4] AC/DC - Back In Black (Official 4K Video)\nURL: https://links.message.bloomberg.com/s/c/19ZnnoisLFJPMPPcvlrILMvHFvTA_u_vHuqksGHM24_q609wH1aVEFCpjNrAHCPlPlm9JuyOw7RzpZ9bp3M0B-6pnn0wAzuBbtr2_Xi_l4EeWcZlWPkpShz8mSpM59S5x-Gq9xLxVGTndty6YZ8Tc3oEoilF93ayGJjCFgeKafta9-1gqEOX7F18cUjXqDWvuDUmmcN7lJNARKnPYjKluI2LvGef7PydrBpz0tQQNyq4RqXPUpcXYPnjmFIVtJ4xecM_uCLJ0DfHVxmQMG9l7EJaI0E_r6ZJq3ql4fZo5b0y8fbHeP9PiA/BlpJNfjsdd8Py_txxSY4tiaHiTJD1ai4/9\n### [AC/DC - Hells Bells (Official 4K Video)](https://links.message.bloomberg.com/watch?v=etAIpkdhU9Q&list=RDetAIpkdhU9Q&start_radio=1&pp=oAcB). ### [Black Sabbath, AC/DC & Motörhead – Unstoppable Hard Rock with Dirty Heavy Riffs | AI Mix](https://links.message.bloomberg.com/watch?v=Zv6swAIu5Ow&list=RDZv6swAIu5Ow&start_radio=1&pp=oAcB). ### [AC/DC - You Shook Me All Night Long (Official 4K Video)](https://links.message.bloomberg.com/watch?v=Lo2qQmj0_h4&list=RDLo2qQmj0_h4&start_radio=1&pp=oAcB). ### [AC/DC - Thunderstruck (Official Video)](https://links.message.bloomberg.com/watch?v=v2AC41dglnM&list=RDv2AC41dglnM&start_radio=1&pp=oAcB). [![Image 37](https://links.message.bloomberg.com/s/c/19ZnnoisLFJPMPPcvlrILMvHFvTA_u_vHuqksGHM24_q609wH1aVEFCpjNrAHCPlPlm9JuyOw7RzpZ9bp3M0B-6pnn0wAzuBbtr2_Xi_l4EeWcZlWPkpShz8mSpM59S5x-Gq9xLxVGTndty6YZ8Tc3oEoilF93ayGJjCFgeKafta9-1gqEOX7F18cUjXqDWvuDUmmcN7lJNARKnPYjKluI2LvGef7PydrBpz0tQQNyq4RqXPUpcXYPnjmFIVtJ4xecM_uCLJ0DfHVxmQMG9l7EJaI0E_r6ZJq3ql4fZo5b0y8fb\n\n[5] 华尔街日报中文网_突发新闻，商业，经济，金融，财经，国际新闻，多媒体，视频_华尔街日报中文版_WSJ_The Wall Street Journal\nURL: https://cn.wsj.com\n### 中国央行驳斥人民币汇率被低估的说法. ### 当前高收益率环境下，你该如何选择合适的债券策略. ### 万斯称美国将暂停微软等公司参与H1B绿卡申请计划. ### OpenAI收入不及预期报道引发“过度担忧”，美光、英伟达等AI芯片股下跌. ### 朝韩非军事区地雷爆炸事件释放朝鲜严防脱北的信号. ### 深入加沙内部：以色列如何持续扩大其军事存在. ### 在中国，藏族民心之争正酣. ### 伊朗与胡塞武装发起一连串袭击，以期重夺霍尔木兹海峡控制权. ### “亲爱的，拜托了”：美驻希腊大使曾向捐款人索要10万美元还信用卡债. ### 俄罗斯鼠疫实验室员工之死：已知事实和未解疑问. ### 扎克伯格为何在Facebook电影续作《社交清算》中沦为配角？. 在《社交网络》后续作品《社交清算》中，编剧兼导演亚伦·索尔金并未沿用原路线，而是将镜头聚焦于一位Facebook吹哨人和一名《华尔街日报》记者。. ### 对沃尔玛而言，用机器人取代人类是一场耗资数十亿美元的苦战. ### 个人AI智能体很好用，却也有可能把你的银行账单发到工作群. ### 英国人为何迷上中国车？尤其是酷似揽胜的杰酷. ## 行业洞察. ### SpaceX大举布局，谋求成为无线通信运营商. ### 战火收紧全球能源供应，美国炼油商开启“印钞机”模式. ### 法学家皮莱获诺贝尔和平奖. ### GLP-1类药物可能导致视力丧失？药企被告上法庭. ### 失控飞行员已成为民航安全的一大威胁. ## 编辑推荐. ### 习近平访美作出罕见休息安排，与特朗普的峰会“缩水”数小时. ### 中国芬太尼原料商如今转而向美国人出售“灰色”多肽. ### 跨国代孕案中的华人夫妇被捕，被控虐待儿童. ### 体验无人驾驶出租车接送机：惬意，但太慢了. ### 巴菲特晚上也刷视频，他都看些啥？. ### FBI逮捕涉嫌监视台湾总统之子的中国代理人. ## 视频. ### 收益率上升之际应该如何购买债券. ### 遭受重创的债券市场为何终迎喘息之机. ### 关于代币化股票你需要知道的五件事. ### 六年通胀对美国中期选举意味着什么？. ### 美联储纪要暗示年内将再加息，但10月无迫切行动必要. ### 特朗普关税让强迫劳动成焦点，而这个问题不会轻易消失. ### Manus母公司在一轮融资中筹资逾5亿\n\n[6] Live TV - US BTV+ - Bloomberg\nURL: https://www.bloomberg.com/live/us\nConnecting decision makers to a dynamic network of information, people and ideas, Bloomberg quickly and accurately delivers business and financial information, news and insight around the world. Americas+1 212 318 2000. EMEA+44 20 7330 7500. Asia Pacific+65 6212 1000.\n",
+    "quarterly_earnings_date": null,
+    "quarterly_eps_actuals": [
+      {
+        "period": "2026-09-30",
+        "actual": 56.05,
+        "estimate": 54.4026,
+        "surprise": 1.6474,
+        "surprisePercent": 3.0282,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-06-30",
+        "actual": 38.07,
+        "estimate": 36.6474,
+        "surprise": 1.4226,
+        "surprisePercent": 3.8819,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-03-31",
+        "actual": 27.63,
+        "estimate": 27.4009,
+        "surprise": 0.2291,
+        "surprisePercent": 0.8361,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-12-31",
+        "actual": 31.04,
+        "estimate": 32.8338,
+        "surprise": -1.7938,
+        "surprisePercent": -5.4633,
+        "revenueActual": null,
+        "revenueEstimate": null
+      }
+    ]
+  },
+  "competitive": {
+    "ticker": "AZO",
+    "stub": false,
+    "error": null,
+    "model_used": "gpt-4o-mini",
+    "moat_classification": "narrow",
+    "moat_sources": [
+      "brand",
+      "efficient_scale",
+      "network_effects",
+      "cost_advantage"
+    ],
+    "peer_roic_comparison": [],
+    "citations": [
+      {
+        "claim": "AutoZone distributes automotive replacement parts across the United States, Mexico and Brazil.",
+        "source_url": "Web (Tavily)",
+        "excerpt": "AutoZone distributes automotive replacement parts across the United States, Mexico and Brazil. At Q3 FY2026 it operated 6,766 U.S. stores, 933 in Mexico and 157 in Brazil; quarterly sales were $4.841B and domestic commercial sales grew 10.4%. The core U.S. advantage is urgent local availability created by dense stores, hubs and mega hubs, distribution centers, and commercial delivery coverage.",
+        "confidence": 0.95,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "ROIC is consistently above 15% for the past four years.",
+        "source_url": "Financial data",
+        "excerpt": "ROIC series: FY2025: 50.1%, FY2024: 65.0%, FY2023: 72.0%, FY2022: 76.4%, FY2021: 65.8%",
+        "confidence": 0.95,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "The core advantage is a dense store footprint paired with a hub/mega-hub and distribution-center network that improves local parts availability and speed.",
+        "source_url": "Web (Tavily)",
+        "excerpt": "The core advantage is a dense store footprint paired with a hub/mega-hub and distribution-center network that improves local parts availability and speed for both DIY and commercial customers.",
+        "confidence": 0.95,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Gross margin is above 50% and has been stable.",
+        "source_url": "Financial data",
+        "excerpt": "Gross margin: FY2025: 52.6%, FY2024: 53.1%, FY2023: 52.0%",
+        "confidence": 0.95,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      }
+    ]
+  },
+  "peers": [],
+  "peer_financials": [],
+  "quarterly_snapshot": {
+    "period": "2026-05-09 (Q3)",
+    "revenue": 4840950000.0,
+    "operating_income": 923756000.0,
+    "gross_profit": 2524574000.0,
+    "filing_date": null
+  },
+  "historical_cagr_5y": 0.08436605609642212,
+  "historical_cagr_years": 5,
+  "checkpoint1_user_input": {
+    "proceed": true,
+    "peers": "",
+    "answers": {}
+  },
+  "checkpoint2_user_input": {
+    "wacc_pct": 8.3,
+    "terminal_growth_pct": 2.5,
+    "projection_years": 10,
+    "mid_year_convention": false,
+    "valuation_date": "2026-10-10"
+  },
+  "valuation": {
+    "ticker": "AZO",
+    "stub": false,
+    "error": null,
+    "dcf_intrinsic_value": {
+      "value": 16805301867.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "calculated (FCFF (median FCFF margin (3y) × latest revenue = 11.4%), EV − net claims)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_intrinsic_per_share": {
+      "value": 1002.18,
+      "unit": "USD/share",
+      "period": "FY2025",
+      "source": "calculated (FCFF (median FCFF margin (3y) × latest revenue = 11.4%), bridge)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "dcf_upside_pct": -65.9,
+    "price_current": {
+      "value": 2939.85,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "reverse_dcf_implied_growth": 0.0975,
+    "reverse_dcf_10y_equivalent": 0.0754,
+    "ev_ebit_multiple": {
+      "value": 16.13,
+      "unit": "x",
+      "period": "2026-10-10",
+      "source": "calculated (market EV / EBIT)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "ev_fcf_multiple": {
+      "value": 27.04,
+      "unit": "x",
+      "period": "2026-10-10",
+      "source": "calculated (market EV / FCFF)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "pe_multiple": {
+      "value": 19.73,
+      "unit": "x",
+      "period": "2026-10-10",
+      "source": "calculated (price × shares / NI)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "earnings_yield_pct": 6.2,
+    "magic_formula_rank": null,
+    "sensitivity_table": [
+      {
+        "near_term_growth_pct": 0.4,
+        "values": {
+          "wacc_6.3pct": 2191.84,
+          "wacc_8.3pct": 1515.41,
+          "wacc_10.3pct": 1108.76
+        }
+      },
+      {
+        "near_term_growth_pct": -4.6,
+        "values": {
+          "wacc_6.3pct": 1478.99,
+          "wacc_8.3pct": 1002.18,
+          "wacc_10.3pct": 714.62
+        }
+      },
+      {
+        "near_term_growth_pct": -9.6,
+        "values": {
+          "wacc_6.3pct": 946.11,
+          "wacc_8.3pct": 615.27,
+          "wacc_10.3pct": 414.99
+        }
+      }
+    ],
+    "assumptions": {
+      "checkpoint_id": "checkpoint2",
+      "user_notes": "",
+      "proceed": true,
+      "wacc_pct": 8.3,
+      "terminal_growth_pct": 2.5,
+      "projection_years": 10,
+      "stage1_years": null,
+      "fade_years": null,
+      "revenue_growth_yr1_pct": null,
+      "margin_assumption_pct": null,
+      "mid_year_convention": false,
+      "valuation_date": "2026-10-10"
+    },
+    "dcf_reliability_note": "Near-term FCF growth: -4.6% (historical FCF CAGR, 5 years). ℹ️ EV capitalized 406 days from fiscal year-end to valuation date. ℹ️ Bridge components unavailable (treated as 0): short_term_investments, long_term_investments, minority_interest, preferred_stock. ℹ️ EPV growth premium: 49% of the price pays for growth.",
+    "fcf_quality_warning": null,
+    "near_term_growth_used_pct": -0.04575106342143098,
+    "near_term_growth_source": "fcf_cagr_5y",
+    "cyclicality": {
+      "is_cyclical": false,
+      "years": 10,
+      "median_margin": 0.19255929119175627,
+      "peak_margin": 0.20490281698458887,
+      "peak_period": "FY2024",
+      "evidence": "peak operating margin 20.5% (FY2024) vs 10y median 19.3%: +1.2 pp, 1.1x"
+    },
+    "stage1_years_used": 5,
+    "fade_years_used": 5,
+    "epv_enterprise": {
+      "value": 34302791486.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_5y)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_per_share": {
+      "value": 1513.22,
+      "unit": "USD/share",
+      "period": "FY2025",
+      "source": "EPV (ebit_median_5y, bridge)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "epv_upside_pct": -48.5,
+    "epv_source": "ebit_median_5y",
+    "epv_growth_premium": 0.485273,
+    "suggested_wacc_pct": 8.3,
+    "suggested_wacc_breakdown": "Ke 9.2% (CAPM: Rf=4.2% + β=1.0×ERP=5.0% + size_premium=0.0% (large cap) — OFF, not applied) × 84% + Kd 5.0% (synthetic rating AA (coverage 7.4x) → Rf+0.8%) × (1−25%) × 16% = 8.3%",
+    "wacc_breakdown": {
+      "cost_of_equity": 0.092,
+      "cost_of_equity_source": "CAPM: Rf=4.2% + β=1.0×ERP=5.0% + size_premium=0.0% (large cap) — OFF, not applied",
+      "pre_tax_cost_of_debt": 0.05,
+      "cost_of_debt_source": "synthetic rating AA (coverage 7.4x) → Rf+0.8%",
+      "tax_rate": 0.25,
+      "after_tax_cost_of_debt": 0.037500000000000006,
+      "equity_weight": 0.8378787977139649,
+      "debt_weight": 0.1621212022860351,
+      "wacc": 0.08316439447541109
+    },
+    "valuation_methods_summary": [
+      {
+        "method": "DCF (3-stage Damodaran fade)",
+        "per_share": "$1002.18",
+        "upside_pct": -65.9,
+        "display_upside": "-65.9%",
+        "classification": "expensive"
+      },
+      {
+        "method": "EPV (Greenwald — zero growth)",
+        "per_share": "$1513.22",
+        "upside_pct": -48.5,
+        "display_upside": "-48.5%",
+        "classification": "expensive"
+      },
+      {
+        "method": "Reverse DCF (market-implied growth)",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "implied g1 9.8% (10y-equiv 7.5%) vs historical 8.4% revenue CAGR",
+        "classification": "fair"
+      },
+      {
+        "method": "EV/EBIT vs peer median",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "16.1x vs peer median N/A",
+        "classification": "n/a"
+      }
+    ],
+    "valuation_basis": "FCFF discounted at WACC → EV → equity bridge → per share (ADR-033)",
+    "fcff_base": {
+      "value": 2152955437.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "median FCFF margin (3y) × latest revenue = 11.4%",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "fcff_breakdown": {
+      "ocf": 3117337000.0,
+      "after_tax_interest_addback": 390893403.83870816,
+      "after_tax_interest_income": 8752374.729694007,
+      "capex": 1327257000.0,
+      "sbc_charge": 124717000.0,
+      "finance_lease_principal": 96154000.0,
+      "tax_rate": 0.2022990585404659,
+      "fcff": 1951350029.109014,
+      "missing_inputs": []
+    },
+    "dcf_base_source": "FCFF (median FCFF margin (3y) × latest revenue = 11.4%)",
+    "tax_rate_used": 0.2022990585404659,
+    "tax_rate_source": "effective Σtax/Σpretax (FY2025, FY2024, FY2023)",
+    "enterprise_value_dcf": {
+      "value": 25733213867.0,
+      "unit": "USD",
+      "period": "FY2025",
+      "source": "calculated (FCFF (median FCFF margin (3y) × latest revenue = 11.4%) at WACC)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "equity_bridge": {
+      "enterprise_value": 25733213867.391247,
+      "total_debt": 9199715000.0,
+      "minority_interest": 0.0,
+      "preferred_stock": 0.0,
+      "cash": 271803000.0,
+      "short_term_investments": 0.0,
+      "long_term_investments": 0.0,
+      "operating_lease_liabilities_memo": 3377500000.0,
+      "net_claims": 8927912000.0,
+      "equity_value": 16805301867.391247,
+      "components_missing": [
+        "short_term_investments",
+        "long_term_investments",
+        "minority_interest",
+        "preferred_stock"
+      ]
+    },
+    "market_enterprise_value": {
+      "value": 58225557273.0,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "price × shares + net claims",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "share_count_used": 16768762.104651857,
+    "share_count_source": "shares_outstanding × diluted/basic (1.0272)",
+    "terminal_value_share": 0.4973528383468887,
+    "mid_year_convention_used": false,
+    "sensitivity_unit": "USD/share"
+  },
+  "citations": [],
+  "unverified_claims": [],
+  "cost_usd": 0.0
+}

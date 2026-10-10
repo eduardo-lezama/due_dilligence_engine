@@ -13,3 +13,15 @@ Regenerar (requiere `.env` con claves):
     PYTHONUTF8=1 uv run python scripts/freeze_contexts.py AAPL BBW AZO PRDO KBR PATH MOS QLYS
 
 No editar a mano: son datos de referencia.
+
+## Estado desde H2-1 (2026-10-10): solo referencia histórica
+
+Estos estados cargan en los schemas actuales pero **no representan el sistema actual** y no se
+usan en el harness de evals:
+- sus citas no tienen `verified` → con el control de evidencia (EC-94) todas las réplicas caerían en
+  DATA GAPS con la confianza topada a 0,6;
+- la valoración es la anterior a FCFF + bridge (ADR-033): p.ej. AAPL DCF $73,80/acción;
+- no cubren peers, hipótesis del inversor, datos trimestrales ni gobierno.
+
+El dataset vigente está en `tests/evals/cases/` (congelado con el código actual, ver su `manifest.json`).
+Estos ficheros sirven para comparar "antes de H1" frente a "después".

@@ -1,0 +1,164 @@
+{
+  "cases": [
+    {
+      "name": "AAPL-base",
+      "ticker": "AAPL",
+      "variant": "base",
+      "tags": [
+        "archetype"
+      ],
+      "state_file": "AAPL-base.state.json",
+      "models": [
+        "gpt-4o-mini"
+      ]
+    },
+    {
+      "name": "BBW-base",
+      "ticker": "BBW",
+      "variant": "base",
+      "tags": [
+        "archetype"
+      ],
+      "state_file": "BBW-base.state.json",
+      "models": [
+        "gpt-4o-mini"
+      ]
+    },
+    {
+      "name": "AZO-base",
+      "ticker": "AZO",
+      "variant": "base",
+      "tags": [
+        "archetype"
+      ],
+      "state_file": "AZO-base.state.json",
+      "models": [
+        "gpt-4o-mini"
+      ]
+    },
+    {
+      "name": "PRDO-base",
+      "ticker": "PRDO",
+      "variant": "base",
+      "tags": [
+        "archetype"
+      ],
+      "state_file": "PRDO-base.state.json",
+      "models": [
+        "gpt-4o-mini"
+      ]
+    },
+    {
+      "name": "CALM-base",
+      "ticker": "CALM",
+      "variant": "base",
+      "tags": [
+        "cyclical",
+        "archetype"
+      ],
+      "state_file": "CALM-base.state.json",
+      "models": [
+        "gpt-4o-mini"
+      ]
+    },
+    {
+      "name": "KBR-base",
+      "ticker": "KBR",
+      "variant": "base",
+      "tags": [],
+      "state_file": "KBR-base.state.json",
+      "models": [
+        "gpt-4o-mini"
+      ]
+    },
+    {
+      "name": "PATH-base",
+      "ticker": "PATH",
+      "variant": "base",
+      "tags": [
+        "multi_class"
+      ],
+      "state_file": "PATH-base.state.json",
+      "models": [
+        "gpt-4o-mini"
+      ]
+    },
+    {
+      "name": "MOS-base",
+      "ticker": "MOS",
+      "variant": "base",
+      "tags": [
+        "cyclical"
+      ],
+      "state_file": "MOS-base.state.json",
+      "models": [
+        "gpt-4o-mini"
+      ]
+    },
+    {
+      "name": "QLYS-base",
+      "ticker": "QLYS",
+      "variant": "base",
+      "tags": [
+        "stability_qlys"
+      ],
+      "state_file": "QLYS-base.state.json",
+      "models": [
+        "gpt-4o-mini"
+      ]
+    },
+    {
+      "name": "NUE-base",
+      "ticker": "NUE",
+      "variant": "base",
+      "tags": [
+        "cyclical"
+      ],
+      "state_file": "NUE-base.state.json",
+      "models": [
+        "gpt-4o-mini"
+      ]
+    },
+    {
+      "name": "NKE-base",
+      "ticker": "NKE",
+      "variant": "base",
+      "tags": [
+        "multi_class"
+      ],
+      "state_file": "NKE-base.state.json",
+      "models": [
+        "gpt-4o-mini"
+      ]
+    },
+    {
+      "name": "PLUG-base",
+      "ticker": "PLUG",
+      "variant": "base",
+      "tags": [
+        "loss_making"
+      ],
+      "state_file": "PLUG-base.state.json",
+      "models": [
+        "gpt-4o-mini"
+      ]
+    },
+    {
+      "name": "AAPL-peers",
+      "ticker": "AAPL",
+      "variant": "peers",
+      "tags": [
+        "archetype"
+      ],
+      "state_file": "AAPL-peers.state.json",
+      "models": [
+        "gpt-4o-mini"
+      ]
+    }
+  ],
+  "frozen_with": {
+    "git_sha": "603520d-dirty",
+    "date": "2026-10-10",
+    "specialist_model": "gpt-4o-mini"
+  }
+}

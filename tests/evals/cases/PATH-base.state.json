@@ -1,0 +1,1290 @@
+{
+  "ticker": "PATH",
+  "cik": "0001734722",
+  "as_of_date": "2026-01-31",
+  "run_id": "c0aa68f9-698",
+  "financials": {
+    "ticker": "PATH",
+    "cik": "0001734722",
+    "as_of_date": "2026-01-31",
+    "revenue": [
+      {
+        "value": 1610572000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1429664000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1308072000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1058581000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 892252000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "gross_profit": [
+      {
+        "value": 1339588000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1182722000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1112148000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 878530000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 723384000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "GrossProfit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_income": [
+      {
+        "value": 56760000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -162569000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -164720000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -348283000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -500946000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "OperatingIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "net_income": [
+      {
+        "value": 282330000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -73694000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -89883000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -328352000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -525586000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "NetIncomeLoss",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "operating_cash_flow": [
+      {
+        "value": 371208000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 320565000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 299082000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -9981000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -54963000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "NetCashProvidedByUsedInOperatingActivities",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "capex": [
+      {
+        "value": 19048000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 14923000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 7342000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 23815000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 8879000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "PaymentsToAcquirePropertyPlantAndEquipment",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "free_cash_flow": [
+      {
+        "value": 352160000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 305642000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 291740000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -33796000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -63842000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "calculated",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "buybacks": [
+      {
+        "value": 329101000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 390751000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 102615000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "facts:PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "PaymentsForRepurchaseOfCommonStock",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "dividends": [],
+    "total_assets": {
+      "value": 3179200000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "Assets",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt": {
+      "value": 0.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "cash_and_equivalents": {
+      "value": 871157000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "CashAndCashEquivalentsAtCarryingValue",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "short_term_investments": {
+      "value": 601329000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "facts:MarketableSecuritiesCurrent",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "long_term_investments": {
+      "value": 216990000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "facts:MarketableSecuritiesNoncurrent",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "equity_method_investments": null,
+    "data_quality_flags": [],
+    "shares_outstanding": null,
+    "interest_expense": [],
+    "interest_income": [
+      {
+        "value": 48023000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 49422000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 57130000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 27955000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 3551000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "InvestmentIncomeInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "sbc": [
+      {
+        "value": 290676000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 358151000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 371955000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 369840000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 515583000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "ShareBasedCompensation",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "depreciation_amortization": [
+      {
+        "value": 16969000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 17232000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 22597000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 18723000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 14705000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "DepreciationDepletionAndAmortization",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "diluted_shares": [
+      {
+        "value": 544860000.0,
+        "unit": "shares",
+        "period": "FY2026",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 559933000.0,
+        "unit": "shares",
+        "period": "FY2025",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 563855000.0,
+        "unit": "shares",
+        "period": "FY2024",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 548022000.0,
+        "unit": "shares",
+        "period": "FY2023",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 454625000.0,
+        "unit": "shares",
+        "period": "FY2022",
+        "source": "WeightedAverageNumberOfDilutedSharesOutstanding",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "basic_shares_weighted": {
+      "value": 538125000.0,
+      "unit": "shares",
+      "period": "FY2026",
+      "source": "WeightedAverageNumberOfSharesOutstandingBasic",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "operating_lease_liabilities": {
+      "value": 81246000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "facts:OperatingLeaseLiability",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "operating_rou_asset": {
+      "value": 64472000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "OperatingLeaseRightOfUseAsset",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "minority_interest": null,
+    "preferred_stock": {
+      "value": 0.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "PreferredStockValue",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "income_tax": [
+      {
+        "value": -181702000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -4406000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 14068000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 10791000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 14703000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "IncomeTaxExpenseBenefit",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "pretax_income": [
+      {
+        "value": 100628000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -78100000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -75815000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -317561000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -510883000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "finance_lease_principal_payments": [],
+    "roic_series": [
+      {
+        "value": 0.1444,
+        "unit": "ratio",
+        "period": "FY2026",
+        "source": "calculated-end-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": -1.6293,
+        "unit": "ratio",
+        "period": "FY2023",
+        "source": "calculated-end-ic",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "incremental_roic": {
+      "value": 1.3659,
+      "unit": "ratio",
+      "period": "FY2023→FY2026",
+      "source": "calculated",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "total_debt_series": [
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 0.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "cash_series": [
+      {
+        "value": 1472486000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1629518000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1879823000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1756893000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1865140000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "equity_series": [
+      {
+        "value": 2082587000.0,
+        "unit": "USD",
+        "period": "FY2026",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1845762000.0,
+        "unit": "USD",
+        "period": "FY2025",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 2016114000.0,
+        "unit": "USD",
+        "period": "FY2024",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1920158000.0,
+        "unit": "USD",
+        "period": "FY2023",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      },
+      {
+        "value": 1921917000.0,
+        "unit": "USD",
+        "period": "FY2022",
+        "source": "XBRL",
+        "currency_code": "USD",
+        "gaap_vs_nongaap": "GAAP"
+      }
+    ],
+    "invested_capital": {
+      "value": 393111000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "equity+debt-cash",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "stockholders_equity": {
+      "value": 2082587000.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "XBRL",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "source_filing": "10-K FY2026",
+    "citations": []
+  },
+  "mgmt": {
+    "ticker": "PATH",
+    "stub": false,
+    "error": null,
+    "model_used": "gpt-4o-mini",
+    "insider_ownership_pct": null,
+    "insider_ownership_shares": null,
+    "insider_ownership_below_1pct": false,
+    "insider_ownership_multi_class_row": "All executive officers and directors as a group (11 persons) | 52,117,848 | 11.4% | 64,690,706 | 100% | 85.2%",
+    "insider_ownership_as_of": "2026-05-12",
+    "founder_ceo": true,
+    "ceo_tenure_years": null,
+    "form4_transactions_12m": 24,
+    "form4_summary": "No discretionary officer/director open-market transactions in the last 12 months.\n\n10b5-1 PRE-ARRANGED PLAN transactions (NOT informative about current sentiment):\n  Ashim Gupta (COO) | SELL | 66,052 shares @ $13.17 | 2026-10-01\n  Raghavendra Malpani (CPO & CTO) | SELL | 40,464 shares @ $14.00 | 2026-09-17\n  Raghavendra Malpani (CPO & CTO) | SELL | 98,429 shares @ $13.81 | 2026-09-16\n  Ashim Gupta (COO) | SELL | 117,339 shares @ $13.85 | 2026-09-11\n  Daniel Dines (CEO and Chairman) | SELL | 1,402,347 shares @ $16.07 | 2026-08-19\n  Hitesh Ramani (Chief Accounting Officer) | SELL | 25,000 shares @ $16.50 | 2026-08-13\n  Hitesh Ramani (Chief Accounting Officer) | SELL | 25,000 shares @ $16.75 | 2026-08-13\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.02 | 2026-01-22\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.23 | 2026-01-22\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.01 | 2026-01-22\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.38 | 2026-01-15\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.68 | 2026-01-14\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $17.18 | 2026-01-13\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $16.61 | 2026-01-12\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $17.17 | 2026-01-09\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $17.49 | 2026-01-08\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $17.32 | 2026-01-07\n  Hitesh Ramani (Chief Accounting Officer) | SELL | 5,000 shares @ $15.47 | 2025-10-22\n  Ashim Gupta (COO & CFO) | SELL | 67,468 shares @ $16.10 | 2026-01-02\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.99 | 2026-01-06\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $15.73 | 2026-01-05\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $16.38 | 2026-01-02\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $16.82 | 2025-12-30\n  Daniel Dines (CEO and Chairman) | SELL | 45,000 shares @ $16.55 | 2025-12-30\n  [NOTE: 10b5-1 plan sales are pre-programmed months in advance. The decision to sell was made when the plan was adopted, NOT at the execution date. Do NOT use these as bearish signals. They reflect estate/tax/diversification planning, not conviction.]",
+    "insider_transaction_pattern": "CEO Daniel Dines net seller: sold 1,402,347 shares in August 2026, with no open-market purchases in 12m. Overall insider sentiment: negative.",
+    "compensation_structure_notes": "Management compensation is likely structured with a mix of fixed and variable components, but specific details on long-term incentives or performance metrics are not provided in the sources. The advisory vote on executive compensation indicates that the board values shareholder opinions, suggesting some alignment with shareholder interests.",
+    "capital_allocation_summary": "Details on capital allocation strategies, including M&A discipline, buybacks, and dividends, are not available in the provided sources. However, the company has achieved its first GAAP profitability, indicating a focus on improving financial performance and potentially prudent reinvestment strategies.",
+    "citations": [
+      {
+        "claim": "Daniel Dines | 37,508,882 | 8.2% | 64,690,706 | 100% | 84.6%",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "Daniel Dines | 37,508,882 | 8.2% | 64,690,706 | 100% | 84.6%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "CEO Daniel Dines net seller: sold 1,402,347 shares in August 2026, with no open-market purchases in 12m. Overall insider sentiment: negative.",
+        "source_url": "Form 4",
+        "excerpt": "Daniel Dines (CEO and Chairman) | SELL | 1,402,347 shares @ $16.07 | 2026-08-19",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Management compensation is likely structured with a mix of fixed and variable components, but specific details on long-term incentives or performance metrics are not provided in the sources.",
+        "source_url": "DEF 14A",
+        "excerpt": "The board of directors values our stockholders’ opinions, and our board of directors and the compensation committee will take into account the outcome of the advisory vote when considering future executive compensation decisions.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Details on capital allocation strategies, including M&A discipline, buybacks, and dividends, are not available in the provided sources.",
+        "source_url": "Transcripts",
+        "excerpt": "The results marked UiPath's first quarter of GAAP profitability, with management attributing performance to growing adoption of its AI-powered automation products and stronger customer expansion.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Insider ownership: all directors and executive officers as a group",
+        "source_url": "DEF 14A ownership table",
+        "excerpt": "All executive officers and directors as a group (11 persons) | 52,117,848 | 11.4% | 64,690,706 | 100% | 85.2%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": "deterministic: parsed from the DEF 14A beneficial ownership table (EC-93)"
+      }
+    ]
+  },
+  "filings": {
+    "ticker": "PATH",
+    "stub": false,
+    "error": null,
+    "model_used": "gpt-4o-mini",
+    "business_description": "Not available in provided sources.",
+    "risk_factors_summary": "We have incurred net losses in the past, anticipate continuing to incur significant operating expenses in the future, and may not sustain consistent profitability. Macroeconomic conditions, including volatile and weakened global economic conditions, and geopolitical tensions and conflicts, including changes to trade policies and regulations, present significant risks to us in several jurisdictions. Adverse changes in global or regional economic conditions periodically occur, including recession or slowing growth; changes or uncertainty in fiscal, monetary, or trade policy; volatility in foreign exchange markets; tighter credit; fluctuating inflation and interest rates; lower capital expenditures by businesses including on IT infrastructure; increases in unemployment; and lower consumer confidence and spending.",
+    "mda_highlights": "Not available in provided sources.",
+    "backlog_usd": null,
+    "revenue_guidance": null,
+    "geographic_revenue_breakdown": "sales outside the U.S. accounted for 54% of our revenue for fiscal year 2026.",
+    "key_regulatory_events": null,
+    "governance_red_flags": "null",
+    "active_sec_investigation": false,
+    "material_weakness": false,
+    "citations": [
+      {
+        "claim": "We have incurred net losses in the past, anticipate continuing to incur significant operating expenses in the future, and may not sustain consistent profitability.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "We have incurred net losses in the past, anticipate continuing to incur significant operating expenses in the future, and may not sustain consistent profitability.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Macroeconomic conditions, including volatile and weakened global economic conditions, and geopolitical tensions and conflicts, including changes to trade policies and regulations, present significant risks to us in several jurisdictions.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Macroeconomic conditions, including volatile and weakened global economic conditions, and geopolitical tensions and conflicts, including changes to trade policies and regulations, present significant risks to us in several jurisdictions.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Adverse changes in global or regional economic conditions periodically occur, including recession or slowing growth; changes or uncertainty in fiscal, monetary, or trade policy; volatility in foreign exchange markets; tighter credit; fluctuating inflation and interest rates; lower capital expenditures by businesses including on IT infrastructure; increases in unemployment; and lower consumer confidence and spending.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "Adverse changes in global or regional economic conditions periodically occur, including recession or slowing growth; changes or uncertainty in fiscal, monetary, or trade policy; volatility in foreign exchange markets; tighter credit; fluctuating inflation and interest rates; lower capital expenditures by businesses including on IT infrastructure; increases in unemployment; and lower consumer confidence and spending.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "sales outside the U.S. accounted for 54% of our revenue for fiscal year 2026.",
+        "source_url": "10-K Item 1A",
+        "excerpt": "sales outside the U.S. accounted for 54% of our revenue for fiscal year 2026.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      }
+    ]
+  },
+  "market": {
+    "ticker": "PATH",
+    "stub": false,
+    "price_current": {
+      "value": 13.48,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_high": {
+      "value": 19.84,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "price_52w_low": {
+      "value": 9.2002,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "market_cap": {
+      "value": 7025174913.320001,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "recent_news_summary": "Recent news (last 30 days, 5 articles):\n\n[1] Can UiPath (PATH) Cash Flow Support Its Fair Value Question?\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=52d380e41737df9da8b087a3d92c4f9ea6ebd7154f48424cccd7d457f49dbf79\n    UiPath has ridden a wave of interest in automation and AI, yet the share price today still raises a simple question for investors who care about valuation. Do the company’s cash flows support where the stock currently trades, or has sentiment moved faster than the underlying economics of the busines\n\n[2] UiPath Recognized as a Leader in the 2026 Gartner® Magic Quadrant™ for Agentic Software Quality Assurance Platforms\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=8ccc40367b961db3b629bb228bcf0240b087cd91905a41e8ff5b3034950a9a28\n    NEW YORK, October 09, 2026--UiPath has been recognized as a Leader in the Gartner® Magic Quadrant™ for Agentic Software Quality Assurance Platforms.\n\n[3] Robotics Stocks Diverge as AI and Semiconductor Automation Leaders Pull Ahead\n    Source: ChartMill | URL: https://finnhub.io/api/news?id=27e8d3f00645503716d12005bb437ba0b6b20dbe570fc2a96917ce4cb616786e\n    Robotics and automation stocks are splitting: AI, semiconductor, and healthcare robotics lead while traditional industrial and software automation lag.\n\n[4] UiPath (PATH) Lands Forrester Leader Nod As New AI Partnerships Build Enterprise Reach\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=d4311af8fd6f0539a59386f842dfcffc165f92748f0468fc6dad444a6eb798d6\n    UiPath (NYSE:PATH) was named a Leader in The Forrester Wave for Adaptive Process Orchestration in a recent 2026 report. The automation provider expanded its collaboration with BDO USA to build AI-driven internal audit solutions for corporate clients. UiPath deepened its integration with Snowflake, t\n\n[5] UiPath (PATH) Rises As Market Takes a Dip: Key Facts\n    Source: Yahoo | URL: https://finnhub.io/api/news?id=fd2628a9225fa34b48fce4621ae10a7412ebdc46002a6f293adebb1886c230f8\n    The latest trading day saw UiPath (PATH) settling at $13.25, representing a +1.38% change from its previous close.\n\n## Extended news coverage (drawdown context — Tavily, last 12 months)\n[1] UiPath Stock Tumbles as Guidance Fails to Excite Investors\nURL: https://finance.yahoo.com/news/uipath-stock-tumbles-guidance-fails-111419387.html\nShares of UiPath (NYSE:PATH) fell about 7% on early Thursday, even after the automation software company reported quarterly results that topped\n\n[2] PATH Stock Down 38%: Genuine Bargain or Value Trap?\nURL: https://finance.yahoo.com/markets/stocks/articles/path-stock-down-38-genuine-121734086.html\nYet the market has put a surprisingly low price on this business. After a steep decline, the stock trades about 38% below its 52-week high,\n\n[3] Stock market today: Dow, S&P 500, Nasdaq drop as chip ...\nURL: https://finance.yahoo.com/markets/stocks/live/stock-market-today-tuesday-april-28-dow-nasdaq-sp-oil-rises-earnings-in-focus-225503557.html\n... stock tanked 11% after its second quarter operating income guidance missed the mark. For Q2, Spotify guided for an operating income of 630\n\n[4] Under Armour (UAA): Do Tariff Rollbacks Mark a Turning Point in Its Margin Reset Strategy?\nURL: https://finance.yahoo.com/news/under-armour-uaa-tariff-rollbacks-170706347.html\n2. Best 0% APR cards. 2. Best high-yield savings accounts. # Under Armour (UAA): Do Tariff Rollbacks Mark a Turning Point in Its Margin Reset Strategy? * For Under Armour, the rollback of these trade barriers could ease a key source of margin pressure that has weighed on its cost base. * We'll now explore how this tariff relief might influence Under Armour's evolving brand-reset narrative, particularly its margin recovery efforts. Tariff relief now has the potential to work alongside ongoing cost and assortment efforts, but investors are still weighing whether that is enough to support a convi\n\n[5] US Tariffs: What's the Impact? | J.P. Morgan Global Research\nURL: https://links.message.bloomberg.com/s/c/8djF0q5zDvmV-Qp5fn4kXxdQmshH4Dj_673XGoRGDyRbrVmzIbya2dRMzi-7pIi4ilv1j8UmPtcaimLjWjLvBLq3ewPe34p3UU3FcBLevaj-hgWF1_YxK21pNw5FQt0gjy56BKA8y5MEY5wgUFJ5oPBN9srgOUb11lP6ObUmbFgvFVLkTmMt5hna0me-MuFhp-Wcz7E-kAyQ3YFpIOxCepCZxdIBETVVFuDVIxlXM5L261Uf7yfSloNIwJDZt05ZF3S4mJVqxT25aa2kQPX5sOe-GUt7dWMzI7bmIjuOuLG0KPEsN-Vz5ncFTdvnxceJ81AkiW_qid7hAvlZ4OjKUj9BUvLYXIwQc-xzaExD1Mt9n0YXRMevJ_rPxiesHYu7sfd3B0jFGed-PlQmxqAeEdhLPlKD0wf8CT1oQLw3iepPXLsdPJKOtMQJg1a34aFKyDs/RQbzMnzXCyWIB27p7Dz8gPcW0C69e6Bt/8\nGiven imperfect pass-through and margin compression, a more likely estimate is 0.2 to 0.3 percentage points. We think this bolsters the case for the Fed to\n\n[6] US Moves Past Tariffs to Focus on Supply Chain Revamps in China Trade Policy - Bloomberg\nURL: https://www.bloomberg.com/news/newsletters/2026-08-11/us-moves-past-tariffs-to-focus-on-supply-chain-revamps-in-china-trade-policy\n# US Moves Past Tariffs to Focus on Supply Chain Revamps in China Trade Policy. Washington has been steadily moving to revamp supply chains away from China. This article is for subscribers only. I’m Chris Anstey, a senior economics editor in Boston. Today we’re looking at a series of US supply-chain moves with China in mind. Send us feedback and tips to ecodaily@bloomberg.net. And if you aren’t yet signed up to receive this newsletter, you can do so here. Trump used to like saying that “tariff” was his favorite word. No country was a bigger target than China, as he took US levies on the geostr\n\n[7] Zcash Foundation in the Clear: SEC Ends Years-Long Probe With No Enforcement Action\nURL: https://finance.yahoo.com/news/zcash-foundation-clear-sec-ends-205059906.html\n2. Best 0% APR cards. 2. Best high-yield savings accounts. 3. Best money market accounts. # Zcash Foundation in the Clear: SEC Ends Years-Long Probe With No Enforcement Action. The Zcash Foundation said this week that a years-long investigation by the US Securities and Exchange Commission has ended without any enforcement action, bringing regulatory clarity to one of the crypto industry's most closely watched privacy projects at a time of heightened volatility for the token. In a notice published Wednesday, the foundation confirmed that the SEC had \"concluded its review\" of an inquiry tied to \n\n[8] How the SEC is clearing the path for more companies to go public\nURL: https://finance.yahoo.com/markets/article/how-the-sec-is-clearing-the-path-for-more-companies-to-go-public-195256159.html\n# How the SEC is clearing the path for more companies to go public. \"We've changed the whole attitude here at the SEC to basically welcome companies to go public,\" Atkins said in an interview with Yahoo Finance on Thursday. To that end, the SEC has proposed new rules this year intended to reduce regulations and encourage more companies to go public. \"We're basically looking at the other segment of the market to encourage more companies to come in where they have a longer glide path,\" Atkins said. \"That's the Supreme Court's standard, and that's what we want to adhere to and make sure that our \n\n[9] Coinbase Says SEC Is Investigating Its Crypto Lending Program - WSJ\nURL: https://www.wsj.com/finance/regulation/coinbase-says-sec-plans-enforcement-action-over-crypto-lending-program-11631110478\nThe Securities and Exchange Commission is investigating Coinbase Global Inc. COIN 0.55%increase; up pointing triangle over a lending program the company plans to market and has indicated it would sue the company over the offering, Coinbase said Tuesday. Coinbase co-founder and Chief Executive Brian Armstrong disclosed the dispute in a series of tweets late Tuesday. He called the SEC’s actions “sketchy” and “intimidation tactics behind closed doors,” and said other crypto companies are able to offer such programs. Copyright ©2026 Dow Jones & Company, Inc. All Rights Reserved.\n",
+    "material_events": [],
+    "quarterly_earnings_text": "[1] UiPath Inc (PATH) Q3 2026 Earnings Call Highlights: Strong Revenue Growth and First GAAP ...\nURL: https://finance.yahoo.com/news/uipath-inc-path-q3-2026-230418936.html\n2. Best 0% APR cards. 3. Best money market accounts. # UiPath Inc (PATH) Q3 2026 Earnings Call Highlights: Strong Revenue Growth and First GAAP ... * **Revenue:** $411 million, an increase of 16% year-over-year. * **Annual Recurring Revenue (ARR):** $1.78 billion, up 11% year-over-year. * **Non-GAAP Operating Income:** $88 million, representing a 21% margin. * **GAAP Operating Income:** $13 million, marking the first GAAP profitable third quarter. * **Non-GAAP Net Income:** $85 million. * **Guidance for Q4 2026 Revenue:** $462 million to $467 million. * **Guidance for Q4 2026 ARR:** $1.844 billion to $1.849 billion. * **Guidance for Q4 2026 Non-GAAP Operating Income:** Approximately $140 million. * UiPath Inc (NYSE:PATH) reported a strong third quarter with revenue increasing by 16% to $411 million. * The company achieved its first GAAP profitable third quarter, with a GAAP operating income of $13 million. * UiPath Inc (NYSE:PATH) saw a significant increase in annual recurring revenue \n\n[2] Why Is UiPath (PATH) Down 12.6% Since Last Earnings Report?\nURL: https://finance.yahoo.com/markets/stocks/articles/why-uipath-path-down-12-153002763.html\nA month has gone by since the last earnings report for UiPath (PATH). ## Quarter: Fourth Quarter of fiscal 2026. **UiPath**'s quarterly earnings of 30 cents per share beat the Zacks Consensus Estimate by 20% and increased 15.4% year over year. Revenues of $481.1 million for the quarter surpassed the Zacks Consensus Estimate by 3.5% and increased 13.6% year over year. The company also generated strong cash flows, producing $182 million in adjusted free cash flow in the fourth quarter and $372 million for the fiscal year. ARR rose from $1.78 billion in the third quarter of fiscal 2026 to $1.85 billion in the fourth quarter of fiscal 2026, with year-over-year ARR growth running about 11%. Customer scale is increasing: customers with more than $100k ARR and more than $1 million ARR grew year over year as of the fourth quarter of fiscal 2026 versus the third quarter of fiscal 2025.\n\n[3] UiPath, Inc. (PATH) Q4 FY2026 earnings call transcript\nURL: https://finance.yahoo.com/quote/PATH/earnings/PATH-Q4-2026-earnings_call-412609.html\nSkip to navigation  Skip to right column. # Yahoo Finance. 3. Most Active Penny Stocks. 2. Best 0% APR Cards. 2. Best High-Yield Savings. 5. Paying Off Student Loans. 2. Types of Car Insurance. # UiPath, Inc. (PATH) Q4 FY2026 earnings call transcript. Powered by Quartr  Mar 11, 2026, 5:00 PM EDT. Greetings, and welcome to UiPath Fourth Quarter and Full Year 2026 Earnings Conference Call. At this time, all participants are in a listen-only mode. A question and answer session will follow the formal presentation. If anyone should require operator assistance during the conference, please press star zero on your telephone keypad. Please note this conference is being recorded. I will now turn the conference over to Allise Furlani, Head of Investor Relations. ## Upgrade to unlock our full archive of historical earnings transcripts and get so much more. A Silver or Gold subscription plan is required to access historical transcripts.\n\n[4] UiPath (NYSE:PATH) Beats Q1 CY2026 Sales Expectations\nURL: https://finance.yahoo.com/markets/stocks/articles/uipath-nyse-path-beats-q1-204216481.html\nAutomation software company UiPath (NYSE:PATH) announced better-than-expected revenue in Q1 CY2026, with sales up 17.3% year on year to $418.4 million. The company expects next quarter's revenue to be around $397.5 million, close to analysts' estimates. * **Revenue:** $418.4 million vs analyst estimates of $397.6 million (17.3% year-on-year growth, 5.2% beat). * The company **lifted its revenue guidance for the full year** to $1.78 billion at the midpoint from $1.76 billion, a 1.3% increase. * **Annual Recurring Revenue:** $1.90 billion vs analyst estimates of $1.90 billion (12.3% year-on-year growth, in line). UiPath's recent performance shows its demand has slowed as its annualized revenue growth of 11.2% over the last two years was below its five-year trend. UiPath Year-On-Year Revenue Growth. This quarter, UiPath reported year-on-year revenue growth of 17.3%, and its $418.4 million of revenue exceeded Wall Street's estimates by 5.2%. UiPath's ARR came in at $1.90 billion in Q1, and\n\n[5] UiPath (PATH) Is Up 19.9% After First GAAP Profit And Higher 2027 Guidance - Has The Bull Case Changed?\nURL: https://finance.yahoo.com/markets/stocks/articles/uipath-path-19-9-first-061109266.html\n* In late May 2026, UiPath, Inc. reported first-quarter revenue of US$418.38 million versus US$356.62 million a year earlier, swinging from a net loss of US$22.56 million to net income of US$22.53 million and issuing revenue guidance of US$395 million to US$400 million for the second quarter and US$1.78 billion for fiscal 2027. * The results marked UiPath's first quarter of GAAP profitability, with management attributing performance to growing adoption of its AI-powered automation products and stronger customer expansion. * Next, we'll examine how UiPath's first-ever GAAP profitability and higher full-year revenue guidance influence its existing automation-led investment narrative. Deloitte's use of UiPath Test Cloud and agentic testing is directly tied to the same AI and automation capabilities management credits for stronger revenue and net income. UiPath's narrative projects $2.1 billion revenue and $147.2 million earnings by 2029. Some of the most optimistic analysts were already b\n\n[6] Why UiPath (PATH) Stock Is Trading Lower Today\nURL: https://finance.yahoo.com/markets/stocks/articles/why-uipath-path-stock-trading-002318041.html\n2. Best 0% APR cards. 2. Best high-yield savings accounts. 3. Best money market accounts. 4. Best free checking accounts. Shares of automation software company UiPath (NYSE:PATH) fell 7.5% in the afternoon session after the midpoint of its fiscal third-quarter revenue guidance missed consensus expectations, overshadowing a second-quarter revenue beat. According to a company press release, UiPath reported second-quarter revenue of $410.3 million, up 13.4% year-over-year to beat analyst estimates of $397.9 million by 3.1%, while adjusted earnings came in line with expectations at $0.15 per share. The previous big move we wrote about was 4 days ago when the stock dropped 16.4% on the news that the company reported its second-quarter CY2026 financial results which failed to live up to the high expectations set for AI-linked companies. UiPath reported second-quarter revenue of $410.3 million, according to the company's press release, an increase of 13.4% year on year that topped Wall Street\n",
+    "quarterly_earnings_date": null,
+    "quarterly_eps_actuals": [
+      {
+        "period": "2026-09-30",
+        "actual": 0.15,
+        "estimate": 0.1517,
+        "surprise": -0.0017,
+        "surprisePercent": -1.1206,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-06-30",
+        "actual": 0.15,
+        "estimate": 0.1628,
+        "surprise": -0.0128,
+        "surprisePercent": -7.8624,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2026-03-31",
+        "actual": 0.3,
+        "estimate": 0.2597,
+        "surprise": 0.0403,
+        "surprisePercent": 15.5179,
+        "revenueActual": null,
+        "revenueEstimate": null
+      },
+      {
+        "period": "2025-12-31",
+        "actual": 0.16,
+        "estimate": 0.149,
+        "surprise": 0.011,
+        "surprisePercent": 7.3826,
+        "revenueActual": null,
+        "revenueEstimate": null
+      }
+    ]
+  },
+  "competitive": {
+    "ticker": "PATH",
+    "stub": false,
+    "error": null,
+    "model_used": "gpt-4o-mini",
+    "moat_classification": "none",
+    "moat_sources": [],
+    "peer_roic_comparison": [],
+    "citations": [
+      {
+        "claim": "ROIC series: FY2026: 14.4%, FY2023: -162.9%",
+        "source_url": "Financial data",
+        "excerpt": "ROIC series: FY2026: 14.4%, FY2023: -162.9%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Gross margin: FY2026: 83.2%, FY2025: 82.7%, FY2024: 85.0%",
+        "source_url": "Financial data",
+        "excerpt": "Gross margin: FY2026: 83.2%, FY2025: 82.7%, FY2024: 85.0%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Operating margin: FY2026: 3.5%, FY2025: -11.4%, FY2024: -12.6%",
+        "source_url": "Financial data",
+        "excerpt": "Operating margin: FY2026: 3.5%, FY2025: -11.4%, FY2024: -12.6%",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Free cash flow: FY2026: $352M, FY2025: $306M, FY2024: $292M",
+        "source_url": "Financial data",
+        "excerpt": "Free cash flow: FY2026: $352M, FY2025: $306M, FY2024: $292M",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "Invested capital: $393M (FY2026)",
+        "source_url": "Financial data",
+        "excerpt": "Invested capital: $393M (FY2026)",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      },
+      {
+        "claim": "UiPath is an enterprise automation software vendor focused on RPA and newer agentic automation capabilities. The core moat is demand-side switching and change costs: once automations are built and governed at scale, customers tend to expand use cases and renew.",
+        "source_url": "Web (Tavily)",
+        "excerpt": "UiPath is an enterprise automation software vendor focused on RPA and newer agentic automation capabilities. The core moat is demand-side switching and change costs: once automations are built and governed at scale, customers tend to expand use cases and renew.",
+        "confidence": 1.0,
+        "gaap_vs_nongaap_flag": null,
+        "verified": true,
+        "verification_note": null
+      }
+    ]
+  },
+  "peers": [],
+  "peer_financials": [],
+  "quarterly_snapshot": {
+    "period": "2026-07-31 (Q2)",
+    "revenue": 410256000.0,
+    "operating_income": 31604000.0,
+    "gross_profit": 329669000.0,
+    "filing_date": null
+  },
+  "historical_cagr_5y": 0.15910599918172563,
+  "historical_cagr_years": 4,
+  "checkpoint1_user_input": {
+    "proceed": true,
+    "peers": "",
+    "answers": {}
+  },
+  "checkpoint2_user_input": {
+    "wacc_pct": 9.2,
+    "terminal_growth_pct": 2.5,
+    "projection_years": 10,
+    "mid_year_convention": false,
+    "valuation_date": "2026-10-10"
+  },
+  "valuation": {
+    "ticker": "PATH",
+    "stub": false,
+    "error": null,
+    "dcf_intrinsic_value": null,
+    "dcf_intrinsic_per_share": null,
+    "dcf_upside_pct": null,
+    "price_current": {
+      "value": 13.48,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "Polygon",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "reverse_dcf_implied_growth": null,
+    "reverse_dcf_10y_equivalent": null,
+    "ev_ebit_multiple": {
+      "value": 99.63,
+      "unit": "x",
+      "period": "2026-10-10",
+      "source": "calculated (market EV / EBIT)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "ev_fcf_multiple": null,
+    "pe_multiple": {
+      "value": 26.01,
+      "unit": "x",
+      "period": "2026-10-10",
+      "source": "calculated (price × shares / NI)",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "earnings_yield_pct": 1.0,
+    "magic_formula_rank": null,
+    "sensitivity_table": [],
+    "assumptions": {
+      "checkpoint_id": "checkpoint2",
+      "user_notes": "",
+      "proceed": true,
+      "wacc_pct": 9.2,
+      "terminal_growth_pct": 2.5,
+      "projection_years": 10,
+      "stage1_years": null,
+      "fade_years": null,
+      "revenue_growth_yr1_pct": null,
+      "margin_assumption_pct": null,
+      "mid_year_convention": false,
+      "valuation_date": "2026-10-10"
+    },
+    "dcf_reliability_note": "Near-term FCF growth: 2.5% (cyclical: set to terminal growth — historical CAGRs depend on where the cycle endpoints fall; override at checkpoint 2 with a justification if there is structural growth). ⚠️ Cyclical business (peak operating margin 3.5% (FY2026) vs 5y median -12.6%: +16.1 pp, n/m (median ≤ 0)). Valuation uses the mid-cycle level (median margins × latest revenue) and stage-1 growth = terminal growth unless overridden. Latest-year results are not the normal earning power. ℹ️ Tax rate: default 25% (cumulative pretax income ≤ 0). ⚠️ DCF not computed: no positive FCFF or NOPAT (loss-making or data gap). ℹ️ FCFF inputs absent for specific years (counted as 0): interest_expense FY2026, interest_expense FY2025, interest_expense FY2024, interest_expense FY2023, interest_expense FY2022. ℹ️ Share count: diluted_weighted_average (overstates count for buyback-heavy issuers).",
+    "fcf_quality_warning": null,
+    "near_term_growth_used_pct": 0.025,
+    "near_term_growth_source": "cyclical_terminal",
+    "cyclicality": {
+      "is_cyclical": true,
+      "years": 5,
+      "median_margin": -0.12592579001767487,
+      "peak_margin": 0.0352421375759668,
+      "peak_period": "FY2026",
+      "evidence": "peak operating margin 3.5% (FY2026) vs 5y median -12.6%: +16.1 pp, n/m (median ≤ 0)"
+    },
+    "stage1_years_used": 5,
+    "fade_years_used": 5,
+    "epv_enterprise": null,
+    "epv_per_share": null,
+    "epv_upside_pct": null,
+    "epv_source": null,
+    "epv_growth_premium": null,
+    "suggested_wacc_pct": 9.2,
+    "suggested_wacc_breakdown": "Ke 9.2% (CAPM: Rf=4.2% + β=1.0×ERP=5.0% + size_premium=0.5% (mid cap) — OFF, not applied) × 100% + Kd 6.2% (fallback Rf+2% (EBIT or interest unavailable)) × (1−25%) × 0% = 9.2%",
+    "wacc_breakdown": {
+      "cost_of_equity": 0.092,
+      "cost_of_equity_source": "CAPM: Rf=4.2% + β=1.0×ERP=5.0% + size_premium=0.5% (mid cap) — OFF, not applied",
+      "pre_tax_cost_of_debt": 0.062,
+      "cost_of_debt_source": "fallback Rf+2% (EBIT or interest unavailable)",
+      "tax_rate": 0.25,
+      "after_tax_cost_of_debt": 0.0465,
+      "equity_weight": 1.0,
+      "debt_weight": 0.0,
+      "wacc": 0.092
+    },
+    "valuation_methods_summary": [
+      {
+        "method": "DCF (3-stage Damodaran fade)",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "N/A",
+        "classification": "n/a"
+      },
+      {
+        "method": "EPV (Greenwald — zero growth)",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "N/A",
+        "classification": "n/a"
+      },
+      {
+        "method": "Reverse DCF (market-implied growth)",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "implied N/A vs historical 15.9%",
+        "classification": "n/a"
+      },
+      {
+        "method": "EV/EBIT vs peer median",
+        "per_share": "N/A",
+        "upside_pct": null,
+        "display_upside": "99.6x vs peer median N/A",
+        "classification": "n/a"
+      }
+    ],
+    "valuation_basis": "FCFF discounted at WACC → EV → equity bridge → per share (ADR-033)",
+    "fcff_base": {
+      "value": -151521489.0,
+      "unit": "USD",
+      "period": "FY2026",
+      "source": "mid-cycle median FCFF margin (5y) × latest revenue = -9.4%",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "fcff_breakdown": {
+      "ocf": 371208000.0,
+      "after_tax_interest_addback": 0.0,
+      "after_tax_interest_income": 36017250.0,
+      "capex": 19048000.0,
+      "sbc_charge": 290676000.0,
+      "finance_lease_principal": 0.0,
+      "tax_rate": 0.25,
+      "fcff": 25466750.0,
+      "missing_inputs": [
+        "interest_expense"
+      ]
+    },
+    "dcf_base_source": null,
+    "tax_rate_used": 0.25,
+    "tax_rate_source": "default 25% (cumulative pretax income ≤ 0)",
+    "enterprise_value_dcf": null,
+    "equity_bridge": null,
+    "market_enterprise_value": {
+      "value": 5655236800.0,
+      "unit": "USD",
+      "period": "2026-10-10",
+      "source": "price × shares + net claims",
+      "currency_code": "USD",
+      "gaap_vs_nongaap": "GAAP"
+    },
+    "share_count_used": 544860000.0,
+    "share_count_source": "diluted_weighted_average (overstates count for buyback-heavy issuers)",
+    "terminal_value_share": null,
+    "mid_year_convention_used": false,
+    "sensitivity_unit": null
+  },
+  "citations": [],
+  "unverified_claims": [],
+  "cost_usd": 0.0
+}

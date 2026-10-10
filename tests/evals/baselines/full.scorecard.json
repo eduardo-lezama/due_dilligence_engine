@@ -1,0 +1,308 @@
+{
+ "label": "full-1",
+ "cases": [
+  "AAPL-base",
+  "BBW-base",
+  "AZO-base",
+  "PRDO-base",
+  "CALM-base",
+  "KBR-base",
+  "PATH-base",
+  "MOS-base",
+  "QLYS-base",
+  "NUE-base",
+  "NKE-base",
+  "PLUG-base",
+  "AAPL-peers",
+  "QLYS-base+hyp"
+ ],
+ "repeat": 5,
+ "quick": false,
+ "prompt_sha": "ba6fe2a993e6",
+ "expert_model_requested": "gpt-5.4-mini",
+ "calls_by_model": {
+  "gpt-5.4-mini": 70,
+  "gpt-4o-mini": 30
+ },
+ "manifest_frozen_with": {
+  "git_sha": "603520d-dirty",
+  "date": "2026-10-10",
+  "specialist_model": "gpt-4o-mini"
+ },
+ "cost_usd": 1.060878,
+ "case_results": [
+  {
+   "case": "AAPL-base",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 5
+   },
+   "disagreement": 0.0,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": true,
+    "rule21_divergence_no_buy": null,
+    "buy_floor": true,
+    "rule22_roic_language": null,
+    "rule24_hypotheses": null,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 3.0,
+   "mean_repairs": 0.0
+  },
+  {
+   "case": "BBW-base",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 3,
+    "BUY": 2
+   },
+   "disagreement": 0.6,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": true,
+    "rule21_divergence_no_buy": null,
+    "buy_floor": null,
+    "rule22_roic_language": true,
+    "rule24_hypotheses": null,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 1.8,
+   "mean_repairs": 0.4
+  },
+  {
+   "case": "AZO-base",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 5
+   },
+   "disagreement": 0.0,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": true,
+    "rule21_divergence_no_buy": null,
+    "buy_floor": true,
+    "rule22_roic_language": true,
+    "rule24_hypotheses": null,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 1.2,
+   "mean_repairs": 0.0
+  },
+  {
+   "case": "PRDO-base",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 5
+   },
+   "disagreement": 0.0,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": true,
+    "rule21_divergence_no_buy": true,
+    "buy_floor": null,
+    "rule22_roic_language": true,
+    "rule24_hypotheses": null,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 2.2,
+   "mean_repairs": 0.0
+  },
+  {
+   "case": "CALM-base",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 5
+   },
+   "disagreement": 0.0,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": true,
+    "rule21_divergence_no_buy": null,
+    "buy_floor": true,
+    "rule22_roic_language": true,
+    "rule24_hypotheses": null,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 0.2,
+   "mean_repairs": 0.6
+  },
+  {
+   "case": "KBR-base",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 5
+   },
+   "disagreement": 0.0,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": true,
+    "rule21_divergence_no_buy": true,
+    "buy_floor": null,
+    "rule22_roic_language": true,
+    "rule24_hypotheses": null,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 1.0,
+   "mean_repairs": 0.0
+  },
+  {
+   "case": "PATH-base",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 5
+   },
+   "disagreement": 0.0,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": null,
+    "rule21_divergence_no_buy": null,
+    "buy_floor": null,
+    "rule22_roic_language": true,
+    "rule24_hypotheses": null,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 1.0,
+   "mean_repairs": 0.0
+  },
+  {
+   "case": "MOS-base",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 5
+   },
+   "disagreement": 0.0,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": true,
+    "rule21_divergence_no_buy": null,
+    "buy_floor": null,
+    "rule22_roic_language": true,
+    "rule24_hypotheses": null,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 1.6,
+   "mean_repairs": 0.4
+  },
+  {
+   "case": "QLYS-base",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 5
+   },
+   "disagreement": 0.0,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": true,
+    "rule21_divergence_no_buy": null,
+    "buy_floor": true,
+    "rule22_roic_language": null,
+    "rule24_hypotheses": null,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 1.4,
+   "mean_repairs": 0.0
+  },
+  {
+   "case": "NUE-base",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 5
+   },
+   "disagreement": 0.0,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": true,
+    "rule21_divergence_no_buy": null,
+    "buy_floor": true,
+    "rule22_roic_language": true,
+    "rule24_hypotheses": null,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 0.8,
+   "mean_repairs": 0.2
+  },
+  {
+   "case": "NKE-base",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 5
+   },
+   "disagreement": 0.0,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": true,
+    "rule21_divergence_no_buy": true,
+    "buy_floor": true,
+    "rule22_roic_language": true,
+    "rule24_hypotheses": null,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 2.2,
+   "mean_repairs": 1.0
+  },
+  {
+   "case": "PLUG-base",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 4,
+    "SELL": 1
+   },
+   "disagreement": 0.4,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": null,
+    "rule21_divergence_no_buy": null,
+    "buy_floor": null,
+    "rule22_roic_language": true,
+    "rule24_hypotheses": null,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 2.0,
+   "mean_repairs": 0.0
+  },
+  {
+   "case": "AAPL-peers",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 5
+   },
+   "disagreement": 0.0,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": true,
+    "rule21_divergence_no_buy": null,
+    "buy_floor": true,
+    "rule22_roic_language": null,
+    "rule24_hypotheses": null,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 3.2,
+   "mean_repairs": 0.0
+  },
+  {
+   "case": "QLYS-base+hyp",
+   "n_ok_runs": 5,
+   "verdicts": {
+    "HOLD": 5
+   },
+   "disagreement": 0.0,
+   "checks": {
+    "sections_present": true,
+    "rule21_count": true,
+    "rule21_divergence_no_buy": null,
+    "buy_floor": true,
+    "rule22_roic_language": null,
+    "rule24_hypotheses": false,
+    "rationale_matches_verdict": true
+   },
+   "mean_ungrounded": 1.2,
+   "mean_repairs": 1.0
+  }
+ ],
+ "hold_cases": 14,
+ "mean_disagreement": 0.0714,
+ "mean_ungrounded": 1.629,
+ "n_errors_non_transport": 0,
+ "n_errors_transport": 0
+}

@@ -59,7 +59,11 @@ CREATE TABLE IF NOT EXISTS analyses (
     status          TEXT,
     models_used     TEXT,
     n_verified_citations INTEGER,
-    methodology_version TEXT
+    methodology_version TEXT,
+    price_at_analysis REAL,
+    dcf_per_share   REAL,
+    epv_per_share   REAL,
+    reverse_dcf_growth REAL
 )
 """
 
@@ -75,6 +79,12 @@ _MIGRATION_SQLS = [
     "ALTER TABLE analyses ADD COLUMN models_used TEXT",          # "gpt-4.1: 3, gpt-5.4-mini: 2"
     "ALTER TABLE analyses ADD COLUMN n_verified_citations INTEGER",
     "ALTER TABLE analyses ADD COLUMN methodology_version TEXT",  # "H1"
+    # H2-1 (ADR-038, MCE-36): seguimiento prospectivo. Con el precio y los valores por acción de
+    # cada análisis se podrá medir a 6/12 meses si los veredictos aciertan (no solo si obedecen reglas).
+    "ALTER TABLE analyses ADD COLUMN price_at_analysis REAL",
+    "ALTER TABLE analyses ADD COLUMN dcf_per_share REAL",
+    "ALTER TABLE analyses ADD COLUMN epv_per_share REAL",
+    "ALTER TABLE analyses ADD COLUMN reverse_dcf_growth REAL",   # g1 implícito en el precio
 ]
 
 # Versión de metodología que se graba en cada fila nueva (comparabilidad histórica).
@@ -816,21 +826,29 @@ def update_performance_metrics(
         conn.commit()
 
 
+def _mv_value(mv) -> float | None:
+    """Valor de un MetricValue opcional (None si falta)."""
+    return mv.value if mv is not None else None
+
+
 def _insert_row(db_path: str, row: dict) -> None:
     """Inserta una fila en `analyses`. Las columnas H1 (status, models_used, ...) son opcionales."""
     sql = """
     INSERT INTO analyses
         (ticker, run_id, as_of_date, analysis_date, verdict, verdict_confidence,
          suggested_sizing_pct, dcf_upside_pct, moat_classification, report_path,
-         status, models_used, n_verified_citations, methodology_version)
+         status, models_used, n_verified_citations, methodology_version,
+         price_at_analysis, dcf_per_share, epv_per_share, reverse_dcf_growth)
     VALUES
         (:ticker, :run_id, :as_of_date, :analysis_date, :verdict, :verdict_confidence,
          :suggested_sizing_pct, :dcf_upside_pct, :moat_classification, :report_path,
-         :status, :models_used, :n_verified_citations, :methodology_version)
+         :status, :models_used, :n_verified_citations, :methodology_version,
+         :price_at_analysis, :dcf_per_share, :epv_per_share, :reverse_dcf_growth)
     """
     # Columnas H1 opcionales para llamadores antiguos: ausentes → NULL (no inventar status).
     h1_defaults = {"status": None, "models_used": None, "n_verified_citations": None,
-                   "methodology_version": None}
+                   "methodology_version": None, "price_at_analysis": None, "dcf_per_share": None,
+                   "epv_per_share": None, "reverse_dcf_growth": None}
     with sqlite3.connect(db_path) as conn:
         conn.execute(sql, {**h1_defaults, **row})
         conn.commit()
@@ -865,6 +883,9 @@ def archiver_node(state: AnalysisState) -> dict:
     sizing = synthesis.suggested_sizing_pct if synthesis and not synthesis.stub else None
     dcf_upside = valuation.dcf_upside_pct if valuation and not valuation.stub else None
     moat = competitive.moat_classification if competitive and not competitive.stub else None
+    market = state.get("market")            # type: ignore[typeddict-item]
+    val_ok = valuation is not None and not valuation.stub
+    price = market.price_current.value if market is not None and market.price_current is not None else None
 
     # El archiver es el último nodo: todas las llamadas LLM del run ya se hicieron.
     # Si leer las métricas falla, el report se escribe igual (sin pie de modelos).
@@ -909,6 +930,11 @@ def archiver_node(state: AnalysisState) -> dict:
         "models_used": (_format_models_used(run_stats) or None) if run_stats is not None else None,
         "n_verified_citations": _count_verified_citations(state),
         "methodology_version": METHODOLOGY_VERSION,
+        # Seguimiento prospectivo (MCE-36): todo lo necesario para medir el acierto a 6/12 meses.
+        "price_at_analysis": price,
+        "dcf_per_share": _mv_value(valuation.dcf_intrinsic_per_share) if val_ok else None,
+        "epv_per_share": _mv_value(valuation.epv_per_share) if val_ok else None,
+        "reverse_dcf_growth": valuation.reverse_dcf_implied_growth if val_ok else None,
     }
     try:
         _ensure_db(settings.db_path)

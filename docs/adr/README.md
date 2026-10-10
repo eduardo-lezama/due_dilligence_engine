@@ -52,6 +52,7 @@ Cada ADR sigue: Status · Context · Decision · Consequences · Alternatives.
 | [035](ADR-035-document-tables-deterministic.md) | Datos de tablas de documentos primarios: por estructura, no por el LLM | Accepted | Post-H1 |
 | [036](ADR-036-evidence-gate.md) | Control de evidencia: especialista sin citas verificadas = hueco de datos | Accepted | Post-H1 |
 | [037](ADR-037-strict-checkpoint-deserialization.md) | Deserialización estricta del checkpointer con allowlist calculada | Accepted | Post-H1 |
+| [038](ADR-038-value-expert-eval-harness.md) | Harness de evaluación del Value Expert y puerta de cambios | Accepted | H2-1 |
 
 ## Cómo añadir un ADR
 1. Crear `ADR-NNN-slug.md` incrementando N.

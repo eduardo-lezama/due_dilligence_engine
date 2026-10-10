@@ -1,0 +1,5 @@
+{
+ "max_case_flips": 1,
+ "disagreement_delta": 0.05,
+ "ungrounded_delta": 0.5
+}

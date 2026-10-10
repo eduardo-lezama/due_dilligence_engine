@@ -352,6 +352,16 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 
 ## Conocidos — pendientes de fix
 
+- **Detector cíclico — falsos positivos en empresas que pasan de pérdidas a beneficios (EC-92/ADR-034)**: al congelar el dataset de H2-1, PATH (software) y PLUG salen `is_cyclical=True`: con margen mediano ≤ 0 la regla acepta cualquier pico ≥ 8 pp, y un giro a beneficios lo es. Efecto: g1 = crecimiento terminal para una empresa en crecimiento. Calibración original con 7 empresas sin este perfil. Revisar con el harness (no cambiar el dataset congelado).
+- **BBW con +299 % de upside de DCF en el dataset H2-1**: revisar si es real o un artefacto de la base FCFF/crecimiento.
+- **Filings sin citas verificadas en 6/13 casos del dataset H2-1** (AZO, KBR, QLYS, NUE, PLUG + reintento incluido): gpt-4o-mini; lo medirá H2-6.
+
+Hallazgos de la primera baseline del harness (H2-1, `tests/evals/baselines/full.run.json`, gpt-5.4-mini, 14 casos × 5):
+- **HOLD por defecto (síntoma de H1 confirmado con datos)**: 14/14 casos HOLD por mayoría en full-1 (13/14 en full-2). AZO con los 3 métodos calculables "expensive" (DCF −66 %) → HOLD; PLUG (ROIC −99,9 %, sin moat, FCF −647 M) → HOLD 4 de 5. HOLD absorbe "buena empresa cara" y "empresa rota". Fix previsto: H2-2 (taxonomía BUY/WATCHLIST/PASS/SELL), validado con la puerta.
+- **Regla 24 incumplida**: con 3 hipótesis del inversor, §8 las evalúa con palabras en minúscula ("partially supported", "unsupported", "untestable") en vez de las etiquetas SUPPORTED/CONTRADICTED/UNTESTABLE en 5/5 repeticiones; el validador del código añade el aviso (repairs ≈ 1). Fix: cambio de prompt → primer uso real de la puerta.
+- **El Expert calcula porcentajes propios (invariante 1)**: ~1,5 cifras sin respaldo por informe, casi todas distancias calculadas por el LLM (precio de venta de insiders frente al precio actual: "15.5% below current price"; margen bruto trimestral). Aritmética correcta en la muestra, pero son números generados por el LLM. Fix candidato: dar esas distancias calculadas en el contexto (Form 4 vs precio). 3/114 son falsos positivos de signo del check ("48.5% below" frente a "−48.5%"), aceptados.
+- **BBW inestable**: BUY 2/5 en full-1, 0/5 en full-2, 1/3 en quick (3 de 4 métodos "cheap", ROIC FALLING, insiders vendiendo). Caso de referencia de estabilidad para H2-2/H2-3.
+
 - **Proxy — recall (EC-93)**: CRM (% sin signo, solo en la cabecera) y DVN (nota al pie pegada sin paréntesis, "5,284,433 7") devuelven None — sin cifra, nunca una cifra falsa. Tablas publicadas como imagen: None.
 - **Citas de management más allá del %**: AAPL 0/6 tenía la tabla completa en el texto; la causa del rechazo del resto de citas (paráfrasis) queda para la tarea B (control de evidencia).
 
@@ -727,3 +737,15 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 - **Fix**: `utils.periods.value_at(series, period)`; los cuatro sitios usan el ejercicio del FCF / años fiscales reales; sin dato de ese año no se calcula el cociente (ni se pinta una línea vacía). Regla añadida a `agents/CLAUDE.md`. Test renombrado `test_parse_financials_cash_excludes_short_term_investments` (#12). Tests en `tests/test_period_alignment_minors.py`.
 - **Decisiones**: `cash_series`/`equity_series` (#11) se mantienen — su consumo en H3-1 está documentado en `tests/test_schema_consumers.py`. El plan de H1 vive en `docs/superpowers/plans/` que `.gitignore` excluye por decisión del usuario (#14): no se versiona sin su indicación.
 - **Commit**: ver `git log --grep "EC-96"`
+
+### EC-97 — Bloque "GOVERNANCE RED FLAGS" para empresas sin ninguna bandera
+- **Síntoma** (revisión adversarial del plan H2-1 sobre los 8 contextos congelados): todos tenían `governance_red_flags = "No governance red flags found in provided text."`, y el Value Expert, el Critic y el archiver mostraban el bloque `## GOVERNANCE RED FLAGS` como si hubiera banderas; la regla 23 se activaba sin motivo.
+- **Causa raíz**: el prompt de filings se contradecía (línea 65: "set governance_red_flags to null"; línea 133: "explicitly state 'No governance red flags found…'") y los tres consumidores solo comprueban que el campo tenga texto.
+- **Fix**: el prompt pide solo `null`; `filings._governance_or_none` convierte en el productor las frases de "nada" ("No governance red flags…", "Not available in provided sources", "None") en `None`, exigiendo que la frase ENTERA sea un "nada" (`fullmatch`): "Nonetheless, the SEC opened…" y "No governance red flags found; however, the auditor identified a material weakness…" se conservan (la versión por prefijo borraba esta última, detectado en la revisión final de H2-1). Tests en `tests/test_agents_1b.py`.
+- **Commit**: ver `git log --grep "EC-97"`
+
+### EC-98 — "Tendencia del ROIC a 8 años" cuando no hay datos en los últimos 4 (regresión de EC-96)
+- **Síntoma** (dataset H2-1, AAPL): "ROIC trend interpretation: RISING (... over 8 years)". El ROIC de AAPL es n/m en FY2018-FY2024 (capital invertido < 5 % de activos, regla de T9) y la serie solo tiene FY2025, FY2017, FY2016.
+- **Causa raíz**: el fix de EC-96 caía al siguiente punto disponible (`roic_series[1]`) cuando ningún año estaba dentro de la ventana de 4 años fiscales.
+- **Fix**: sin ningún punto en 4 años → "n/a (no ROIC data within the last 4 fiscal years to compare)"; el check de la regla 22 no aplica. Test en `tests/test_period_alignment_minors.py`.
+- **Commit**: ver `git log --grep "EC-98"`

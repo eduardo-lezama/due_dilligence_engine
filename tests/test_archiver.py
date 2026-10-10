@@ -465,3 +465,51 @@ def test_archiver_renders_governance_section():
     md = _render_markdown({"ticker": "TST", "filings": FilingsRAGReport(ticker="TST", stub=False,
                                                                        governance_red_flags=rf)})
     assert "## Governance Red Flags (10-K)" in md and rf in md
+
+
+# ---------------------------------------------------------------------------
+# H2-1 Task 5: seguimiento prospectivo — cada análisis guarda precio y valores por acción para
+# medir a 6/12 meses si los veredictos aciertan (MCE-36). Sin esto no hay forma de saberlo.
+# ---------------------------------------------------------------------------
+
+def test_sqlite_row_stores_prospective_tracking_fields(mocker, tmp_path):
+    db_path = str(tmp_path / "test.db")
+    mocker.patch("due_diligence.agents.archiver.settings.reports_dir", str(tmp_path / "reports"))
+    mocker.patch("due_diligence.agents.archiver.settings.db_path", db_path)
+    state = _make_full_state(tmp_path)
+    mv = lambda v, u="USD/share": MetricValue(value=v, unit=u, period="2026-10-10", source="t")  # noqa: E731
+    state["valuation"] = state["valuation"].model_copy(update={
+        "dcf_intrinsic_per_share": mv(210.5), "epv_per_share": mv(150.25)})
+    state["market"] = MarketReport(ticker="AAPL", stub=False, price_current=mv(180.0, "USD"))
+    archiver_node(state)
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM analyses WHERE ticker='AAPL'").fetchone()
+    assert row["price_at_analysis"] == 180.0
+    assert row["dcf_per_share"] == 210.5 and row["epv_per_share"] == 150.25
+    assert row["reverse_dcf_growth"] == pytest.approx(0.15)
+
+
+def test_prospective_fields_null_when_missing(mocker, tmp_path):
+    db_path = str(tmp_path / "test.db")
+    mocker.patch("due_diligence.agents.archiver.settings.reports_dir", str(tmp_path / "reports"))
+    mocker.patch("due_diligence.agents.archiver.settings.db_path", db_path)
+    state = _make_full_state(tmp_path)
+    state.pop("valuation")
+    archiver_node(state)
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM analyses WHERE ticker='AAPL'").fetchone()
+    assert row["price_at_analysis"] is None and row["dcf_per_share"] is None
+
+
+def test_migration_adds_prospective_columns_idempotently(tmp_path):
+    db = str(tmp_path / "old.db")
+    with sqlite3.connect(db) as conn:      # base de datos pre-H2 (sin las columnas nuevas)
+        conn.execute("CREATE TABLE analyses (id INTEGER PRIMARY KEY, ticker TEXT NOT NULL, run_id TEXT, "
+                     "as_of_date TEXT, analysis_date TEXT NOT NULL, verdict TEXT)")
+    _ensure_db(db)
+    _ensure_db(db)                          # segunda vez: no falla
+    with sqlite3.connect(db) as conn:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(analyses)")}
+    assert {"price_at_analysis", "dcf_per_share", "epv_per_share", "reverse_dcf_growth"} <= cols

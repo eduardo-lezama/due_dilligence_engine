@@ -185,3 +185,21 @@ def test_structured_openai_omits_temperature_for_models_that_reject_it(no_anthro
     _client_with(openai_fake=fake).structured(_Out, [{"role": "user", "content": "x"}], model=model)
     assert ("temperature" in fake.chat.completions.parse.call_args.kwargs) is sent
 
+
+
+def test_structured_openai_records_cached_tokens(no_anthropic):
+    fake = MagicMock()
+    comp = _oai_completion(_Out(answer="ok"), pt=1000, ct=10)
+    comp.usage.prompt_tokens_details = MagicMock(cached_tokens=800)
+    fake.chat.completions.parse.return_value = comp
+    c = _client_with(openai_fake=fake)
+    c.structured(_Out, [{"role": "user", "content": "x"}], model="gpt-5.4-mini")
+    assert c.get_run_stats().tokens_cached == 800
+
+
+def test_structured_openai_without_cache_details_counts_zero(no_anthropic):
+    fake = MagicMock()
+    fake.chat.completions.parse.return_value = _oai_completion(_Out(answer="ok"))   # MagicMock sin int
+    c = _client_with(openai_fake=fake)
+    c.structured(_Out, [{"role": "user", "content": "x"}], model="gpt-5.4-mini")
+    assert c.get_run_stats().tokens_cached == 0

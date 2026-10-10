@@ -100,3 +100,16 @@ def test_runstats_add_is_thread_safe():
     with ThreadPoolExecutor(8) as ex:
         list(ex.map(lambda _: s.add("gpt-4.1", 10, 10), range(2000)))
     assert s.calls == 2000 and s.tokens_in == 20000 and s.calls_by_model == {"gpt-4.1": 2000}
+
+
+def test_budget_cap_stops_the_run_and_marks_the_rest(mocker, two_states):
+    """Tope de gasto (2026-10-10 se agotó el crédito a mitad de un run): al superarlo no se lanzan más
+    llamadas; las que faltan quedan como error de presupuesto y la puerta da "inconcluso"."""
+    _client(mocker, _ve_out())
+    stats = mocker.MagicMock()
+    stats.get_run_stats.side_effect = lambda: mocker.MagicMock(cost_usd=10.0, calls_by_model={})
+    mocker.patch("due_diligence.evals.runner.get_client", return_value=stats)
+    run = run_eval(two_states, repeat=3, expert_model=None, max_workers=1, max_cost_usd=1.0)
+    assert len(run.records) == 6
+    stopped = [r for r in run.records if r.error and r.error.startswith("BudgetExceeded")]
+    assert 1 <= len(stopped) <= 5 and all(r.transport_error for r in stopped)

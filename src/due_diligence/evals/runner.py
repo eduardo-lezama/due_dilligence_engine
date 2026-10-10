@@ -15,7 +15,7 @@ import copy
 import hashlib
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack
 from typing import Optional
 from unittest import mock
@@ -96,10 +96,22 @@ def _run_one(case: str, state: AnalysisState, repeat: int, context_sha: str) -> 
                      latency_s=round(time.perf_counter() - started, 3))
 
 
+def _budget_record(case: str, repeat: int, context_sha: str, cap: float) -> RunRecord:
+    """Repetición no lanzada por el tope de gasto: no es culpa del modelo (cuenta como transporte) y deja
+    el caso con menos repeticiones válidas → la puerta da "inconcluso", nunca un aprobado."""
+    return RunRecord(case=case, repeat=repeat, raw=None, report={}, context_sha=context_sha,
+                     error=f"BudgetExceeded: run stopped at the ${cap:.2f} cap", transport_error=True, latency_s=0.0)
+
+
 def run_eval(cases_with_states: list[tuple[str, AnalysisState]], *, repeat: int,
              expert_model: Optional[str], max_workers: int = 4,
-             manifest_frozen_with: Optional[dict[str, str]] = None, quick: bool = False) -> EvalRun:
-    """Ejecuta cada caso `repeat` veces en paralelo (hilos: es I/O de red) y devuelve el EvalRun."""
+             manifest_frozen_with: Optional[dict[str, str]] = None, quick: bool = False,
+             max_cost_usd: Optional[float] = None) -> EvalRun:
+    """Ejecuta cada caso `repeat` veces en paralelo (hilos: es I/O de red) y devuelve el EvalRun.
+
+    `max_cost_usd`: tope de gasto. Al superarlo se cancelan las llamadas aún no lanzadas (las que ya están
+    en vuelo terminan). El coste es el del contador (con caché, aproximado a la factura).
+    """
     contexts = {name: _format_context(state) for name, state in cases_with_states}
     shas = {name: hashlib.sha256(ctx.encode("utf-8")).hexdigest()[:12] for name, ctx in contexts.items()}
     stats_client = get_client()
@@ -112,10 +124,16 @@ def run_eval(cases_with_states: list[tuple[str, AnalysisState]], *, repeat: int,
                                               lambda: _CapturingClient(original_get_client())))
         if expert_model:
             stack.enter_context(mock.patch.object(value_expert.settings, "openai_expert_model", expert_model))
+        jobs = [(name, state, i) for name, state in cases_with_states for i in range(repeat)]
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures = [pool.submit(_run_one, name, state, i, shas[name])
-                       for name, state in cases_with_states for i in range(repeat)]
-            records = [f.result() for f in futures]
+            futures = {pool.submit(_run_one, name, state, i, shas[name]): (name, i) for name, state, i in jobs}
+            for f in as_completed(futures):
+                if max_cost_usd is not None and stats_client.get_run_stats().cost_usd > max_cost_usd:
+                    for pending in futures:
+                        pending.cancel()          # solo cancela las que aún no han empezado
+                    break
+            records = [f.result() if not f.cancelled() else _budget_record(n, i, shas[n], max_cost_usd)
+                       for f, (n, i) in futures.items()]
 
     stats = stats_client.get_run_stats()
     return EvalRun(records=records, cases=[n for n, _ in cases_with_states], repeat=repeat, contexts=contexts,

@@ -51,3 +51,20 @@ def test_save_baseline_copies_run_and_scorecard_and_checks_kind(isolated):
     assert (isolated / "baselines" / "full.run.json").exists()
     assert (isolated / "baselines" / "full.scorecard.json").exists()
     assert run_evals.main(["--rescore", str(isolated / "r.run.json"), "--save-baseline", "quick"]) == 1
+
+
+def test_max_cost_reaches_the_runner_and_estimate_is_shown(isolated, mocker, capsys):
+    """El tope de gasto llega al runner (por defecto 3 $) y se muestra el coste estimado antes de empezar."""
+    captured = {}
+
+    def fake_run_eval(cases, **kw):
+        captured.update(kw)
+        return _run("HOLD")
+    mocker.patch.object(run_evals, "run_eval", side_effect=fake_run_eval)
+    mocker.patch.object(run_evals, "RUNS_DIR", isolated / "runs")
+    mocker.patch.object(run_evals, "select_cases", return_value=[(c, {"ticker": c}) for c in _CASES])
+    run_evals.main(["--quick", "--max-cost", "1.5"])
+    assert captured["max_cost_usd"] == 1.5
+    run_evals.main(["--quick"])
+    assert captured["max_cost_usd"] == 3.0
+    assert "estimated" in capsys.readouterr().out.lower()

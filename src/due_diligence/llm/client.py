@@ -40,7 +40,7 @@ _MODEL_PRICING: dict[str, tuple[float, float]] = {
     "gpt-4o-mini":   (0.150, 0.600),
     "gpt-5.4-mini":  (0.750, 4.500),
     "gpt-4.1":       (2.000, 8.000),
-    "gpt-4.1-mini":  (0.200, 0.800),
+    "gpt-4.1-mini":  (0.400, 1.600),
     "gpt-4o":        (2.500, 10.000),
     # Generaciones 5.6/6 (precios oficiales platform.openai.com/docs/pricing, verificados 2026-10-10).
     "gpt-6-luna":    (0.100, 0.500),
@@ -54,6 +54,33 @@ _MODEL_PRICING: dict[str, tuple[float, float]] = {
     "claude-fable-5-1":  (10.0, 50.0),
 }
 _DEFAULT_PRICING = (0.002, 0.008)  # fallback conservador para modelos no listados
+
+# Caché de prompts (USD / 1M tokens): (entrada cacheada, escritura en caché o None). Fuente: tabla oficial
+# platform.openai.com/docs/pricing (2026-10-10). Sin esto el contador sobreestimaba un 27 % (gpt-5.4-mini)
+# y ~2× (gpt-6.1-sol) frente a la factura. En las generaciones 5.6/6 la entrada NO cacheada se factura como
+# "cache write" (el panel muestra input = 0 $ y cache writes > 0): se cobra a esa tarifa.
+_CACHE_PRICING: dict[str, tuple[float, float | None]] = {
+    "gpt-4o-mini":  (0.075, None),
+    "gpt-5.4-mini": (0.075, None),
+    "gpt-4.1":      (0.500, None),
+    "gpt-4.1-mini": (0.100, None),
+    "gpt-4o":       (1.250, None),
+    "gpt-6-luna":   (0.010, 0.125),
+    "gpt-5.6-luna": (0.020, 0.250),
+    "gpt-6.1-sol":  (0.100, 2.500),
+}
+
+
+def _cache_rates(model: str) -> tuple[float | None, float | None]:
+    """(tarifa cacheada, tarifa de escritura) del modelo; (None, None) si no se conoce (se cobra como entrada)."""
+    keys = [k for k in _CACHE_PRICING if model == k or model.startswith(k)]
+    return _CACHE_PRICING[max(keys, key=len)] if keys else (None, None)
+
+
+def _cached_tokens(usage) -> int:
+    """Tokens de entrada servidos desde caché según el `usage` de OpenAI (0 si no viene o no es un entero)."""
+    n = getattr(getattr(usage, "prompt_tokens_details", None), "cached_tokens", 0)
+    return n if isinstance(n, int) else 0
 
 
 def _price_for(model: str) -> tuple[float, float]:
@@ -96,17 +123,26 @@ class RunStats:
     tokens_out: int = 0
     cost_usd: float = 0.0
     calls: int = 0
+    tokens_cached: int = 0      # parte de tokens_in servida desde caché (más barata)
     # Modelo REAL que respondió cada llamada. Con fallback entre proveedores puede no
     # ser el que se pidió: es la única forma de que el informe diga la verdad (ADR-032).
     calls_by_model: dict[str, int] = field(default_factory=dict)
     # El harness de evals (H2-1) llama al LLM desde varios hilos: las sumas se protegen con un lock.
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
-    def add(self, model: str, prompt_tokens: int, completion_tokens: int) -> None:
-        """Acumula tokens, coste y recuento por modelo de una llamada individual (thread-safe)."""
-        pricing = _price_for(model)
-        call_cost = (prompt_tokens * pricing[0] + completion_tokens * pricing[1]) / 1_000_000
+    def add(self, model: str, prompt_tokens: int, completion_tokens: int, cached_tokens: int = 0) -> None:
+        """Acumula tokens, coste y recuento por modelo de una llamada individual (thread-safe).
+
+        `prompt_tokens` incluye los cacheados (convención de OpenAI); se cobran a su tarifa.
+        """
+        in_rate, out_rate = _price_for(model)
+        cached_rate, write_rate = _cache_rates(model)
+        cached = max(cached_tokens, 0)      # OpenAI garantiza cached ≤ prompt_tokens
+        call_cost = ((prompt_tokens - cached) * (write_rate or in_rate)
+                     + cached * (cached_rate if cached_rate is not None else in_rate)
+                     + completion_tokens * out_rate) / 1_000_000
         with self._lock:
+            self.tokens_cached += cached
             self.tokens_in += prompt_tokens
             self.tokens_out += completion_tokens
             self.cost_usd += call_cost
@@ -283,14 +319,14 @@ class LLMClient:
         # Acumular tokens y coste (ADR-021)
         if response.usage:
             self._record_usage(resolved_model, response.usage.prompt_tokens,
-                               response.usage.completion_tokens)
+                               response.usage.completion_tokens, _cached_tokens(response.usage))
         return choice.message.content
 
-    def _record_usage(self, model: str, tokens_in: int, tokens_out: int) -> None:
+    def _record_usage(self, model: str, tokens_in: int, tokens_out: int, cached: int = 0) -> None:
         """Único punto de contabilidad (ADR-021): RunStats + last_model_used + log DEBUG."""
-        self._run_stats.add(model=model, prompt_tokens=tokens_in, completion_tokens=tokens_out)
+        self._run_stats.add(model=model, prompt_tokens=tokens_in, completion_tokens=tokens_out, cached_tokens=cached)
         self.last_model_used = model
-        log.debug("llm_tokens", model=model, in_tokens=tokens_in, out_tokens=tokens_out)
+        log.debug("llm_tokens", model=model, in_tokens=tokens_in, out_tokens=tokens_out, cached_tokens=cached)
 
     # ───────────────────── Salida estructurada (ADR-032) ─────────────────────
     def structured(self, schema: type[T], messages: list[dict], *, system: Optional[str] = None,
@@ -353,7 +389,7 @@ class LLMClient:
             # La llamada se cobró aunque falle: contabilizar antes de lanzar.
             usage = getattr(e.completion, "usage", None)
             if usage:
-                self._record_usage(model, usage.prompt_tokens, usage.completion_tokens)
+                self._record_usage(model, usage.prompt_tokens, usage.completion_tokens, _cached_tokens(usage))
             raise LLMTruncatedError(f"{model}: output truncated at max_tokens={max_tokens}") from e
         except openai.ContentFilterFinishReasonError as e:
             raise LLMSchemaError(f"{model}: output blocked by content filter") from e
@@ -363,7 +399,8 @@ class LLMClient:
         except openai.APIError as e:   # NO captura Length/ContentFilter (heredan de OpenAIError)
             raise _provider_error("openai", e) from e
         if completion.usage:
-            self._record_usage(model, completion.usage.prompt_tokens, completion.usage.completion_tokens)
+            self._record_usage(model, completion.usage.prompt_tokens, completion.usage.completion_tokens,
+                               _cached_tokens(completion.usage))
         message = completion.choices[0].message
         if message.refusal:
             raise LLMSchemaError(f"{model}: refusal: {str(message.refusal)[:200]}")

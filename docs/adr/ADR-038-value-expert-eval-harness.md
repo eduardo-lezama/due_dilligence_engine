@@ -45,6 +45,11 @@ Hasta H1, cada cambio del prompt o del modelo del Value Expert se aceptaba leyen
 
   Lección: **cada modelo nuevo calibra también el instrumento.** Antes de creerse un fallo de la puerta, se lee la salida.
 
+- **Control de gasto (2026-10-10).** Durante un run se agotó el crédito, así que el harness incorpora dos cosas:
+  - **Antes de empezar**, `run_evals.py` muestra las llamadas previstas y el coste estimado, a partir del coste por llamada de la baseline.
+  - **`--max-cost`** (3 $ por defecto): al superarlo se cancelan las llamadas pendientes; se marcan como `BudgetExceeded` y la puerta da "inconcluso".
+  - **Contador del cliente:** ahora aplica las tarifas de caché (entrada cacheada y escritura en caché de las generaciones 5.6/6). Antes sobreestimaba entre un 27 % y 2 veces frente a la factura.
+
 ## Alternatives considered
 
 - **Pydantic Evals o DeepEval.** Pydantic Evals añade 8 paquetes nuevos (pydantic-ai-slim y otros) para lo que hacen unas 300 líneas propias. Se reconsidera con el juez LLM (MCE-33).

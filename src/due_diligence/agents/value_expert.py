@@ -1119,7 +1119,7 @@ def _validate_thesis_break_with_llm(
             messages=[{"role": "user", "content": prompt}],
             system="You are a precise financial analyst.",
             model=settings.openai_validation_model,
-            max_tokens=200,
+            max_tokens=200,   # patrón aceptado: gpt-4o-mini no razona; si se cambia a un modelo de razonamiento, subir (EC-99)
         )
     except LLMError as e:
         log.warning("thesis_break_llm_validation_failed", ticker=ticker,
@@ -1266,7 +1266,7 @@ def value_expert_agent(state: AnalysisState) -> dict:
             out = client.structured(ValueExpertLLMOutput,
                                     messages=[{"role": "user", "content": user_prompt}],
                                     system=_SYSTEM_PROMPT, model=settings.openai_expert_model,
-                                    max_tokens=8192)
+                                    max_tokens=32768)  # techo, no coste: margen para modelos de razonamiento (EC-99)
             break
         except LLMSchemaError as e:
             # Solo el error de schema justifica reintento: es estocástico. Truncación y

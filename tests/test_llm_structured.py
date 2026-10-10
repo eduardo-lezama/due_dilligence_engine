@@ -51,3 +51,10 @@ def test_complete_legacy_omits_temperature_for_claude_models_that_reject_it(monk
     c.complete([{"role": "user", "content": "x"}], model="claude-sonnet-4-6")
     assert fake.messages.create.call_args.kwargs["temperature"] == 0.2
     assert c.get_run_stats().calls_by_model == {"claude-opus-5-5": 1, "claude-sonnet-4-6": 1}
+
+
+def test_new_openai_models_have_official_prices():
+    s = RunStats()
+    s.add("gpt-6-luna", 1_000_000, 1_000_000)
+    s.add("gpt-5.6-luna", 1_000_000, 1_000_000)
+    assert s.cost_usd == pytest.approx(0.10 + 0.50 + 0.20 + 1.20)

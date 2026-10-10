@@ -284,7 +284,7 @@ def critic_agent(state: AnalysisState) -> dict:
             messages=[{"role": "user", "content": user_prompt}],
             system=_SYSTEM_PROMPT,
             model=settings.openai_expert_model,
-            max_tokens=2048,   # antes 1024: la truncación era frecuente y se ocultaba
+            max_tokens=16384,  # techo, no coste: comparte modelo con el Expert, que puede razonar (EC-99)
         )
     except LLMError as e:
         # Fail loud (EC-68): antes "[Parse error]" acababa en contra_thesis como si fuera texto real.

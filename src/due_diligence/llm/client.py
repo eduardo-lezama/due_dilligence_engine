@@ -42,6 +42,10 @@ _MODEL_PRICING: dict[str, tuple[float, float]] = {
     "gpt-4.1":       (2.000, 8.000),
     "gpt-4.1-mini":  (0.200, 0.800),
     "gpt-4o":        (2.500, 10.000),
+    # Generaciones 5.6/6 (precios oficiales platform.openai.com/docs/pricing, verificados 2026-10-10).
+    "gpt-6-luna":    (0.100, 0.500),
+    "gpt-5.6-luna":  (0.200, 1.200),
+    "gpt-6.1-sol":   (2.000, 10.000),
     "claude-sonnet-4-6": (3.0, 15.0),
     "claude-opus-4-7":   (5.0, 25.0),
     "claude-haiku-4-5":  (1.0, 5.0),
@@ -72,6 +76,17 @@ _CLAUDE_SAMPLING_OK = ("claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5
 def _claude_accepts_temperature(model: str) -> bool:
     """True si el modelo Claude acepta `temperature` (familias 4.5/4.6 y Haiku 4.5)."""
     return model.startswith(_CLAUDE_SAMPLING_OK)
+
+
+# Modelos OpenAI de razonamiento que solo aceptan la temperatura por defecto: con 0.2 devuelven un 400
+# "Unsupported value: 'temperature'" (verificado en vivo con gpt-6-luna y gpt-5.6-luna, 2026-10-10).
+# Mismo patrón que _CLAUDE_SAMPLING_OK: se omite el parámetro en vez de fallar.
+_OPENAI_NO_SAMPLING = ("gpt-6", "gpt-5.6")
+
+
+def _openai_accepts_temperature(model: str) -> bool:
+    """True si el modelo OpenAI acepta `temperature` distinta de la por defecto."""
+    return not model.startswith(_OPENAI_NO_SAMPLING)
 
 
 @dataclass
@@ -249,8 +264,9 @@ class LLMClient:
             "model": resolved_model,
             "messages": oai_messages,
             "max_completion_tokens": max_tokens,
-            "temperature": temperature,
         }
+        if _openai_accepts_temperature(resolved_model):
+            create_kwargs["temperature"] = temperature
         if response_format is not None:
             create_kwargs["response_format"] = response_format
         response = client.chat.completions.create(**create_kwargs)
@@ -328,9 +344,10 @@ class LLMClient:
         client = self._get_openai()
         oai_messages = ([{"role": "system", "content": system}] if system else []) + list(messages)
         try:
+            sampling = {"temperature": temperature} if _openai_accepts_temperature(model) else {}
             completion = client.chat.completions.parse(
                 model=model, messages=oai_messages, response_format=schema,
-                max_completion_tokens=max_tokens, temperature=temperature,
+                max_completion_tokens=max_tokens, **sampling,
             )
         except openai.LengthFinishReasonError as e:
             # La llamada se cobró aunque falle: contabilizar antes de lanzar.

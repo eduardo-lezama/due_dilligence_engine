@@ -164,7 +164,7 @@ def _retry_for_evidence(client, user_prompt: str, first: FilingsRAGReport, ticke
             FilingsLLMOutput,
             messages=[{"role": "user", "content": f"{user_prompt}\n\n{_RETRY_INSTRUCTION}\n{feedback}"}],
             system=_SYSTEM_PROMPT,
-            max_tokens=4096,
+            max_tokens=16384,  # mismo techo que la llamada principal (EC-99)
         )
     except LLMError as e:
         log.warning("filings_evidence_retry_failed", ticker=ticker, error_type=type(e).__name__)
@@ -273,7 +273,7 @@ def filings_agent(state: AnalysisState) -> dict:
             FilingsLLMOutput,
             messages=[{"role": "user", "content": user_prompt}],
             system=_SYSTEM_PROMPT,
-            max_tokens=4096,   # antes 2048; con strict + citas la truncación ya no es silenciosa
+            max_tokens=16384,  # techo, no coste: gpt-6-luna razona y esos tokens cuentan aquí (EC-99)
         )
     except LLMError as e:
         # Fail loud (invariante 5, ADR-032): report vacío con error explícito. El grafo

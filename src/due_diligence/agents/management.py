@@ -373,7 +373,7 @@ def management_agent(state: AnalysisState) -> dict:
             ManagementLLMOutput,
             messages=[{"role": "user", "content": user_prompt}],
             system=_SYSTEM_PROMPT,
-            max_tokens=4096,   # antes 2048: con strict + citas por campo numérico hace falta margen
+            max_tokens=16384,  # techo, no coste: gpt-6-luna razona y esos tokens cuentan aquí (EC-99)
         )
     except LLMError as e:
         # Fail loud (ADR-032, EC-68): stub=True + error; el resto del grafo ve el hueco.

@@ -255,7 +255,7 @@ def competitive_agent(state: AnalysisState) -> dict:
             CompetitiveLLMOutput,
             messages=[{"role": "user", "content": user_prompt}],
             system=_SYSTEM_PROMPT,
-            max_tokens=4096,   # antes 2048: margen para las citas de evidencia por criterio
+            max_tokens=16384,  # techo, no coste: gpt-6-luna razona y esos tokens cuentan aquí (EC-99)
         )
     except LLMError as e:
         # Fail loud (ADR-032, EC-68): antes un parse fallido devolvía stub=False con moat=None.

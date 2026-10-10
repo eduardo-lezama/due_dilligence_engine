@@ -174,3 +174,14 @@ def test_structured_anthropic_skips_non_text_blocks(with_anthropic):
         content=[MagicMock(type="thinking", text=None), MagicMock(type="text", text='{"answer": "ok"}')])
     c = _client_with(anthropic_fake=fake, openai_fake=MagicMock())
     assert c.structured(_Out, [{"role": "user", "content": "x"}], model="claude-sonnet-4-6").answer == "ok"
+
+
+@pytest.mark.parametrize("model,sent", [("gpt-6-luna", False), ("gpt-5.6-luna", False), ("gpt-6.1-sol", False),
+                                        ("gpt-5.4-mini", True), ("gpt-4o-mini", True)])
+def test_structured_openai_omits_temperature_for_models_that_reject_it(no_anthropic, model, sent):
+    """gpt-6-* y gpt-5.6-* devuelven 400 con temperature ≠ 1 (verificado en vivo 2026-10-10)."""
+    fake = MagicMock()
+    fake.chat.completions.parse.return_value = _oai_completion(_Out(answer="ok"))
+    _client_with(openai_fake=fake).structured(_Out, [{"role": "user", "content": "x"}], model=model)
+    assert ("temperature" in fake.chat.completions.parse.call_args.kwargs) is sent
+

@@ -24,6 +24,8 @@ Uso:
 
 from dataclasses import dataclass, field
 from typing import Optional, TypeVar
+import threading
+
 import structlog
 from pydantic import BaseModel
 
@@ -82,16 +84,19 @@ class RunStats:
     # Modelo REAL que respondió cada llamada. Con fallback entre proveedores puede no
     # ser el que se pidió: es la única forma de que el informe diga la verdad (ADR-032).
     calls_by_model: dict[str, int] = field(default_factory=dict)
+    # El harness de evals (H2-1) llama al LLM desde varios hilos: las sumas se protegen con un lock.
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def add(self, model: str, prompt_tokens: int, completion_tokens: int) -> None:
-        """Acumula tokens, coste y recuento por modelo de una llamada individual."""
+        """Acumula tokens, coste y recuento por modelo de una llamada individual (thread-safe)."""
         pricing = _price_for(model)
         call_cost = (prompt_tokens * pricing[0] + completion_tokens * pricing[1]) / 1_000_000
-        self.tokens_in += prompt_tokens
-        self.tokens_out += completion_tokens
-        self.cost_usd += call_cost
-        self.calls += 1
-        self.calls_by_model[model] = self.calls_by_model.get(model, 0) + 1
+        with self._lock:
+            self.tokens_in += prompt_tokens
+            self.tokens_out += completion_tokens
+            self.cost_usd += call_cost
+            self.calls += 1
+            self.calls_by_model[model] = self.calls_by_model.get(model, 0) + 1
 
 log = structlog.get_logger()
 

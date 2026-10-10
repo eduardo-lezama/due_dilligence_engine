@@ -361,14 +361,18 @@ def _format_context(state: AnalysisState) -> str:
                 try:
                     y0 = fiscal_year(financials.roic_series[0].period)
                     window = [r for r in financials.roic_series[1:] if 0 < y0 - fiscal_year(r.period) <= 4]
-                    oldest = window[-1] if window else financials.roic_series[1]
-                    n_periods = max(y0 - fiscal_year(oldest.period), 1)
+                    # Sin ningún punto en 4 años no hay tendencia (H2-1): AAPL tiene ROIC n/m en
+                    # FY2018-FY2024 (IC < 5 % de activos) y se comparaba FY2025 con FY2017 "a 8 años".
+                    oldest = window[-1] if window else None
+                    n_periods = max(y0 - fiscal_year(oldest.period), 1) if oldest else 0
                 except ValueError:
                     oldest = financials.roic_series[min(4, len(financials.roic_series) - 1)]
                     n_periods = financials.roic_series.index(oldest)
-                roic_oldest = oldest.value
-                avg_annual_delta_pp = (roic_latest - roic_oldest) / n_periods * 100  # en pp
-                if roic_latest > roic_oldest * 1.05:
+                roic_oldest = oldest.value if oldest else None
+                avg_annual_delta_pp = ((roic_latest - roic_oldest) / n_periods * 100) if oldest else 0.0
+                if oldest is None:
+                    interp = "n/a (no ROIC data within the last 4 fiscal years to compare)"
+                elif roic_latest > roic_oldest * 1.05:
                     interp = f"RISING (avg ΔROIC: +{avg_annual_delta_pp:.1f}pp/year over {n_periods} years)"
                 elif roic_latest < roic_oldest * 0.95:
                     interp = f"FALLING (avg ΔROIC: {avg_annual_delta_pp:.1f}pp/year over {n_periods} years)"

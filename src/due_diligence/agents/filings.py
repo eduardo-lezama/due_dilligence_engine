@@ -30,6 +30,8 @@ Por qué imports al nivel de módulo:
 
 from __future__ import annotations
 
+import re
+
 import structlog
 
 from due_diligence.graph.state import AnalysisState
@@ -130,7 +132,7 @@ Answer each question using ONLY the sources above:
 12. Does the filing reference any financial restatement, non-reliance on previously issued statements, or revenue recognition errors? Quote the exact language.
 13. Does the filing mention any pending or threatened class action securities lawsuits? Provide the claim period and allegations if available.
 14. Is there any mention of whistleblower-related issues, obstruction, or retaliation allegations?
-If NONE of questions 10-14 apply, explicitly state "No governance red flags found in provided text."
+If NONE of questions 10-14 apply, set governance_red_flags to null.
 
 § Operational Metrics (from Item 7):
 7. Is there a contracted backlog figure? If so, what is it in USD?
@@ -171,6 +173,27 @@ def _retry_for_evidence(client, user_prompt: str, first: FilingsRAGReport, ticke
     return second if llm_evidence_count(second.citations) > llm_evidence_count(first.citations) else first
 
 
+# La frase ENTERA debe ser un "nada" (fullmatch): un prefijo descartaría "Nonetheless, the SEC opened…"
+# o "No governance red flags found; however, the auditor identified a material weakness" (fail loud).
+_NO_FLAGS_RE = re.compile(
+    r"(no (governance )?red flags( were| are)?( found| identified| noted)?( in (the )?provided (text|sources))?"
+    r"|not available in provided sources|none( found| identified)?|n/?a)")
+
+
+def _governance_or_none(text: str | None) -> str | None:
+    """Frases de "no hay banderas" → None (EC-97).
+
+    El prompt pedía escribir "No governance red flags found in provided text." y los tres consumidores
+    (Value Expert, Critic, archiver) solo miran si el campo tiene texto: mostraban un bloque de
+    banderas rojas para empresas limpias y la regla 23 se activaba sin motivo. Se normaliza aquí, en
+    el productor, para que los consumidores no tengan que conocer las variantes de "nada".
+    """
+    if text is None:
+        return None
+    norm = text.strip().lower().rstrip(".")
+    return None if not norm or _NO_FLAGS_RE.fullmatch(norm) else text
+
+
 def _build_report(out: FilingsLLMOutput, ticker: str, corpus: dict[str, str]) -> FilingsRAGReport:
     """Convierte la salida validada del LLM en el report de dominio, con citas verificadas.
 
@@ -199,7 +222,7 @@ def _build_report(out: FilingsLLMOutput, ticker: str, corpus: dict[str, str]) ->
         revenue_guidance=out.revenue_guidance,
         geographic_revenue_breakdown=out.geographic_revenue_breakdown,
         key_regulatory_events=out.key_regulatory_events,
-        governance_red_flags=out.governance_red_flags,
+        governance_red_flags=_governance_or_none(out.governance_red_flags),
         active_sec_investigation=sec_flag,
         material_weakness=mw_flag,
         citations=citations,

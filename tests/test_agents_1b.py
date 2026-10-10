@@ -1307,3 +1307,37 @@ def test_field_citation_not_duplicated_when_llm_also_lists_it():
     rep = build_mgmt(_mgmt_out(ceo_tenure_years=14.0, ceo_tenure_citation=same, citations=[same]),
                      "TST", {"DEF 14A": DEF14A + " " + TENURE}, 0)
     assert len([c for c in rep.citations if c.excerpt == TENURE]) == 1
+
+
+def test_no_governance_flags_sentence_becomes_none():
+    """EC-97: el prompt pedía "No governance red flags found in provided text." y los consumidores (Value
+    Expert, Critic, archiver) mostraban un bloque de banderas rojas para empresas limpias."""
+    for text in ("No governance red flags found in provided text.", "Not available in provided sources.",
+                 "  no governance red flags found  "):
+        rep = build_filings(_filings_out(governance_red_flags=text), "TST", {"10-K Item 7": "x" * 30})
+        assert rep.governance_red_flags is None, text
+    for real in ("Nonetheless, the SEC opened a formal inquiry in March 2026.",):
+        assert build_filings(_filings_out(governance_red_flags=real), "TST", {"10-K Item 7": "x" * 30}
+                             ).governance_red_flags == real
+    for text in ("None.", "None found."):
+        assert build_filings(_filings_out(governance_red_flags=text), "TST", {"10-K Item 7": "x" * 30}
+                             ).governance_red_flags is None
+    real = "Active SEC investigation disclosed in Item 1A."
+    rep = build_filings(_filings_out(governance_red_flags=real), "TST", {"10-K Item 7": "x" * 30})
+    assert rep.governance_red_flags == real
+
+
+def test_filings_prompt_no_longer_asks_for_the_no_flags_sentence():
+    from due_diligence.agents.filings import _SYSTEM_PROMPT, _build_user_prompt
+    prompt = _SYSTEM_PROMPT + _build_user_prompt(ticker="TST", business_text="b", risk_factors_text="r", mda_text="m")
+    assert 'explicitly state "No governance red flags found' not in prompt
+
+
+def test_no_flags_prefix_followed_by_a_real_flag_is_kept():
+    """Revisión final H2-1: el filtro EC-97 solo miraba el comienzo y borraba flags reales."""
+    real = "No governance red flags found; however, the auditor identified a material weakness in ICFR."
+    assert build_filings(_filings_out(governance_red_flags=real), "TST", {"10-K Item 7": "x" * 30}
+                         ).governance_red_flags == real
+    for text in ("No red flags identified.", "None identified.", "N/A", "No governance red flags were identified."):
+        assert build_filings(_filings_out(governance_red_flags=text), "TST", {"10-K Item 7": "x" * 30}
+                             ).governance_red_flags is None, text

@@ -59,3 +59,12 @@ def test_value_at_helper():
     from due_diligence.utils.periods import value_at
     series = [_mv(1.0, "FY2025"), _mv(2.0, "FY2023")]
     assert value_at(series, "FY2023") == 2.0 and value_at(series, "FY2024") is None
+
+
+def test_roic_trend_not_computed_when_no_point_within_four_years():
+    # AAPL real (dataset H2-1): ROIC n/m en FY2018-FY2024 (IC < 5 % de activos) → solo FY2025 y FY2017.
+    # Antes se comparaba FY2025 con FY2017 como "tendencia a 8 años" (bug de EC-96).
+    fin = _fin(roic_series=[_mv(2.725, "FY2025", "ratio"), _mv(0.218, "FY2017", "ratio")])
+    ctx = _format_context({"ticker": "TST", "financials": fin})
+    assert "ROIC trend interpretation (use in §5): n/a" in ctx
+    assert "over 8 years" not in ctx

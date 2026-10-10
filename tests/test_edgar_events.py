@@ -61,6 +61,13 @@ def _make_fake_filing(
     return filing
 
 
+def _recent(days: int) -> str:
+    """Fecha ISO relativa a hoy: el adaptador filtra por "hoy − meses×30 días"; una fecha fija en el
+    fixture caduca con el calendario (falló el 2026-10-11 con "2025-10-15")."""
+    from datetime import date, timedelta
+    return (date.today() - timedelta(days=days)).isoformat()
+
+
 def test_fetch_8k_events_filters_by_item(mocker):
     """Solo devuelve filings que contienen al menos uno de los items solicitados."""
     from due_diligence.tools.edgar import EdgarEventsAdapter
@@ -68,13 +75,13 @@ def test_fetch_8k_events_filters_by_item(mocker):
     filing_relevant = _make_fake_filing(
         items=["5.02"],
         summary="Appointment of John Ternus as CEO.",
-        date_str="2025-10-15",
+        date_str=_recent(30),
         url="https://sec.gov/8k-ternus",
     )
     filing_irrelevant = _make_fake_filing(
         items=["7.01"],
         summary="FD disclosure — regulation FD.",
-        date_str="2025-07-10",
+        date_str=_recent(90),
     )
 
     fake_company = MagicMock()
@@ -88,14 +95,14 @@ def test_fetch_8k_events_filters_by_item(mocker):
     assert events[0]["item_numbers"] == ["5.02"]
     assert "Ternus" in events[0]["summary_text"]
     assert events[0]["filing_url"] == "https://sec.gov/8k-ternus"
-    assert events[0]["filing_date"] == "2025-10-15"
+    assert events[0]["filing_date"] == _recent(30)
 
 
 def test_fetch_8k_events_returns_empty_when_no_matches(mocker):
     """Sin filings con items relevantes, devuelve lista vacía."""
     from due_diligence.tools.edgar import EdgarEventsAdapter
 
-    filing_irrelevant = _make_fake_filing(items=["7.01"], summary="FD.", date_str="2025-06-01")
+    filing_irrelevant = _make_fake_filing(items=["7.01"], summary="FD.", date_str=_recent(120))
     fake_company = MagicMock()
     fake_company.get_filings.return_value = [filing_irrelevant]
     mocker.patch("edgar.Company", return_value=fake_company)
@@ -113,7 +120,7 @@ def test_fetch_8k_events_handles_multiple_items_in_one_filing(mocker):
     filing = _make_fake_filing(
         items=["2.02", "9.01"],
         summary="Q4 earnings release.",
-        date_str="2025-10-30",
+        date_str=_recent(15),
     )
     fake_company = MagicMock()
     fake_company.get_filings.return_value = [filing]
@@ -137,7 +144,7 @@ def test_fetch_8k_events_skips_failing_filing(mocker):
     filing_good = _make_fake_filing(
         items=["4.02"],
         summary="Restatement of Q2 results.",
-        date_str="2025-08-01",
+        date_str=_recent(60),
         url="https://sec.gov/8k-restatement",
     )
     fake_company = MagicMock()

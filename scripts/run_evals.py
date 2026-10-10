@@ -55,7 +55,8 @@ def print_scorecard(sc: Scorecard) -> None:
         t.add_row(cr.case, str(cr.n_ok_runs), verdicts, f"{cr.disagreement:.2f}", _fmt_checks(cr.checks),
                   f"{cr.mean_ungrounded:.1f}", f"{cr.mean_repairs:.1f}")
     console.print(t)
-    console.print(f"HOLD cases {sc.hold_cases}/{len(sc.cases)} · mean disagreement {sc.mean_disagreement:.3f} · "
+    console.print(f"taxonomy {sc.taxonomy} · verdicts {sc.class_distribution} · HOLD cases {sc.hold_cases}/"
+                  f"{len(sc.cases)} · mean disagreement {sc.mean_disagreement:.3f} · "
                   f"mean ungrounded {sc.mean_ungrounded:.2f} · errors {sc.n_errors_non_transport} "
                   f"(+{sc.n_errors_transport} transport) · models {sc.calls_by_model}")
 

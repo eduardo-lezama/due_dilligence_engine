@@ -15,7 +15,7 @@ import copy
 import hashlib
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from typing import Optional
 from unittest import mock
@@ -125,15 +125,15 @@ def run_eval(cases_with_states: list[tuple[str, AnalysisState]], *, repeat: int,
         if expert_model:
             stack.enter_context(mock.patch.object(value_expert.settings, "openai_expert_model", expert_model))
         jobs = [(name, state, i) for name, state in cases_with_states for i in range(repeat)]
+        def job(name: str, state: AnalysisState, i: int) -> RunRecord:
+            # Cada repetición mira el gasto ANTES de llamar al LLM: determinista (no depende de cuándo
+            # un hilo recoge la tarea) y nunca empieza una llamada con el tope ya superado.
+            if max_cost_usd is not None and stats_client.get_run_stats().cost_usd > max_cost_usd:
+                return _budget_record(name, i, shas[name], max_cost_usd)
+            return _run_one(name, state, i, shas[name])
+
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures = {pool.submit(_run_one, name, state, i, shas[name]): (name, i) for name, state, i in jobs}
-            for f in as_completed(futures):
-                if max_cost_usd is not None and stats_client.get_run_stats().cost_usd > max_cost_usd:
-                    for pending in futures:
-                        pending.cancel()          # solo cancela las que aún no han empezado
-                    break
-            records = [f.result() if not f.cancelled() else _budget_record(n, i, shas[n], max_cost_usd)
-                       for f, (n, i) in futures.items()]
+            records = list(pool.map(lambda j: job(*j), jobs))
 
     stats = stats_client.get_run_stats()
     return EvalRun(records=records, cases=[n for n, _ in cases_with_states], repeat=repeat, contexts=contexts,

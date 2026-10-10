@@ -89,6 +89,9 @@ class CriticLLMOutput(_Strict):
     pre_mortem_scenario: str | None
 
 
+VERDICTS = ("BUY", "WATCHLIST", "PASS", "SELL")   # única fuente de las etiquetas (H2-2, ADR-041)
+
+
 class ValueExpertLLMOutput(_Strict):
     """Salida del Value Expert: 9 secciones del checklist + VERDICT (ADR-009)."""
     business_understanding: str | None
@@ -100,9 +103,11 @@ class ValueExpertLLMOutput(_Strict):
     risks: str | None
     psychological_lens: str | None
     decision_frame: str | None
-    verdict: Literal["BUY", "HOLD", "SELL"]
-    verdict_confidence: float      # clamp [0,1] en value_expert._to_report
-    suggested_sizing_pct: float    # clamp [0,20] y ≤ confidence×10 en _to_report
+    # H2-2 (ADR-041): el modelo elige etiqueta y tipo de negocio; la confianza y el tamaño los calcula el
+    # código (agents/verdict_policy.py). El LLM solo matiza la confianza con un ajuste acotado a ±0,1.
+    verdict: Literal["BUY", "WATCHLIST", "PASS", "SELL"]
+    business_class: Literal["quality_compounder", "average", "cyclical_or_low_quality"]
+    confidence_adjustment: float   # clamp ±0,1 en verdict_policy.composite_confidence
     verdict_rationale: str
 
 

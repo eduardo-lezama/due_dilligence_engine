@@ -339,6 +339,30 @@ class ValuationReport(BaseModel):
     sensitivity_unit: Optional[str] = None              # "USD/share" (ADR-033); None = legacy (USD B de EV)
 
 
+class VerdictDecision(BaseModel):
+    """Parte numérica del veredicto, calculada por código (H2-2, ADR-041).
+
+    El Value Expert elige la etiqueta y el tipo de negocio; aquí quedan el ancla de valor, el precio de
+    entrada, el margen de seguridad, la confianza y el tamaño, con sus componentes visibles. Ningún número
+    de este modelo lo genera el LLM (invariante 1).
+    """
+    verdict: str                                  # final (BUY/WATCHLIST/PASS/SELL), tras reconciliar
+    verdict_raw: str                              # el que eligió el modelo
+    business_class_llm: str                       # quality_compounder | average | cyclical_or_low_quality
+    business_class: str                           # tras endurecer (cíclico o sin moat)
+    required_mos: float                           # fracción exigida (§9.1: 0,30 / 0,50 / 0,60)
+    anchor_value: Optional[float] = None          # valor intrínseco por acción usado
+    anchor_source: str = ""
+    entry_price: Optional[float] = None           # ancla × (1 − MoS exigido)
+    price: Optional[float] = None
+    actual_mos: Optional[float] = None            # 1 − precio/ancla
+    confidence: float = 0.0                       # compuesta (antes de los topes por huecos de datos/governance)
+    sizing_pct: float = 0.0                       # % de cartera (0 si no es BUY)
+    confidence_components: dict[str, float] = Field(default_factory=dict)
+    sizing_components: dict[str, float] = Field(default_factory=dict)
+    caveats: list[str] = Field(default_factory=list)
+
+
 class ValueExpertReport(LLMAgentReport):
     """
     Reporte del Value Expert — análisis integrado + VERDICT.
@@ -355,10 +379,12 @@ class ValueExpertReport(LLMAgentReport):
     risks: Optional[str] = None  # Riesgos
     psychological_lens: Optional[str] = None  # Lente psicológico
     decision_frame: Optional[str] = None  # Frame de decisión
-    verdict: Optional[str] = None  # ADR-009: BUY/SELL/HOLD (requerido cuando no stub)
-    verdict_confidence: Optional[float] = None  # Confianza en el verdict (0.0-1.0)
-    suggested_sizing_pct: Optional[float] = None  # % de portfolio sugerido
+    verdict: Optional[str] = None  # ADR-009/041: BUY/WATCHLIST/PASS/SELL (H1: BUY/HOLD/SELL)
+    verdict_confidence: Optional[float] = None  # Confianza (0.0-1.0); desde H2 compuesta por código
+    suggested_sizing_pct: Optional[float] = None  # % de portfolio; desde H2 por margen y riesgo
     verdict_rationale: Optional[str] = None  # 2-3 frases: por qué este verdict
+    decision: Optional[VerdictDecision] = None  # H2-2: componentes numéricos del veredicto (None en H1)
+    taxonomy: Optional[str] = None              # "H2" con la taxonomía nueva; None = informe H1
 
 
 class CriticReport(LLMAgentReport):

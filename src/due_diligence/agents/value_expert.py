@@ -23,8 +23,8 @@ Por qué no genera números nuevos:
     prompt lo prohíben explícitamente.
 
 ADR-009 — VERDICT obligatorio:
-    Cuando stub=False, el campo verdict debe contener "BUY", "HOLD" o "SELL"
-    con justificación. Un report sin VERDICT no es un análisis completo.
+    Cuando stub=False, el campo verdict debe contener "BUY", "WATCHLIST", "PASS" o "SELL"
+    (taxonomía H2, ADR-041) con justificación. Un report sin VERDICT no es un análisis completo.
 
 ADR-032 — Structured outputs y fail loud:
     La salida se pide con LLMClient.structured(ValueExpertLLMOutput). Si el LLM falla
@@ -53,7 +53,8 @@ import structlog
 
 from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
-from due_diligence.agents.archiver import collect_failures
+from due_diligence.agents import verdict_policy
+from due_diligence.agents.archiver import _count_verified_citations, collect_failures
 from due_diligence.agents.llm_support import error_label, model_used
 from due_diligence.llm.client import get_client
 from due_diligence.llm.errors import LLMError, LLMSchemaError
@@ -113,7 +114,7 @@ RULES — NON-NEGOTIABLE:
 21. VALUATION CONVERGENCE (§6): the context provides a "## VALUATION METHODS CONVERGENCE" block with 4 methods classified as cheap/fair/expensive. You MUST:
     (a) Count the signals and state the convergence explicitly: "3 of 4 methods signal cheap", not just describe each individually.
     (b) If 3 or 4 methods classify as "cheap" → state that conviction is high and explain why the convergence is meaningful.
-    (c) If methods diverge (e.g. DCF cheap but EPV expensive) → adopt HOLD bias by default. Explain in §6 which method you weight most and WHY — e.g. "EPV is the more conservative anchor here because the DCF relies on a growth rate the market is not pricing."
+    (c) If methods diverge (e.g. DCF cheap but EPV expensive) → never BUY; adopt a WATCHLIST or PASS bias by default. Explain in §6 which method you weight most and WHY — e.g. "EPV is the more conservative anchor here because the DCF relies on a growth rate the market is not pricing."
     (d) EPV is the zero-growth floor: if EPV per share > price (EPV upside > 0%), state explicitly that a BUY does NOT require growth assumptions to hold — the margin of safety exists in the static business alone. This is the highest-conviction BUY signal.
     (e) Never ignore the convergence count. A sentence like "DCF shows 35% upside" with no mention of EPV or reverse DCF is an incomplete §6.
 
@@ -125,17 +126,19 @@ RULES — NON-NEGOTIABLE:
 23. GOVERNANCE RED FLAGS (§3+§7+§9): when context contains a '## GOVERNANCE RED FLAGS' block, §7 MUST list each flag explicitly, §3 MUST assess its implication for management trust, and §9 MUST state whether any flag is a thesis-breaker.
 24. INVESTOR HYPOTHESES: the '## INVESTOR'S OWN HYPOTHESES' block is the user's opinion. In §8 Psychological Lens, evaluate each hypothesis against the evidence, label it SUPPORTED / CONTRADICTED / UNTESTABLE, and never cite it as evidence elsewhere.
 
-VERDICT RUBRIC:
-- BUY: moat confirmed + quality management + DCF upside >20% + no material 8-K red flags + conflicting signals resolved in favor of the bull case.
-- HOLD: conflicting signals unresolved, fair value, or data insufficient for conviction.
-- SELL: deteriorating moat OR value trap OR DCF downside >20% with red flags OR recent Item 4.02 restatement.
+BUSINESS CLASS (§9.1 — sets the required margin of safety; read '## DECISION INPUTS'):
+- quality_compounder: confirmed wide/narrow moat + high sustained ROIC + reinvestment runway. Required MoS 30%.
+- average: decent business without a confirmed durable advantage. Required MoS 50%.
+- cyclical_or_low_quality: cyclical, turnaround, commodity or weak economics. Required MoS 60%.
+The code hardens your choice: a cyclical business is always cyclical_or_low_quality, and without a confirmed moat it cannot be quality_compounder. Choose honestly — never upgrade the class to reach a BUY.
 
-SIZING DISCIPLINE — NON-NEGOTIABLE:
-- `suggested_sizing_pct` MUST scale with `verdict_confidence`. Rule: max sizing ≤ verdict_confidence × 10.
-  Examples: confidence 0.50 → max 5% sizing; confidence 0.70 → max 7%; confidence 0.85 → max 8.5%.
-- HOLD with confidence < 0.65 → sizing should be 0-2%, not 3%+.
-- Never recommend sizing > 10% unless confidence > 0.85 AND verdict is BUY.
-- If signals conflict and you adjudicate as HOLD, sizing reflects the unresolved uncertainty — keep small.
+VERDICT RUBRIC (ADR-041 — the label is yours; prices, confidence and sizing are computed by code):
+- BUY: business worth owning, thesis intact, conflicting signals resolved for the bull case, AND the current price is at or below the entry price for your business class in '## DECISION INPUTS'. Without an entry price there is no BUY.
+- WATCHLIST: business worth owning but the price is above the entry price. §9 MUST state the entry price (from DECISION INPUTS) at which it becomes a BUY.
+- PASS: not investable at any reasonable price for this investor: mediocre or unprovable economics, outside the circle of competence, or data too weak to judge.
+- SELL: thesis broken, value trap, deteriorating fundamentals, recent Item 4.02 restatement, or severe overvaluation with red flags — "exit if owned, avoid otherwise".
+- confidence_adjustment: a number between -0.1 and +0.1 that nudges the deterministic confidence. Use 0 unless qualitative evidence clearly strengthens (+) or weakens (−) the case beyond the quantitative signals.
+- Do NOT state a position size or a confidence percentage anywhere: the code computes both from the margin of safety.
 
 SECTION GUIDANCE (content of each field — the format is enforced by the schema):
 - business_understanding: §1: 3-4 sentences. What does it do, how does it make money, circle of competence
@@ -146,10 +149,10 @@ SECTION GUIDANCE (content of each field — the format is enforced by the schema
 - valuation_section: §6: MUST contrast reverse-DCF implied growth vs historical 5y revenue CAGR. State the spread and what it implies about market expectations.
 - risks: §7: include any 8-K material events (especially Item 4.02) PLUS top risks from 10-K Item 1A. MUST cross-check news flow + insider activity + margin trends — if multiple signals point negative, name the value trap pattern explicitly. MUST analyze named risks PER SEGMENT when company is multi-segment (rule 12) — same tariff/regulatory/commodity risk often has opposite signs across segments. MUST integrate any quarterly news data more recent than the 10-K (Q1/Q2/Q3 metrics, guidance changes) and weigh them in the verdict, not just mention as factoids (rule 13).
 - psychological_lens: §8: why might this be mispriced? Contrarian thesis or consensus trap?
-- decision_frame: §9: MUST state the thesis-breaker as a concrete observable condition. No vague placeholders.
-- verdict: one of BUY, HOLD, SELL
-- verdict_confidence: 0.0 to 1.0
-- suggested_sizing_pct: 0.0 to 20.0
+- decision_frame: §9: MUST state the thesis-breaker as a concrete observable condition. No vague placeholders. MUST cite the required margin of safety and the entry price for the chosen business class from '## DECISION INPUTS' (or say there is none).
+- verdict: one of BUY, WATCHLIST, PASS, SELL
+- business_class: one of quality_compounder, average, cyclical_or_low_quality
+- confidence_adjustment: -0.1 to +0.1
 - verdict_rationale: 2-3 sentences: WHY this verdict. Reference specific numbers and name the key adjudicated conflict that drove the decision.
 """
 
@@ -157,6 +160,9 @@ SECTION GUIDANCE (content of each field — the format is enforced by the schema
 # Tope determinista de confianza cuando falta evidencia esencial (ADR-032, revisión
 # funcional H1). Igual que el clamp de sizing: el prompt no basta, se impone en código.
 CONFIDENCE_CAP_DATA_GAPS = 0.6
+# Penalización por ruptura de tesis confirmada por el validador (H2-2, ADR-041; decisión de Eduardo:
+# bajar confianza, no forzar SELL, porque el detector tiene falsos positivos).
+THESIS_BREAK_PENALTY = -0.10
 # Tope por governance verificado (T4a, regla de dominio confirmada por Eduardo — R1):
 # una investigación SEC activa o una material weakness en ICFR con cita verificada
 # impiden una convicción alta, diga lo que diga el LLM.
@@ -973,57 +979,95 @@ def _format_context(state: AnalysisState) -> str:
         # bloque de hipótesis del inversor, al final.
         lines.append("")
 
+    lines += _format_decision_inputs(state)
+
     # --- Hipótesis del inversor: SIEMPRE el último bloque (T4b, regla 24) ---
     lines += _format_investor_hypotheses(state)
 
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _format_decision_inputs(state: AnalysisState) -> list[str]:
+    """Bloque '## DECISION INPUTS' (H2-2, ADR-041): margen exigido y precio de entrada por tipo de negocio,
+    calculados en código con verdict_policy. El Expert los cita en §9 sin inventar cifras (invariante 1)."""
+    valuation = state.get("valuation")  # type: ignore[typeddict-item]
+    market = state.get("market")  # type: ignore[typeddict-item]
+    competitive = state.get("competitive")  # type: ignore[typeddict-item]
+    if valuation is None or valuation.stub:
+        return ["## DECISION INPUTS (margin of safety, §9.1)",
+                "No valuation available: no entry price can be computed, so BUY is not possible.", ""]
+    price = market.price_current.value if market is not None and market.price_current is not None else None
+    moat = competitive.moat_classification if competitive is not None and not competitive.stub else None
+    cyclical = getattr(getattr(valuation, "cyclicality", None), "is_cyclical", None)
+    dcf = valuation.dcf_intrinsic_per_share.value if valuation.dcf_intrinsic_per_share else None
+    epv = valuation.epv_per_share.value if valuation.epv_per_share else None
+    reliable = verdict_policy.dcf_is_reliable(terminal_value_share=valuation.terminal_value_share,
+                                              growth_source=valuation.near_term_growth_source)
+    lines = ["## DECISION INPUTS (margin of safety, §9.1 — computed by code)",
+             f"Current price: {'$' + format(price, ',.2f') if price else 'unavailable'}",
+             f"Constraints: moat = {moat or 'unknown'}; cyclical = {bool(cyclical)}"
+             f"{' → only cyclical_or_low_quality allowed' if cyclical else ''}"
+             f"{' → quality_compounder not allowed (no confirmed moat)' if moat not in ('wide', 'narrow') else ''}"]
+    for cls in ("quality_compounder", "average", "cyclical_or_low_quality"):
+        # Solo las clases permitidas: mostrar el precio de entrada de una clase vetada (p.ej. compounder sin
+        # moat) invitaría a forzarla para justificar un BUY (sicofancia).
+        if verdict_policy.effective_business_class(cls, moat=moat, is_cyclical=cyclical)[0] != cls:
+            continue
+        mos = verdict_policy.REQUIRED_MOS[cls]
+        anchor, source = verdict_policy.intrinsic_anchor(cls, dcf_ps=dcf, epv_ps=epv, dcf_reliable=reliable)
+        if anchor is None:
+            lines.append(f"- {cls}: required MoS {mos:.0%}; no entry price ({source})")
+            continue
+        entry = verdict_policy.entry_price(anchor, mos)
+        status = "" if price is None else (" → price is BELOW entry" if price <= entry else " → price is ABOVE entry")
+        lines.append(f"- {cls}: required MoS {mos:.0%}; intrinsic anchor ${anchor:,.2f} ({source}); "
+                     f"entry price ${entry:,.2f}{status}")
+    return lines + [""]
+
+
 def _to_report(out: ValueExpertLLMOutput, ticker: str,
                state: AnalysisState | None = None) -> ValueExpertReport:
-    """Post-validación de negocio sobre la salida ya tipada (ADR-032).
+    """Post-validación de negocio sobre la salida ya tipada (ADR-032, ADR-041).
 
-    El Literal del schema ya garantiza BUY/HOLD/SELL; la normalización se mantiene
-    como defensa en profundidad. Clamps deterministas: confidence [0,1], sizing [0,20]
-    y sizing ≤ confidence×10 (Fix D / EC-24). Con `state`, además, topes de confianza
-    deterministas: ≤ 0.6 si falta Filings o Management (DATA GAPS). El sizing se clampa
-    DESPUÉS de los topes para que sizing ≤ confidence×10 siga siendo cierto.
+    El modelo elige la etiqueta (BUY/WATCHLIST/PASS/SELL) y el tipo de negocio; la parte numérica la
+    calcula `verdict_policy.decide`: precio de entrada por margen de seguridad (§9.1), confianza compuesta
+    y tamaño por margen. El código solo hace el veredicto MÁS prudente (un BUY sin margen baja a
+    WATCHLIST). Después se aplican los topes deterministas de confianza ya existentes: ≤ 0,6 si falta
+    Filings o Management (DATA GAPS) o hay governance verificado.
     """
-    verdict = out.verdict if out.verdict in ("BUY", "HOLD", "SELL") else "HOLD"
-    confidence = max(0.0, min(1.0, out.verdict_confidence))
+    state = state or {}
+    decision = verdict_policy.decide(out.verdict, out.business_class, state,
+                                     llm_adjustment=out.confidence_adjustment,
+                                     verified_citations=_count_verified_citations(state))
+    confidence = decision.confidence
     risks = out.risks
     lens = out.psychological_lens
-    if state is not None:
+    if state:
         missing = _missing_essentials(state)
         if missing and confidence > CONFIDENCE_CAP_DATA_GAPS:
             log.info("value_expert_confidence_capped_data_gaps", ticker=ticker,
-                     original_confidence=confidence, capped_to=CONFIDENCE_CAP_DATA_GAPS,
-                     missing=missing)
+                     original_confidence=confidence, capped_to=CONFIDENCE_CAP_DATA_GAPS, missing=missing)
+            decision.confidence_components["cap_data_gaps"] = round(CONFIDENCE_CAP_DATA_GAPS - confidence, 4)
             confidence = CONFIDENCE_CAP_DATA_GAPS
         gov_flags = _verified_governance_flags(state)
         if gov_flags and confidence > CONFIDENCE_CAP_GOVERNANCE:
             log.info("value_expert_confidence_capped_governance", ticker=ticker,
-                     original_confidence=confidence, capped_to=CONFIDENCE_CAP_GOVERNANCE,
-                     flags=gov_flags)
+                     original_confidence=confidence, capped_to=CONFIDENCE_CAP_GOVERNANCE, flags=gov_flags)
+            decision.confidence_components["cap_governance"] = round(CONFIDENCE_CAP_GOVERNANCE - confidence, 4)
             confidence = CONFIDENCE_CAP_GOVERNANCE
         risks = _check_rule23_risks(risks, gov_flags, ticker)
         lens = _check_rule24_lens(lens, state, ticker)
-    sizing = max(0.0, min(20.0, out.suggested_sizing_pct))
-    # Sizing discipline post-hoc clamp (Fix D / EC-24): aunque el prompt instruye
-    # "max sizing ≤ confidence × 10", el LLM puede ignorarlo; aquí se impone en código.
-    ceiling = confidence * 10.0
-    if sizing > ceiling:
-        log.info("value_expert_sizing_clamped", ticker=ticker, original_sizing=sizing,
-                 clamped_to=ceiling, confidence=confidence)
-        sizing = ceiling
+    if decision.verdict != decision.verdict_raw:
+        log.info("value_expert_verdict_downgraded", ticker=ticker, raw=decision.verdict_raw,
+                 final=decision.verdict, price=decision.price, entry=decision.entry_price)
     return ValueExpertReport(
         ticker=ticker, stub=False,
         business_understanding=out.business_understanding, moat_analysis=out.moat_analysis,
         management_assessment=out.management_assessment, financial_quality=out.financial_quality,
         growth_reinvestment=out.growth_reinvestment, valuation_section=out.valuation_section,
         risks=risks, psychological_lens=lens, decision_frame=out.decision_frame,
-        verdict=verdict, verdict_confidence=confidence, suggested_sizing_pct=sizing,
-        verdict_rationale=out.verdict_rationale,
+        verdict=decision.verdict, verdict_confidence=confidence, suggested_sizing_pct=decision.sizing_pct,
+        verdict_rationale=out.verdict_rationale, decision=decision, taxonomy="H2",
     )
 
 
@@ -1233,6 +1277,11 @@ def _thesis_break_self_check(
         f"and the verdict should be reassessed."
     )
     report.decision_frame = (report.decision_frame or "") + caveat
+    # H2-2 (ADR-041): una ruptura confirmada resta confianza; el veredicto lo sigue decidiendo el modelo.
+    if report.verdict_confidence is not None:
+        report.verdict_confidence = max(0.0, round(report.verdict_confidence + THESIS_BREAK_PENALTY, 4))
+        if report.decision is not None:
+            report.decision.confidence_components["thesis_break_confirmed"] = THESIS_BREAK_PENALTY
 
     return report
 

@@ -84,6 +84,12 @@ def _build_critic_prompt(state: AnalysisState) -> str:
         lines.append(f"## EXPERT VERDICT: {synthesis.verdict} "
                      f"(confidence: {synthesis.verdict_confidence:.0%}, "
                      f"suggested sizing: {synthesis.suggested_sizing_pct:.0f}%)")
+        d = getattr(synthesis, "decision", None)
+        if d is not None:
+            # H2-2: el Critic ataca también el supuesto de margen de seguridad (ancla y clase de negocio).
+            entry = f"${d.entry_price:,.2f}" if d.entry_price is not None else "none"
+            lines.append(f"Margin of safety: business class {d.business_class}, required {d.required_mos:.0%}, "
+                         f"intrinsic anchor {d.anchor_source}, entry price {entry}.")
         if synthesis.business_understanding:
             lines.append(f"\nBull case summary: {synthesis.business_understanding}")
         if synthesis.moat_analysis:

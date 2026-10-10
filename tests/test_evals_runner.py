@@ -17,7 +17,7 @@ _SECTIONS = ("business_understanding", "moat_analysis", "management_assessment",
 
 def _ve_out(**over) -> ValueExpertLLMOutput:
     base = {s: f"{s} text long enough to be a real section of the analysis." for s in _SECTIONS}
-    base.update(verdict="HOLD", verdict_confidence=0.6, suggested_sizing_pct=2.0, verdict_rationale="Hold.")
+    base.update(verdict="PASS", business_class="average", confidence_adjustment=0.0, verdict_rationale="Pass.")
     base.update(over)
     return ValueExpertLLMOutput(**base)
 
@@ -41,11 +41,11 @@ def two_states():
 
 
 def test_records_keep_raw_and_final_outputs(mocker, two_states):
-    _client(mocker, _ve_out(verdict="HOLD"))
+    _client(mocker, _ve_out(verdict="PASS"))
     run = run_eval(two_states, repeat=3, expert_model=None, max_workers=2)
     assert len(run.records) == 6
     assert {(r.case, r.repeat) for r in run.records} == {(n, i) for n, _ in two_states for i in range(3)}
-    assert all(r.raw["verdict"] == "HOLD" and r.report["verdict"] == "HOLD" and r.error is None for r in run.records)
+    assert all(r.raw["verdict"] == "PASS" and r.report["verdict"] == "PASS" and r.error is None for r in run.records)
     assert set(run.contexts) == {n for n, _ in two_states}       # contexto guardado una vez por caso
     assert run.repeat == 3 and run.cases == [n for n, _ in two_states] and len(run.prompt_sha) == 12
 
@@ -107,7 +107,8 @@ def test_budget_cap_stops_the_run_and_marks_the_rest(mocker, two_states):
     llamadas; las que faltan quedan como error de presupuesto y la puerta da "inconcluso"."""
     _client(mocker, _ve_out())
     stats = mocker.MagicMock()
-    stats.get_run_stats.side_effect = lambda: mocker.MagicMock(cost_usd=10.0, calls_by_model={})
+    costs = iter([0.0, 0.0] + [10.0] * 50)     # el gasto supera el tope tras la primera llamada
+    stats.get_run_stats.side_effect = lambda: mocker.MagicMock(cost_usd=next(costs), calls_by_model={})
     mocker.patch("due_diligence.evals.runner.get_client", return_value=stats)
     run = run_eval(two_states, repeat=3, expert_model=None, max_workers=1, max_cost_usd=1.0)
     assert len(run.records) == 6

@@ -11,7 +11,9 @@ from due_diligence.evals.checks import (CHECK_NAMES, check_buy_floor, check_rati
                                         check_repairs, check_rule21_count, check_rule21_divergence_no_buy,
                                         check_rule22_roic_language, check_rule24_hypotheses,
                                         check_sections_present, run_checks, ungrounded_numbers)
-from due_diligence.schemas.llm_outputs import ValueExpertLLMOutput
+from due_diligence.evals.legacy import ValueExpertLLMOutputH1 as ValueExpertLLMOutput
+from due_diligence.schemas.llm_outputs import ValueExpertLLMOutput as ValueExpertLLMOutputH2
+from due_diligence.schemas.reports import VerdictDecision
 from due_diligence.schemas.reports import ValuationReport, ValueExpertReport
 
 _SECTIONS = ("business_understanding", "moat_analysis", "management_assessment", "financial_quality",
@@ -45,7 +47,7 @@ HYP = ("## INVESTOR'S OWN HYPOTHESES (evaluate critically, do not adopt)\n"
 
 
 def test_check_names_unique_and_complete():
-    assert len(CHECK_NAMES) == len(set(CHECK_NAMES)) == 9
+    assert len(CHECK_NAMES) == len(set(CHECK_NAMES)) == 11
     assert [r.name for r in run_checks(_raw(), _report(), "", _state())] == list(CHECK_NAMES)
 
 
@@ -270,3 +272,41 @@ def test_rule22_falling_contrast_with_other_metric_is_not_a_violation():
     assert check_rule22_roic_language(_raw(financial_quality=f"{ok} {_FILLER}"), _report(), ctx, {}).passed
     bad = "ROIC is improving steadily as the business scales."
     assert not check_rule22_roic_language(_raw(financial_quality=f"{bad} {_FILLER}"), _report(), ctx, {}).passed
+
+
+# --- H2-2 (ADR-041): checks de la taxonomía nueva ---
+def _raw_h2(**over) -> ValueExpertLLMOutputH2:
+    base = {s: f"{s} {_FILLER}" for s in _SECTIONS}
+    base.update(verdict="BUY", business_class="average", confidence_adjustment=0.0, verdict_rationale="BUY now.")
+    base.update(over)
+    return ValueExpertLLMOutputH2(**base)
+
+
+def _decision(**over) -> VerdictDecision:
+    base = dict(verdict="WATCHLIST", verdict_raw="BUY", business_class_llm="average", business_class="average",
+                required_mos=0.5, anchor_value=45.6, anchor_source="EPV", entry_price=22.8, price=25.53)
+    base.update(over)
+    return VerdictDecision(**base)
+
+
+def test_buy_mos_floor_flags_buy_above_entry_price():
+    from due_diligence.evals.checks import check_buy_mos_floor
+    rep = _report(decision=_decision())
+    assert check_buy_mos_floor(_raw_h2(verdict="BUY"), rep, "", {}).passed is False
+    assert check_buy_mos_floor(_raw_h2(verdict="WATCHLIST"), rep, "", {}).passed is True    # aplica igualmente
+    assert check_buy_mos_floor(_raw_h2(), _report(decision=_decision(price=20.0)), "", {}).passed is True
+    assert check_buy_mos_floor(_raw_h2(), _report(), "", {}).applicable is False             # informe H1
+
+
+def test_business_class_consistency_and_repairs_count_downgrades():
+    from due_diligence.evals.checks import check_business_class_consistent
+    hardened = _report(decision=_decision(business_class_llm="quality_compounder"))
+    assert check_business_class_consistent(_raw_h2(), hardened, "", {}).passed is False
+    assert check_repairs(_raw_h2(), _report(decision=_decision()), "", {}).value == 1.0     # BUY → WATCHLIST
+
+
+def test_rationale_check_knows_the_new_labels():
+    bad = _raw_h2(verdict="PASS", verdict_rationale="This is a clear BUY.")
+    assert check_rationale_matches_verdict(bad, _report(), "", {}).passed is False
+    ok = _raw_h2(verdict="WATCHLIST", verdict_rationale="WATCHLIST until the price reaches the entry level.")
+    assert check_rationale_matches_verdict(ok, _report(), "", {}).passed is True

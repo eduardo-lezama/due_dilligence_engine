@@ -513,3 +513,52 @@ def test_migration_adds_prospective_columns_idempotently(tmp_path):
     with sqlite3.connect(db) as conn:
         cols = {r[1] for r in conn.execute("PRAGMA table_info(analyses)")}
     assert {"price_at_analysis", "dcf_per_share", "epv_per_share", "reverse_dcf_growth"} <= cols
+
+
+# ---------------------------------------------------------------------------
+# H2-2 (ADR-041): taxonomía BUY/WATCHLIST/PASS/SELL y decisión numérica visible
+# ---------------------------------------------------------------------------
+from due_diligence.schemas.reports import VerdictDecision, ValueExpertReport as _VER
+
+
+def _h2_synthesis(verdict="WATCHLIST", raw="BUY"):
+    d = VerdictDecision(verdict=verdict, verdict_raw=raw, business_class_llm="quality_compounder",
+                        business_class="average", required_mos=0.5, anchor_value=45.6, anchor_source="min(DCF, EPV)",
+                        entry_price=22.8, price=25.53, actual_mos=0.44, confidence=0.6, sizing_pct=0.0,
+                        confidence_components={"base": 0.5, "methods_agreement": 0.0, "llm_adjustment": 0.1},
+                        caveats=["⚠️ BUY downgraded to WATCHLIST: price $25.53 is above the entry price $22.80."])
+    return _VER(ticker="AAPL", stub=False, verdict=verdict, verdict_confidence=0.6, suggested_sizing_pct=0.0,
+                verdict_rationale="Wait for the entry price.", decision=d, taxonomy="H2")
+
+
+def test_new_labels_name_the_report_file():
+    from due_diligence.agents.archiver import report_filename
+    assert report_filename("2026-10-10", "BBW", _h2_synthesis()) == "2026-10-10-BBW-WATCHLIST.md"
+    assert report_filename("2026-10-10", "BBW", _h2_synthesis("PASS", "PASS")) == "2026-10-10-BBW-PASS.md"
+    old = _VER(ticker="X", stub=False, verdict="HOLD")            # informes H1 siguen nombrándose igual
+    assert report_filename("2026-10-10", "X", old) == "2026-10-10-X-HOLD.md"
+
+
+def test_markdown_shows_entry_price_margin_and_downgrade(tmp_path):
+    state = _make_full_state(tmp_path)
+    state["synthesis"] = _h2_synthesis()
+    md = _render_markdown(state)
+    assert "**WATCHLIST**" in md and "| Entry price | $22.80 |" in md
+    assert "| Required margin of safety | 50% (average) |" in md
+    assert "Model verdict BUY" in md and "downgraded" in md
+    assert "quality_compounder → average" in md
+
+
+def test_sqlite_row_stores_verdict_decision(mocker, tmp_path):
+    db_path = str(tmp_path / "test.db")
+    mocker.patch("due_diligence.agents.archiver.settings.reports_dir", str(tmp_path / "reports"))
+    mocker.patch("due_diligence.agents.archiver.settings.db_path", db_path)
+    state = _make_full_state(tmp_path)
+    state["synthesis"] = _h2_synthesis()
+    archiver_node(state)
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM analyses WHERE ticker='AAPL'").fetchone()
+    assert row["verdict"] == "WATCHLIST" and row["status"] == "complete" and row["verdict_raw"] == "BUY"
+    assert row["entry_price"] == 22.8 and row["required_mos_pct"] == 50.0 and row["business_class"] == "average"
+    assert row["methodology_version"] == "H2"

@@ -31,7 +31,7 @@ def _ve_out(**over) -> ValueExpertLLMOutput:
     base = {k: f"{k} text" for k in ("business_understanding", "moat_analysis", "management_assessment",
             "financial_quality", "growth_reinvestment", "valuation_section", "risks",
             "psychological_lens", "decision_frame")}
-    base.update(verdict="BUY", verdict_confidence=0.7, suggested_sizing_pct=5.0, verdict_rationale="r")
+    base.update(verdict="BUY", business_class="average", confidence_adjustment=0.0, verdict_rationale="r")
     base.update(over)
     return ValueExpertLLMOutput(**base)
 
@@ -53,8 +53,8 @@ _VALID_LLM_RESPONSE = ValueExpertLLMOutput(**{
     "psychological_lens": "Market prices Apple as a tech growth company; it increasingly resembles a consumer staples compounder. This framing mismatch may create mispricing.",
     "decision_frame": "Fits a concentrated value portfolio as a quality compounder at fair value. 5-8% position appropriate given valuation is not deep-value but quality is exceptional.",
     "verdict": "BUY",
-    "verdict_confidence": 0.72,
-    "suggested_sizing_pct": 7.0,
+    "business_class": "quality_compounder",
+    "confidence_adjustment": 0.05,
     "verdict_rationale": "Quality compounder at fair value.",
 })
 
@@ -100,9 +100,11 @@ def test_value_expert_stub_false(mocker):
 def test_value_expert_verdict_populated(mocker):
     _mock_expert(mocker)
     report: ValueExpertReport = value_expert_agent(_ok_state())["synthesis"]
-    assert report.verdict == "BUY"
-    assert report.verdict_confidence == pytest.approx(0.72)
-    assert report.suggested_sizing_pct == pytest.approx(7.0)
+    # Sin valoración no hay precio de entrada: el BUY del modelo baja a WATCHLIST (H2-2, ADR-041)
+    assert report.verdict == "WATCHLIST" and report.decision.verdict_raw == "BUY" and report.taxonomy == "H2"
+    # base 0,5 − DCF no disponible/fiable 0,1 + ajuste del LLM 0,05
+    assert report.verdict_confidence == pytest.approx(0.45)
+    assert report.suggested_sizing_pct == 0.0
 
 
 def test_value_expert_all_sections_populated(mocker):
@@ -153,7 +155,7 @@ def test_value_expert_retries_once_on_schema_error(mocker):
     client = _patch(mocker)
     client.structured.side_effect = [LLMSchemaError("bad"), _ve_out()]
     s = value_expert_agent(_ok_state("TST"))["synthesis"]
-    assert s.stub is False and s.verdict == "BUY" and client.structured.call_count == 2
+    assert s.stub is False and s.decision.verdict_raw == "BUY" and client.structured.call_count == 2
 
 
 def test_value_expert_schema_error_twice_fails_loud(mocker):
@@ -170,24 +172,35 @@ def test_value_expert_records_model_used(mocker):
     assert value_expert_agent(_ok_state("TST"))["synthesis"].model_used == "gpt-5.4-mini"
 
 
-def test_sizing_clamp_preserved():
-    r = _to_report(_ve_out(verdict_confidence=0.4, suggested_sizing_pct=15.0), "TST")
-    assert r.suggested_sizing_pct == pytest.approx(4.0)
-    r2 = _to_report(_ve_out(verdict_confidence=1.7, suggested_sizing_pct=50.0), "TST")
-    assert r2.verdict_confidence == 1.0 and r2.suggested_sizing_pct == 10.0
+def test_llm_confidence_adjustment_is_capped():
+    """El LLM ya no fija la confianza: solo la matiza ±0,1 sobre la base determinista (ADR-041)."""
+    r = _to_report(_ve_out(verdict="PASS", confidence_adjustment=0.9), "TST")
+    assert r.verdict_confidence == pytest.approx(0.5) and r.decision.confidence_components["llm_adjustment"] == 0.1
+    r2 = _to_report(_ve_out(verdict="PASS", confidence_adjustment=-3.0), "TST")
+    assert r2.verdict_confidence == pytest.approx(0.3) and r2.suggested_sizing_pct == 0.0
 
 
 def test_to_report_maps_all_sections_and_rationale():
     r = _to_report(_VALID_LLM_RESPONSE, "AAPL")
-    assert r.stub is False and r.verdict == "BUY"
+    assert r.stub is False and r.decision.verdict_raw == "BUY" and r.decision.business_class_llm == "quality_compounder"
     assert r.verdict_rationale == "Quality compounder at fair value."
-    assert r.verdict_confidence == pytest.approx(0.72) and r.suggested_sizing_pct == pytest.approx(7.0)
 
 
-def test_to_report_does_not_clamp_when_consistent():
-    """Sizing dentro del techo (confidence × 10) no se clampea (EC-24)."""
-    r = _to_report(_ve_out(verdict_confidence=0.85, suggested_sizing_pct=7.0), "FAKE")
-    assert r.suggested_sizing_pct == pytest.approx(7.0)
+def _frozen(name):
+    from pathlib import Path
+    from due_diligence.evals.dataset import load_case_state, load_manifest
+    cases = Path(__file__).parent / "evals" / "cases"
+    return load_case_state(next(c for c in load_manifest(cases / "manifest.json").cases if c.name == name), cases)
+
+
+def test_buy_with_margin_of_safety_stays_buy_and_is_sized_by_policy():
+    """BBW real con el precio bajado a 15 $: entrada 22,80 $ (EPV 45,60 × 50 %) → el BUY se mantiene."""
+    st = _frozen("BBW-base")
+    st["market"] = st["market"].model_copy(update={"price_current": st["market"].price_current.model_copy(
+        update={"value": 15.0})})
+    r = _to_report(_ve_out(verdict="BUY", business_class="average"), "BBW", st)
+    assert r.verdict == "BUY" and r.decision.entry_price == pytest.approx(22.80, abs=0.01)
+    assert r.suggested_sizing_pct == 5.0
 
 
 def test_value_expert_schema_rejects_unknown_verdict():
@@ -691,15 +704,38 @@ def test_system_prompt_has_rule_23_governance():
     assert "23. GOVERNANCE RED FLAGS" in _SYSTEM_PROMPT
 
 
-def test_confidence_capped_by_verified_governance_flag():
-    r = _to_report(_ve_out(verdict_confidence=0.9, suggested_sizing_pct=9.0,
-                           risks="Active SEC investigation and a material weakness in ICFR."),
+def _high_confidence(mocker, value=0.9):
+    """La confianza base sale de verdict_policy; aquí se fija alta para probar los topes posteriores."""
+    from due_diligence.agents import verdict_policy
+    real = verdict_policy.decide
+
+    def fake(*a, **kw):
+        d = real(*a, **kw)
+        return d.model_copy(update={"confidence": value})
+    mocker.patch.object(verdict_policy, "decide", side_effect=fake)
+
+
+def test_confidence_capped_by_verified_governance_flag(mocker):
+    _high_confidence(mocker)
+    r = _to_report(_ve_out(verdict="PASS", risks="Active SEC investigation and a material weakness in ICFR."),
                    "TST", _gov_state(active_sec_investigation=True))
-    assert r.verdict_confidence == pytest.approx(0.6) and r.suggested_sizing_pct == pytest.approx(6.0)
-    r2 = _to_report(_ve_out(verdict_confidence=0.9), "TST", _gov_state(material_weakness=True))
+    assert r.verdict_confidence == pytest.approx(0.6) and r.decision.confidence_components["cap_governance"] < 0
+    r2 = _to_report(_ve_out(verdict="PASS"), "TST", _gov_state(material_weakness=True))
     assert r2.verdict_confidence == pytest.approx(0.6)
-    r3 = _to_report(_ve_out(verdict_confidence=0.9), "TST", _gov_state())   # sin flags verificados
+    r3 = _to_report(_ve_out(verdict="PASS"), "TST", _gov_state())   # sin flags verificados
     assert r3.verdict_confidence == pytest.approx(0.9)
+
+
+def test_confirmed_thesis_break_lowers_confidence_not_verdict(mocker):
+    """Decisión de Eduardo (H2-2): ruptura confirmada → −0,1 de confianza; el veredicto no cambia."""
+    from due_diligence.agents.value_expert import _thesis_break_self_check
+    mocker.patch("due_diligence.agents.value_expert._validate_thesis_break_with_llm", return_value=True)
+    r = _to_report(_ve_out(verdict="PASS", confidence_adjustment=0.1,
+                           decision_frame="Thesis breaks if gross margin decline continues below 30%.",
+                           financial_quality="Gross margin decline from 45% to 32% this year."), "TST")
+    checked = _thesis_break_self_check(r, "")
+    assert checked.verdict == "PASS" and checked.verdict_confidence == pytest.approx(0.4)   # 0,5 − 0,1
+    assert checked.decision.confidence_components["thesis_break_confirmed"] == -0.1
 
 
 def test_risks_caveat_when_governance_flag_omitted():
@@ -763,3 +799,14 @@ def test_rule24_check_flags_missing_labels():
     ok = _to_report(_ve_out(psychological_lens="Moat hypothesis: SUPPORTED by ROIC. AI tailwind: UNTESTABLE."),
                     "TST", st)
     assert "did not evaluate" not in ok.psychological_lens
+
+
+def test_decision_inputs_show_only_allowed_classes():
+    """H2-2: el contexto da el precio de entrada por tipo de negocio, pero no el de una clase vetada."""
+    from due_diligence.agents.value_expert import _format_decision_inputs
+    bbw = "\n".join(_format_decision_inputs(_frozen("BBW-base")))       # sin moat
+    assert "## DECISION INPUTS" in bbw and "- average: required MoS 50%" in bbw and "entry price $22.80" in bbw
+    assert "- quality_compounder:" not in bbw
+    plug = "\n".join(_format_decision_inputs(_frozen("PLUG-base")))     # cíclica y sin valor positivo
+    assert "- cyclical_or_low_quality:" in plug and "no entry price" in plug and "- average:" not in plug
+    assert "## DECISION INPUTS" in _format_context(_frozen("AAPL-base"))

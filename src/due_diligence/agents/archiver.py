@@ -63,7 +63,12 @@ CREATE TABLE IF NOT EXISTS analyses (
     price_at_analysis REAL,
     dcf_per_share   REAL,
     epv_per_share   REAL,
-    reverse_dcf_growth REAL
+    reverse_dcf_growth REAL,
+    entry_price     REAL,
+    required_mos_pct REAL,
+    actual_mos_pct  REAL,
+    verdict_raw     TEXT,
+    business_class  TEXT
 )
 """
 
@@ -85,10 +90,19 @@ _MIGRATION_SQLS = [
     "ALTER TABLE analyses ADD COLUMN dcf_per_share REAL",
     "ALTER TABLE analyses ADD COLUMN epv_per_share REAL",
     "ALTER TABLE analyses ADD COLUMN reverse_dcf_growth REAL",   # g1 implícito en el precio
+    # H2-2 (ADR-041): decisión numérica del veredicto. Filas H1 → NULL (no se reetiqueta el pasado).
+    "ALTER TABLE analyses ADD COLUMN entry_price REAL",
+    "ALTER TABLE analyses ADD COLUMN required_mos_pct REAL",
+    "ALTER TABLE analyses ADD COLUMN actual_mos_pct REAL",
+    "ALTER TABLE analyses ADD COLUMN verdict_raw TEXT",
+    "ALTER TABLE analyses ADD COLUMN business_class TEXT",
 ]
 
 # Versión de metodología que se graba en cada fila nueva (comparabilidad histórica).
-METHODOLOGY_VERSION = "H1"
+METHODOLOGY_VERSION = "H2"   # H2: taxonomía BUY/WATCHLIST/PASS/SELL y decisión numérica en código (ADR-041)
+
+# Etiquetas válidas: las de H2 más HOLD, que solo aparece en informes H1 (siguen nombrándose igual).
+_KNOWN_VERDICTS = ("BUY", "WATCHLIST", "PASS", "SELL", "HOLD")
 
 # Agentes cuyo report puede llevar `error` (fail loud, ADR-032). financials y valuation
 # ganan `error` en H1 (T6 DataUnavailableError / T12a ValuationInputError); getattr
@@ -105,7 +119,7 @@ def report_filename(today: str, ticker: str, synthesis) -> str:
     run terminó; si no hay VERDICT, está incompleto, no "pendiente" (ADR-032).
     """
     verdict = synthesis.verdict if synthesis is not None and not synthesis.stub else None
-    label = verdict if verdict in ("BUY", "HOLD", "SELL") else "INCOMPLETE"
+    label = verdict if verdict in _KNOWN_VERDICTS else "INCOMPLETE"
     return f"{today}-{ticker}-{label}.md"
 
 
@@ -135,6 +149,32 @@ def _format_models_used(run_stats) -> str:
     """'gpt-4.1: 3, gpt-5.4-mini: 2' desde RunStats.calls_by_model ('' si no hay llamadas)."""
     calls = getattr(run_stats, "calls_by_model", None) or {}
     return ", ".join(f"{m}: {n}" for m, n in sorted(calls.items()))
+
+
+def _render_decision_rows(d) -> list[str]:
+    """Filas de la cabecera con la parte numérica del veredicto (H2-2, ADR-041): todas calculadas por código."""
+    rows = [f"| Business class | {d.business_class} |",
+            f"| Required margin of safety | {d.required_mos:.0%} ({d.business_class}) |"]
+    if d.anchor_value is not None:
+        rows.append(f"| Intrinsic anchor | ${d.anchor_value:,.2f} ({d.anchor_source}) |")
+    rows.append(f"| Entry price | {'$' + format(d.entry_price, ',.2f') if d.entry_price is not None else 'n/a (no positive DCF/EPV)'} |")
+    if d.price is not None:
+        margin = f"{d.actual_mos:.0%}" if d.actual_mos is not None else "n/a"
+        rows.append(f"| Current price / actual margin | ${d.price:,.2f} / {margin} |")
+    return rows
+
+
+def _render_decision_notes(d) -> list[str]:
+    """Rebajas, endurecimiento de clase y componentes de la confianza: lo que el código cambió, a la vista."""
+    lines = []
+    if d.verdict != d.verdict_raw:
+        lines.append(f"> Model verdict {d.verdict_raw} was downgraded to {d.verdict} by the margin-of-safety rule.")
+    if d.business_class != d.business_class_llm:
+        lines.append(f"> Business class hardened: {d.business_class_llm} → {d.business_class}.")
+    if d.confidence_components:
+        parts = ", ".join(f"{k} {v:+.2f}" for k, v in d.confidence_components.items())
+        lines.append(f"> Confidence components: {parts}.")
+    return lines + ([""] if lines else [])
 
 
 def _count_verified_citations(state) -> int:
@@ -232,7 +272,12 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
         lines.append(f"| Confidence | {confidence:.0%} |")
     if sizing is not None:
         lines.append(f"| Suggested sizing | {sizing:.0f}% of portfolio |")
+    decision = getattr(synthesis, "decision", None) if synthesis and not synthesis.stub else None
+    if decision is not None:
+        lines += _render_decision_rows(decision)
     lines.append("")
+    if decision is not None:
+        lines += _render_decision_notes(decision)
     if synthesis and not synthesis.stub and synthesis.verdict_rationale:
         lines += [f"> {synthesis.verdict_rationale}", ""]
 
@@ -826,6 +871,16 @@ def update_performance_metrics(
         conn.commit()
 
 
+def _decision_columns(synthesis) -> dict:
+    """Columnas de la decisión numérica (H2-2); vacías para síntesis H1, stub o sin decisión."""
+    d = getattr(synthesis, "decision", None) if synthesis is not None and not synthesis.stub else None
+    if d is None:
+        return {}
+    return {"entry_price": d.entry_price, "required_mos_pct": round(d.required_mos * 100, 2),
+            "actual_mos_pct": round(d.actual_mos * 100, 2) if d.actual_mos is not None else None,
+            "verdict_raw": d.verdict_raw, "business_class": d.business_class}
+
+
 def _mv_value(mv) -> float | None:
     """Valor de un MetricValue opcional (None si falta)."""
     return mv.value if mv is not None else None
@@ -838,17 +893,20 @@ def _insert_row(db_path: str, row: dict) -> None:
         (ticker, run_id, as_of_date, analysis_date, verdict, verdict_confidence,
          suggested_sizing_pct, dcf_upside_pct, moat_classification, report_path,
          status, models_used, n_verified_citations, methodology_version,
-         price_at_analysis, dcf_per_share, epv_per_share, reverse_dcf_growth)
+         price_at_analysis, dcf_per_share, epv_per_share, reverse_dcf_growth,
+         entry_price, required_mos_pct, actual_mos_pct, verdict_raw, business_class)
     VALUES
         (:ticker, :run_id, :as_of_date, :analysis_date, :verdict, :verdict_confidence,
          :suggested_sizing_pct, :dcf_upside_pct, :moat_classification, :report_path,
          :status, :models_used, :n_verified_citations, :methodology_version,
-         :price_at_analysis, :dcf_per_share, :epv_per_share, :reverse_dcf_growth)
+         :price_at_analysis, :dcf_per_share, :epv_per_share, :reverse_dcf_growth,
+         :entry_price, :required_mos_pct, :actual_mos_pct, :verdict_raw, :business_class)
     """
     # Columnas H1 opcionales para llamadores antiguos: ausentes → NULL (no inventar status).
     h1_defaults = {"status": None, "models_used": None, "n_verified_citations": None,
                    "methodology_version": None, "price_at_analysis": None, "dcf_per_share": None,
-                   "epv_per_share": None, "reverse_dcf_growth": None}
+                   "epv_per_share": None, "reverse_dcf_growth": None, "entry_price": None,
+                   "required_mos_pct": None, "actual_mos_pct": None, "verdict_raw": None, "business_class": None}
     with sqlite3.connect(db_path) as conn:
         conn.execute(sql, {**h1_defaults, **row})
         conn.commit()
@@ -926,7 +984,7 @@ def archiver_node(state: AnalysisState) -> dict:
         "dcf_upside_pct": dcf_upside,
         "moat_classification": moat,
         "report_path": str(report_path),
-        "status": "complete" if verdict in ("BUY", "HOLD", "SELL") else "incomplete",
+        "status": "complete" if verdict in _KNOWN_VERDICTS else "incomplete",
         "models_used": (_format_models_used(run_stats) or None) if run_stats is not None else None,
         "n_verified_citations": _count_verified_citations(state),
         "methodology_version": METHODOLOGY_VERSION,
@@ -935,6 +993,7 @@ def archiver_node(state: AnalysisState) -> dict:
         "dcf_per_share": _mv_value(valuation.dcf_intrinsic_per_share) if val_ok else None,
         "epv_per_share": _mv_value(valuation.epv_per_share) if val_ok else None,
         "reverse_dcf_growth": valuation.reverse_dcf_implied_growth if val_ok else None,
+        **_decision_columns(synthesis),
     }
     try:
         _ensure_db(settings.db_path)

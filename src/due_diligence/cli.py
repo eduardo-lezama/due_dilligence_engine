@@ -433,7 +433,9 @@ def _show_verdict(state: dict) -> None:
         return
 
     verdict = synthesis.verdict or "N/A"
-    color = {"BUY": "bold green", "HOLD": "bold yellow", "SELL": "bold red"}.get(verdict, "white")
+    # H2-2 (ADR-041): BUY/WATCHLIST/PASS/SELL; HOLD solo en informes H1.
+    color = {"BUY": "bold green", "WATCHLIST": "bold cyan", "PASS": "bold yellow", "HOLD": "bold yellow",
+             "SELL": "bold red"}.get(verdict, "white")
     border = color.split()[-1]
     confidence = synthesis.verdict_confidence or 0.0
     sizing = synthesis.suggested_sizing_pct or 0.0
@@ -444,6 +446,12 @@ def _show_verdict(state: dict) -> None:
         f"[{color}]{verdict}[/{color}]  "
         f"confidence: {confidence:.0%}  |  suggested sizing: {sizing:.0f}%"
     )
+    d = getattr(synthesis, "decision", None)
+    if d is not None:
+        entry = f"${d.entry_price:,.2f}" if d.entry_price is not None else "n/a"
+        body += f"\n{d.business_class}  |  required MoS {d.required_mos:.0%}  |  entry price {entry}"
+        if d.verdict != d.verdict_raw:
+            body += f"  |  model said {d.verdict_raw} (downgraded: no margin of safety)"
     if rationale:
         body += f"\n\n{rationale}"
 

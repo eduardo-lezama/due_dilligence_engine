@@ -1,5 +1,5 @@
 {
- "label": "sol-full",
+ "label": "h2-full",
  "cases": [
   "AAPL-base",
   "BBW-base",
@@ -18,24 +18,24 @@
  ],
  "repeat": 5,
  "quick": false,
- "prompt_sha": "ba6fe2a993e6",
+ "prompt_sha": "65a652c860a5",
  "expert_model_requested": "gpt-6.1-sol",
  "calls_by_model": {
   "gpt-6.1-sol": 70,
-  "gpt-4o-mini": 31
+  "gpt-4o-mini": 40
  },
  "manifest_frozen_with": {
   "git_sha": "8d8028f-dirty",
   "date": "2026-10-10",
   "specialist_model": "gpt-6-luna"
  },
- "cost_usd": 2.836259,
+ "cost_usd": 1.830727,
  "case_results": [
   {
    "case": "AAPL-base",
    "n_ok_runs": 5,
    "verdicts": {
-    "SELL": 5
+    "WATCHLIST": 5
    },
    "disagreement": 0.0,
    "checks": {
@@ -45,7 +45,9 @@
     "buy_floor": true,
     "rule22_roic_language": null,
     "rule24_hypotheses": null,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": true,
+    "business_class_consistent": true
    },
    "mean_ungrounded": 0.0,
    "mean_repairs": 0.0
@@ -54,7 +56,7 @@
    "case": "BBW-base",
    "n_ok_runs": 5,
    "verdicts": {
-    "HOLD": 5
+    "WATCHLIST": 5
    },
    "disagreement": 0.0,
    "checks": {
@@ -64,18 +66,21 @@
     "buy_floor": null,
     "rule22_roic_language": true,
     "rule24_hypotheses": null,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": true,
+    "business_class_consistent": true
    },
    "mean_ungrounded": 0.0,
-   "mean_repairs": 0.0
+   "mean_repairs": 0.2
   },
   {
    "case": "AZO-base",
    "n_ok_runs": 5,
    "verdicts": {
-    "SELL": 5
+    "SELL": 4,
+    "WATCHLIST": 1
    },
-   "disagreement": 0.0,
+   "disagreement": 0.4,
    "checks": {
     "sections_present": true,
     "rule21_count": true,
@@ -83,7 +88,9 @@
     "buy_floor": true,
     "rule22_roic_language": true,
     "rule24_hypotheses": null,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": true,
+    "business_class_consistent": true
    },
    "mean_ungrounded": 0.0,
    "mean_repairs": 0.0
@@ -92,7 +99,7 @@
    "case": "PRDO-base",
    "n_ok_runs": 5,
    "verdicts": {
-    "HOLD": 5
+    "WATCHLIST": 5
    },
    "disagreement": 0.0,
    "checks": {
@@ -102,7 +109,9 @@
     "buy_floor": null,
     "rule22_roic_language": true,
     "rule24_hypotheses": null,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": true,
+    "business_class_consistent": true
    },
    "mean_ungrounded": 0.0,
    "mean_repairs": 0.0
@@ -111,9 +120,11 @@
    "case": "CALM-base",
    "n_ok_runs": 5,
    "verdicts": {
-    "HOLD": 5
+    "WATCHLIST": 3,
+    "PASS": 1,
+    "SELL": 1
    },
-   "disagreement": 0.0,
+   "disagreement": 0.7,
    "checks": {
     "sections_present": true,
     "rule21_count": true,
@@ -121,16 +132,18 @@
     "buy_floor": true,
     "rule22_roic_language": true,
     "rule24_hypotheses": null,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": true,
+    "business_class_consistent": true
    },
    "mean_ungrounded": 0.0,
-   "mean_repairs": 0.0
+   "mean_repairs": 0.6
   },
   {
    "case": "KBR-base",
    "n_ok_runs": 5,
    "verdicts": {
-    "HOLD": 5
+    "WATCHLIST": 5
    },
    "disagreement": 0.0,
    "checks": {
@@ -140,7 +153,9 @@
     "buy_floor": null,
     "rule22_roic_language": true,
     "rule24_hypotheses": null,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": true,
+    "business_class_consistent": true
    },
    "mean_ungrounded": 0.0,
    "mean_repairs": 0.0
@@ -149,7 +164,7 @@
    "case": "PATH-base",
    "n_ok_runs": 5,
    "verdicts": {
-    "HOLD": 5
+    "PASS": 5
    },
    "disagreement": 0.0,
    "checks": {
@@ -159,18 +174,21 @@
     "buy_floor": null,
     "rule22_roic_language": true,
     "rule24_hypotheses": null,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": null,
+    "business_class_consistent": true
    },
-   "mean_ungrounded": 0.0,
+   "mean_ungrounded": 0.4,
    "mean_repairs": 0.0
   },
   {
    "case": "MOS-base",
    "n_ok_runs": 5,
    "verdicts": {
-    "HOLD": 5
+    "SELL": 4,
+    "PASS": 1
    },
-   "disagreement": 0.0,
+   "disagreement": 0.4,
    "checks": {
     "sections_present": true,
     "rule21_count": true,
@@ -178,19 +196,20 @@
     "buy_floor": null,
     "rule22_roic_language": true,
     "rule24_hypotheses": null,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": true,
+    "business_class_consistent": true
    },
-   "mean_ungrounded": 0.0,
-   "mean_repairs": 0.2
+   "mean_ungrounded": 1.2,
+   "mean_repairs": 0.0
   },
   {
    "case": "QLYS-base",
    "n_ok_runs": 5,
    "verdicts": {
-    "HOLD": 3,
-    "SELL": 2
+    "WATCHLIST": 5
    },
-   "disagreement": 0.6,
+   "disagreement": 0.0,
    "checks": {
     "sections_present": true,
     "rule21_count": true,
@@ -198,7 +217,9 @@
     "buy_floor": true,
     "rule22_roic_language": null,
     "rule24_hypotheses": null,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": true,
+    "business_class_consistent": true
    },
    "mean_ungrounded": 0.0,
    "mean_repairs": 0.0
@@ -217,7 +238,9 @@
     "buy_floor": true,
     "rule22_roic_language": true,
     "rule24_hypotheses": null,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": true,
+    "business_class_consistent": true
    },
    "mean_ungrounded": 0.0,
    "mean_repairs": 0.4
@@ -226,9 +249,10 @@
    "case": "NKE-base",
    "n_ok_runs": 5,
    "verdicts": {
-    "HOLD": 5
+    "WATCHLIST": 3,
+    "PASS": 2
    },
-   "disagreement": 0.0,
+   "disagreement": 0.6,
    "checks": {
     "sections_present": true,
     "rule21_count": true,
@@ -236,7 +260,9 @@
     "buy_floor": true,
     "rule22_roic_language": true,
     "rule24_hypotheses": null,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": true,
+    "business_class_consistent": true
    },
    "mean_ungrounded": 1.0,
    "mean_repairs": 0.0
@@ -255,7 +281,9 @@
     "buy_floor": null,
     "rule22_roic_language": true,
     "rule24_hypotheses": null,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": null,
+    "business_class_consistent": true
    },
    "mean_ungrounded": 0.0,
    "mean_repairs": 0.2
@@ -264,9 +292,10 @@
    "case": "AAPL-peers",
    "n_ok_runs": 5,
    "verdicts": {
-    "SELL": 5
+    "WATCHLIST": 4,
+    "SELL": 1
    },
-   "disagreement": 0.0,
+   "disagreement": 0.4,
    "checks": {
     "sections_present": true,
     "rule21_count": true,
@@ -274,7 +303,9 @@
     "buy_floor": true,
     "rule22_roic_language": null,
     "rule24_hypotheses": null,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": true,
+    "business_class_consistent": true
    },
    "mean_ungrounded": 0.0,
    "mean_repairs": 0.0
@@ -283,7 +314,7 @@
    "case": "QLYS-base+hyp",
    "n_ok_runs": 5,
    "verdicts": {
-    "HOLD": 5
+    "WATCHLIST": 5
    },
    "disagreement": 0.0,
    "checks": {
@@ -293,15 +324,23 @@
     "buy_floor": true,
     "rule22_roic_language": null,
     "rule24_hypotheses": true,
-    "rationale_matches_verdict": true
+    "rationale_matches_verdict": true,
+    "buy_mos_floor": true,
+    "business_class_consistent": true
    },
    "mean_ungrounded": 0.0,
    "mean_repairs": 0.0
   }
  ],
- "hold_cases": 9,
- "mean_disagreement": 0.0429,
- "mean_ungrounded": 0.071,
+ "hold_cases": 0,
+ "taxonomy": "H2",
+ "class_distribution": {
+  "WATCHLIST": 9,
+  "SELL": 4,
+  "PASS": 1
+ },
+ "mean_disagreement": 0.1786,
+ "mean_ungrounded": 0.186,
  "n_errors_non_transport": 0,
  "n_errors_transport": 0
 }

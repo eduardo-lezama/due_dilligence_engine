@@ -78,7 +78,7 @@ def test_archiver_node_writes_incomplete_file_and_status_columns(mocker, tmp_pat
         row = conn.execute("SELECT * FROM analyses").fetchone()
     assert row["status"] == "incomplete" and row["verdict"] is None
     assert row["models_used"] == "gpt-4.1: 4"
-    assert row["n_verified_citations"] == 0 and row["methodology_version"] == "H1"
+    assert row["n_verified_citations"] == 0 and row["methodology_version"] == "H2"
 
 
 def test_ensure_db_migrates_old_table_idempotently(tmp_path):
@@ -121,11 +121,16 @@ def test_cli_models_line_formats_calls_by_model():
 # ── Value Expert: DATA GAPS + tope de confianza (revisión funcional H1) ──
 
 def _ve_client(mocker, confidence=0.9, sizing=9.0):
+    """La confianza base sale de verdict_policy (H2-2); se fija alta para probar los topes posteriores."""
+    from due_diligence.agents import verdict_policy
     from due_diligence.schemas.llm_outputs import ValueExpertLLMOutput
+    real = verdict_policy.decide
+    mocker.patch.object(verdict_policy, "decide",
+                        side_effect=lambda *a, **kw: real(*a, **kw).model_copy(update={"confidence": confidence}))
     out = ValueExpertLLMOutput(**{k: "x" for k in (
         "business_understanding", "moat_analysis", "management_assessment", "financial_quality",
         "growth_reinvestment", "valuation_section", "risks", "psychological_lens", "decision_frame")},
-        verdict="BUY", verdict_confidence=confidence, suggested_sizing_pct=sizing, verdict_rationale="r")
+        verdict="PASS", business_class="average", confidence_adjustment=0.0, verdict_rationale="r")
     client = mocker.MagicMock()
     client.structured.return_value = out
     mocker.patch("due_diligence.agents.value_expert.get_client", return_value=client)
@@ -148,7 +153,7 @@ def test_confidence_capped_when_specialist_missing(mocker):
                             "filings": FilingsRAGReport(ticker="TST", stub=True, error="LLMSchemaError: y"),
                             "mgmt": ManagementReport(ticker="TST", stub=False)})["synthesis"]
     assert s.verdict_confidence == pytest.approx(0.6)
-    assert s.suggested_sizing_pct == pytest.approx(6.0)   # el clamp sizing ≤ conf×10 se re-aplica
+    assert s.suggested_sizing_pct == 0.0                  # H2: el tamaño sale de la política (PASS → 0)
 
 
 def test_confidence_not_capped_when_specialists_present(mocker):
@@ -161,3 +166,18 @@ def test_confidence_not_capped_when_specialists_present(mocker):
                             "filings": FilingsRAGReport(ticker="TST", stub=False, citations=ev),
                             "mgmt": ManagementReport(ticker="TST", stub=False, citations=ev)})["synthesis"]
     assert s.verdict_confidence == pytest.approx(0.9)
+
+
+def test_cli_verdict_panel_shows_entry_price_and_downgrade(mocker):
+    """H2-2: la CLI muestra las etiquetas nuevas, el precio de entrada y si el código rebajó el veredicto."""
+    from due_diligence.schemas.reports import VerdictDecision
+    mocker.patch.object(cli, "console", Console(record=True, width=140))
+    d = VerdictDecision(verdict="WATCHLIST", verdict_raw="BUY", business_class_llm="average", business_class="average",
+                        required_mos=0.5, anchor_value=45.6, anchor_source="EPV", entry_price=22.8, price=25.53,
+                        actual_mos=0.44, confidence=0.55, sizing_pct=0.0)
+    cli._show_verdict({"synthesis": ValueExpertReport(ticker="T", stub=False, verdict="WATCHLIST",
+                                                      verdict_confidence=0.55, suggested_sizing_pct=0.0,
+                                                      verdict_rationale="Wait.", decision=d)})
+    text = cli.console.export_text()
+    assert "WATCHLIST" in text and "entry price $22.80" in text and "required MoS 50%" in text
+    assert "model said BUY" in text

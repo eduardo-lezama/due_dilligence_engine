@@ -245,7 +245,7 @@ def _discard_negated_verdicts(text: str) -> str:
 def check_rationale_matches_verdict(raw, report, context, state) -> CheckResult:
     """La justificación no concluye otro veredicto (falla si nombra veredictos y ninguno es el propio)."""
     text = _discard_negated_verdicts(raw.verdict_rationale or "")
-    named = set(re.findall(r"\b(BUY|HOLD|SELL)\b", text))
+    named = set(re.findall(r"\b(BUY|HOLD|WATCHLIST|PASS|SELL)\b", text))     # H1 + H2 (ADR-041)
     ok = not named or raw.verdict in named
     return CheckResult(name="rationale_matches_verdict", applicable=True, passed=ok,
                        detail="" if ok else f"verdict {raw.verdict}, rationale names {sorted(named)}")
@@ -254,19 +254,48 @@ def check_rationale_matches_verdict(raw, report, context, state) -> CheckResult:
 def check_repairs(raw, report, context, state) -> CheckResult:
     """Informativo: cuántas cosas corrigió el código tras el modelo (avisos ⚠️ añadidos y clamps)."""
     added = sum((getattr(report, s) or "").count("⚠️") - (getattr(raw, s) or "").count("⚠️") for s in _SECTIONS)
-    clamps = int(not math.isclose(report.verdict_confidence or 0.0, raw.verdict_confidence, abs_tol=1e-9))
-    clamps += int(not math.isclose(report.suggested_sizing_pct or 0.0, raw.suggested_sizing_pct, abs_tol=1e-9))
+    if getattr(raw, "verdict_confidence", None) is not None:      # H1: el código recortaba confianza y sizing
+        clamps = int(not math.isclose(report.verdict_confidence or 0.0, raw.verdict_confidence, abs_tol=1e-9))
+        clamps += int(not math.isclose(report.suggested_sizing_pct or 0.0, raw.suggested_sizing_pct, abs_tol=1e-9))
+    else:                                                         # H2: el código rebajaba el veredicto
+        d = getattr(report, "decision", None)
+        clamps = int(d is not None and d.verdict != d.verdict_raw)
     return CheckResult(name="repairs", applicable=True, value=float(max(added, 0) + clamps))
+
+
+def check_buy_mos_floor(raw, report, context, state) -> CheckResult:
+    """H2 (ADR-041): el modelo no elige BUY por encima del precio de entrada que exige el margen de seguridad.
+
+    Aplica siempre que haya precio de entrada (no solo cuando el modelo dice BUY), para que la puerta vea
+    un candidato que empieza a comprar sin margen. El código lo rebaja a WATCHLIST, pero se mide lo crudo.
+    """
+    d = getattr(report, "decision", None)
+    if d is None or d.entry_price is None or d.price is None:
+        return _na("buy_mos_floor")
+    ok = not (raw.verdict == "BUY" and d.price > d.entry_price)
+    return CheckResult(name="buy_mos_floor", applicable=True, passed=ok,
+                       detail=f"price {d.price:.2f} vs entry {d.entry_price:.2f} ({d.business_class})")
+
+
+def check_business_class_consistent(raw, report, context, state) -> CheckResult:
+    """Diagnóstico: el tipo de negocio del modelo no tuvo que endurecerse (cíclico o sin moat)."""
+    d = getattr(report, "decision", None)
+    if d is None:
+        return _na("business_class_consistent")
+    ok = d.business_class == d.business_class_llm
+    return CheckResult(name="business_class_consistent", applicable=True, passed=ok,
+                       detail="" if ok else f"{d.business_class_llm} -> {d.business_class}")
 
 
 ALL_CHECKS: tuple[Callable[..., CheckResult], ...] = (
     check_sections_present, check_ungrounded_numbers, check_rule21_count, check_rule21_divergence_no_buy,
     check_buy_floor, check_rule22_roic_language, check_rule24_hypotheses, check_rationale_matches_verdict,
-    check_repairs,
+    check_repairs, check_buy_mos_floor, check_business_class_consistent,
 )
 CHECK_NAMES: tuple[str, ...] = (
     "sections_present", "ungrounded_numbers", "rule21_count", "rule21_divergence_no_buy", "buy_floor",
     "rule22_roic_language", "rule24_hypotheses", "rationale_matches_verdict", "repairs",
+    "buy_mos_floor", "business_class_consistent",
 )
 
 

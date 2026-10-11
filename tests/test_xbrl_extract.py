@@ -98,6 +98,64 @@ def test_edgar_facts_lookup_matches_by_period_end_not_fiscal_year():
     assert lk.annual_value("Revenues", "FY2025") is None   # duración 90d ≠ anual
 
 
+# --------------------------------------------------------------------------- #
+# F0 — minoristas con cierre ene/feb: edgartools pierde el último ejercicio (EC-100)
+# --------------------------------------------------------------------------- #
+
+def _hd_like_facts(overrides=None):
+    """Facts por period_end de un minorista HD-like: el FY2026 existe en raw facts."""
+    data = {("Revenues", "FY2026"): 164.0, ("OperatingIncomeLoss", "FY2026"): 21.0,
+            ("NetIncomeLoss", "FY2026"): 14.0, ("Assets", "FY2026"): 520.0,
+            ("LiabilitiesAndStockholdersEquity", "FY2026"): 520.0,
+            ("CashAndCashEquivalentsAtCarryingValue", "FY2026"): 55.0,
+            ("StockholdersEquity", "FY2026"): 210.0,
+            ("NetCashProvidedByUsedInOperatingActivities", "FY2026"): 33.0,
+            ("Revenues", "FY2025"): 100.0}
+    data.update(overrides or {})
+    return FakeFacts(data)
+
+
+def test_build_raw_restores_latest_fy_column_lost_by_edgartools():
+    """HD real: 10-K con cierre 2026-02-01 pero los estados acaban en FY2025 (colisión de
+    etiquetas en edgartools). La columna FY2026 se reconstruye desde raw facts por period_end."""
+    inc, bs, cf = _min_frames()   # columnas FY2025, FY2024
+    raw = xe.build_raw(ticker="hd", cik="1", period_end=date(2026, 2, 1), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=_hd_like_facts(), shares_outstanding=10.0)
+    assert raw["source_filing"] == "10-K FY2026"
+    assert [(i["period"], i["value"]) for i in raw["annual"]["revenue"]][:2] == [
+        ("FY2026", 164.0), ("FY2025", 100.0)]
+    assert raw["annual"]["operating_income"][0] == {"value": 21.0, "period": "FY2026",
+                                                    "source": "OperatingIncomeLoss"}
+    assert raw["balance_sheet"]["total_assets"]["value"] == 520.0
+    # Procedencia: queda constancia de que la columna no vino de la vista curada.
+    assert any("FY2026" in f and "raw facts" in f for f in raw["data_quality_flags"])
+
+
+def test_build_raw_restore_requires_previous_column_to_match_facts():
+    """Si la columna FY2025 de los estados no coincide con el FY2025 de raw facts, la colisión
+    pudo dejar datos de otro año bajo esa etiqueta → no se adivina, se falla."""
+    inc, bs, cf = _min_frames()
+    with pytest.raises(xe.DataUnavailableError, match="misalignment"):
+        xe.build_raw(ticker="hd", cik="1", period_end=date(2026, 2, 1), inc_df=inc, bs_df=bs,
+                     cf_df=cf, facts=_hd_like_facts({("Revenues", "FY2025"): 164.0}),
+                     shares_outstanding=10.0)
+
+
+def test_build_raw_does_not_restore_when_more_than_one_year_missing():
+    inc, bs, cf = _min_frames(("FY 2024", "FY 2023"))
+    with pytest.raises(xe.DataUnavailableError, match="misalignment"):
+        xe.build_raw(ticker="hd", cik="1", period_end=date(2026, 2, 1), inc_df=inc, bs_df=bs,
+                     cf_df=cf, facts=_hd_like_facts(), shares_outstanding=10.0)
+
+
+def test_build_raw_does_not_restore_without_latest_revenue_in_facts():
+    inc, bs, cf = _min_frames()
+    with pytest.raises(xe.DataUnavailableError, match="misalignment"):
+        xe.build_raw(ticker="hd", cik="1", period_end=date(2026, 2, 1), inc_df=inc, bs_df=bs,
+                     cf_df=cf, facts=_hd_like_facts({("Revenues", "FY2026"): None}),
+                     shares_outstanding=10.0)
+
+
 def _min_frames(label_cols=("FY 2025", "FY 2024")):
     inc = make_df({"Revenues": {c: 100.0 for c in label_cols},
                    "OperatingIncomeLoss": {c: 20.0 for c in label_cols},
@@ -436,3 +494,204 @@ def test_balance_history_covers_backfilled_years_from_facts():
     hist = {h["period"]: h for h in raw["balance_history"]}
     assert list(hist) == ["FY2026", "FY2025", "FY2024"]
     assert hist["FY2025"]["total_assets"] == 480.0 and hist["FY2025"]["cash"] == 40.0
+
+
+# --------------------------------------------------------------------------- #
+# F0 — acciones desde el último 10-K, multiclase incluidas (EC-101)
+# --------------------------------------------------------------------------- #
+
+A, B, C = "us-gaap:CommonClassAMember", "us-gaap:CommonClassBMember", "us-gaap:CommonClassCMember"
+
+
+def test_filing_shares_single_class_uses_cover():
+    out = xe.resolve_filing_shares(cover=[(15.0e9, None)], diluted=[(15.2e9, None)])
+    assert out == {"shares_outstanding": 15.0e9, "as_converted_diluted": None, "flag": None}
+
+
+def test_filing_shares_visa_like_uses_as_converted_class_a_diluted():
+    """V real (10-K FY2025): portada por clase (A 1.688 M, B1 4,8 M, B2 120 M, C 8,9 M) y diluidas
+    solo por clase; la de la clase A (1.966 M) es la 'as-converted' (incluye B y C convertidas)."""
+    out = xe.resolve_filing_shares(
+        cover=[(1_687.6e6, A), (4.8e6, "v:CommonClassB1Member"), (120.3e6, "v:CommonClassB2Member"),
+               (8.9e6, C)],
+        diluted=[(1_966e6, A), (5e6, "v:CommonClassB1Member"), (120e6, "v:CommonClassB2Member"),
+                 (9e6, C)])
+    assert out["shares_outstanding"] is None
+    assert out["as_converted_diluted"] == 1_966e6
+    assert "4 classes" in out["flag"] and "as-converted" in out["flag"]
+
+
+def test_filing_shares_googl_like_prefers_total_diluted_over_per_class():
+    """GOOGL: diluidas totales sin dimensión + por clase (cada una solo su clase, < suma)."""
+    out = xe.resolve_filing_shares(
+        cover=[(5_822e6, A), (837e6, B), (5_438e6, "goog:CapitalClassCMember")],
+        diluted=[(12_230e6, None), (6_671e6, A), (849e6, B), (5_559e6, "goog:CapitalClassCMember")])
+    assert out["as_converted_diluted"] == 12_230e6 and out["shares_outstanding"] is None
+
+
+def test_filing_shares_multiclass_without_as_converted_sums_cover_with_flag():
+    out = xe.resolve_filing_shares(cover=[(80e6, A), (20e6, B)], diluted=[(50e6, A)])
+    assert out["shares_outstanding"] == 100e6 and out["as_converted_diluted"] is None
+    assert "conversion ratios not applied" in out["flag"]
+
+
+def test_filing_shares_nothing_reported():
+    assert xe.resolve_filing_shares(cover=[], diluted=[]) == {
+        "shares_outstanding": None, "as_converted_diluted": None, "flag": None}
+
+
+def _xbrl_facts_df(rows):
+    """Forma de XBRL.facts.to_dataframe() (edgartools 5.59.1, verificada en vivo con V y MA)."""
+    cols = ["concept", "value", "period_start", "period_end", "period_instant",
+            "dim_us-gaap_StatementClassOfStockAxis", "dim_dei_LegalEntityAxis"]
+    return pd.DataFrame([dict(zip(cols, r)) for r in rows])
+
+
+def test_share_facts_from_xbrl_df_filters_current_year_and_class_axis_only():
+    cls = "dim_us-gaap_StatementClassOfStockAxis"
+    df = _xbrl_facts_df([
+        ("dei:EntityCommonStockSharesOutstanding", "885216386", NaN, NaN, "2026-02-06", A, NaN),
+        ("dei:EntityCommonStockSharesOutstanding", "6595925", NaN, NaN, "2026-02-06", B, NaN),
+        ("us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding", "906000000",
+         "2025-01-01", "2025-12-31", NaN, NaN, NaN),
+        # año anterior: fuera
+        ("us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding", "927000000",
+         "2024-01-01", "2024-12-31", NaN, NaN, NaN),
+        # trimestre del año corriente: fuera (no es anual)
+        ("us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding", "900000000",
+         "2025-10-01", "2025-12-31", NaN, NaN, NaN),
+        # otra dimensión (co-registrante): fuera
+        ("dei:EntityCommonStockSharesOutstanding", "1", NaN, NaN, "2026-02-06", NaN, "x:SubMember"),
+    ])
+    cover, diluted = xe.share_facts_from_xbrl_df(df, date(2025, 12, 31))
+    assert sorted(cover) == sorted([(885216386.0, A), (6595925.0, B)])
+    assert diluted == [(906000000.0, None)]
+    assert cls in df.columns
+
+
+def test_build_raw_injects_as_converted_diluted_when_series_lacks_current_year():
+    """V: companyfacts no trae diluidas (solo por clase) → la del 10-K entra en la serie."""
+    inc, bs, cf = _min_frames()
+    raw = xe.build_raw(ticker="v", cik="1", period_end=date(2025, 9, 30), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=None,
+                       as_converted_diluted=1_966e6, share_flags=["multi-class flag"])
+    assert raw["annual"]["diluted_shares"][0] == {
+        "value": 1_966e6, "period": "FY2025",
+        "source": "10-K:WeightedAverageNumberOfDilutedSharesOutstanding (as-converted)"}
+    assert "multi-class flag" in raw["data_quality_flags"]
+    assert raw["shares"]["shares_outstanding"]["value"] is None
+
+
+def test_build_raw_keeps_companyfacts_diluted_when_current_year_present():
+    inc, bs, cf = _min_frames()
+    inc.loc["WeightedAverageNumberOfDilutedSharesOutstanding"] = ["d", False, 906e6, 927e6]
+    raw = xe.build_raw(ticker="ma", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=None,
+                       as_converted_diluted=906e6)
+    assert raw["annual"]["diluted_shares"][0]["source"] == "WeightedAverageNumberOfDilutedSharesOutstanding"
+
+
+# --------------------------------------------------------------------------- #
+# F0 — caja presentada junto con inversiones a corto en una sola línea (EC-102)
+# --------------------------------------------------------------------------- #
+
+COMBINED = "CashCashEquivalentsAndShortTermInvestments"
+
+
+def _combined_frames():
+    """TGT-like: el balance presenta 'Cash and cash equivalents' con el concepto combinado."""
+    inc, bs, cf = _min_frames()
+    bs = bs.drop(index="CashAndCashEquivalentsAtCarryingValue")
+    bs.loc[COMBINED] = ["c", False, 5_488.0, 4_762.0]
+    return inc, bs, cf
+
+
+def test_build_raw_uses_combined_cash_line_before_narrow_cash_fact():
+    """TGT real: sin el concepto combinado en la cadena, caía a facts:Cash (0,25 B frente a 5,49 B)."""
+    inc, bs, cf = _combined_frames()
+    facts = FakeFacts({("Cash", "FY2025"): 250.0, ("Cash", "FY2024"): 276.0})
+    raw = xe.build_raw(ticker="tgt", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=facts, shares_outstanding=10.0)
+    assert raw["balance_sheet"]["cash_and_equivalents"] == {
+        "value": 5_488.0, "period": "FY2025", "source": COMBINED}
+    assert [(h["period"], h["cash"]) for h in raw["balance_history"]] == [
+        ("FY2025", 5_488.0), ("FY2024", 4_762.0)]
+
+
+def test_combined_cash_line_marks_sti_as_included_to_avoid_double_count():
+    """Si la caja ya incluye las inversiones a corto, un STI de las notas no se suma otra vez (EC-81)."""
+    inc, bs, cf = _combined_frames()
+    facts = FakeFacts({("ShortTermInvestments", "FY2025"): 300.0,
+                       ("ShortTermInvestments", "FY2024"): 200.0})
+    raw = xe.build_raw(ticker="tgt", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=facts, shares_outstanding=10.0)
+    assert raw["balance_sheet"]["short_term_investments"] == {
+        "value": 0.0, "period": "FY2025", "source": f"included in {COMBINED}"}
+    assert [h["short_term_investments"] for h in raw["balance_history"]] == [0.0, 0.0]
+
+
+def test_pure_cash_line_wins_over_combined_subtotal_and_keeps_sti():
+    inc, bs, cf = _min_frames()
+    bs.loc[COMBINED] = ["c", False, 90.0, 80.0]
+    bs.loc["ShortTermInvestments"] = ["s", False, 40.0, 30.0]
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+    assert raw["balance_sheet"]["cash_and_equivalents"]["source"] == "CashAndCashEquivalentsAtCarryingValue"
+    assert raw["balance_sheet"]["short_term_investments"]["value"] == 40.0
+
+
+# --------------------------------------------------------------------------- #
+# F0 — beneficio neto cuando la empresa solo publica ProfitLoss (EC-103)
+# --------------------------------------------------------------------------- #
+
+NCI = "NetIncomeLossAttributableToNoncontrollingInterest"
+
+
+def _profitloss_frames():
+    """MA/CAT-like: sin NetIncomeLoss; ProfitLoss (incluye minoritarios) + parte de minoritarios."""
+    inc, bs, cf = _min_frames()
+    inc = inc.drop(index="NetIncomeLoss")
+    inc.loc["ProfitLoss"] = ["p", False, 14_968.0, 12_874.0]
+    inc.loc[NCI] = ["n", False, 21.0, 16.0]
+    return inc, bs, cf
+
+
+def test_net_income_derived_from_profit_loss_minus_noncontrolling_interest():
+    inc, bs, cf = _profitloss_frames()
+    raw = xe.build_raw(ticker="ma", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+    src = f"derived:ProfitLoss-{NCI}"
+    assert raw["annual"]["net_income"] == [
+        {"value": 14_947.0, "period": "FY2025", "source": src},
+        {"value": 12_858.0, "period": "FY2024", "source": src}]
+
+
+def test_net_income_profit_loss_without_nci_is_used_and_labelled():
+    inc, bs, cf = _profitloss_frames()
+    inc = inc.drop(index=NCI)
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+    assert raw["annual"]["net_income"][0] == {
+        "value": 14_968.0, "period": "FY2025", "source": "ProfitLoss (no noncontrolling interest reported)"}
+
+
+def test_net_income_resolved_year_by_year():
+    """FY2025 con NetIncomeLoss, FY2024 solo con ProfitLoss (raw facts): cada año su fuente."""
+    inc, bs, cf = _min_frames()
+    inc.loc["NetIncomeLoss", "FY 2024"] = NaN
+    facts = FakeFacts({("ProfitLoss", "FY2024"): 13.0, (NCI, "FY2024"): 1.0})
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=facts, shares_outstanding=10.0)
+    assert [(i["period"], i["value"], i["source"]) for i in raw["annual"]["net_income"]] == [
+        ("FY2025", 15.0, "NetIncomeLoss"), ("FY2024", 12.0, f"derived:ProfitLoss-{NCI}")]
+
+
+def test_net_income_keeps_years_outside_revenue_grid():
+    """PFE real: el revenue cubre 8 años y el beneficio neto 10; no se recorta a la rejilla del revenue."""
+    cols = ("FY 2025", "FY 2024", "FY 2023")
+    inc, bs, cf = _min_frames(cols)
+    inc.loc["Revenues", "FY 2023"] = NaN
+    raw = xe.build_raw(ticker="pfe", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+    assert [i["period"] for i in raw["annual"]["revenue"]] == ["FY2025", "FY2024"]
+    assert [i["period"] for i in raw["annual"]["net_income"]] == ["FY2025", "FY2024", "FY2023"]

@@ -44,6 +44,8 @@ from due_diligence.tools.xbrl_extract import (
     effective_tax_rate,
     latest_quarter_column,
     quarter_value,
+    resolve_filing_shares,
+    share_facts_from_xbrl_df,
 )
 from due_diligence.utils.periods import align_by_period, fiscal_year
 
@@ -142,11 +144,15 @@ class EdgarAdapter:
         bs_df = facts.balance_sheet(periods=10).to_dataframe()
         cf_df = facts.cashflow_statement(periods=10).to_dataframe()
 
+        shares = _filing_shares(ticker, latest_10k, period_end, facts)
+
         # Toda la lógica de selección vive en xbrl_extract (puro, testeable sin red).
         raw = build_raw(ticker=ticker, cik=str(company.cik).zfill(10), period_end=period_end,
                         inc_df=inc_df, bs_df=bs_df, cf_df=cf_df,
                         facts=EdgarFactsLookup(facts),
-                        shares_outstanding=facts.shares_outstanding)
+                        shares_outstanding=shares["shares_outstanding"],
+                        as_converted_diluted=shares["as_converted_diluted"],
+                        share_flags=[shares["flag"]] if shares["flag"] else None)
         log.info("edgar_fetch_complete", ticker=ticker, fy=raw["source_filing"])
         return raw
 
@@ -812,6 +818,31 @@ class EdgarManagementAdapter:
             return ""
 
         return item10_text[:max_chars]
+
+
+def _filing_shares(ticker: str, latest_10k, period_end: date, facts) -> dict:
+    """Recuento de acciones fresco, multiclase incluidas (EC-101). Red; la lógica es pura.
+
+    Orden:
+      1. Portada de companyfacts SI es posterior al cierre del último 10-K: es el dato más actual
+         (puede venir de un 10-Q posterior, ya con las recompras) en empresas de una sola clase.
+      2. Si no, el XBRL del propio 10-K (resolve_filing_shares). Es el caso multiclase:
+         companyfacts descarta los hechos con dimensión de clase y su último valor sin dimensión
+         puede tener 15 años (V: enero de 2010), lo que inflaba el valor por acción 4-7×.
+      3. Si tampoco, None + aviso: la valoración usa las diluidas medias (resolve_share_count).
+    """
+    fact = facts.shares_outstanding_fact
+    if fact is not None and fact.period_end is not None and fact.period_end >= period_end:
+        return {"shares_outstanding": float(fact.numeric_value), "as_converted_diluted": None,
+                "flag": None}
+    try:
+        cover, diluted = share_facts_from_xbrl_df(latest_10k.xbrl().facts.to_dataframe(), period_end)
+        return resolve_filing_shares(cover, diluted)
+    except Exception as e:  # XBRL externo: se degrada a None con aviso visible, nunca a un dato viejo
+        log.warning("filing_shares_unavailable", ticker=ticker, error=f"{type(e).__name__}: {e}")
+    return {"shares_outstanding": None, "as_converted_diluted": None,
+            "flag": "share count: no fresh cover-page count (companyfacts stale, 10-K XBRL unavailable); "
+                    "per-share values use diluted weighted average shares"}
 
 
 def _get_latest_full_10k(company):

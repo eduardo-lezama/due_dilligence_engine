@@ -255,6 +255,44 @@ def merge_annual(concepts: tuple[str, ...], dfs: tuple[pd.DataFrame, ...], facts
     return out
 
 
+NET_INCOME = ("NetIncomeLoss",)
+PROFIT_LOSS = ("ProfitLoss",)
+NCI_INCOME = ("NetIncomeLossAttributableToNoncontrollingInterest",)
+
+
+def resolve_net_income(inc_df: pd.DataFrame, facts: FactsLookup, labels: list[str],
+                       n: int = 10) -> list[dict]:
+    """Beneficio neto atribuible a la matriz, año a año sobre la rejilla del revenue (EC-103).
+
+    Por qué: algunas empresas no publican `NetIncomeLoss` y solo dan `ProfitLoss`, que INCLUYE la
+    parte de los minoritarios (MA, CAT: serie vacía; TGT: la mitad de los años). Por año:
+      1. NetIncomeLoss (vista curada → raw facts), como hasta ahora;
+      2. si no, ProfitLoss − NetIncomeLossAttributableToNoncontrollingInterest (derivado, con
+         la fórmula en `source`);
+      3. si no hay dato de minoritarios ese año, ProfitLoss tal cual y etiquetado: sin
+         minoritarios publicados, ProfitLoss es el beneficio de la matriz.
+    """
+    # Rejilla = años del revenue ∪ columnas del estado de resultados: el beneficio neto puede
+    # cubrir más años que el revenue (PFE: 8 de revenue, 10 de beneficio) y no debe recortarse.
+    grid = sorted(set(labels) | {c.replace(" ", "") for c in fy_columns(inc_df)},
+                  key=fy_year, reverse=True)[:n]
+
+    def by_label(concepts: tuple[str, ...]) -> dict[str, dict]:
+        return {i["period"]: i for i in merge_annual(concepts, (inc_df,), facts, grid, n)}
+
+    direct, profit, nci = by_label(NET_INCOME), by_label(PROFIT_LOSS), by_label(NCI_INCOME)
+    out: list[dict] = []
+    for label in grid:
+        if label in direct:
+            out.append(direct[label])
+        elif label in profit and label in nci:
+            out.append({"value": profit[label]["value"] - nci[label]["value"], "period": label,
+                        "source": f"derived:ProfitLoss-{NCI_INCOME[0]}"})
+        elif label in profit:
+            out.append({**profit[label], "source": "ProfitLoss (no noncontrolling interest reported)"})
+    return out
+
+
 def extract_annual(concepts: tuple[str, ...], dfs: tuple[pd.DataFrame, ...], facts: FactsLookup,
                    labels: list[str], n: int = 10) -> list[dict]:
     """Serie anual para conceptos que la vista curada puede omitir (interest, SBC, D&A, shares).
@@ -424,7 +462,10 @@ CAPEX_CONCEPTS = (
 )
 BUYBACK_CONCEPTS = ("PaymentsForRepurchaseOfCommonStock", "PaymentsForRepurchaseOfEquity")
 DIVIDEND_CONCEPTS = ("PaymentsOfDividendsCommonStock", "PaymentsOfDividends")
-CASH_CONCEPTS = ("CashAndCashEquivalentsAtCarryingValue", "CashAndCashEquivalents", "Cash")
+# EC-102: la línea combinada (caja + inversiones a corto, p. ej. TGT) va ANTES que "Cash", que es el
+# concepto más estrecho: en raw facts puede ser una partida de las notas (TGT: 0,25 B frente a 5,49 B).
+CASH_COMBINED = "CashCashEquivalentsAndShortTermInvestments"
+CASH_CONCEPTS = ("CashAndCashEquivalentsAtCarryingValue", "CashAndCashEquivalents", CASH_COMBINED, "Cash")
 
 # --- Deuda (EC-80). Política EXCLUSIVA: un total nunca se suma con sus componentes. ---
 # us-gaap LongTermDebt INCLUYE la porción corriente; LongTermDebtNoncurrent no.
@@ -550,6 +591,19 @@ def resolve_cash(lookup: Lookup, period: str, ticker: str) -> dict:
     raise DataUnavailableError(f"{ticker}: cash and equivalents missing for {period}")
 
 
+def resolve_sti(lookup: Lookup, period: str, cash: dict | None) -> dict:
+    """Inversiones a corto del periodo, coherentes con la fuente de la caja (EC-81, EC-102).
+
+    Si la caja salió de la línea combinada (caja + inversiones a corto), las inversiones ya están
+    dentro: se devuelven como 0 "incluidas" para que el bridge no las reste dos veces (un STI
+    de las notas en raw facts se sumaría otra vez). Para EV e IC es neutro: lo que se resta es
+    caja + STI, el mismo total.
+    """
+    if cash and cash["source"].removeprefix("facts:") == CASH_COMBINED:
+        return {"value": 0.0, "period": period, "source": f"included in {CASH_COMBINED}"}
+    return lookup(STI) or {"value": 0.0, "period": period, "source": "absent"}
+
+
 def balance_identity_flags(lookup: Lookup, period: str, ticker: str) -> list[str]:
     """Identidades contables del balance.
 
@@ -571,21 +625,190 @@ def balance_identity_flags(lookup: Lookup, period: str, ticker: str) -> list[str
 
 
 # --------------------------------------------------------------------------- #
+# Último ejercicio perdido por edgartools (EC-100)
+# --------------------------------------------------------------------------- #
+
+_RESTORE_TOL = 0.005  # 0,5 %: misma cifra salvo redondeos/restatements menores
+
+
+def restore_latest_fy_column(dfs: tuple[pd.DataFrame, ...], fy_label: str,
+                             facts: FactsLookup) -> str | None:
+    """Reconstruye desde raw facts la columna del último 10-K si edgartools la ha perdido.
+
+    Por qué existe (EC-100): en los 10-K de minoristas con cierre ene/feb (HD, TGT), SEC etiqueta
+    los tres ejercicios del filing con el mismo `fy` (p. ej. 2025). edgartools, para cierres que
+    no son diciembre, etiqueta con ese tag → las columnas colisionan y se descarta el último año.
+    Verificado en 5.59.1 y 5.61.1. Los raw facts sí lo tienen, emparejados por period_end.
+
+    Solo actúa en el caso exacto y comprobable; en cualquier otro devuelve None y el invariante
+    de build_raw falla de forma explícita:
+      1. falta EXACTAMENTE un año (la última columna es fy_label − 1);
+      2. raw facts tiene el revenue de fy_label;
+      3. el revenue de la columna anterior coincide con el de raw facts para esa etiqueta
+         (si no, la colisión pudo dejar datos de OTRO año bajo esa etiqueta: no se adivina).
+    Muta los DataFrames (añade la columna 'FY YYYY' fila a fila por concepto; NaN si no hay
+    fact) y devuelve un flag de procedencia para data_quality_flags.
+    """
+    inc_df = dfs[0]
+    cols = fy_columns(inc_df)
+    target, prev_col = fy_year(fy_label), (cols[0] if cols else None)
+    if prev_col is None or fy_year(prev_col) != target - 1:
+        return None
+    prev_label = prev_col.replace(" ", "")
+
+    # Concepto de revenue que usa la vista curada en la columna anterior (ancla de alineación).
+    anchor = next((c for c in REVENUE_CONCEPTS
+                   if (r := _row(inc_df, c)) is not None and _to_float(r.get(prev_col)) is not None),
+                  None)
+    if anchor is None or facts.annual_value(anchor, fy_label) is None:
+        return None
+    curated_prev = _to_float(_row(inc_df, anchor).get(prev_col))
+    facts_prev = facts.annual_value(anchor, prev_label)
+    if facts_prev is None or abs(curated_prev - facts_prev) > _RESTORE_TOL * abs(facts_prev):
+        return None
+
+    new_col = f"FY {target}"
+    for df in dfs:
+        # Un concepto por fila (índice sin prefijo, como en la vista curada); NaN si no hay fact:
+        # los huecos se tratan igual que cualquier otro hueco (backfill/merge/point_value).
+        df[new_col] = [facts.annual_value(str(c), fy_label) if isinstance(c, str) else None
+                       for c in df.index]
+        df[new_col] = pd.to_numeric(df[new_col], errors="coerce")
+    log.warning("latest_fy_column_restored_from_facts", period=fy_label, anchor=anchor)
+    return (f"{fy_label} column rebuilt from raw facts by period_end: edgartools dropped the "
+            f"latest fiscal year (fiscal-year label collision, EC-100)")
+
+
+# --------------------------------------------------------------------------- #
+# Acciones desde el último 10-K, multiclase incluidas (EC-101)
+# --------------------------------------------------------------------------- #
+
+_CLASS_AXIS = "dim_us-gaap_StatementClassOfStockAxis"
+_COVER_SHARES = "dei:EntityCommonStockSharesOutstanding"
+_DILUTED_SHARES = "us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding"
+_AS_CONVERTED_MIN = 0.95  # una cifra "as-converted" incluye todas las clases: ≥ ~suma de portada
+
+
+def share_facts_from_xbrl_df(df: pd.DataFrame, period_end: date
+                             ) -> tuple[list[tuple[float, str | None]], list[tuple[float, str | None]]]:
+    """Extrae del XBRL del 10-K (XBRL.facts.to_dataframe()) los recuentos de acciones.
+
+    Devuelve (cover, diluted), listas de (valor, miembro de clase | None):
+      - cover: dei:EntityCommonStockSharesOutstanding de la portada (fecha más reciente);
+      - diluted: diluidas medias del ejercicio del 10-K (period_end exacto, duración anual).
+    Solo se aceptan hechos sin dimensión o con la única dimensión de clase de acción: cualquier
+    otro eje (co-registrantes, segmentos) describe otra cosa.
+    Por qué del 10-K y no de companyfacts: companyfacts descarta los hechos con dimensión, y en
+    las multiclase el único dato de portada sin dimensión es de antes de separar por clases
+    (V: enero de 2010) → recuentos caducados de hace 15 años (EC-101).
+    """
+    dim_cols = [c for c in df.columns if c.startswith("dim_")]
+    other_dims = [c for c in dim_cols if c != _CLASS_AXIS]
+
+    def clean(sub: pd.DataFrame) -> pd.DataFrame:
+        if other_dims:
+            sub = sub[sub[other_dims].isna().all(axis=1)]
+        return sub
+
+    def member(r: pd.Series) -> str | None:
+        v = r.get(_CLASS_AXIS)
+        return v if isinstance(v, str) else None
+
+    cover_df = clean(df[df["concept"] == _COVER_SHARES])
+    if not cover_df.empty:
+        last = cover_df["period_instant"].astype(str).max()      # fecha de portada más reciente
+        cover_df = cover_df[cover_df["period_instant"].astype(str) == last]
+    cover = [(v, member(r)) for _, r in cover_df.iterrows() if (v := _to_float(r["value"])) is not None]
+
+    dil_df = clean(df[df["concept"] == _DILUTED_SHARES])
+    diluted = []
+    for _, r in dil_df.iterrows():
+        try:
+            start, end = date.fromisoformat(str(r["period_start"])), date.fromisoformat(str(r["period_end"]))
+        except ValueError:
+            continue
+        # Solo el ejercicio del 10-K: mismo cierre y duración anual (>300 d, como edgartools).
+        if end == period_end and (end - start).days > 300 and (v := _to_float(r["value"])) is not None:
+            diluted.append((v, member(r)))
+    return cover, diluted
+
+
+def resolve_filing_shares(cover: list[tuple[float, str | None]],
+                          diluted: list[tuple[float, str | None]]) -> dict[str, Any]:
+    """Decide el recuento de acciones a partir de los hechos del 10-K (puro).
+
+    - Una clase (portada sin dimensión): ese recuento; la dilución la aplica después
+      resolve_share_count con el ratio diluidas/básicas, como siempre.
+    - Varias clases: las clases pueden convertirse entre sí con ratios distintos de 1 (V: B y C
+      se convierten a A), así que sumar la portada no es el número económico. Se usa la cifra
+      diluida "as-converted" que publica la propia empresa: primero la total sin dimensión
+      (GOOGL, MA); si no existe, la mayor por clase (V: la clase A as-converted). Para distinguir
+      una cifra as-converted de la de una sola clase se exige ≥ 95 % de la suma de portada.
+      Va a `as_converted_diluted` (ya es diluida → shares_outstanding None, no se diluye dos veces).
+    - Varias clases sin cifra as-converted: suma de portada, con aviso explícito.
+    Devuelve {"shares_outstanding", "as_converted_diluted", "flag"}.
+    """
+    total = [v for v, m in cover if m is None]
+    by_class = [(v, m) for v, m in cover if m is not None]
+    if total:
+        return {"shares_outstanding": total[0], "as_converted_diluted": None, "flag": None}
+    if not by_class:
+        return {"shares_outstanding": None, "as_converted_diluted": None, "flag": None}
+
+    cover_sum = sum(v for v, _ in by_class)
+    candidates = [v for v, m in diluted if m is None] + sorted((v for v, m in diluted if m), reverse=True)
+    as_conv = next((v for v in candidates if v >= _AS_CONVERTED_MIN * cover_sum), None)
+    n = len(by_class)
+    if as_conv is not None:
+        return {"shares_outstanding": None, "as_converted_diluted": as_conv,
+                "flag": (f"multi-class equity ({n} classes, cover total {cover_sum:,.0f}): per-share "
+                         f"values use the as-converted diluted weighted average from the 10-K "
+                         f"({as_conv:,.0f})")}
+    return {"shares_outstanding": cover_sum, "as_converted_diluted": None,
+            "flag": (f"multi-class equity ({n} classes): share count is the sum of cover-page classes "
+                     f"({cover_sum:,.0f}); conversion ratios not applied")}
+
+
+def _with_as_converted(series: list[dict], as_converted: float | None, fy_label: str) -> list[dict]:
+    """Añade la diluida as-converted del 10-K si la serie de companyfacts no tiene el año.
+
+    Caso V: companyfacts no trae diluidas (solo existen por clase) → sin esto, la valoración caía
+    a market_cap/precio. Si companyfacts ya tiene el año (MA, GOOGL) se respeta su valor.
+    """
+    if as_converted is None or any(i["period"] == fy_label for i in series):
+        return series
+    return [{"value": as_converted, "period": fy_label,
+             "source": "10-K:WeightedAverageNumberOfDilutedSharesOutstanding (as-converted)"}] + series
+
+
+# --------------------------------------------------------------------------- #
 # Ensamblado del raw
 # --------------------------------------------------------------------------- #
 
 def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
               bs_df: pd.DataFrame, cf_df: pd.DataFrame, facts: FactsLookup,
-              shares_outstanding: float | None) -> dict[str, Any]:
+              shares_outstanding: float | None, as_converted_diluted: float | None = None,
+              share_flags: list[str] | None = None) -> dict[str, Any]:
     """Ensambla el dict raw (contrato de parse_financials) desde DataFrames puros.
+
+    `shares_outstanding`, `as_converted_diluted` y `share_flags` vienen de resolve_filing_shares
+    (último 10-K, EC-101).
 
     Invariante: la etiqueta del 10-K == la columna más reciente de los estados;
     si difieren mezclaríamos años → DataUnavailableError (fail loud, EC-87).
+    Única excepción comprobable: el último ejercicio perdido por edgartools (EC-100).
     """
     fy_label = fy_label_from_period_end(period_end)
     cols = fy_columns(inc_df)
     if not cols:
         raise DataUnavailableError(f"{ticker}: income statement has no FY columns")
+    restore_flags: list[str] = []
+    if cols[0].replace(" ", "") != fy_label:
+        # Copias: el adaptador añade una columna y no debe mutar los DataFrames del llamador.
+        inc_df, bs_df, cf_df = inc_df.copy(), bs_df.copy(), cf_df.copy()
+        if (flag := restore_latest_fy_column((inc_df, bs_df, cf_df), fy_label, facts)) is not None:
+            restore_flags.append(flag)
+            cols = fy_columns(inc_df)
     latest = cols[0].replace(" ", "")
     if latest != fy_label:
         raise DataUnavailableError(
@@ -607,7 +830,7 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
 
     # --- Deuda, caja e identidades (T6): todo del MISMO periodo fy_label ---
     debt = resolve_debt(get, fy_label)
-    flags = debt["flags"] + balance_identity_flags(get, fy_label, ticker)
+    flags = restore_flags + list(share_flags or []) + debt["flags"] + balance_identity_flags(get, fy_label, ticker)
     cash = resolve_cash(get, fy_label, ticker)
 
     # Leasing operativo (ASC 842): total si existe; si no, noncurrent + current. Memo, no deuda.
@@ -643,8 +866,8 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
             "total_debt": d["long_term_debt"]["value"] + d["short_term_debt"]["value"] + d["finance_leases"]["value"],
             "short_term_debt": d["short_term_debt"]["value"],
             # caja de cada año: no lanza (años antiguos pueden no tenerla) → None y el año se omite del IC
-            "cash": val(g(CASH_CONCEPTS + RESTRICTED_CASH)),
-            "short_term_investments": val(g(STI)) or 0.0,
+            "cash": val(cash_p := g(CASH_CONCEPTS + RESTRICTED_CASH)),
+            "short_term_investments": val(resolve_sti(g, p, cash_p)),
             "current_liabilities": val(g(("LiabilitiesCurrent",))),
             "operating_rou_asset": val(g(OP_ROU_ASSET)),
             "long_term_investments": val(g(LTI)),
@@ -658,7 +881,7 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
             "revenue": revenue,  # ya rellenado arriba (rejilla de etiquetas)
             "gross_profit": fill(annual_series(inc_df, ("GrossProfit",))),
             "operating_income": fill(compute_operating_income(inc_df)),
-            "net_income": fill(annual_series(inc_df, ("NetIncomeLoss",))),
+            "net_income": resolve_net_income(inc_df, facts, labels),  # EC-103: año a año, ProfitLoss
             "operating_cash_flow": merge_annual(OCF_CONCEPTS, (cf_df,), facts, labels),  # EC-90: año a año
             "capex": merge_annual(CAPEX_CONCEPTS, (cf_df,), facts, labels),  # EC-90: año a año
             # Para ROIC: impuesto + pretax permiten el tipo efectivo por año.
@@ -672,7 +895,8 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
             "interest_income": extract_annual(INTEREST_INCOME, dfs, facts, labels),
             "sbc": extract_annual(SBC, (cf_df, inc_df), facts, labels),
             "depreciation_amortization": extract_annual(DA, (cf_df, inc_df), facts, labels),
-            "diluted_shares": extract_annual(DILUTED_W, (inc_df,), facts, labels),
+            "diluted_shares": _with_as_converted(extract_annual(DILUTED_W, (inc_df,), facts, labels),
+                                                 as_converted_diluted, fy_label),
             "basic_shares_weighted": extract_annual(BASIC_W, (inc_df,), facts, labels),
             "finance_lease_principal_payments": extract_annual(FIN_LEASE_PRINCIPAL, (cf_df,), facts, labels),
         },
@@ -683,7 +907,7 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
             "finance_leases": debt["finance_leases"],
             # cash = SOLO caja (EC-81); STI en su propio campo → el bridge la resta UNA vez.
             "cash_and_equivalents": cash,
-            "short_term_investments": get(STI) or {"value": 0.0, "period": fy_label, "source": "absent"},
+            "short_term_investments": resolve_sti(get, fy_label, cash),
             "long_term_investments": get(LTI),
             "current_liabilities": get(("LiabilitiesCurrent",)),
             "stockholders_equity": get(EQUITY_CONCEPTS),

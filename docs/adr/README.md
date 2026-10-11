@@ -56,6 +56,7 @@ Cada ADR sigue: Status · Context · Decision · Consequences · Alternatives.
 | [039](ADR-039-specialist-model-gpt-6-luna.md) | Modelo de los especialistas: gpt-6-luna (sustituye a gpt-4o-mini) | Accepted | H2-6 |
 | [040](ADR-040-expert-model-gpt-6-1-sol.md) | Modelo del Value Expert y del Critic: gpt-6.1-sol (sustituye a gpt-5.4-mini) | Accepted | H2-6 |
 | [041](ADR-041-verdict-taxonomy.md) | Taxonomía de veredicto BUY/WATCHLIST/PASS/SELL con decisión numérica en código | Accepted | H2-2 |
+| [042](ADR-042-data-normalization-at-edgar-boundary.md) | Normalización de datos de EDGAR en la frontera: periodo fiscal, acciones multiclase, caja combinada, beneficio neto | Accepted | F0 |
 
 ## Cómo añadir un ADR
 1. Crear `ADR-NNN-slug.md` incrementando N.

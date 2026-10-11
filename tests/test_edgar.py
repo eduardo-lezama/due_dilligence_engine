@@ -847,3 +847,59 @@ class TestForm4NewestFirst:
         src = inspect.getsource(EdgarManagementAdapter.fetch_form4_transactions)
         assert "filing_date" in src, "Debe referenciar filing_date para el sort"
         assert "reverse=True" in src, "Sort debe ser descendente (newest-first)"
+
+
+# --------------------------------------------------------------------------- #
+# EC-101 — orden de fuentes del recuento de acciones (sin red: dobles)
+# --------------------------------------------------------------------------- #
+
+from datetime import date as _date            # noqa: E402
+from types import SimpleNamespace as _NS      # noqa: E402
+
+import pandas as _pd                          # noqa: E402
+
+from due_diligence.tools.edgar import _filing_shares  # noqa: E402
+
+
+def _tenk(df=None, boom=False):
+    def xbrl():
+        if boom:
+            raise RuntimeError("xbrl down")
+        return _NS(facts=_NS(to_dataframe=lambda: df))
+    return _NS(xbrl=xbrl)
+
+
+def _facts(period_end, value):
+    fact = None if period_end is None else _NS(period_end=period_end, numeric_value=value)
+    return _NS(shares_outstanding_fact=fact)
+
+
+_V_DF = _pd.DataFrame([
+    {"concept": "dei:EntityCommonStockSharesOutstanding", "value": "1687629770",
+     "period_start": None, "period_end": None, "period_instant": "2025-10-30",
+     "dim_us-gaap_StatementClassOfStockAxis": "us-gaap:CommonClassAMember"},
+    {"concept": "dei:EntityCommonStockSharesOutstanding", "value": "120338948",
+     "period_start": None, "period_end": None, "period_instant": "2025-10-30",
+     "dim_us-gaap_StatementClassOfStockAxis": "v:CommonClassB2Member"},
+    {"concept": "us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding", "value": "1966000000",
+     "period_start": "2024-10-01", "period_end": "2025-09-30", "period_instant": None,
+     "dim_us-gaap_StatementClassOfStockAxis": "us-gaap:CommonClassAMember"},
+])
+
+
+def test_filing_shares_prefers_fresh_companyfacts_cover():
+    """Una clase: la portada de un 10-Q posterior es más actual que la del 10-K (recompras)."""
+    out = _filing_shares("aapl", _tenk(boom=True), _date(2025, 9, 27), _facts(_date(2026, 4, 17), 14.6e9))
+    assert out == {"shares_outstanding": 14.6e9, "as_converted_diluted": None, "flag": None}
+
+
+def test_filing_shares_rejects_stale_companyfacts_and_reads_10k_xbrl():
+    """V real: companyfacts trae 469 M de enero de 2010 → se descarta y se lee el 10-K."""
+    out = _filing_shares("v", _tenk(_V_DF), _date(2025, 9, 30), _facts(_date(2010, 1, 27), 469e6))
+    assert out["shares_outstanding"] is None and out["as_converted_diluted"] == 1_966e6
+
+
+def test_filing_shares_never_falls_back_to_stale_value():
+    out = _filing_shares("v", _tenk(boom=True), _date(2025, 9, 30), _facts(_date(2010, 1, 27), 469e6))
+    assert out["shares_outstanding"] is None and out["as_converted_diluted"] is None
+    assert "stale" in out["flag"]

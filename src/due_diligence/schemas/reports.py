@@ -123,6 +123,9 @@ class MarketReport(BaseModel):
     quarterly_earnings_text: Optional[str] = None  # Press release earnings más reciente (8-K 2.02, EC-44)
     quarterly_earnings_date: Optional[str] = None  # Fecha del filing del press release
     quarterly_eps_actuals: list[dict] = Field(default_factory=list)  # EPS actual/estimado/surprise por quarter (Finnhub)
+    # Tipo sin riesgo vivo (bono a 10 años, FRED DGS10; A5/ADR-043), en %. None → el WACC usa el
+    # estático RF_PCT y lo indica en su desglose. Consumidor: suggest_wacc (valuation, checkpoint 2).
+    risk_free_rate: Optional[MetricValue] = None
 
 
 class PeerROIC(BaseModel):
@@ -282,6 +285,15 @@ class CyclicalityAssessment(BaseModel):
     evidence: str                       # explicación legible: por qué sí o por qué no
 
 
+class DcfScenario(BaseModel):
+    """Un escenario del DCF (A3, ADR-043): solo varían margen FCFF y crecimiento, desde la historia."""
+    name: str                          # "bear" | "base" | "bull"
+    fcff_margin: float                 # margen FCFF/ventas usado (P25 / mediana / P75 de la ventana)
+    near_term_growth: float            # g1 de la etapa 1 (mín / base / máx de CAGR de ventas 3, 5, 10 años)
+    per_share: Optional[float] = None  # valor por acción por el mismo camino que el titular
+    upside_pct: Optional[float] = None
+
+
 class ValuationReport(BaseModel):
     """Reporte de valuation (DCF, múltiplos, sensitivity)."""
     ticker: str
@@ -301,11 +313,12 @@ class ValuationReport(BaseModel):
     earnings_yield_pct: Optional[float] = None          # EBIT/EV × 100 — componente Magic Formula
     magic_formula_rank: Optional[int] = None            # Rank según Magic Formula (requiere peer list — None en Phase 1)
     sensitivity_table: list[dict] = Field(default_factory=list)  # Tabla de sensibilidad WACC × growth
+    dcf_scenarios: list[DcfScenario] = Field(default_factory=list)  # A3: pesimista/base/optimista (rango)
     assumptions: Optional[ValuationInput] = None        # Assumptions usadas en el DCF
     dcf_reliability_note: Optional[str] = None          # Warning cuando el DCF puede ser poco fiable
     fcf_quality_warning: Optional[str] = None           # EC-65: FCF inflado por advance payments / project timing
     near_term_growth_used_pct: Optional[float] = None   # Tasa de crecimiento FCF efectivamente usada en el DCF (e.g. 0.123 = 12.3%)
-    near_term_growth_source: Optional[str] = None       # Procedencia: "user_override" | "fcf_cagr_Ny" | "fcf_cagr_Ny_rev_capped" | "revenue_cagr_fallback" | "default_7pct" | "cyclical_terminal"
+    near_term_growth_source: Optional[str] = None       # Procedencia (ADR-043): "user_override" | "cyclical_terminal" | "revenue_trend_Ny" | "revenue_cagr_Ny" | "fcf_cagr_Ny" (+"_capped") | "default_7pct". Legacy (H1/evals congelados): "fcf_cagr_Ny_rev_capped", "revenue_cagr_fallback"
     cyclicality: Optional[CyclicalityAssessment] = None  # EC-92: si es cíclica, la valoración parte del nivel mid-cycle
     # --- 3-stage DCF (ADR-029) ---
     stage1_years_used: Optional[int] = None             # Años con g1 constante

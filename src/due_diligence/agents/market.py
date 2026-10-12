@@ -44,6 +44,7 @@ from due_diligence.schemas.base import MetricValue
 from due_diligence.schemas.reports import MarketReport
 from due_diligence.tools.edgar import EdgarEventsAdapter
 from due_diligence.tools.finnhub import FinnhubAdapter, format_news_for_prompt
+from due_diligence.tools.fred import FredAdapter
 from due_diligence.tools.polygon import PolygonAdapter
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
 
@@ -138,6 +139,7 @@ def market_agent(state: AnalysisState) -> dict:
     report = MarketReport(
         ticker=ticker,
         stub=False,
+        risk_free_rate=fetch_risk_free_rate(),
         price_current=price_current,
         price_52w_high=price_52w_high,
         price_52w_low=price_52w_low,
@@ -158,6 +160,20 @@ def market_agent(state: AnalysisState) -> dict:
     )
 
     return {"market": report}
+
+
+def fetch_risk_free_rate() -> MetricValue | None:
+    """Tipo del bono a 10 años de FRED como MetricValue (unidad "%"), o None si FRED no responde.
+
+    No es un fallback silencioso: None hace que suggest_wacc use el Rf estático y lo escriba en el
+    desglose del WACC ("static default, FRED unavailable"), visible en el checkpoint 2 y el informe.
+    """
+    try:
+        r = FredAdapter.parse_latest_rate(FredAdapter.fetch_raw("DGS10"))
+    except Exception as e:  # red/formato externos: se degrada con aviso, nunca se inventa un tipo
+        log.warning("risk_free_rate_unavailable", error=f"{type(e).__name__}: {e}")
+        return None
+    return MetricValue(value=r["value_pct"], unit="%", period=r["date"], source=f"FRED {r['series_id']}")
 
 
 def _to_mv(value: float | None, unit: str, period: str) -> MetricValue | None:

@@ -192,6 +192,68 @@ def _count_verified_citations(state) -> int:
 # Markdown renderer
 # ---------------------------------------------------------------------------
 
+def _render_accounting_scores(financials) -> list[str]:
+    """Sección "Accounting quality scores" (A2): valor, lectura con el umbral publicado y periodo.
+
+    Se muestra también cuando un score es n/a: decir qué falta es parte del dato (fail loud).
+    """
+    scores = financials.accounting_scores if financials is not None else None
+    if scores is None:
+        return []
+    lines = ["## Accounting quality scores", "",
+             "Deterministic, from the same XBRL statements (Piotroski 2000, Altman Z'' 1995, "
+             "Beneish 1999, Sloan 1996). Flags to look closer, not verdicts.", "",
+             "| Score | Reading | Period |", "|---|---|---|"]
+    for r in (scores.piotroski, scores.altman_z2, scores.beneish_m, scores.sloan_accruals):
+        lines.append(f"| {r.name} | {r.reading} | {r.period} |")
+    return lines + [""]
+
+
+# Banda de lectura del reverse DCF frente a la historia: la MISMA que el método "Reverse DCF" de
+# valuation._classify_reverse_vs_historical (±3 pp), para que informe y tabla no se contradigan.
+_EXPECTATIONS_BAND = 0.03
+
+
+def _render_price_expectations(state, valuation) -> list[str]:
+    """Bloque "What the price implies" (bloque A, A4, ADR-043): expectativas del precio en llano.
+
+    Expectations investing (Mauboussin y Rappaport): en vez de partir de UNA estimación del valor,
+    se pregunta qué crecimiento descuenta ya el precio y si es plausible frente a la historia de la
+    empresa. Necesita menos supuestos que el DCF directo y por eso va primero. Solo reformula
+    números que ya calculó la valoración (reverse DCF, CAGR de ventas): no añade ninguno.
+    """
+    lines = ["### What the price implies", ""]
+    g, g10 = valuation.reverse_dcf_implied_growth, valuation.reverse_dcf_10y_equivalent
+    if g is None:
+        return lines + ["Market-implied growth is not computable (negative base FCFF, or the growth "
+                        "needed is outside the −50%…200% search range).", ""]
+    market = state.get("market")
+    price = market.price_current.value if market is not None and market.price_current else None
+    a = valuation.assumptions
+    s1, fade = valuation.stage1_years_used, valuation.fade_years_used
+    at_price = f"At the current price (${price:,.2f})" if price else "At the current price"
+    path = (f"**FCFF growth of {g:.1%} a year for {s1} years**, fading to "
+            f"{a.terminal_growth_pct:.1f}% by year {s1 + fade}" if s1 and fade is not None and a else
+            f"**FCFF growth of {g:.1%} a year** in stage 1")
+    lines.append(f"{at_price}, the market is pricing {path}"
+                 + (f" — equivalent to **~{g10:.1%} a year over {s1 + fade} years**." if g10 is not None
+                    and s1 and fade is not None else "."))
+    cagr, years = state.get("historical_cagr_5y"), state.get("historical_cagr_years") or 5
+    if cagr is None:
+        return lines + ["", "No revenue history to compare with.", ""]
+    lines += ["", f"Company history: revenue grew {cagr:.1%} a year over the last {years} years."]
+    spread = (g10 if g10 is not None else g) - cagr
+    if spread > _EXPECTATIONS_BAND:
+        reading = (f"the price requires growth well above the company's own history "
+                   f"({spread * 100:+.1f} pp). Ask what would have to change for that to happen.")
+    elif spread < -_EXPECTATIONS_BAND:
+        reading = (f"the price requires less growth than the company has delivered "
+                   f"({spread * 100:+.1f} pp): margin for error if the business holds its course.")
+    else:
+        reading = f"the price is in line with the company's own history ({spread * 100:+.1f} pp)."
+    return lines + ["", f"**Reading:** {reading}", ""]
+
+
 def _render_equity_bridge(bridge, share_count, per_share, *, share_count_source=None) -> list[str]:
     """
     Sección "### Enterprise → Equity Bridge" (ADR-033): EV del DCF → equity → por acción.
@@ -288,6 +350,7 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
     valuation = state.get("valuation")      # type: ignore[typeddict-item]
     if valuation and not valuation.stub:
         lines += ["## Valuation Summary", ""]
+        lines += _render_price_expectations(state, valuation)
 
         # MCE-21: cuando hay spread DCF detectado, el warning sube a la cabecera
         # de la sección Valuation antes de la tabla — el lector ve primero la advertencia,
@@ -490,6 +553,20 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
         lines += ["## Valuation Summary", "",
                   f"> ⚠️ Valuation not computed — {valuation.error}", ""]
 
+    # --- Escenarios del DCF (A3, ADR-043): el valor como rango, con supuestos de la historia ---
+    if valuation and not valuation.stub and valuation.dcf_scenarios:
+        lines += ["### DCF scenarios (assumptions from the company's own history)", "",
+                  "Only the FCFF margin (P25 / median / P75 of the normalization window) and stage-1 "
+                  "growth (min / base / max of the 3, 5 and 10-year revenue CAGRs) change; WACC and "
+                  "terminal growth are those of the sensitivity table below.", "",
+                  "| Scenario | FCFF margin | Stage-1 growth | Value / share | vs price |",
+                  "|---|---|---|---|---|"]
+        for sc in valuation.dcf_scenarios:
+            value = f"${sc.per_share:,.2f}" if sc.per_share is not None else "n/m"
+            vs = f"{sc.upside_pct:+.0f}%" if sc.upside_pct is not None else "n/a"
+            lines.append(f"| {sc.name} | {sc.fcff_margin:.1%} | {sc.near_term_growth:.1%} | {value} | {vs} |")
+        lines.append("")
+
     # --- Sensitivity table ---
     if valuation and valuation.sensitivity_table:
         # Unidad explícita: USD/share desde ADR-033; reports viejos sin el campo eran equity en USD B.
@@ -504,6 +581,9 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
             vals = " | ".join("n/m" if v is None else str(v) for v in row["values"].values())
             lines.append(f"| {row['near_term_growth_pct']}% | {vals} |")
         lines.append("")
+
+    # --- Scores contables (A2, ADR-043): calidad contable y riesgo, deterministas ---
+    lines += _render_accounting_scores(state.get("financials"))  # type: ignore[typeddict-item]
 
     # --- Data quality flags (deterministas, de parse_financials) ---
     # Identidades contables rotas, fallbacks de conceptos XBRL... Antes no tenían consumidor:

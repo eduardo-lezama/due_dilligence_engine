@@ -810,7 +810,30 @@ def _format_context(state: AnalysisState) -> str:
                     f"Assess in §6 whether there is STRUCTURAL growth beyond the cycle "
                     f"(capacity, new segments); if so, the investor must override it at checkpoint 2."
                 )
-            elif src == "revenue_cagr_fallback":
+            elif src.startswith("revenue_trend_"):
+                # ADR-043: tendencia de ventas por mínimos cuadrados (robusta al año de inicio).
+                n_y = src.split("_")[2].replace("y", "")
+                bounded = " It was outside [-15%, 15%] and was bounded." if src.endswith("_capped") else ""
+                growth_block = (
+                    f"Near-term FCF growth used: {g_pct:.1f}%\n"
+                    f"Source: least-squares revenue trend over {n_y} years (uses every year, so it does not "
+                    f"depend on the start year); FCFF is assumed to grow with revenue from the DCF base "
+                    f"(see its source above).{bounded}\n"
+                    f"Assess in §6 whether this revenue growth is credible going forward and whether "
+                    f"margins can hold at the base level."
+                )
+            elif src.startswith("revenue_cagr_") and src != "revenue_cagr_fallback":
+                # ADR-043: g1 automático = CAGR de ventas (la base ya es margen FCFF normalizado × ventas).
+                n_y = src.split("_")[2].replace("y", "")
+                bounded = " It was outside [-15%, 15%] and was bounded." if src.endswith("_capped") else ""
+                growth_block = (
+                    f"Near-term FCF growth used: {g_pct:.1f}%\n"
+                    f"Source: historical revenue CAGR ({n_y} years); FCFF is assumed to grow with revenue "
+                    f"from the DCF base (see its source above).{bounded}\n"
+                    f"Assess in §6 whether this revenue growth is credible going forward and whether "
+                    f"margins can hold at the base level."
+                )
+            elif src == "revenue_cagr_fallback":   # legacy: estados congelados de evals e informes H1
                 growth_block = (
                     f"Near-term FCF growth used: {g_pct:.1f}%\n"
                     f"Source: revenue CAGR proxy — FCF CAGR unavailable (reported FCF was "
@@ -819,11 +842,13 @@ def _format_context(state: AnalysisState) -> str:
                     f"proxy overstates or understates the realistic FCF growth trajectory "
                     f"(margin expansion vs compression matters here)."
                 )
-            else:  # fcf_cagr_Ny
-                n_y = src.replace("fcf_cagr_", "").replace("y", "")
+            else:  # fcf_cagr_Ny[_capped]
+                # Revisión de código: parsear como valuation.py ("fcf_cagr_5y_capped" → "5").
+                n_y = src.split("_")[2].replace("y", "") if src.count("_") >= 2 else "?"
+                bounded = " It was outside [-15%, 15%] and was bounded." if src.endswith("_capped") else ""
                 growth_block = (
                     f"Near-term FCF growth used: {g_pct:.1f}%\n"
-                    f"Source: historical FCF CAGR ({n_y} years of data).\n"
+                    f"Source: historical FCF CAGR ({n_y} years of data).{bounded}\n"
                     f"Assess in §6 whether this historical rate is credible going forward "
                     f"given competitive position, capacity for reinvestment, and quarterly trend."
                 )

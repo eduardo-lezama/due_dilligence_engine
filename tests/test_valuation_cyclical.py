@@ -164,7 +164,10 @@ def test_cap_note_absent_when_revenue_cap_applied():
     st = _cyclical_state(historical_cagr_5y=0.05)
     st["financials"] = fin
     r = valuation_agent(st)["valuation"]
-    assert r.near_term_growth_used_pct == pytest.approx(0.05)   # el campo guarda fracción (contrato EC-54)
+    # ADR-043: g1 = tendencia de ventas por mínimos cuadrados (1000/950/900/850/800 → ≈ 5,7 %).
+    from due_diligence.utils.periods import least_squares_growth
+    assert r.near_term_growth_source == "revenue_trend_4y"
+    assert r.near_term_growth_used_pct == pytest.approx(least_squares_growth(fin.revenue)[0], abs=1e-4)
     assert "capped at 30%" not in r.dcf_reliability_note
 
 

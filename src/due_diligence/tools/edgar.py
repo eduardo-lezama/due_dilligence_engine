@@ -47,6 +47,7 @@ from due_diligence.tools.xbrl_extract import (
     resolve_filing_shares,
     share_facts_from_xbrl_df,
 )
+from due_diligence.tools.accounting_scores import compute_accounting_scores, rows_from_raw
 from due_diligence.utils.periods import align_by_period, fiscal_year
 
 log = structlog.get_logger()
@@ -414,6 +415,8 @@ class EdgarAdapter:
                 else None
             ),
             roic_series=roic_series,
+            # A2 (ADR-043): Piotroski, Altman Z'', Beneish y Sloan sobre los mismos estados XBRL.
+            accounting_scores=compute_accounting_scores(rows_from_raw(raw)),
             invested_capital=invested_capital_mv,
             stockholders_equity=stockholders_equity_mv,
             incremental_roic=incremental,

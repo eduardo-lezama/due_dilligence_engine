@@ -42,9 +42,11 @@ import structlog
 
 from due_diligence.graph.state import AnalysisState
 from due_diligence.schemas.base import MetricValue
-from due_diligence.schemas.reports import FcffBreakdown, ValuationInput, ValuationReport, PeerValuation
+from statistics import quantiles
+
+from due_diligence.schemas.reports import DcfScenario, FcffBreakdown, ValuationInput, ValuationReport, PeerValuation
 from due_diligence.utils.formatting import fmt_usd
-from due_diligence.utils.periods import cagr_by_fiscal_years
+from due_diligence.utils.periods import cagr_by_fiscal_years, least_squares_growth
 # Aritmética enterprise pura (ADR-033): este módulo orquesta, valuation_math calcula.
 from due_diligence.agents.valuation_math import (
     BETA_DEFAULT,
@@ -72,8 +74,15 @@ log = structlog.get_logger()
 
 # Caps para near-term growth — evitan proyecciones absurdas si el FCF histórico
 # es ruidoso (p.ej. un año con FCF anormalmente bajo infla el CAGR calculado).
-_MAX_NEAR_TERM_GROWTH = 0.30   # 30% máximo
+_MAX_NEAR_TERM_GROWTH = 0.30   # 30% máximo (override del usuario, que lo justifica en el checkpoint 2)
 _MIN_NEAR_TERM_GROWTH = -0.15  # -15% mínimo
+# Bloque A (ADR-043): techo del crecimiento AUTOMÁTICO. El crecimiento de ventas persiste poco
+# (Mauboussin: correlación 0,16 a 3 años y 0,14 a 5 años, 1950–2025); extrapolar más del 15 %
+# durante 5 años sin una tesis explícita es optimismo, no historia. El inversor puede superarlo
+# con override (hasta _MAX_NEAR_TERM_GROWTH).
+_MAX_AUTO_GROWTH = 0.15
+# Años de la base normalizada no cíclica (mediana del margen FCFF): mismos que el EPV (EBIT 5 años).
+_NORMALIZATION_YEARS = 5
 
 
 def _fcf_cagr_with_window(fcf_series: list[MetricValue]) -> tuple[Optional[float], int]:
@@ -521,7 +530,8 @@ def _compute_suggested_wacc(
     return round(suggested, 1), breakdown
 
 
-def suggest_wacc(financials, market_cap: Optional[float], *, size_premium: bool = False):
+def suggest_wacc(financials, market_cap: Optional[float], *, size_premium: bool = False,
+                 rf: Optional[MetricValue] = None):
     """
     WACC real sugerido (ADR-033) → Optional[WaccBreakdown].
 
@@ -532,7 +542,12 @@ def suggest_wacc(financials, market_cap: Optional[float], *, size_premium: bool 
     """
     if market_cap is None or market_cap <= 0 or financials is None:
         return None
-    ke_pct, ke_src = _compute_suggested_wacc(market_cap, size_premium=size_premium)  # histórico: devuelve Ke
+    # A5 (ADR-043): Rf vivo (FRED DGS10) si el nodo de mercado lo obtuvo; si no, el estático, dicho.
+    rf_pct = rf.value if rf is not None else _RF_PCT
+    rf_label = (f"{rf.source} {rf.period}" if rf is not None
+                else f"static default as of 2026-05, FRED unavailable")
+    ke_pct, ke_src = _compute_suggested_wacc(market_cap, rf_pct=rf_pct, size_premium=size_premium)
+    ke_src = f"{ke_src}; Rf source: {rf_label}"
     # Cobertura EBIT/intereses del MISMO ejercicio: interest_expense[0] puede ser de otro año si la
     # serie tiene huecos (revisión final H1, #4). Sin intereses de ese año → Kd por defecto.
     ebit_mv = financials.operating_income[0] if financials.operating_income else None
@@ -542,7 +557,7 @@ def suggest_wacc(financials, market_cap: Optional[float], *, size_premium: bool 
     # Serie por año (T9) primero; el punto del balance como fallback; sin deuda → 0 (peso 0).
     debt_latest = (financials.total_debt_series[0].value if financials.total_debt_series
                    else (financials.total_debt.value if financials.total_debt else 0.0))
-    kd, kd_src = estimate_pre_tax_cost_of_debt(ebit=ebit, interest_expense=interest)
+    kd, kd_src = estimate_pre_tax_cost_of_debt(ebit=ebit, interest_expense=interest, rf=rf_pct / 100)
     return compute_wacc(ke_pct / 100, kd, MARGINAL_TAX_RATE, market_cap, max(debt_latest, 0.0),
                         cost_of_equity_source=f"CAPM: {ke_src}", cost_of_debt_source=kd_src)
 
@@ -732,57 +747,52 @@ def _compute_near_term_growth(
     revenue_cagr: Optional[float],
     user_override_pct: Optional[float],
     terminal_growth: float = 0.025,
+    revenue_cagr_years: Optional[int] = None,
 ) -> tuple[float, str]:
     """
-    Calcula near_term_growth y su fuente sin efectos secundarios.
+    Calcula near_term_growth (g1 de la etapa 1) y su fuente, sin efectos secundarios.
 
-    Jerarquía:
-        1. user_override_pct — el usuario manda siempre
-        2. FCF CAGR (con cap al revenue_cagr si FCF > revenue) — señal más directa
-        3. revenue_cagr — proxy cuando FCF CAGR no disponible (FCF negativo/insuficiente)
-        4. 7% — fallback genérico anclado en PIB nominal US + prima small/mid cap
-
-    Cíclicas (EC-92): tras el override del usuario, g1 = crecimiento terminal. En una cíclica el
-    CAGR entre dos años depende de en qué punto del ciclo caen (CALM: 57 % de FCF, 16,6 % de
-    ventas, ambos por la gripe aviar), no del negocio. El crecimiento real (p.ej. expansión a
-    comida preparada) lo aporta el usuario en el checkpoint 2 con su justificación.
+    Jerarquía (bloque A, ADR-043; sustituye a "mín(CAGR FCF, CAGR ventas)" de ADR-022):
+        1. user_override_pct — el usuario manda siempre (acotado a [−15 %, 30 %]).
+        2. Cíclicas (EC-92): g1 = crecimiento terminal (el CAGR depende del punto del ciclo).
+        3. Tendencia de ventas por mínimos cuadrados (hasta 10 años, ≥ 3 puntos), acotada a
+           [−15 %, 15 %]. Por qué ventas y no FCF: la base del DCF es "margen FCFF normalizado ×
+           ventas", así que con margen constante el FCFF crece como las ventas; el CAGR del FCF
+           mezclaba una base normalizada con un crecimiento entre dos años extremos (KO −9,4 %).
+           Por qué tendencia y no CAGR: el CAGR depende del año de inicio (con 5 años empezaba en el
+           mínimo de 2020: XOM 13,2 %, PFE 8,3 %); la tendencia usa todos los años (XOM 5,9 %).
+        4. CAGR de ventas recibido (5 años) si no hay serie suficiente para la tendencia.
+        5. CAGR del FCF (solo si no hay ventas), con los mismos límites.
+        6. 7 % — fallback genérico sin base empírica (se avisa con fuerza).
 
     Returns:
-        (near_term_growth, source) con los caps [-15%, 30%] ya aplicados.
-        source values: "user_override" | "fcf_cagr_Ny" | "fcf_cagr_Ny_rev_capped" |
-                       "revenue_cagr_fallback" | "default_7pct" | "cyclical_terminal"
+        (near_term_growth, source). Fuentes: "user_override" | "cyclical_terminal" |
+        "revenue_trend_Ny" | "revenue_cagr_Ny" | "fcf_cagr_Ny" (con "_capped" si se acotó) | "default_7pct".
+        `_capped` indica que el CAGR real quedaba fuera de [−15 %, 15 %].
 
-    Extraído de valuation_agent() como función pura para que el CLI pueda mostrar
-    el valor auto antes del prompt de override (EC-54, Task 3).
+    Función pura: el CLI la usa para mostrar el valor automático antes del override (EC-54).
     """
-    raw_cagr: Optional[float] = None
-
     if user_override_pct is not None:
-        growth = user_override_pct / 100
-        source = "user_override"
-    elif _cyclicality(financials).is_cyclical:
-        growth, source = terminal_growth, "cyclical_terminal"
-    elif financials is not None and financials.free_cash_flow:
+        growth = max(_MIN_NEAR_TERM_GROWTH, min(_MAX_NEAR_TERM_GROWTH, user_override_pct / 100))
+        return growth, "user_override"
+    if _cyclicality(financials).is_cyclical:
+        return terminal_growth, "cyclical_terminal"
+
+    def _bounded(raw: float, label: str) -> tuple[float, str]:
+        g = max(_MIN_NEAR_TERM_GROWTH, min(_MAX_AUTO_GROWTH, raw))
+        return g, (label + "_capped" if g != raw else label)
+
+    trend = least_squares_growth(financials.revenue) if financials is not None and financials.revenue else None
+    if trend is not None:
+        return _bounded(trend[0], f"revenue_trend_{trend[1]}y")
+    if revenue_cagr is not None:
+        return _bounded(revenue_cagr, f"revenue_cagr_{revenue_cagr_years or 5}y")
+    if financials is not None and financials.free_cash_flow:
         # _fcf_cagr_with_window devuelve la ventana real usada, no len-1 fijo (EC-60).
         raw_cagr, n_periods = _fcf_cagr_with_window(financials.free_cash_flow)
-
         if raw_cagr is not None:
-            if revenue_cagr is not None and raw_cagr > revenue_cagr:
-                growth = revenue_cagr
-                source = f"fcf_cagr_{n_periods}y_rev_capped"
-            else:
-                growth = raw_cagr
-                source = f"fcf_cagr_{n_periods}y"
-        else:
-            # FCF negativo o insuficiente — caer al revenue CAGR o al default
-            growth = revenue_cagr if revenue_cagr is not None else 0.07
-            source = "revenue_cagr_fallback" if revenue_cagr is not None else "default_7pct"
-    else:
-        growth = revenue_cagr if revenue_cagr is not None else 0.07
-        source = "revenue_cagr_fallback" if revenue_cagr is not None else "default_7pct"
-
-    growth = max(_MIN_NEAR_TERM_GROWTH, min(_MAX_NEAR_TERM_GROWTH, growth))
-    return growth, source
+            return _bounded(raw_cagr, f"fcf_cagr_{n_periods}y")
+    return 0.07, "default_7pct"
 
 
 def _sensitivity_table(
@@ -1016,14 +1026,76 @@ def _fcff_for_year(financials, i: int, tax_rate: float) -> Optional[FcffBreakdow
     return bd.model_copy(update={"missing_inputs": missing})
 
 
+def _fcff_margin_history(financials, tax_rate: float, *, cyclical: bool = False
+                         ) -> tuple[list[float], list[str]]:
+    """Márgenes FCFF/ventas por año (más reciente primero) de la ventana de normalización.
+
+    Ventana: 10 años en cíclicas (mid-cycle, EC-92), _NORMALIZATION_YEARS en el resto. La usan la
+    base del DCF (_build_fcff, mediana) y los escenarios (A3, cuartiles): misma ventana, mismos años.
+    Devuelve también los huecos "input FYxxxx" de los años usados.
+    """
+    rev_by = {m.period: m.value for m in financials.revenue}
+    margins: list[float] = []
+    year_gaps: list[str] = []
+    window = 10 if cyclical else _NORMALIZATION_YEARS
+    for i in range(min(window, len(financials.operating_cash_flow))):
+        bd = _fcff_for_year(financials, i, tax_rate)
+        period = financials.operating_cash_flow[i].period
+        rev = rev_by.get(period)
+        if bd is not None and rev:
+            margins.append(bd.fcff / rev)
+            year_gaps += [f"{name} {period}" for name in bd.missing_inputs]
+    return margins, year_gaps
+
+
+def _dcf_scenarios(margins: list[float], revenue: list[MetricValue], *, g_base: float,
+                   cyclical: bool, value_fn) -> list[DcfScenario]:
+    """Tres escenarios del DCF a partir de la historia de la propia empresa (A3, ADR-043).
+
+    Solo varían los dos supuestos que tienen historia; WACC y terminal ya tienen su tabla de
+    sensibilidad. No hay deltas inventados ("±3 pp"):
+      - margen FCFF: P25 / mediana / P75 de los márgenes de la ventana de normalización;
+      - crecimiento: mín / base / máx entre el g1 base y los CAGR de ventas a 3, 5 y 10 años,
+        acotados igual que el automático ([−15 %, 15 %]). En cíclicas el crecimiento es el terminal
+        en los tres (el CAGR depende del punto del ciclo, EC-92).
+    `value_fn(base_fcf, g1, terminal_scale) -> (per_share, upside_pct)` recorre el mismo camino que el
+    titular. `terminal_scale` = margen del escenario / mediana: el NOPAT del valor terminal escala igual
+    que la base (revisión de código: si no, el terminal —a menudo > 50 % del EV— era el mismo en los
+    tres y el rango salía artificialmente estrecho).
+    El g base (que puede ser un override del usuario de hasta 30 %) no se acota: solo los CAGR
+    históricos; así el optimista nunca queda por debajo del base.
+    Menos de 3 márgenes → [] (no hay distribución que resumir).
+    """
+    if len(margins) < 3 or not revenue:
+        return []
+    p25, p50, p75 = quantiles(margins, n=4, method="inclusive")
+    if cyclical:
+        g_low = g_high = g_base
+    else:
+        bound = lambda g: max(_MIN_NEAR_TERM_GROWTH, min(_MAX_AUTO_GROWTH, g))  # noqa: E731
+        hist = [bound(r[0]) for n in (3, 5, 10) if (r := cagr_by_fiscal_years(revenue, max_years=n))]
+        g_low, g_high = min([g_base, *hist]), max([g_base, *hist])
+    latest_revenue = revenue[0].value
+    out = []
+    for name, margin, g in (("bear", p25, g_low), ("base", p50, g_base), ("bull", p75, g_high)):
+        scale = margin / p50 if p50 > 0 else 1.0
+        per_share_value, upside = value_fn(margin * latest_revenue, g, scale)
+        out.append(DcfScenario(name=name, fcff_margin=round(margin, 4), near_term_growth=round(g, 4),
+                               per_share=per_share_value, upside_pct=upside))
+    return out
+
+
 def _build_fcff(financials, tax_rate: float, *, cyclical: bool = False,
                 ) -> tuple[Optional[FcffBreakdown], Optional[float], list[str], list[str], str]:
     """
     Base FCFF del DCF (revisión adversarial A2).
 
-    Si hay ≥3 ejercicios con ingresos: mediana del margen FCFF/ingresos de hasta 3 años × ingresos
-    del último (like-with-like con el EPV, que usa mediana de EBIT; un año con capex o capital
-    circulante atípico no fija toda la valoración). Si no: FCFF del último ejercicio.
+    Si hay ≥3 ejercicios con ingresos: mediana del margen FCFF/ingresos de hasta 5 años × ingresos
+    del último. Bloque A (ADR-043): antes eran 3 años y dos años anómalos dominaban la mediana (KO:
+    pagos extraordinarios en 2024 y 2025 → margen 12 % frente a ~22 % normal). Con 5 años la base es
+    like-with-like con el EPV (mediana de EBIT de 5 años) y sigue la regla de Graham de usar el
+    beneficio de varios años. El efecto es simétrico: también baja la base si el último año fue
+    excepcionalmente bueno (HD, BBW, KBR). Si no hay 3 años: FCFF del último ejercicio.
 
     cyclical=True (EC-92): mediana del margen FCFF de hasta 10 ejercicios (≥5) × ingresos del
     último — el nivel mid-cycle. Con 3 años, una cíclica partía de su pico (CALM: año de gripe aviar).
@@ -1038,28 +1110,17 @@ def _build_fcff(financials, tax_rate: float, *, cyclical: bool = False,
     latest = _fcff_for_year(financials, 0, tax_rate)
     missing = list(latest.missing_inputs)
     latest_gaps = [f"{n} {financials.operating_cash_flow[0].period}" for n in missing]
-    rev_by = {m.period: m.value for m in financials.revenue}
-    margins = []
-    year_gaps: list[str] = []
-    window = 10 if cyclical else 3
-    for i in range(min(window, len(financials.operating_cash_flow))):
-        bd = _fcff_for_year(financials, i, tax_rate)
-        period = financials.operating_cash_flow[i].period
-        rev = rev_by.get(period)
-        if bd is not None and rev:
-            margins.append(bd.fcff / rev)
-            year_gaps += [f"{name} {period}" for name in bd.missing_inputs]
+    margins, year_gaps = _fcff_margin_history(financials, tax_rate, cyclical=cyclical)
     if cyclical and len(margins) >= 5 and financials.revenue:
         mid = median(margins)
         return (latest, mid * financials.revenue[0].value, missing, year_gaps,
                 f"mid-cycle median FCFF margin ({len(margins)}y) × latest revenue = {mid:.1%}")
     if len(margins) >= 3 and financials.revenue:
-        margins = margins[:3]
-        year_gaps = [g for g in year_gaps
-                     if g.rsplit(" ", 1)[-1] in {m.period for m in financials.operating_cash_flow[:3]}]
-        median_margin = sorted(margins)[1]
+        n = len(margins)          # 3–5 años (window ya acota a _NORMALIZATION_YEARS)
+        median_margin = median(margins)
         base = median_margin * financials.revenue[0].value
-        return latest, base, missing, year_gaps, f"median FCFF margin (3y) × latest revenue = {median_margin:.1%}"
+        return (latest, base, missing, year_gaps,
+                f"median FCFF margin ({n}y) × latest revenue = {median_margin:.1%}")
     return latest, latest.fcff, missing, latest_gaps, "latest FY FCFF"
 
 
@@ -1116,7 +1177,8 @@ def _run_valuation(state: AnalysisState) -> dict:
 
     # --- 1b. Assumptions: checkpoint2_user_input + defaults únicos (CHECKPOINT2_DEFAULTS) ---
     # WACC por defecto = WACC real sugerido (ADR-033); 9,0 solo sin market cap.
-    wacc_suggestion = suggest_wacc(financials, market_cap)
+    wacc_suggestion = suggest_wacc(financials, market_cap,
+                                   rf=market.risk_free_rate if market is not None else None)
     if user_raw.get("wacc_pct") is not None:
         wacc_pct = float(user_raw["wacc_pct"])
     elif wacc_suggestion is not None:
@@ -1237,42 +1299,27 @@ def _run_valuation(state: AnalysisState) -> dict:
         days_since_fye = max((assumptions.valuation_date - financials.as_of_date).days, 0)
     capitalization = (1 + wacc) ** (days_since_fye / 365)
 
-    # --- 4. Near-term growth: user override > min(FCF_CAGR, revenue_CAGR) > default 7% ---
-    # ADR-022: se ancla en el mínimo de FCF CAGR y revenue CAGR.
-    # FCF es más volátil que revenue (working capital, timing de capex) — usar solo
-    # FCF CAGR sobreestima el growth sostenible para small caps con FCF ruidoso.
-    # El revenue CAGR actúa como techo natural: el FCF no puede crecer indefinidamente
-    # más rápido que el revenue sin compresión de márgenes.
+    # --- 4. Near-term growth: override > cíclica > CAGR de ventas > CAGR del FCF > 7 % (ADR-043) ---
+    # El CAGR de ventas es coherente con la base "margen FCFF normalizado × ventas": con margen
+    # constante, el FCFF crece como las ventas. Sustituye a mín(CAGR FCF, CAGR ventas) de ADR-022.
     revenue_cagr: Optional[float] = state.get("historical_cagr_5y")  # type: ignore[assignment]
+    revenue_cagr_years: Optional[int] = state.get("historical_cagr_years")  # type: ignore[assignment]
     near_term_growth, near_term_growth_source = _compute_near_term_growth(
         financials=financials,
         revenue_cagr=revenue_cagr,
         user_override_pct=assumptions.revenue_growth_yr1_pct,
         terminal_growth=terminal_growth,
+        revenue_cagr_years=revenue_cagr_years,
     )
-
-    # Detectar si se aplicaron caps (FCF_CAGR pre-cap puede calcularse desde el source)
-    raw_cagr, _ = (
-        _fcf_cagr_with_window(financials.free_cash_flow)
-        if financials is not None and financials.free_cash_flow else (None, 0)
-    )
-    growth_was_capped = (
-        raw_cagr is not None
-        and (raw_cagr > _MAX_NEAR_TERM_GROWTH or raw_cagr < _MIN_NEAR_TERM_GROWTH)
-        and near_term_growth_source not in ("user_override", "revenue_cagr_fallback", "default_7pct",
-                                            "cyclical_terminal")
-        # Con el tope por ventas el valor usado no es el ±30 %: avisar de "capped at 30%" contradecía
-        # la línea de growth (CALM: "capped at 30%" con g1 = 16,6 %).
-        and "rev_capped" not in near_term_growth_source
-    )
-
-    if "rev_capped" in near_term_growth_source:
-        log.info(
-            "valuation_fcf_cagr_capped_by_revenue",
-            ticker=ticker,
-            fcf_cagr=f"{raw_cagr:.1%}" if raw_cagr is not None else "N/A",
-            revenue_cagr=f"{revenue_cagr:.1%}" if revenue_cagr is not None else "N/A",
-        )
+    # CAGR real antes de acotar, para explicar el techo/suelo en la nota.
+    raw_cagr: Optional[float] = None
+    if near_term_growth_source.startswith("revenue_trend_") and financials is not None:
+        raw_cagr = least_squares_growth(financials.revenue)[0]
+    elif near_term_growth_source.startswith("revenue_cagr_"):
+        raw_cagr = revenue_cagr
+    elif near_term_growth_source.startswith("fcf_cagr_") and financials is not None:
+        raw_cagr, _ = _fcf_cagr_with_window(financials.free_cash_flow)
+    growth_was_capped = near_term_growth_source.endswith("_capped") and raw_cagr is not None
 
     # --- Reliability note — se construye SIEMPRE con contexto del growth usado (EC-54) ---
     # El near_term_growth es el parámetro más sensible del DCF: mover de 8% a 15%
@@ -1291,15 +1338,17 @@ def _run_valuation(state: AnalysisState) -> dict:
             f"historical data available). The DCF is not anchored to any empirical signal for this "
             f"company. Treat DCF upside as purely illustrative."
         )
-    elif "rev_capped" in near_term_growth_source:
+    elif near_term_growth_source.startswith("revenue_trend_"):
         n_y = near_term_growth_source.split("_")[2].replace("y", "")
         growth_context = (
-            f"Near-term FCF growth: {near_term_growth:.1%} "
-            f"(FCF CAGR {n_y}y, capped by revenue CAGR "
-            f"{revenue_cagr:.1%} — FCF growing faster than revenue is unsustainable long-term)."
-            if revenue_cagr is not None else
-            f"Near-term FCF growth: {near_term_growth:.1%} "
-            f"(FCF CAGR {n_y}y, capped at {_MAX_NEAR_TERM_GROWTH:.0%})."
+            f"Near-term FCF growth: {near_term_growth:.1%} (least-squares revenue trend over {n_y} years: "
+            f"FCFF grows with revenue from the DCF base)."
+        )
+    elif near_term_growth_source.startswith("revenue_cagr_") and near_term_growth_source != "revenue_cagr_fallback":
+        n_y = near_term_growth_source.split("_")[2].replace("y", "")
+        growth_context = (
+            f"Near-term FCF growth: {near_term_growth:.1%} (revenue CAGR, {n_y} years: FCFF grows with "
+            f"revenue from the DCF base)."
         )
     elif near_term_growth_source == "cyclical_terminal":
         growth_context = (
@@ -1321,11 +1370,12 @@ def _run_valuation(state: AnalysisState) -> dict:
     # La línea de growth va primero: es el parámetro más sensible y el lector debe verlo antes.
     note_parts.insert(0, growth_context)
 
-    if growth_was_capped and assumptions.revenue_growth_yr1_pct is None:
+    if growth_was_capped:
         note_parts.append(
-            f"⚠️ DCF growth capped at {_MAX_NEAR_TERM_GROWTH:.0%} "
-            f"(raw FCF CAGR was {raw_cagr:.0%}). "
-            f"The base FCF may be at a cyclical peak — forward DCF likely overstates intrinsic value."
+            f"⚠️ DCF growth bounded to {near_term_growth:.0%} (historical CAGR was {raw_cagr:.0%}). "
+            f"Automatic stage-1 growth is kept within [{_MIN_NEAR_TERM_GROWTH:.0%}, {_MAX_AUTO_GROWTH:.0%}]: "
+            f"sales growth persists weakly (base rates). Override at checkpoint 2 with a thesis if the "
+            f"business can sustain more."
         )
         log.warning("valuation_dcf_growth_capped", ticker=ticker, raw_cagr=f"{raw_cagr:.0%}")
 
@@ -1558,6 +1608,30 @@ def _run_valuation(state: AnalysisState) -> dict:
         else:
             note_parts.append("⚠️ Sensitivity table not computed: share count unavailable.")
 
+    # --- 8a. Escenarios del DCF (A3, ADR-043): rango con supuestos de la propia historia ---
+    # Solo con base FCFF (no con el proxy NOPAT): los márgenes FCFF son la distribución que se resume.
+    dcf_scenarios: list[DcfScenario] = []
+    if (dcf_base is not None and dcf_base_source.startswith("FCFF") and share_count and financials is not None):
+        margins, _ = _fcff_margin_history(financials, tax_rate, cyclical=is_cyclical)
+
+        def _scenario_value(base_fcf: float, g1: float, terminal_scale: float = 1.0
+                            ) -> tuple[Optional[float], Optional[float]]:
+            """Mismo camino que el titular: dcf_components → capitalización → bridge → por acción."""
+            try:
+                ev_s = dcf_components(base_fcf, g1, terminal_growth, wacc, stage1_years, fade_years,
+                                      mid_year=assumptions.mid_year_convention,
+                                      nopat_base=(terminal_nopat * terminal_scale if terminal_nopat is not None
+                                                  else None)).enterprise_value * capitalization
+            except ValuationInputError:
+                return None, None
+            eq = equity_bridge(ev_s, **claims_kwargs,
+                               lease_liabilities=_mv_val(financials.operating_lease_liabilities)).equity_value
+            ps_s = round(per_share(eq, share_count), 2)
+            return ps_s, _upside_pct(ps_s, price)
+
+        dcf_scenarios = _dcf_scenarios(margins, financials.revenue, g_base=near_term_growth,
+                                       cyclical=is_cyclical, value_fn=_scenario_value)
+
     # --- 8b. EPV (Greenwald) — piso de valor sin crecimiento (ADR-029) ---
     # Mismo bridge (claims) y misma capitalización a fecha de valoración que el DCF (ADR-033):
     # antes el DCF no restaba deuda y el EPV sí → la convergencia comparaba planos distintos.
@@ -1676,6 +1750,7 @@ def _run_valuation(state: AnalysisState) -> dict:
         earnings_yield_pct=earnings_yield,
         magic_formula_rank=mf_rank,
         sensitivity_table=sensitivity,
+        dcf_scenarios=dcf_scenarios,
         assumptions=assumptions,
         dcf_reliability_note=dcf_reliability_note,
         near_term_growth_used_pct=near_term_growth,

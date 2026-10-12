@@ -8,6 +8,7 @@ etiqueta 'FY2025'. Lo usan edgar.parse_financials, financials, valuation y la s�
 """
 from __future__ import annotations
 
+import math
 import re
 
 import structlog
@@ -77,3 +78,34 @@ def value_at(series: list[MetricValue], period: str) -> float | None:
     si una de las dos tiene huecos (revisión final H1, #9/#10; mismo patrón que EC-82).
     """
     return next((m.value for m in series if m.period == period and m.value is not None), None)
+
+
+def least_squares_growth(series: list[MetricValue], max_years: int = 10,
+                         min_points: int = 3) -> tuple[float, int] | None:
+    """Tasa de crecimiento por mínimos cuadrados (ajuste log-lineal) en una ventana de años fiscales.
+
+    Por qué (bloque A, ADR-043): el CAGR entre dos extremos depende de en qué año cae el inicio.
+    Con 5 años, la ventana empezaba en 2020 y heredaba el rebote post-COVID (XOM 13,2 %, CVX 14,3 %,
+    PFE 8,3 % por la vacuna). El "least-squares growth rate" (el método del Banco Mundial para el
+    crecimiento del PIB) usa TODOS los puntos: ln(v) = a + b·año → g = e^b − 1. Con 10 años cubre
+    un ciclo: XOM 5,9 %, CVX 6,0 %, PFE 3,2 %; en negocios estables coincide con el CAGR (MSFT 14,9 %).
+    Solo valores > 0 (logaritmo). Returns (g, años entre el punto más antiguo y el más reciente)
+    o None con menos de `min_points` puntos válidos.
+    """
+    try:
+        pts = [(fiscal_year(m.period), m.value) for m in series if m.value is not None and m.value > 0]
+    except ValueError:
+        return None   # etiquetas no FY (datos sintéticos/legacy): el llamador cae al CAGR (revisión #4)
+    if not pts:
+        return None
+    y0 = max(y for y, _ in pts)
+    pts = [(y, math.log(v)) for y, v in pts if y0 - y <= max_years]
+    if len(pts) < min_points:
+        return None
+    mx = sum(y for y, _ in pts) / len(pts)
+    my = sum(v for _, v in pts) / len(pts)
+    sxx = sum((y - mx) ** 2 for y, _ in pts)
+    if sxx == 0:
+        return None
+    slope = sum((y - mx) * (v - my) for y, v in pts) / sxx
+    return math.exp(slope) - 1, y0 - min(y for y, _ in pts)

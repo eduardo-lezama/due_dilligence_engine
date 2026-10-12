@@ -425,7 +425,9 @@ def test_build_raw_emits_balance_history_per_fy_column():
     assert h[1] == {"period": "FY2024", "total_assets": 500.0, "stockholders_equity": 200.0,
                     "total_debt": 70.0, "short_term_debt": 0.0, "cash": 50.0,
                     "short_term_investments": 30.0, "current_liabilities": 55.0,
-                    "operating_rou_asset": 8.0, "long_term_investments": None}
+                    "operating_rou_asset": 8.0, "long_term_investments": None,
+                    # A2 (ADR-043): insumos de los scores; ausentes en este balance mínimo → None
+                    "current_assets": None, "retained_earnings": None, "ppe_net": None, "receivables": None}
 
 
 
@@ -695,3 +697,101 @@ def test_net_income_keeps_years_outside_revenue_grid():
                        cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
     assert [i["period"] for i in raw["annual"]["revenue"]] == ["FY2025", "FY2024"]
     assert [i["period"] for i in raw["annual"]["net_income"]] == ["FY2025", "FY2024", "FY2023"]
+
+
+# --------------------------------------------------------------------------- #
+# Bloque A, A2 — insumos de los scores contables en balance_history y annual (ADR-043)
+# --------------------------------------------------------------------------- #
+
+def test_build_raw_emits_accounting_score_inputs_per_year():
+    inc, bs, cf = _min_frames()
+    bs.loc["AssetsCurrent"] = ["ca", False, 150.0, 140.0]
+    bs.loc["RetainedEarningsAccumulatedDeficit"] = ["re", False, 90.0, 80.0]
+    bs.loc["PropertyPlantAndEquipmentNet"] = ["ppe", False, 120.0, 110.0]
+    bs.loc["AccountsReceivableNetCurrent"] = ["ar", False, 30.0, 25.0]
+    inc.loc["SellingGeneralAndAdministrativeExpense"] = ["sga", False, 12.0, 11.0]
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+    h = {r["period"]: r for r in raw["balance_history"]}
+    assert (h["FY2025"]["current_assets"], h["FY2024"]["retained_earnings"]) == (150.0, 80.0)
+    assert (h["FY2025"]["ppe_net"], h["FY2024"]["receivables"]) == (120.0, 25.0)
+    assert [i["value"] for i in raw["annual"]["sga"]] == [12.0, 11.0]
+
+
+def test_build_raw_accounting_inputs_absent_are_none_not_zero():
+    inc, bs, cf = _min_frames()
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+    h = raw["balance_history"][0]
+    assert (h["current_assets"], h["retained_earnings"], h["ppe_net"], h["receivables"]) == (None,) * 4
+    assert raw["annual"]["sga"] == []
+
+
+def test_gross_profit_is_not_derived_from_cost_of_revenue():
+    """EC-104: CAT trae un CostOfGoodsAndServicesSold de 49 M$ (partida distinta) → no se deriva el bruto."""
+    inc, bs, cf = _min_frames()
+    inc.loc["CostOfGoodsAndServicesSold"] = ["c", False, 0.049, 0.033]
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+    assert raw["annual"]["gross_profit"] == []
+
+
+def test_sga_derived_from_selling_plus_general_when_not_reported():
+    """MSFT-like: S&M y G&A por separado → SG&A = suma (solo si están los dos ese año)."""
+    inc, bs, cf = _min_frames()
+    inc.loc["SellingAndMarketingExpense"] = ["s", False, 20.0, 19.0]
+    inc.loc["GeneralAndAdministrativeExpense"] = ["g", False, 7.0, NaN]
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+    assert raw["annual"]["sga"] == [{"value": 27.0, "period": "FY2025",
+                                     "source": "derived:SellingAndMarketingExpense+GeneralAndAdministrativeExpense"}]
+
+
+def test_revenue_merges_concept_chain_year_by_year():
+    """A6 (ADR-043): PFE real — RevenueFromContract… desde 2018, Revenues antes. Antes se elegía el
+    primer concepto con algún dato y FY2016–FY2017 se perdían; ahora se fusiona año a año (EC-90)."""
+    cols = ("FY 2025", "FY 2024", "FY 2023")
+    inc, bs, cf = _min_frames(cols)
+    inc = inc.drop(index="Revenues")
+    inc.loc["RevenueFromContractWithCustomerExcludingAssessedTax"] = ["r", False, 100.0, 95.0, NaN]
+    inc.loc["Revenues"] = ["r", False, NaN, NaN, 90.0]
+    raw = xe.build_raw(ticker="pfe", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+    assert [(i["period"], i["value"], i["source"]) for i in raw["annual"]["revenue"]] == [
+        ("FY2025", 100.0, "RevenueFromContractWithCustomerExcludingAssessedTax"),
+        ("FY2024", 95.0, "RevenueFromContractWithCustomerExcludingAssessedTax"),
+        ("FY2023", 90.0, "Revenues")]
+
+
+def test_total_revenues_line_replaces_concept_measuring_something_else():
+    """EC-105: MA 2018–2021 — RevenueFromContract… = ingresos BRUTOS (29,8) y Revenues = netos (18,9).
+    Diferencia > 10 % → el concepto elegido mide otra cosa → la línea total Revenues manda."""
+    cols = ("FY 2022", "FY 2021")
+    inc, bs, cf = _min_frames(cols)
+    inc = inc.drop(index="Revenues")
+    inc.loc["RevenueFromContractWithCustomerExcludingAssessedTax"] = ["r", False, 22.2, 29.8]
+    facts = FakeFacts({("Revenues", "FY2022"): 22.2, ("Revenues", "FY2021"): 18.9})
+    raw = xe.build_raw(ticker="ma", cik="1", period_end=date(2022, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=facts, shares_outstanding=10.0)
+    rev = raw["annual"]["revenue"]
+    assert rev[0] == {"value": 22.2, "period": "FY2022", "source": "RevenueFromContractWithCustomerExcludingAssessedTax"}
+    assert rev[1]["value"] == 18.9 and rev[1]["source"].startswith("facts:Revenues (total line")
+
+
+def test_small_scope_differences_keep_the_chosen_concept():
+    """CVX/KO: Revenues incluye otros ingresos (≈3 %) → diferencia de alcance, no se toca."""
+    inc, bs, cf = _min_frames()
+    inc = inc.rename(index={"Revenues": "RevenueFromContractWithCustomerExcludingAssessedTax"})
+    raw = xe.build_raw(ticker="cvx", cik="1", period_end=date(2025, 12, 31), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts({("Revenues", "FY2025"): 103.0}), shares_outstanding=10.0)
+    assert raw["annual"]["revenue"][0] == {
+        "value": 100.0, "period": "FY2025", "source": "RevenueFromContractWithCustomerExcludingAssessedTax"}
+
+
+def test_backfill_uses_first_plain_concept_when_latest_point_comes_from_facts():
+    """#3 (revisión, regresión de EC-88): el último punto con fuente 'facts:…' no debe impedir
+    rellenar un año interior ausente con el concepto de la serie."""
+    series = [{"value": 120.0, "period": "FY2025", "source": "facts:Revenues (total line; X differed +20%)"},
+              {"value": 100.0, "period": "FY2023", "source": "Revenues"}]
+    out = xe.backfill_gaps(series, FakeFacts({("Revenues", "FY2024"): 110.0}))
+    assert [(i["period"], i["value"]) for i in out] == [("FY2025", 120.0), ("FY2024", 110.0), ("FY2023", 100.0)]

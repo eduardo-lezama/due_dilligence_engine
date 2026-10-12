@@ -100,6 +100,10 @@ def pytest_configure(config):
         "markers",
         "real_finnhub_fetch: no mockear FinnhubAdapter.fetch_transcripts/fetch_quarterly_earnings (el test mockea finnhub.Client)",
     )
+    config.addinivalue_line(
+        "markers",
+        "real_fred_fetch: no bloquear FredAdapter.fetch_raw (el test mockea urllib o el adaptador)",
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -134,6 +138,20 @@ def no_live_8k_events(request):
     with unittest.mock.patch(
         "due_diligence.tools.edgar.EdgarEventsAdapter.fetch_8k_events", return_value=[]
     ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def no_live_fred(request):
+    """
+    Bloquea FRED (tipo sin riesgo, A5/ADR-043) por defecto: fetch_raw lanza, así el WACC de todos
+    los tests usa el Rf estático y es determinista. Los tests del adaptador se marcan real_fred_fetch.
+    """
+    if request.node.get_closest_marker("real_fred_fetch"):
+        yield
+        return
+    with unittest.mock.patch("due_diligence.tools.fred.FredAdapter.fetch_raw",
+                             side_effect=RuntimeError("network disabled in tests (FRED)")):
         yield
 
 

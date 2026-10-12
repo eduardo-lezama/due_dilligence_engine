@@ -569,10 +569,12 @@ def test_valuation_agent_fcf_cagr_capped_by_revenue_cagr():
 
 def test_valuation_agent_no_revenue_cagr_uses_fcf_cagr():
     """
-    Sin historical_cagr_5y en estado, el agente usa FCF CAGR sin modificación
-    (manteniendo comportamiento anterior cuando no hay revenue CAGR disponible).
+    Sin historial de ventas (ni serie para la tendencia ni historical_cagr_5y), el agente usa
+    el CAGR del FCF (ADR-043: último recurso antes del 7 % genérico).
     """
     financials = _build_financials()
+    # ADR-043: con ≥ 3 años de ventas manda la tendencia; aquí se prueba el camino sin serie suficiente.
+    financials.revenue = financials.revenue[:1]
     financials.free_cash_flow = [
         MetricValue(value=110_000_000, unit="USD", period="FY2025", source="calculated"),
         MetricValue(value=100_000_000, unit="USD", period="FY2024", source="calculated"),
@@ -966,9 +968,12 @@ def test_valuation_agent_source_default_fallback():
     assert r.near_term_growth_used_pct == pytest.approx(0.07)
 
 
-def test_valuation_agent_source_fcf_cagr():
-    """Con FCF histórico positivo y FCF CAGR < revenue CAGR, source contiene 'fcf_cagr'."""
+def test_valuation_agent_source_revenue_cagr_even_when_fcf_cagr_lower():
+    """ADR-043: con CAGR de ventas disponible, g1 = CAGR de ventas aunque el del FCF sea menor
+    (antes mín(FCF, ventas), ADR-022). La base ya es el margen normalizado × ventas."""
     financials = _build_financials()
+    # ADR-043: con ≥ 3 años de ventas manda la tendencia; aquí se prueba el camino sin serie suficiente.
+    financials.revenue = financials.revenue[:1]
     # FCF: $100M → $110M (CAGR ≈10%), revenue CAGR = 15% → no cap
     financials.free_cash_flow = [
         MetricValue(value=110_000_000, unit="USD", period="FY2025", source="calculated"),
@@ -981,14 +986,15 @@ def test_valuation_agent_source_fcf_cagr():
     }
     result = valuation_agent(state)
     r = result["valuation"]
-    assert r.near_term_growth_source is not None
-    assert "fcf_cagr" in r.near_term_growth_source
-    assert "rev_capped" not in r.near_term_growth_source
+    assert r.near_term_growth_source == "revenue_cagr_5y"
+    assert r.near_term_growth_used_pct == pytest.approx(0.15)
 
 
-def test_valuation_agent_source_fcf_cagr_rev_capped():
-    """Cuando FCF CAGR > revenue CAGR, source contiene 'rev_capped'."""
+def test_valuation_agent_fcf_jump_does_not_leak_into_growth():
+    """FCF ×2 en un año con ventas al 8 %: g1 = 8 % (CAGR de ventas), el salto del FCF no cuenta."""
     financials = _build_financials()
+    # ADR-043: con ≥ 3 años de ventas manda la tendencia; aquí se prueba el camino sin serie suficiente.
+    financials.revenue = financials.revenue[:1]
     # FCF: $20M → $40M (CAGR=100%), revenue CAGR=8% → cap aplicado
     financials.free_cash_flow = [
         MetricValue(value=40_000_000, unit="USD", period="FY2025", source="calculated"),
@@ -1001,8 +1007,8 @@ def test_valuation_agent_source_fcf_cagr_rev_capped():
     }
     result = valuation_agent(state)
     r = result["valuation"]
-    assert r.near_term_growth_source is not None
-    assert "rev_capped" in r.near_term_growth_source
+    assert r.near_term_growth_source == "revenue_cagr_5y"
+    assert r.near_term_growth_used_pct == pytest.approx(0.08)
 
 
 def test_valuation_agent_reliability_note_always_present():
@@ -1042,7 +1048,7 @@ def test_compute_near_term_growth_pure_function():
 
     growth3, source3 = _compute_near_term_growth(None, 0.09, None)
     assert growth3 == pytest.approx(0.09)
-    assert source3 == "revenue_cagr_fallback"
+    assert source3 == "revenue_cagr_5y"
 
 
 # ---------------------------------------------------------------------------

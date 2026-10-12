@@ -208,8 +208,11 @@ def backfill_gaps(series: list[dict], facts: FactsLookup) -> list[dict]:
     """
     if len(series) < 2:
         return series
-    concept = series[0]["source"]
-    if ":" in concept:          # "facts:X" / "derived:..." no son conceptos consultables → no rellenar
+    # Concepto de la serie: el primer punto con un concepto curado. "facts:X" / "derived:..." no son
+    # consultables uno a uno; si el ÚLTIMO punto viene de facts (prefer_total_revenue, EC-105) se usa el
+    # siguiente (revisión de código: antes se abandonaba el relleno → regresión de EC-88).
+    concept = next((i["source"] for i in series if ":" not in i["source"]), None)
+    if concept is None:
         return series
     by_year = {fy_year(i["period"]): i for i in series}
     hi, lo = max(by_year), min(by_year)
@@ -252,6 +255,54 @@ def merge_annual(concepts: tuple[str, ...], dfs: tuple[pd.DataFrame, ...], facts
                     break
         if hit is not None:
             out.append(hit)
+    return out
+
+
+def _by_period(series: list[dict]) -> dict[str, dict]:
+    return {i["period"]: i for i in series}
+
+
+def _sorted_desc(by: dict[str, dict]) -> list[dict]:
+    return [by[p] for p in sorted(by, key=fy_year, reverse=True)]
+
+
+def derive_sga(sga: list[dict], inc_df: pd.DataFrame, facts: FactsLookup, labels: list[str]) -> list[dict]:
+    """SG&A publicado; para los años sin él, ventas y marketing + generales y administración,
+    solo si están LOS DOS ese año (una suma parcial infravaloraría el gasto)."""
+    by = _by_period(sga)
+    parts = [_by_period(merge_annual((c,), (inc_df,), facts, labels)) for c in SGA_PARTS]
+    for label in labels:
+        if label not in by and all(label in part for part in parts):
+            by[label] = {"value": sum(part[label]["value"] for part in parts), "period": label,
+                         "source": "derived:" + "+".join(SGA_PARTS)}
+    return _sorted_desc(by)
+
+
+_TOTAL_REVENUE_GAP = 0.10   # EC-105: por encima, el concepto elegido mide otra cosa (bruto/componente)
+
+
+def prefer_total_revenue(revenue: list[dict], facts: FactsLookup) -> list[dict]:
+    """Usa la línea total `Revenues` (raw facts) cuando el concepto elegido difiere > 10 % ese año.
+
+    Por qué (EC-105): MA etiquetaba en 2018–2021 sus ingresos BRUTOS (antes de rebates, que presenta
+    como menor ingreso) con RevenueFromContract… y los netos con Revenues; la cadena elegía el bruto y
+    la serie mezclaba bruto (2018–21) y neto (2022+): CAGR a 5 años 6,8 % con ventas al ~14 %. ADP
+    2017–18 y PFE 2023 tenían el mismo problema con un componente parcial.
+    Por qué no "siempre Revenues": medido en 33 empresas, Revenues a veces incluye otros ingresos
+    (CVX, XOM ~3 %) o difiere por alcance (KO, MCD ±1–4 %). Una diferencia pequeña es de alcance y
+    cualquiera de los dos es defendible; una grande (> 10 %) es otra magnitud. Solo se cambia esa.
+    """
+    out = []
+    for item in revenue:
+        concept = item["source"].removeprefix("facts:")
+        total = facts.annual_value("Revenues", item["period"]) if concept != "Revenues" else None
+        if total is not None and item["value"] and abs(total - item["value"]) > _TOTAL_REVENUE_GAP * abs(item["value"]):
+            gap = (item["value"] - total) / total
+            log.info("total_revenue_line_preferred", period=item["period"], concept=concept, gap=f"{gap:+.0%}")
+            out.append({"value": total, "period": item["period"],
+                        "source": f"facts:Revenues (total line; {concept} differed {gap:+.0%})"})
+        else:
+            out.append(item)
     return out
 
 
@@ -481,6 +532,18 @@ STI = ("ShortTermInvestments", "MarketableSecuritiesCurrent", "AvailableForSaleS
 # participaciones (equity method), que van aparte en EQUITY_METHOD con su propio campo.
 LTI = ("MarketableSecuritiesNoncurrent", "AvailableForSaleSecuritiesDebtSecuritiesNoncurrent", "LongTermInvestments")
 RESTRICTED_CASH = ("CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",)
+# Insumos de los scores contables (bloque A, A2, ADR-043): Piotroski F, Altman Z'', Beneish M.
+CURRENT_ASSETS = ("AssetsCurrent",)
+RETAINED_EARNINGS = ("RetainedEarningsAccumulatedDeficit",)
+PPE_NET = ("PropertyPlantAndEquipmentNet",
+           "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization")
+RECEIVABLES = ("AccountsReceivableNetCurrent", "ReceivablesNetCurrent")
+SGA = ("SellingGeneralAndAdministrativeExpense",)
+# Derivación por año cuando la empresa no publica el agregado (A2): MSFT da S&M y G&A por separado.
+# NO se deriva el beneficio bruto como ingresos − coste de ventas: verificado con CAT, la vista curada
+# trae CostOfGoodsAndServicesSold = 49 M$ en FY2025 (42.767 M$ en FY2023), una partida distinta con el
+# mismo concepto → margen bruto falso del 99,9 %. Mejor "n/a" explícito que un dato falso (EC-104).
+SGA_PARTS = ("SellingAndMarketingExpense", "GeneralAndAdministrativeExpense")
 _TOL = 0.02  # 2 % tolerance for XBRL roundings
 
 # --- Inputs FCFF (T8, consumidos por el Bloque C) ---
@@ -815,7 +878,12 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
             f"{ticker}: latest 10-K period {period_end} → {fy_label} but statements' "
             f"latest column is {latest} (period misalignment)")
 
-    revenue = annual_series(inc_df, REVENUE_CONCEPTS)
+    # A6 (ADR-043): la cadena de conceptos de ingresos se fusiona AÑO A AÑO (como EC-90 para OCF/capex).
+    # Antes se tomaba el primer concepto con algún dato: PFE (RevenueFromContract… desde 2018,
+    # Revenues antes) perdía FY2016–FY2017. Medido en las 33 empresas del diagnóstico: solo cambia PFE
+    # (gana esos dos años); ningún valor existente varía.
+    col_labels = [c.replace(" ", "") for c in fy_columns(inc_df)]
+    revenue = prefer_total_revenue(merge_annual(REVENUE_CONCEPTS, (inc_df,), facts, col_labels), facts)
     if not revenue:
         raise DataUnavailableError(f"{ticker}: revenue concept not found in income statement")
 
@@ -871,6 +939,11 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
             "current_liabilities": val(g(("LiabilitiesCurrent",))),
             "operating_rou_asset": val(g(OP_ROU_ASSET)),
             "long_term_investments": val(g(LTI)),
+            # Scores contables (A2): None si el concepto no existe ese año (nunca 0 implícito).
+            "current_assets": val(g(CURRENT_ASSETS)),
+            "retained_earnings": val(g(RETAINED_EARNINGS)),
+            "ppe_net": val(g(PPE_NET)),
+            "receivables": val(g(RECEIVABLES)),
         })
 
     return {
@@ -898,6 +971,7 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
             "diluted_shares": _with_as_converted(extract_annual(DILUTED_W, (inc_df,), facts, labels),
                                                  as_converted_diluted, fy_label),
             "basic_shares_weighted": extract_annual(BASIC_W, (inc_df,), facts, labels),
+            "sga": derive_sga(extract_annual(SGA, (inc_df,), facts, labels), inc_df, facts, labels),  # A2: Beneish
             "finance_lease_principal_payments": extract_annual(FIN_LEASE_PRINCIPAL, (cf_df,), facts, labels),
         },
         "balance_sheet": {

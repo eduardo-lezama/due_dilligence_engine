@@ -562,3 +562,80 @@ def test_sqlite_row_stores_verdict_decision(mocker, tmp_path):
     assert row["verdict"] == "WATCHLIST" and row["status"] == "complete" and row["verdict_raw"] == "BUY"
     assert row["entry_price"] == 22.8 and row["required_mos_pct"] == 50.0 and row["business_class"] == "average"
     assert row["methodology_version"] == "H2"
+
+
+# ---------------------------------------------------------------------------
+# Bloque A, A4 (ADR-043): "What the price implies" — expectativas del precio en lenguaje llano
+# ---------------------------------------------------------------------------
+
+def _expectations_state(implied, implied_10y, cagr=0.077, price=88.05):
+    from due_diligence.schemas.base import MetricValue
+    from due_diligence.schemas.reports import MarketReport, ValuationInput, ValuationReport
+    return {
+        "ticker": "KO", "historical_cagr_5y": cagr, "historical_cagr_years": 5,
+        "market": MarketReport(ticker="KO", stub=False, price_current=MetricValue(
+            value=price, unit="USD", period="2026-10-10", source="Polygon")),
+        "valuation": ValuationReport(
+            ticker="KO", stub=False, reverse_dcf_implied_growth=implied,
+            reverse_dcf_10y_equivalent=implied_10y, stage1_years_used=5, fade_years_used=5,
+            assumptions=ValuationInput(checkpoint_id="c2", wacc_pct=8.6, terminal_growth_pct=2.5,
+                                       projection_years=10)),
+    }
+
+
+def test_price_expectations_block_states_implied_growth_vs_history():
+    from due_diligence.agents.archiver import _render_markdown
+    md = _render_markdown(_expectations_state(0.12, 0.095))
+    assert "### What the price implies" in md
+    assert "12.0% a year for 5 years" in md and "fading to 2.5% by year 10" in md
+    assert "~9.5% a year over 10 years" in md
+    assert "revenue grew 7.7% a year over the last 5 years" in md
+    # 9,5 % frente a 7,7 %: +1,8 pp → dentro de ±3 pp (misma regla que el método "Reverse DCF")
+    assert "in line with the company's own history" in md
+
+
+@pytest.mark.parametrize("implied_10y,phrase", [
+    (0.20, "well above the company's own history"),
+    (0.02, "less growth than the company has delivered"),
+])
+def test_price_expectations_reading_uses_three_point_band(implied_10y, phrase):
+    from due_diligence.agents.archiver import _render_markdown
+    assert phrase in _render_markdown(_expectations_state(0.2, implied_10y))
+
+
+def test_price_expectations_explains_when_not_computable():
+    from due_diligence.agents.archiver import _render_markdown
+    md = _render_markdown(_expectations_state(None, None))
+    assert "### What the price implies" in md and "not computable" in md
+
+
+def test_accounting_scores_section_renders_readings_including_na():
+    from due_diligence.agents.archiver import _render_accounting_scores
+    from due_diligence.schemas.base import AccountingScores, ScoreResult
+    s = AccountingScores(
+        piotroski=ScoreResult(name="Piotroski F-score", value=8, period="FY2025 vs FY2024", reading="8/9 — strong (8–9)"),
+        altman_z2=ScoreResult(name="Altman Z''", period="FY2025", reading="n/m — book equity ≤ 0"),
+        beneish_m=ScoreResult(name="Beneish M-score", period="FY2025 vs FY2024", reading="n/a — missing: sga FY2025"),
+        sloan_accruals=ScoreResult(name="Sloan accruals", value=-0.019, period="FY2025", reading="-1.9% of assets"))
+    md = "\n".join(_render_accounting_scores(type("F", (), {"accounting_scores": s})()))
+    assert "## Accounting quality scores" in md
+    assert "| Piotroski F-score | 8/9 — strong (8–9) | FY2025 vs FY2024 |" in md
+    assert "n/a — missing: sga FY2025" in md and "n/m — book equity ≤ 0" in md
+
+
+def test_accounting_scores_section_absent_for_legacy_financials():
+    from due_diligence.agents.archiver import _render_accounting_scores
+    assert _render_accounting_scores(None) == []
+
+
+def test_dcf_scenarios_table_rendered():
+    from due_diligence.agents.archiver import _render_markdown
+    from due_diligence.schemas.reports import DcfScenario, ValuationReport
+    v = ValuationReport(ticker="KO", stub=False, dcf_scenarios=[
+        DcfScenario(name="bear", fcff_margin=0.12, near_term_growth=0.036, per_share=40.5, upside_pct=-54.0),
+        DcfScenario(name="base", fcff_margin=0.219, near_term_growth=0.077, per_share=70.0, upside_pct=-20.5),
+        DcfScenario(name="bull", fcff_margin=0.222, near_term_growth=0.10, per_share=None, upside_pct=None)])
+    md = _render_markdown({"ticker": "KO", "valuation": v})
+    assert "### DCF scenarios (assumptions from the company's own history)" in md
+    assert "| bear | 12.0% | 3.6% | $40.50 | -54% |" in md
+    assert "| bull | 22.2% | 10.0% | n/m | n/a |" in md

@@ -23,7 +23,7 @@ Uso en tests:
     Ver tests/test_agents_1b.py para ejemplos.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 import structlog
 
@@ -33,6 +33,27 @@ log = structlog.get_logger()
 
 
 class PolygonAdapter:
+    @staticmethod
+    def fetch_daily_closes(ticker: str, start: str, end: str) -> dict[str, float]:
+        """Cierres diarios AJUSTADOS por splits entre `start` y `end` (ISO) → {fecha ISO: cierre}.
+
+        Para el informe de resultados (A7, MCE-36): ambos extremos ajustados, así la rentabilidad es
+        coherente aunque haya un split entre la fecha del análisis y hoy. Sin API key → {} (el script
+        lo dice); un error de Polygon se propaga (no se inventan precios).
+        """
+        if not settings.polygon_api_key:
+            log.warning("polygon_skipped", reason="POLYGON_API_KEY not configured")
+            return {}
+        from polygon import RESTClient  # type: ignore[import]
+
+        client = RESTClient(api_key=settings.polygon_api_key)
+        out: dict[str, float] = {}
+        for agg in client.list_aggs(ticker, 1, "day", start, end, adjusted=True):
+            if agg.close is not None and agg.timestamp is not None:
+                day = datetime.fromtimestamp(agg.timestamp / 1000, tz=timezone.utc).date().isoformat()
+                out[day] = float(agg.close)
+        return out
+
     @staticmethod
     def fetch_market_data(ticker: str) -> dict[str, Any]:
         """

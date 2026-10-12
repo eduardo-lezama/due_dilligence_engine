@@ -606,6 +606,32 @@ def test_format_context_includes_dcf_growth_assumption_block():
     assert "revenue" in context.lower()
 
 
+@pytest.mark.parametrize("source,bounded", [("revenue_cagr_5y", False), ("revenue_cagr_5y_capped", True)])
+def test_format_context_dcf_growth_revenue_cagr_source_is_described_truthfully(source, bounded):
+    """ADR-043: la fuente nueva no puede caer en la rama 'FCF CAGR' (le diría al Expert algo falso)."""
+    from due_diligence.agents.value_expert import _format_context
+    from due_diligence.schemas.reports import ValuationReport
+
+    state = {"ticker": "KO", "valuation": ValuationReport(
+        ticker="KO", stub=False, near_term_growth_used_pct=0.077, near_term_growth_source=source)}
+    context = _format_context(state)
+    assert "historical revenue CAGR (5 years)" in context
+    assert "FCF CAGR" not in context
+    assert ("was bounded" in context) is bounded
+
+
+def test_format_context_dcf_growth_revenue_trend_source_is_described_truthfully():
+    """ADR-043: g1 = tendencia de ventas por mínimos cuadrados; el Expert debe saberlo, no leer 'FCF CAGR'."""
+    from due_diligence.agents.value_expert import _format_context
+    from due_diligence.schemas.reports import ValuationReport
+
+    state = {"ticker": "XOM", "valuation": ValuationReport(
+        ticker="XOM", stub=False, near_term_growth_used_pct=0.059, near_term_growth_source="revenue_trend_9y")}
+    context = _format_context(state)
+    assert "least-squares revenue trend over 9 years" in context
+    assert "FCF CAGR" not in context and "was bounded" not in context
+
+
 def test_format_context_dcf_growth_default_has_caution_warning():
     """Para default_7pct, el bloque debe incluir CAUTION."""
     from due_diligence.agents.value_expert import _format_context
@@ -810,3 +836,25 @@ def test_decision_inputs_show_only_allowed_classes():
     plug = "\n".join(_format_decision_inputs(_frozen("PLUG-base")))     # cíclica y sin valor positivo
     assert "- cyclical_or_low_quality:" in plug and "no entry price" in plug and "- average:" not in plug
     assert "## DECISION INPUTS" in _format_context(_frozen("AAPL-base"))
+
+
+@pytest.mark.parametrize("source,needle", [
+    ("fcf_cagr_5y_capped", "historical FCF CAGR (5 years of data). It was outside [-15%, 15%] and was bounded."),
+    ("fcf_cagr_3y", "historical FCF CAGR (3 years of data)."),
+])
+def test_format_context_fcf_cagr_labels_parsed_cleanly(source, needle):
+    """#5 (revisión): 'fcf_cagr_5y_capped' producía '(5_capped years of data)'."""
+    from due_diligence.agents.value_expert import _format_context
+    from due_diligence.schemas.reports import ValuationReport
+    ctx = _format_context({"ticker": "X", "valuation": ValuationReport(
+        ticker="X", stub=False, near_term_growth_used_pct=0.15, near_term_growth_source=source)})
+    assert needle in ctx and "_capped years" not in ctx
+
+
+def test_format_context_growth_text_makes_no_false_five_year_claim():
+    """#6 (revisión): la base puede ser el último año o el proxy NOPAT; no afirmar 'normalized 5-year'."""
+    from due_diligence.agents.value_expert import _format_context
+    from due_diligence.schemas.reports import ValuationReport
+    ctx = _format_context({"ticker": "X", "valuation": ValuationReport(
+        ticker="X", stub=False, near_term_growth_used_pct=0.05, near_term_growth_source="revenue_trend_9y")})
+    assert "5-year FCFF margin" not in ctx and "DCF base" in ctx

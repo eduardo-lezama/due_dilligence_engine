@@ -22,6 +22,7 @@ from pathlib import Path
 
 from due_diligence.agents.checkpoint import _build_checkpoint2_summary
 from due_diligence.agents.financials import financials_node
+from due_diligence.agents.market import fetch_risk_free_rate
 from due_diligence.agents.supervisor import supervisor_node
 from due_diligence.agents.valuation import valuation_agent
 from due_diligence.schemas.base import MetricValue
@@ -42,14 +43,18 @@ UNIVERSE = [
 ]
 
 
+_RF = None   # tipo sin riesgo: una sola lectura de FRED por ejecución (main lo rellena)
+
+
 def _market(ticker: str) -> MarketReport:
     data = PolygonAdapter.fetch_market_data(ticker)
     as_of = data.get("as_of_date") or "unknown"
 
     def mv(v):
         return MetricValue(value=v, unit="USD", period=as_of, source="Polygon") if v is not None else None
+    # A5 (ADR-043): mismo tipo sin riesgo vivo que market_agent; sin él el diagnóstico usaría el estático.
     return MarketReport(ticker=ticker, stub=False, price_current=mv(data.get("price_current")),
-                        market_cap=mv(data.get("market_cap")))
+                        market_cap=mv(data.get("market_cap")), risk_free_rate=_RF)
 
 
 def diagnose(ticker: str) -> dict:
@@ -76,11 +81,18 @@ def diagnose(ticker: str) -> dict:
         "growth_source": v.near_term_growth_source, "terminal_value_share": v.terminal_value_share,
         "reverse_dcf_growth": v.reverse_dcf_implied_growth, "dcf_base_source": v.dcf_base_source,
         "is_cyclical": getattr(cyc, "is_cyclical", None), "error": v.error,
+        # A3 (ADR-043): rango del DCF con supuestos de la propia historia.
+        **{f"{sc.name}_to_price": (sc.per_share / price if sc.per_share and price else None)
+           for sc in v.dcf_scenarios},
     }
 
 
 def main(argv: list[str]) -> int:
+    global _RF
     tickers = [t.upper() for t in argv] or UNIVERSE
+    _RF = fetch_risk_free_rate()
+    print(f"risk-free rate: {_RF.value}% ({_RF.source} {_RF.period})" if _RF else
+          "risk-free rate: FRED unavailable → static default", flush=True)
     rows = []
     for i, t in enumerate(tickers):
         if i:

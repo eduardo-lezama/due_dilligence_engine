@@ -222,7 +222,8 @@ def _build_checkpoint2_summary(state: AnalysisState) -> dict:
     cagr_5y = state.get("historical_cagr_5y")  # type: ignore[typeddict-item]
 
     # WACC real sugerido (ADR-033). Sin market cap no hay pesos de mercado → fallback explícito.
-    w = suggest_wacc(financials, market_cap)
+    w = suggest_wacc(financials, market_cap,
+                     rf=getattr(market, "risk_free_rate", None) if market is not None else None)
     wacc_default = round(w.wacc * 100, 1) if w is not None else CHECKPOINT2_DEFAULTS["wacc_pct"]
     wacc_breakdown = (
         describe_wacc(w) if w is not None

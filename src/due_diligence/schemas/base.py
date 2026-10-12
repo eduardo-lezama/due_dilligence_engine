@@ -68,6 +68,23 @@ class MetricValue(BaseModel):
     gaap_vs_nongaap: str = "GAAP"  # GAAP o Non-GAAP
 
 
+class ScoreResult(BaseModel):
+    """Un score contable determinista (A2, ADR-043). value=None → no calculable; `reading` dice por qué."""
+    name: str                     # "Piotroski F-score", "Altman Z''", ...
+    value: Optional[float] = None
+    period: str                   # "FY2025" o "FY2025 vs FY2024"
+    reading: str                  # interpretación con el umbral publicado, o "n/a — missing: ..."
+    components: dict[str, Optional[float]] = Field(default_factory=dict)  # señales / ratios usados
+
+
+class AccountingScores(BaseModel):
+    """Calidad contable y riesgo (Piotroski, Altman Z'', Beneish, Sloan). Calculado en código, sin LLM."""
+    piotroski: ScoreResult
+    altman_z2: ScoreResult
+    beneish_m: ScoreResult
+    sloan_accruals: ScoreResult
+
+
 class FinancialsReport(BaseModel):
     """Reporte financiero completo de EDGAR XBRL (100% determinista)."""
     ticker: str  # Ticker de la empresa
@@ -132,6 +149,8 @@ class FinancialsReport(BaseModel):
     cash_series: list[MetricValue] = Field(default_factory=list)   # caja + STI de cada año
     equity_series: list[MetricValue] = Field(default_factory=list)
     invested_capital: Optional[MetricValue] = None   # IC más reciente en USD
+    # Scores contables deterministas (A2, ADR-043). None en fixtures/reports anteriores al bloque A.
+    accounting_scores: Optional[AccountingScores] = None
     stockholders_equity: Optional[MetricValue] = None  # Book equity más reciente en USD
 
     # Meta

@@ -1,6 +1,6 @@
 # ADR-022: Small-Cap Display y Metodología DCF Near-Term Growth
 
-**Status**: Accepted  
+**Status**: Accepted — regla de crecimiento de la etapa 1 (mín(CAGR FCF, CAGR ventas)) sustituida por ADR-043 (2026-10-11)
 **Date**: 2026-05-10  
 **Context**: Análisis de BBW y JBSS (small caps, mkt cap $300M–$1B) reveló tres problemas sistémicos detectados mediante auditoría con modelo externo.
 

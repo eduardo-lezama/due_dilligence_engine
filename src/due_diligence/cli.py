@@ -317,13 +317,19 @@ def _ask_dcf_assumptions(payload: dict, state: dict) -> dict:
         financials=state.get("financials"),
         revenue_cagr=state.get("historical_cagr_5y"),
         user_override_pct=None,
+        revenue_cagr_years=state.get("historical_cagr_years"),
     )
     _SOURCE_LABELS = {
         "default_7pct": "generic fallback (no historical data)",
-        "revenue_cagr_fallback": "revenue CAGR proxy (FCF unavailable)",
+        "revenue_cagr_fallback": "revenue CAGR proxy (FCF unavailable)",   # legacy (H1)
         "cyclical_terminal": "cyclical business: terminal growth (EC-92) — override only for structural growth",
     }
-    source_desc = _SOURCE_LABELS.get(auto_source, auto_source.replace("_", " "))
+    if auto_source.startswith("revenue_trend_"):
+        # ADR-043: tendencia de ventas por mínimos cuadrados (robusta al año de inicio)
+        source_desc = f"least-squares revenue trend, {auto_source.split('_')[2]}" + (
+            ", bounded to [-15%, 15%]" if auto_source.endswith("_capped") else "")
+    else:
+        source_desc = _SOURCE_LABELS.get(auto_source, auto_source.replace("_", " "))
     console.print(
         f"\n[dim]  Auto near-term growth (g1): [bold]{auto_growth:.1%}[/bold] ({source_desc})[/dim]"
     )
@@ -331,10 +337,11 @@ def _ask_dcf_assumptions(payload: dict, state: dict) -> dict:
         f"[dim]  Applied for {auto_s1 if stage1_override is None else stage1_override}y, "
         f"then fades linearly to terminal growth.[/dim]"
     )
-    if "rev_capped" in auto_source:
+    if auto_source.endswith("_capped"):
+        # ADR-043: el automático se acota a [−15 %, 15 %]; el override admite hasta 30 % con tesis.
         console.print(
-            "[yellow]  ⚠ FCF CAGR was capped by revenue CAGR — "
-            "FCF cannot sustainably grow faster than revenue.[/yellow]"
+            "[yellow]  ⚠ Historical CAGR was outside [−15%, 15%] and was bounded — "
+            "sales growth persists weakly. Override only with an explicit thesis.[/yellow]"
         )
     if auto_source == "default_7pct":
         console.print(

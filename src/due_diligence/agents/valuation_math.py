@@ -33,7 +33,7 @@ class ValuationInputError(ValueError):
 
 
 # Tasa libre de riesgo, ERP y beta: un hecho = un lugar. valuation.py las re-exporta (ADR-029).
-RF_PCT: float = 4.2     # US 10y, as of 2026-05 — actualizar manualmente (rf dinámica = H3)
+RF_PCT: float = 4.2     # US 10y, as of 2026-05 — SOLO fallback si FRED no responde (Rf vivo: A5, ADR-043)
 ERP_PCT: float = 5.0    # Damodaran historical ERP (US)
 BETA_DEFAULT: float = 1.0
 

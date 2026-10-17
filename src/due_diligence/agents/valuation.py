@@ -1462,8 +1462,13 @@ def _run_valuation(state: AnalysisState) -> dict:
     # adquisiciones grandes. Si se separa > 4 pp del CAGR de 5 años se avisa; g NO cambia (usar el CAGR
     # de 5 años reintroduciría el rebote post-COVID que A1 corrigió: XOM 13 %).
     growth_structural_break: Optional[str] = None
+    # Si las dos cifras quedan fuera de [−15 %, 15 %] por el mismo lado, el g usado es el límite en ambos
+    # casos y el aviso solo añade ruido (ACMR 2026-10-17: tendencia 50 % frente a CAGR 42 %).
+    both_beyond_bounds = raw_cagr is not None and revenue_cagr is not None and (
+        min(raw_cagr, revenue_cagr) > _MAX_AUTO_GROWTH or max(raw_cagr, revenue_cagr) < _MIN_NEAR_TERM_GROWTH)
     if (near_term_growth_source.startswith("revenue_trend_") and revenue_cagr is not None
-            and raw_cagr is not None and abs(raw_cagr - revenue_cagr) > _STRUCTURAL_BREAK_PP):
+            and raw_cagr is not None and abs(raw_cagr - revenue_cagr) > _STRUCTURAL_BREAK_PP
+            and not both_beyond_bounds):
         growth_structural_break = (
             f"⚠️ Possible structural break: the {near_term_growth_source.split('_')[2]} revenue trend "
             f"({raw_cagr:.1%}) and the {revenue_cagr_years or 5}y revenue CAGR ({revenue_cagr:.1%}) differ by "

@@ -795,3 +795,27 @@ def test_backfill_uses_first_plain_concept_when_latest_point_comes_from_facts():
               {"value": 100.0, "period": "FY2023", "source": "Revenues"}]
     out = xe.backfill_gaps(series, FakeFacts({("Revenues", "FY2024"): 110.0}))
     assert [(i["period"], i["value"]) for i in out] == [("FY2025", 120.0), ("FY2024", 110.0), ("FY2023", 100.0)]
+
+
+# --- EC-112: series de acciones reexpresadas por splits ---
+def _shares(values, start=2025):
+    return [{"value": v, "period": f"FY{start - i}", "source": "WeightedAverageNumberOfDilutedSharesOutstanding"}
+            for i, v in enumerate(values)]
+
+
+def test_split_adjustment_restates_years_before_the_split():
+    from due_diligence.tools.xbrl_extract import adjust_for_splits
+    # ACMR: 3:1 en 2022 (21,8 M → 65,3 M); AAPL: 4:1 en 2020 con ~6 % de recompras ese año (×3,77).
+    out, flags = adjust_for_splits(_shares([67.3e6, 65.3e6, 21.8e6, 21.2e6]), "diluted")
+    assert [round(i["value"] / 1e6, 1) for i in out] == [67.3, 65.3, 65.4, 63.6]
+    assert len(flags) == 1 and "3:1" in flags[0] and "FY2023" in flags[0] and "split-adjusted ×3" in out[3]["source"]
+    out, flags = adjust_for_splits(_shares([17_528e6, 4_649e6]), "diluted")
+    assert "4:1" in flags[0] and out[1]["value"] == pytest.approx(4_649e6 * 4)
+
+
+def test_split_adjustment_leaves_normal_series_and_handles_reverse_splits():
+    from due_diligence.tools.xbrl_extract import adjust_for_splits
+    normal = _shares([4_313e6, 4_320e6, 4_339e6, 4_350e6])            # KO: recompras normales
+    assert adjust_for_splits(normal, "diluted") == (normal, [])
+    out, flags = adjust_for_splits(_shares([10e6, 100e6]), "diluted")  # contrasplit 1:10
+    assert "1:10" in flags[0] and out[1]["value"] == pytest.approx(10e6)

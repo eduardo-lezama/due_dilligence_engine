@@ -825,6 +825,11 @@ Formato corto desde el bloque B: síntoma → causa → fix. El commit se locali
 - **Síntoma**: "[10-K Item 1](10-K Item 1)" en el apéndice de citas; CALM con "16,6 %" y "11,7 %" de CAGR de ventas en el mismo informe sin decir que eran ventanas distintas (5 años frente a 10 en cíclicas).
 - **Fix**: enlace solo si la fuente es una URL (`archiver._source_link`); la tabla de convergencia imprime los años de la CAGR (`historical_years`). La marca GAAP/Non-GAAP de cada cita se muestra (invariante 2).
 
+### EC-112 — Series de acciones sin reexpresar tras un split (ACMR, AAPL, ORLY, NVDA)
+- **Síntoma** (análisis real de ACMR, 2026-10-17): "Diluted share count +26 % al año" y el Expert citó la "dilución" como riesgo financiero; la real es +1,2 % anual.
+- **Causa**: companyfacts guarda cada año con la cifra del 10-K que lo publicó; tras un split los años previos siguen en acciones antiguas (ACMR 21,8 M → 65,3 M en 2022, split 3:1). Afectaba a la variación de acciones de la sección de calidad y a la señal "sin emisión de acciones" del Piotroski. La valoración no, porque solo usa el último año.
+- **Fix**: `xbrl_extract.adjust_for_splits` en la frontera (ADR-042): un salto entre años consecutivos a ±10 % de 2, 3, 4, 5, 6, 8, 10, 15, 20, 25 o 50 (o su inverso) reexpresa los años anteriores, con flag visible. El ±10 % es necesario: AAPL (4:1 en 2020) salta ×3,77 por las recompras de ese año. Verificado en las 33 empresas del diagnóstico (solo AAPL y ORLY, ambas splits reales) y en ACMR y NVDA. **Limitación**: una salida a bolsa que casi dobla las acciones (ACMR 2016→2017, ×1,82) se marca como 2:1; queda fuera de las ventanas usadas y el flag lo hace visible.
+
 ## Conocidos — pendientes (bloque B)
 
 - **EC-107 — Empresas sin EBIT etiquetado en XBRL (CVX, JNJ)**: `OperatingIncomeLoss` no existe en su XBRL (JNJ: un solo año). Sin EBIT no hay EPV, la ciclicidad sale "no evaluada" (ahora visible) y el NOPAT terminal cae al último año disponible. Fix candidato: EBIT = resultado antes de impuestos + intereses, derivado y etiquetado como tal; requiere verificarlo con datos reales (lección de EC-104).

@@ -142,6 +142,25 @@ Varias de las revisiones convergen en lo mismo:
 
 **Estado 2026-10-17:** B0–B3 implementados (ADR-044, ADR-045). B4 y B5 en espera. La deuda de la puerta está en `tests/evals/baselines/pending_gate.json`.
 
+**Pendiente del bloque B, anotado a petición de Eduardo:**
+- **B4 (necesita LLM):**
+  - re-congelar el dataset de evals con el código actual;
+  - pasar la puerta y regenerar las baselines;
+  - borrar `pending_gate.json`;
+  - tests metamórficos del Expert (precio a la mitad, anonimizado);
+  - rúbrica a ciegas sobre 10 informes;
+  - vigilar el reparto de etiquetas.
+- **B5:** analizar 3–5 empresas reales y que Eduardo lea los informes. Hecho uno, ACMR del 2026-10-17, con los fallos que corrigió EC-112.
+- **Decisiones de modelo para después de B5:**
+  - prima de riesgo implícita frente al 5 % fijo;
+  - RONIC del valor terminal en negocios con ventaja duradera (MCE-39);
+  - rediseño del checkpoint socrático (una pregunta de tesis diferencial).
+- **Necesitan datos o LLM:**
+  - validación semántica de citas (MCE-31);
+  - múltiplos frente a la propia historia (MCE-40);
+  - backtest de la capa determinista (MCE-41).
+- **Bloque C (2026-10-17):** lo determinista que no necesita evals.
+
 ## 6. Lo que NO hacer (sin evidencia, o sobreingeniería)
 
 **Capa de LLM:**

@@ -179,3 +179,14 @@ def test_loss_making_history_keeps_the_latest_ebit_instead_of_a_negative_normali
     from due_diligence.agents.valuation import _normalized_ebit
     fin = _financials(ebit=(300e6, -200e6, -250e6, -100e6, -150e6))   # giro reciente a beneficios
     assert _normalized_ebit(fin, None) == (None, "")
+
+
+def test_structural_break_is_silent_when_both_growth_figures_exceed_the_cap():
+    # ACMR (2026-10-17): tendencia 50 % y CAGR 42 % → g = 15 % en ambos casos; el aviso era ruido.
+    st = _state()
+    rev = (2_000e6, 1_300e6, 900e6, 600e6, 400e6)
+    st["financials"] = st["financials"].model_copy(update={         # márgenes estables: no es cíclica
+        "revenue": _series(rev), "operating_income": _series([r * 0.15 for r in rev])})
+    st["historical_cagr_5y"], st["historical_cagr_years"] = 0.42, 5
+    v = valuation_agent(st)["valuation"]
+    assert v.near_term_growth_source.endswith("_capped") and v.growth_structural_break is None

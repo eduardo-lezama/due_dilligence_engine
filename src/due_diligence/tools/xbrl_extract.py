@@ -832,6 +832,48 @@ def resolve_filing_shares(cover: list[tuple[float, str | None]],
                      f"({cover_sum:,.0f}); conversion ratios not applied")}
 
 
+# EC-112: ratios de split habituales y tolerancia. Un salto de ese tamaño entre dos años consecutivos de la
+# media ponderada de acciones no es emisión: es un split que companyfacts no reexpresa en los años antiguos.
+_SPLIT_RATIOS = (2, 3, 4, 5, 6, 8, 10, 15, 20, 25, 50)   # 15: ORLY 2025; 20: GOOGL/AMZN 2022
+# ±10 %: el mismo año del split hay recompras o emisiones normales. AAPL (4:1 en 2020) salta ×3,77 porque
+# recompró ~6 % de sus acciones ese año; con ±5 % no se detectaba (verificado con datos reales 2026-10-17).
+_SPLIT_TOLERANCE = 0.10
+
+
+def adjust_for_splits(series: list[dict], name: str) -> tuple[list[dict], list[str]]:
+    """Reexpresa los años anteriores a un split para que la serie de acciones sea comparable (EC-112).
+
+    companyfacts guarda cada año con la cifra del 10-K que lo publicó: tras un split 3:1 (ACMR, 2022) los
+    años previos siguen en acciones antiguas y la serie "salta" ×3. Sin ajuste, la sección de calidad
+    mostraba una dilución del +26 % anual (la real: +1 %) y el Piotroski veía emisión de acciones.
+    Regla: si entre dos años consecutivos (más reciente primero) el cociente nuevo/antiguo está a ±10 % de
+    un ratio de split habitual (o de su inverso, para contrasplits), todos los años más antiguos se
+    multiplican por ese ratio. Cada ajuste deja un flag visible: un aumento real de ×2–×20 en un año
+    (fusión por acciones) se marcaría como split, y el lector debe poder verlo.
+    """
+    out = [dict(i) for i in series]
+    flags: list[str] = []
+    for k in range(len(out) - 1):
+        newer, older = out[k]["value"], out[k + 1]["value"]
+        if not newer or not older or newer <= 0 or older <= 0:
+            continue
+        ratio = newer / older
+        factor = next((r for r in _SPLIT_RATIOS if abs(ratio - r) <= _SPLIT_TOLERANCE * r), None)
+        if factor is None:
+            inv = next((r for r in _SPLIT_RATIOS if abs(1 / ratio - r) <= _SPLIT_TOLERANCE * r), None)
+            factor = 1 / inv if inv else None
+        if factor is None:
+            continue
+        for item in out[k + 1:]:
+            if item["value"]:
+                item["value"] *= factor
+            item["source"] = f"{item['source']} (split-adjusted ×{factor:g})"
+        label = f"{factor:g}:1" if factor >= 1 else f"1:{1 / factor:g}"
+        flags.append(f"{name}: stock split {label} detected between {out[k + 1]['period']} and "
+                     f"{out[k]['period']} — earlier years restated (×{factor:g}) so the series is comparable")
+    return out, flags
+
+
 def _with_as_converted(series: list[dict], as_converted: float | None, fy_label: str) -> list[dict]:
     """Añade la diluida as-converted del 10-K si la serie de companyfacts no tiene el año.
 
@@ -914,6 +956,13 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
     revenue = fill(revenue)
     labels = [i["period"] for i in revenue]
     dfs = (inc_df, cf_df)
+    # EC-112: series de acciones reexpresadas por splits (con flag visible por cada ajuste).
+    diluted, diluted_split_flags = adjust_for_splits(
+        _with_as_converted(extract_annual(DILUTED_W, (inc_df,), facts, labels), as_converted_diluted, fy_label),
+        "diluted weighted shares")
+    basic, basic_split_flags = adjust_for_splits(extract_annual(BASIC_W, (inc_df,), facts, labels),
+                                                 "basic weighted shares")
+    flags += diluted_split_flags + basic_split_flags
     if flags:
         log.warning("balance_data_quality_flags", ticker=ticker, flags=flags)
 
@@ -968,9 +1017,8 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
             "interest_income": extract_annual(INTEREST_INCOME, dfs, facts, labels),
             "sbc": extract_annual(SBC, (cf_df, inc_df), facts, labels),
             "depreciation_amortization": extract_annual(DA, (cf_df, inc_df), facts, labels),
-            "diluted_shares": _with_as_converted(extract_annual(DILUTED_W, (inc_df,), facts, labels),
-                                                 as_converted_diluted, fy_label),
-            "basic_shares_weighted": extract_annual(BASIC_W, (inc_df,), facts, labels),
+            "diluted_shares": diluted,               # EC-101 as-converted + EC-112 split-adjusted
+            "basic_shares_weighted": basic,          # EC-112 split-adjusted (Piotroski: emisión de acciones)
             "sga": derive_sga(extract_annual(SGA, (inc_df,), facts, labels), inc_df, facts, labels),  # A2: Beneish
             "finance_lease_principal_payments": extract_annual(FIN_LEASE_PRINCIPAL, (cf_df,), facts, labels),
         },

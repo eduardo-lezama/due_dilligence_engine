@@ -15,7 +15,7 @@ import re
 import pytest
 
 from due_diligence import cli
-from due_diligence.agents import archiver, critic, value_expert
+from due_diligence.agents import archiver, critic, report_facts, value_expert
 from due_diligence.schemas.base import FinancialsReport
 from due_diligence.schemas.reports import ValuationReport  # noqa: E402
 from due_diligence.schemas.reports import (
@@ -25,9 +25,11 @@ from due_diligence.schemas.reports import (
     ManagementReport,
 )
 
-# Consumidores: los cuatro módulos que convierten datos en decisión o en informe.
+# Consumidores: los módulos que convierten datos en decisión o en informe. report_facts (bloque B)
+# redacta los hechos que comparten el informe, el contexto del Expert y la consola.
 _CONSUMER_SRC = (inspect.getsource(value_expert) + inspect.getsource(critic)
-                 + inspect.getsource(archiver) + inspect.getsource(cli))
+                 + inspect.getsource(archiver) + inspect.getsource(cli)
+                 + inspect.getsource(report_facts))
 
 _FCFF_BLOCK_C = "insumo de la valoración FCFF/bridge/WACC (T10–T13, bloque C, en paralelo)"
 

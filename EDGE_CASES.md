@@ -352,7 +352,7 @@ Registro conciso de edge cases detectados en producción. Cada entrada: síntoma
 
 ## Conocidos — pendientes de fix
 
-- **Detector cíclico — falsos positivos en empresas que pasan de pérdidas a beneficios (EC-92/ADR-034)**: al congelar el dataset de H2-1, PATH (software) y PLUG salen `is_cyclical=True`: con margen mediano ≤ 0 la regla acepta cualquier pico ≥ 8 pp, y un giro a beneficios lo es. Efecto: g1 = crecimiento terminal para una empresa en crecimiento. Calibración original con 7 empresas sin este perfil. Revisar con el harness (no cambiar el dataset congelado).
+- **[RESUELTO 2026-10-17, bloque B / ADR-044]** **Detector cíclico — falsos positivos en empresas que pasan de pérdidas a beneficios (EC-92/ADR-034)**: al congelar el dataset de H2-1, PATH (software) y PLUG salen `is_cyclical=True`: con margen mediano ≤ 0 la regla acepta cualquier pico ≥ 8 pp, y un giro a beneficios lo es. Efecto: g1 = crecimiento terminal para una empresa en crecimiento. Calibración original con 7 empresas sin este perfil. Revisar con el harness (no cambiar el dataset congelado).
 - **BBW con +299 % de upside de DCF en el dataset H2-1**: revisar si es real o un artefacto de la base FCFF/crecimiento.
 - ~~**Filings sin citas verificadas en 6/13 casos del dataset H2-1**~~ — RESUELTO 2026-10-10 cambiando los especialistas a gpt-6-luna (ADR-039): 13/13 casos con evidencia en los tres especialistas.
 
@@ -360,7 +360,7 @@ Hallazgos de la primera baseline del harness (H2-1, `tests/evals/baselines/full.
 - **[RESUELTO en parte 2026-10-11, ADR-040 + ADR-041]** **HOLD por defecto (síntoma de H1 confirmado con datos)**: 14/14 casos HOLD por mayoría en full-1 (13/14 en full-2). AZO con los 3 métodos calculables "expensive" (DCF −66 %) → HOLD; PLUG (ROIC −99,9 %, sin moat, FCF −647 M) → HOLD 4 de 5. HOLD absorbe "buena empresa cara" y "empresa rota". Fix previsto: H2-2 (taxonomía BUY/WATCHLIST/PASS/SELL), validado con la puerta.
 - **[RESUELTO 2026-10-10 con gpt-6.1-sol, ADR-040]** **Regla 24 incumplida**: con 3 hipótesis del inversor, §8 las evalúa con palabras en minúscula ("partially supported", "unsupported", "untestable") en vez de las etiquetas SUPPORTED/CONTRADICTED/UNTESTABLE en 5/5 repeticiones; el validador del código añade el aviso (repairs ≈ 1). Fix: cambio de prompt → primer uso real de la puerta.
 - **[RESUELTO 2026-10-10 con gpt-6.1-sol: 0,07–0,19 cifras/informe]** **El Expert calcula porcentajes propios (invariante 1)**: ~1,5 cifras sin respaldo por informe, casi todas distancias calculadas por el LLM (precio de venta de insiders frente al precio actual: "15.5% below current price"; margen bruto trimestral). Aritmética correcta en la muestra, pero son números generados por el LLM. Fix candidato: dar esas distancias calculadas en el contexto (Form 4 vs precio). 3/114 son falsos positivos de signo del check ("48.5% below" frente a "−48.5%"), aceptados.
-- **Valoración con sesgo sistemático a la baja (2026-10-11, `docs/audits/2026-10-11-valuation-diagnostic.md`)**: en 33 empresas, la mediana DCF/precio de las 14 de calidad es 0,41 (EPV 0,35); DCF y EPV de la misma empresa discrepan hasta 3–4×. El veredicto H2 hereda estos números. Causa raíz: un método y un prompt para todo tipo de empresa → plan "valoración por perfiles".
+- **[RESUELTO 2026-10-17 en lo que dependía del modelo: bloques A y B, ADR-043/044; el resto es precio de mercado, ver `docs/audits/2026-10-17-big-picture-review.md`]** **Valoración con sesgo sistemático a la baja (2026-10-11, `docs/audits/2026-10-11-valuation-diagnostic.md`)**: en 33 empresas, la mediana DCF/precio de las 14 de calidad es 0,41 (EPV 0,35); DCF y EPV de la misma empresa discrepan hasta 3–4×. El veredicto H2 hereda estos números. Causa raíz: un método y un prompt para todo tipo de empresa → plan "valoración por perfiles".
 - **[RESUELTO 2026-10-11, bloque A / ADR-043]** **Crecimiento del DCF = CAGR de FCF 5 años**: extrapola caídas puntuales (KO −9 %, ORLY −8 %, XOM −10 %, NKE −15 %) y ciclos de capex (MSFT 3,6 %). Solo se acota por arriba (CAGR de ingresos), nunca por abajo.
 - **[RESUELTO 2026-10-11, EC-101]** **Acciones multiclase en la valoración**: V 0,469 B acciones (≈1,9 B reales), MA 0,123 B (0,906 diluidas) → valor por acción inflado 3–7×. Probable también en GOOGL. Misma familia que EC-93.
 - **[RESUELTO 2026-10-11, EC-103]** **MA sin beneficio neto**: `annual.net_income` vacío para MA (la cadena es solo `NetIncomeLoss`; MA debe de usar otro concepto). Afecta a ROE, payout y a cualquier cálculo que use el beneficio neto. Detectado al verificar EC-101; pendiente de F0.
@@ -801,3 +801,31 @@ Hallazgos de la primera baseline del harness (H2-1, `tests/evals/baselines/full.
 - **Causa raíz**: MA publica sus ingresos netos como `Revenues` todos los años y, en 2018–2021, también los BRUTOS (antes de rebates e incentivos, que presenta como menor ingreso) como `RevenueFromContractWithCustomerExcludingAssessedTax`. edgartools fusiona ambos en una fila curada y nuestra cadena prefería `RevenueFromContract…`. Mismo patrón en ADP 2017–18 (componente de 9,0 B$ frente a 13,3 B$ totales) y PFE 2023 (50,9 frente a 59,6). Anterior al bloque A (ya estaba en el diagnóstico post-F0).
 - **Fix**: `prefer_total_revenue` (`tools/xbrl_extract.py`): si la línea total `Revenues` (raw facts) difiere más de un 10 % del concepto elegido ese año, manda la total (fuente "facts:Revenues (total line; … differed X%)"). No se cambia "siempre a Revenues": medido en 33 empresas, `Revenues` incluye a veces otros ingresos (CVX, XOM ~3 %) o difiere por alcance (KO, MCD ±1–4 %); una diferencia pequeña es de alcance y una grande es otra magnitud. Resultado: solo cambian MA 2018–21, ADP 2017–18 y PFE 2023. Tests en `tests/test_xbrl_extract.py`.
 - **Commit**: ver `git log --grep "EC-105"`
+
+## Bloque B (2026-10-17, revisión `docs/audits/2026-10-17-big-picture-review.md`)
+
+Formato corto desde el bloque B: síntoma → causa → fix. El commit se localiza con `git log --grep "EC-NNN"`.
+
+### EC-106 — Secciones del 10-K vacías o recortadas sin aviso (KO, JNJ, AAPL)
+- **Síntoma**: el Filings agent recibía el Item 1 y el Item 7 de KO y JNJ VACÍOS y el 1A de JNJ con 2.338 caracteres (una referencia cruzada); el 1A de AAPL llegaba recortado a 25.000 de 68.163 caracteres. Nada de esto se veía en el informe.
+- **Causa**: el parser de secciones de edgartools devuelve `items: []` en algunos 10-K; el fallback por regex solo existía para el 1A y tomaba la ÚLTIMA aparición del encabezado. El recorte era un `[:max_chars]` silencioso (invariante 5).
+- **Fix**: `tools/tenk_sections.py` localiza las secciones 1, 1A y 7 en el texto completo (encabezado al inicio de línea, segmento más largo, cierre en el Item siguiente o en otro encabezado conocido); límite de 60.000 caracteres con marca `[TRUNCATED: …]`; `FilingsRAGReport.sections_missing/sections_truncated` llegan a DATA GAPS del Expert y a "Data quality flags" del informe. Verificado con los 10-K de KO, JNJ, AAPL, BBW y MSFT. Limitación: formatos de una palabra por línea (CALM) no se localizan, pero ahí funciona el parser primario.
+
+### EC-108 — Latencia de 16 h en la base de datos (ZBRA, MRCY)
+- **Síntoma**: `latency_ms` de hasta 59.443.355 (16,5 h).
+- **Causa**: el CLI medía tiempo de reloj desde el inicio, incluido el tiempo que el usuario tarda en responder los checkpoints.
+- **Fix**: la latencia suma solo el tiempo de `graph.invoke` (`cli.analyze_cmd._invoke`). Las filas antiguas no se reescriben: su latencia incluye la espera humana.
+
+### EC-109 — Etiqueta de tendencia del ROIC contradictoria (BBW "RISING" con el ROIC bajando)
+- **Síntoma**: informe BBW del 2026-10-03: serie FY2022 101 % → FY2026 43 % y etiqueta "authoritative RISING".
+- **Causa**: (1) antes de F0 el último año aparecía al FINAL de la serie (EC-100) y se comparaba con otro año; (2) la comparación `último > antiguo × 1,05` da RISING con ROIC negativos que empeoran (−28 % → −29 %).
+- **Fix**: `report_facts.roic_trend`: ordena por año fiscal y usa una tolerancia absoluta (5 % del nivel de partida, mínimo 1 pp). La usan el contexto del Expert y la sección de calidad del informe.
+
+### EC-110 — Enlaces rotos y CAGR sin años en el informe (CALM, AAPL)
+- **Síntoma**: "[10-K Item 1](10-K Item 1)" en el apéndice de citas; CALM con "16,6 %" y "11,7 %" de CAGR de ventas en el mismo informe sin decir que eran ventanas distintas (5 años frente a 10 en cíclicas).
+- **Fix**: enlace solo si la fuente es una URL (`archiver._source_link`); la tabla de convergencia imprime los años de la CAGR (`historical_years`). La marca GAAP/Non-GAAP de cada cita se muestra (invariante 2).
+
+## Conocidos — pendientes (bloque B)
+
+- **EC-107 — Empresas sin EBIT etiquetado en XBRL (CVX, JNJ)**: `OperatingIncomeLoss` no existe en su XBRL (JNJ: un solo año). Sin EBIT no hay EPV, la ciclicidad sale "no evaluada" (ahora visible) y el NOPAT terminal cae al último año disponible. Fix candidato: EBIT = resultado antes de impuestos + intereses, derivado y etiquetado como tal; requiere verificarlo con datos reales (lección de EC-104).
+- **EC-111 — Ruido en las noticias por coincidencia de palabras (Tavily)**: CALM traía "Everybody Calm Down About GameStop" y SERV un menú de navegación de Yahoo. La búsqueda extendida usa el nombre corto de la empresa. Fix candidato: consulta con ticker + nombre legal y filtro por mención del ticker. Desde el bloque B las noticias están en el apéndice del informe, no en la primera página.

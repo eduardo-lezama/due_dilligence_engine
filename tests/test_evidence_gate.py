@@ -62,7 +62,6 @@ def test_report_says_no_verified_evidence_instead_of_skipping():
 # --- B2: productores de evidencia (filings) ---
 import inspect  # noqa: E402
 
-import pytest  # noqa: E402
 
 from due_diligence.agents.filings import filings_agent  # noqa: E402
 from due_diligence.schemas.llm_outputs import CitationOut, FilingsLLMOutput  # noqa: E402

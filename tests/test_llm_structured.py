@@ -34,23 +34,12 @@ def test_runstats_exact_match_wins_over_prefix():
     assert s.cost_usd == pytest.approx(0.40)      # precio oficial (antes la tabla decía 0,20)
 
 
-def test_complete_legacy_omits_temperature_for_claude_models_that_reject_it(monkeypatch):
+def test_temperature_only_sent_to_claude_models_that_accept_it():
     """Opus 4.7+/Sonnet 5.5/Fable devuelven 400 si se envía temperature (skill claude-api, 2026-09)."""
-    from unittest.mock import MagicMock
-    import due_diligence.config as cfg
-    from due_diligence.llm.client import LLMClient
+    from due_diligence.llm.client import _claude_accepts_temperature
 
-    monkeypatch.setattr(cfg.settings, "anthropic_api_key", "sk-test")
-    fake = MagicMock()
-    fake.messages.create.return_value = MagicMock(
-        content=[MagicMock(type="text", text="ok")], usage=MagicMock(input_tokens=1, output_tokens=1))
-    c = LLMClient()
-    c._anthropic = fake
-    c.complete([{"role": "user", "content": "x"}], model="claude-opus-5-5")
-    assert "temperature" not in fake.messages.create.call_args.kwargs
-    c.complete([{"role": "user", "content": "x"}], model="claude-sonnet-4-6")
-    assert fake.messages.create.call_args.kwargs["temperature"] == 0.2
-    assert c.get_run_stats().calls_by_model == {"claude-opus-5-5": 1, "claude-sonnet-4-6": 1}
+    assert not _claude_accepts_temperature("claude-opus-5-5")
+    assert _claude_accepts_temperature("claude-sonnet-4-6")
 
 
 def test_new_openai_models_have_official_prices():

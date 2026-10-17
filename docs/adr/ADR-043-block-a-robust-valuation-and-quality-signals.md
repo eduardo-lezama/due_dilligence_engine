@@ -72,7 +72,7 @@ Antes de tocar nada se midió dónde estaba el sesgo:
    - **Días:** aparecen en cada grupo.
 9. **Puerta de evals.** El dataset del harness guarda la valoración congelada con el código anterior, así que pasar la puerta ahora no ejercitaría ningún cambio.
    - **Rama nueva del Expert** (descripción de la fuente del crecimiento): cubierta con tests unitarios.
-   - **Re-congelar el dataset y regenerar las baselines:** es el paso correcto, porque F0 y el bloque A cambian lo que recibe el Expert. Tiene coste de LLM y queda pendiente de que Eduardo lo apruebe.
+   - **Re-congelar el dataset y regenerar las baselines:** pasa a B4 del bloque B (2026-10-17). Se hará UNA vez, después de B1–B3, que vuelven a cambiar lo que recibe el Expert; hacerlo ahora sería pagar dos veces. La deuda queda registrada en `tests/evals/baselines/pending_gate.json`.
 
 ## Alternatives considered
 
@@ -100,7 +100,7 @@ Antes de tocar nada se midió dónde estaba el sesgo:
   - etiquetas del CLI.
 
   Quedan dos:
-  - **#7, la puerta:** decisión de Eduardo.
+  - **#7, la puerta:** pasa a B4 del bloque B (ver decisión 9).
   - **#9, refactor menor:** no se hace.
 
 ## Resultados (diagnóstico de 33 empresas, sin LLM, 2026-10-11)

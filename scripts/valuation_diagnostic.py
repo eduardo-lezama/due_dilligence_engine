@@ -1,16 +1,21 @@
 """
 valuation_diagnostic — calibración de la valoración sobre un universo amplio, sin LLM (post-H2-2).
 
-Por qué existe: todo el veredicto H2 (margen de seguridad, precio de entrada) se apoya en el DCF y el EPV,
-y en los casos congelados ambos métodos discrepan hasta 3–4× y las empresas de calidad salen "caras" por
-mucho. Antes de construir más encima hay que saber si la valoración está bien calibrada. Este script
-ejecuta solo los nodos deterministas (supervisor → financials → precio Polygon → valuation, con los
-defaults del checkpoint 2) para un universo de empresas conocidas y guarda, por empresa, valor/precio,
-DCF/EPV, crecimiento implícito y los supuestos que lo explican. Coste LLM: 0.
+Por qué existe: el veredicto se apoya en la valoración determinista. Este script ejecuta solo los nodos
+deterministas (supervisor → financials → precio Polygon → valuation, con los defaults del checkpoint 2)
+para un universo de empresas conocidas y guarda, por empresa, valor/precio, DCF/EPV, crecimiento
+implícito, rentabilidad implícita frente al listón y los supuestos que lo explican. Coste LLM: 0.
+
+Pruebas metamórficas (bloque B, ADR-044; criterios 4 y 5 de docs/research/2026-10-11-valuacion-por-
+perfiles.md): con el precio un 40 % más bajo, ¿cuántas empresas de calidad quedarían en o por debajo del
+precio de entrada? (si casi ninguna: el sistema es incapaz de ver oportunidades). Con el precio un 40 %
+más alto, ¿alguna? (si sí: es laxo). El precio de entrada no depende del precio salvo por los pesos del
+WACC, que se mantienen (aproximación). El objetivo NO es una banda de valor/precio: eso calibraría el
+modelo contra el propio precio (revisión 2026-10-17, S2).
 
 Uso (red: EDGAR + Polygon; Polygon gratis = 5 llamadas/min, por eso va pausado):
     PYTHONUTF8=1 uv run python scripts/valuation_diagnostic.py [TICKER ...]
-Salida: data/evals/valuation_diag/<fecha>.json (+ tabla en consola).
+Salida: data/evals/valuation_diag/<fecha>.json (universo completo) o <fecha>-custom.json (tickers sueltos).
 """
 from __future__ import annotations
 
@@ -41,6 +46,7 @@ UNIVERSE = [
     "NKE", "TGT", "INTC", "PFE", "VZ",                                            # en dificultades / maduras
     "BBW", "PRDO", "KBR", "QLYS", "CALM", "PATH", "PLUG",                         # dataset de evals
 ]
+QUALITY = UNIVERSE[:15]   # calidad + defensivas: el grupo de las pruebas metamórficas
 
 
 _RF = None   # tipo sin riesgo: una sola lectura de FRED por ejecución (main lo rellena)
@@ -84,6 +90,29 @@ def diagnose(ticker: str) -> dict:
         # A3 (ADR-043): rango del DCF con supuestos de la propia historia.
         **{f"{sc.name}_to_price": (sc.per_share / price if sc.per_share and price else None)
            for sc in v.dcf_scenarios},
+        # Bloque B (ADR-044): rentabilidad implícita frente al listón y precio de entrada.
+        "hurdle": v.hurdle_rate, "implied_return": v.implied_return, "implied_return_note": v.implied_return_note,
+        **{f"{sc.name}_return": sc.implied_return for sc in v.dcf_scenarios},
+        "entry_price": v.entry_price, "entry_basis": v.entry_basis,
+        "entry_to_price": v.entry_price / price if v.entry_price and price else None,
+        "structural_break": v.growth_structural_break is not None,
+        "cyclicality_assessed": getattr(cyc, "assessed", None), "loss_making": getattr(cyc, "loss_making", None),
+    }
+
+
+def metamorphic_summary(rows: list[dict]) -> dict:
+    """Pruebas con el precio ±40 %: elegibles = precio × factor ≤ precio de entrada."""
+    def eligible(r: dict, factor: float) -> bool:
+        return bool(r.get("entry_price") and r.get("price") and r["price"] * factor <= r["entry_price"])
+    valid = [r for r in rows if not r.get("error") and r.get("price")]
+    quality = [r for r in valid if r["ticker"] in QUALITY]
+    return {
+        "quality_n": len(quality),
+        "quality_eligible_now": sum(eligible(r, 1.0) for r in quality),
+        "quality_eligible_price_down_40": sum(eligible(r, 0.6) for r in quality),
+        "all_eligible_now": sum(eligible(r, 1.0) for r in valid),
+        "all_eligible_price_up_40": sum(eligible(r, 1.4) for r in valid),
+        "all_n": len(valid),
     }
 
 
@@ -100,15 +129,20 @@ def main(argv: list[str]) -> int:
         try:
             rows.append(diagnose(t))
             r = rows[-1]
+            ir = r["implied_return"]
             print(f"{t:6} price={r['price']} dcf/p={r['dcf_to_price'] and round(r['dcf_to_price'], 2)} "
                   f"epv/p={r['epv_to_price'] and round(r['epv_to_price'], 2)} wacc={r['wacc_pct']} "
-                  f"g={r['near_term_growth_pct']} ({r['growth_source']})", flush=True)
+                  f"g={r['near_term_growth_pct']} ({r['growth_source']}) "
+                  f"return={f'{ir:.1%}' if ir is not None else r['implied_return_note']} "
+                  f"entry/p={r['entry_to_price'] and round(r['entry_to_price'], 2)}", flush=True)
         except Exception as e:      # datos externos: anotar y seguir
             rows.append({"ticker": t, "error": f"{type(e).__name__}: {e}"})
             print(f"{t:6} FAILED {type(e).__name__}: {e}", flush=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    out = OUT_DIR / f"{date.today().isoformat()}.json"
+    # Una ejecución con tickers sueltos no pisa la del universo completo del mismo día.
+    out = OUT_DIR / f"{date.today().isoformat()}{'' if tickers == UNIVERSE else '-custom'}.json"
     out.write_text(json.dumps(rows, indent=1), encoding="utf-8")
+    print(f"metamorphic (price ±40%): {metamorphic_summary(rows)}")
     print(f"saved {out}")
     return 0
 

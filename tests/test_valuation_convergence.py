@@ -1,7 +1,6 @@
 """
 Tests para convergence signaling — classifiers y _build_methods_summary (ADR-030).
 """
-import pytest
 from due_diligence.agents.valuation import (
     _classify_dcf_upside,
     _classify_epv_upside,
@@ -157,21 +156,11 @@ def test_build_methods_summary_na_when_no_data():
 
 def test_three_stage_less_than_flat():
     """Fade debe producir valor menor que growth flat del mismo g1."""
-    from due_diligence.agents.valuation import _two_stage_dcf
-    flat = _two_stage_dcf(100e6, 0.10, 0.025, 0.09, 10)
+    flat = _three_stage_dcf(100e6, 0.10, 0.025, 0.09, stage1_years=10, fade_years=0)
     staged = _three_stage_dcf(100e6, g1=0.10, terminal_growth=0.025,
                                wacc=0.09, stage1_years=5, fade_years=5)
     assert staged < flat
     assert staged > 0
-
-
-def test_three_stage_fade_zero_equals_two_stage():
-    """fade_years=0 debe ser idéntico al 2-stage original."""
-    from due_diligence.agents.valuation import _two_stage_dcf
-    v1 = _two_stage_dcf(100e6, 0.10, 0.025, 0.09, 10)
-    v2 = _three_stage_dcf(100e6, g1=0.10, terminal_growth=0.025,
-                           wacc=0.09, stage1_years=10, fade_years=0)
-    assert abs(v1 - v2) < 1.0  # diferencias de redondeo únicamente
 
 
 def test_three_stage_all_zero_growth():

@@ -98,7 +98,7 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers",
-        "real_finnhub_fetch: no mockear FinnhubAdapter.fetch_transcripts/fetch_quarterly_earnings (el test mockea finnhub.Client)",
+        "real_finnhub_fetch: no mockear FinnhubAdapter.fetch_transcripts/fetch_quarterly_earnings/fetch_company_peers (el test mockea finnhub.Client)",
     )
     config.addinivalue_line(
         "markers",
@@ -168,6 +168,7 @@ def no_live_finnhub(request):
         yield
         return
     with unittest.mock.patch("due_diligence.tools.finnhub.FinnhubAdapter.fetch_transcripts", return_value=[]),             unittest.mock.patch("due_diligence.tools.finnhub.FinnhubAdapter.fetch_quarterly_earnings",
+                                return_value=[]),             unittest.mock.patch("due_diligence.tools.finnhub.FinnhubAdapter.fetch_company_peers",  # bloque B
                                 return_value=[]):
         yield
 

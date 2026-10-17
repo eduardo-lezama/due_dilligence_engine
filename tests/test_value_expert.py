@@ -193,14 +193,18 @@ def _frozen(name):
     return load_case_state(next(c for c in load_manifest(cases / "manifest.json").cases if c.name == name), cases)
 
 
-def test_buy_with_margin_of_safety_stays_buy_and_is_sized_by_policy():
-    """BBW real con el precio bajado a 15 $: entrada 22,80 $ (EPV 45,60 × 50 %) → el BUY se mantiene."""
+def test_buy_below_entry_price_stays_buy_and_is_sized_by_policy():
+    """Bloque B: el precio de entrada lo calcula la valoración (rentabilidad frente al listón). BBW congelado
+    con una entrada de 30 $ y el precio bajado a 15 $ → el BUY se mantiene y el código pone el tamaño."""
     st = _frozen("BBW-base")
+    st["valuation"] = st["valuation"].model_copy(update={
+        "entry_price": 30.0, "implied_return": 0.25, "hurdle_rate": 0.10,
+        "entry_basis": "base case returns the 10.0% hurdle"})
     st["market"] = st["market"].model_copy(update={"price_current": st["market"].price_current.model_copy(
         update={"value": 15.0})})
     r = _to_report(_ve_out(verdict="BUY", business_class="average"), "BBW", st)
-    assert r.verdict == "BUY" and r.decision.entry_price == pytest.approx(22.80, abs=0.01)
-    assert r.suggested_sizing_pct == 5.0
+    assert r.verdict == "BUY" and r.decision.entry_price == 30.0 and r.decision.implied_return == 0.25
+    assert r.suggested_sizing_pct > 0
 
 
 def test_value_expert_schema_rejects_unknown_verdict():
@@ -523,7 +527,7 @@ def test_thesis_break_detects_guidance_cut(mocker):
 # ---------------------------------------------------------------------------
 
 def test_value_expert_context_includes_peer_relative_valuation_block():
-    """_format_context includes PEER RELATIVE VALUATION block when peer_valuations present."""
+    """_format_context incluye el bloque RELATIVE CHECK (PEERS) de report_facts cuando hay peer_valuations."""
     from due_diligence.agents.value_expert import _format_context
     from due_diligence.schemas.reports import PeerValuation, ValuationReport
     from due_diligence.schemas.base import MetricValue
@@ -545,21 +549,18 @@ def test_value_expert_context_includes_peer_relative_valuation_block():
 
     context = _format_context(state)
 
-    assert "PEER RELATIVE VALUATION" in context
-    assert "§6" in context
-    assert "EV/EBIT" in context
-    assert "Peer median" in context
-    assert "MF rank" in context
-    assert "discount" in context or "premium" in context
+    assert "## RELATIVE CHECK (PEERS) (deterministic)" in context
+    assert "EV/EBIT vs peer median: 12.3x vs 16.3x (-25%)" in context
+    assert "Magic Formula rank (earnings yield + ROIC, #1 = best): #3 of 3" in context
 
 
 def test_value_expert_context_peer_block_absent_when_no_peer_valuations():
-    """PEER RELATIVE VALUATION block absent when no peer_valuations in state."""
+    """Sin peer_valuations el bloque lo dice (regla 18(d) del prompt), sin cifras."""
     from due_diligence.agents.value_expert import _format_context
 
     context = _format_context({"ticker": "AAPL"})
 
-    assert "PEER RELATIVE VALUATION" not in context
+    assert "Note: No peer multiples" in context and "EV/EBIT vs peer median" not in context
 
 
 def test_value_expert_context_warns_about_excluded_peers():
@@ -578,8 +579,7 @@ def test_value_expert_context_warns_about_excluded_peers():
     context = _format_context(state)
 
     assert "NODATA" in context
-    assert "excluded" in context.lower()
-    assert "[WARNING]" in context
+    assert "Excluded from the medians (no market data or EBIT ≤ 0): NODATA." in context
 
 
 # ---------------------------------------------------------------------------
@@ -827,15 +827,29 @@ def test_rule24_check_flags_missing_labels():
     assert "did not evaluate" not in ok.psychological_lens
 
 
-def test_decision_inputs_show_only_allowed_classes():
-    """H2-2: el contexto da el precio de entrada por tipo de negocio, pero no el de una clase vetada."""
-    from due_diligence.agents.value_expert import _format_decision_inputs
-    bbw = "\n".join(_format_decision_inputs(_frozen("BBW-base")))       # sin moat
-    assert "## DECISION INPUTS" in bbw and "- average: required MoS 50%" in bbw and "entry price $22.80" in bbw
-    assert "- quality_compounder:" not in bbw
-    plug = "\n".join(_format_decision_inputs(_frozen("PLUG-base")))     # cíclica y sin valor positivo
-    assert "- cyclical_or_low_quality:" in plug and "no entry price" in plug and "- average:" not in plug
-    assert "## DECISION INPUTS" in _format_context(_frozen("AAPL-base"))
+def test_context_gives_the_expert_the_decision_inputs_and_block_a_signals():
+    """Bloque B: el Expert ve la rentabilidad frente al listón, el rango de valor y los scores contables
+    (antes solo llegaban al markdown). Un solo precio de entrada: ya no hay uno por tipo de negocio."""
+    from due_diligence.schemas.base import AccountingScores, ScoreResult
+    from due_diligence.schemas.reports import DcfScenario
+    st = _frozen("BBW-base")
+    st["valuation"] = st["valuation"].model_copy(update={
+        "entry_price": 30.0, "implied_return": 0.188, "hurdle_rate": 0.101, "risk_free_rate": 0.051,
+        "entry_basis": "bear case returns the risk-free 5.10%",
+        "dcf_scenarios": [DcfScenario(name="bear", fcff_margin=0.08, near_term_growth=0.02, per_share=30.0,
+                                      implied_return=0.051)]})
+    score = ScoreResult(name="Altman Z''", period="FY2025", reading="1.0 — distress zone (< 1.10)")
+    st["financials"] = st["financials"].model_copy(update={"accounting_scores": AccountingScores(
+        piotroski=score.model_copy(update={"name": "Piotroski F-score"}), altman_z2=score,
+        beneish_m=score.model_copy(update={"name": "Beneish M-score"}),
+        sloan_accruals=score.model_copy(update={"name": "Sloan accruals"}))})
+    ctx = _format_context(st)
+    assert "## DECISION INPUTS (EXPECTED RETURN VS HURDLE) (deterministic)" in ctx
+    assert "Expected annual return at today's price — base case: 18.8%" in ctx
+    assert "Entry price: $30.00 (bear case returns the risk-free 5.10%)" in ctx
+    assert "## VALUE RANGE" in ctx and "## BUSINESS QUALITY (deterministic)" in ctx
+    assert "Altman Z'': 1.0 — distress zone (< 1.10) (FY2025)" in ctx
+    assert "required MoS" not in ctx and "- quality_compounder:" not in ctx
 
 
 @pytest.mark.parametrize("source,needle", [

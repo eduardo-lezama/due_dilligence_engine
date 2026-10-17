@@ -140,6 +140,7 @@ def market_agent(state: AnalysisState) -> dict:
         ticker=ticker,
         stub=False,
         risk_free_rate=fetch_risk_free_rate(),
+        suggested_peers=FinnhubAdapter.fetch_company_peers(ticker),
         price_current=price_current,
         price_52w_high=price_52w_high,
         price_52w_low=price_52w_low,

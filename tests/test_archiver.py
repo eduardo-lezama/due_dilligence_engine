@@ -176,9 +176,17 @@ def test_render_markdown_contains_ticker():
 
 
 def test_render_markdown_contains_all_expert_sections(tmp_path):
-    md = _render_markdown(_make_full_state(tmp_path))
-    for section in ["§1", "§2", "§3", "§4", "§5", "§6", "§7", "§8", "§9"]:
-        assert section in md
+    # Bloque B (B2): §7 y §9 van en la primera página ("Key risks", "What would make this wrong");
+    # el resto del análisis del Expert, en el apéndice. Ninguna sección se pierde ni se repite.
+    state = _make_full_state(tmp_path)
+    md = _render_markdown(state)
+    front, appendix = md.split("# Appendix — detail")
+    for section in ["§1", "§2", "§3", "§4", "§5", "§6", "§8"]:
+        assert section in appendix
+    syn = state["synthesis"]
+    assert "## Key risks" in front and syn.risks in front and syn.risks not in appendix
+    assert "## What would make this wrong" in front and syn.decision_frame in front
+    assert syn.decision_frame not in appendix
 
 
 def test_render_markdown_contains_critic_weaknesses(tmp_path):
@@ -459,12 +467,13 @@ def test_archiver_lists_unverified_separately():
 
 
 def test_archiver_renders_governance_section():
-    """EC-70: sección propia antes de "Value Expert Analysis" (H1-T4a)."""
+    """EC-70: los red flags de governance van en la primera página, dentro de "Key risks" (bloque B)."""
     from due_diligence.schemas.reports import FilingsRAGReport
     rf = "Active SEC investigation disclosed in Item 1A; material weakness in ICFR."
     md = _render_markdown({"ticker": "TST", "filings": FilingsRAGReport(ticker="TST", stub=False,
                                                                        governance_red_flags=rf)})
-    assert "## Governance Red Flags (10-K)" in md and rf in md
+    front = md.split("# Appendix — detail")[0]
+    assert "## Key risks" in front and "Governance red flags (10-K)" in front and rf in front
 
 
 # ---------------------------------------------------------------------------
@@ -523,10 +532,13 @@ from due_diligence.schemas.reports import VerdictDecision, ValueExpertReport as 
 
 def _h2_synthesis(verdict="WATCHLIST", raw="BUY"):
     d = VerdictDecision(verdict=verdict, verdict_raw=raw, business_class_llm="quality_compounder",
-                        business_class="average", required_mos=0.5, anchor_value=45.6, anchor_source="min(DCF, EPV)",
-                        entry_price=22.8, price=25.53, actual_mos=0.44, confidence=0.6, sizing_pct=0.0,
+                        business_class="average", hurdle_rate=0.10, implied_return=0.072, implied_return_bear=0.031,
+                        entry_price=22.8, entry_basis="base case returns the 10.0% hurdle", price=25.53,
+                        confidence=0.6, sizing_pct=0.0,
                         confidence_components={"base": 0.5, "methods_agreement": 0.0, "llm_adjustment": 0.1},
-                        caveats=["⚠️ BUY downgraded to WATCHLIST: price $25.53 is above the entry price $22.80."])
+                        caveats=["⚠️ BUY downgraded to WATCHLIST: price $25.53 is above the entry price $22.80.",
+                                 "⚠️ Cyclicality not assessed (3 years of operating margin): a cyclical peak "
+                                 "would not be normalized."])
     return _VER(ticker="AAPL", stub=False, verdict=verdict, verdict_confidence=0.6, suggested_sizing_pct=0.0,
                 verdict_rationale="Wait for the entry price.", decision=d, taxonomy="H2")
 
@@ -543,10 +555,12 @@ def test_markdown_shows_entry_price_margin_and_downgrade(tmp_path):
     state = _make_full_state(tmp_path)
     state["synthesis"] = _h2_synthesis()
     md = _render_markdown(state)
-    assert "**WATCHLIST**" in md and "| Entry price | $22.80 |" in md
-    assert "| Required margin of safety | 50% (average) |" in md
+    assert "**WATCHLIST**" in md and "| Entry price | $22.80 (base case returns the 10.0% hurdle) |" in md
+    assert "| Expected return vs hurdle | 7.2% vs 10.0% |" in md
     assert "Model verdict BUY" in md and "downgraded" in md
     assert "quality_compounder → average" in md
+    assert "Cyclicality not assessed" in md            # los avisos de la decisión se ven en el informe
+    assert md.count("downgraded to WATCHLIST") == 1    # la rebaja se dice una vez, sin repetir el caveat
 
 
 def test_sqlite_row_stores_verdict_decision(mocker, tmp_path):
@@ -560,82 +574,124 @@ def test_sqlite_row_stores_verdict_decision(mocker, tmp_path):
         conn.row_factory = sqlite3.Row
         row = conn.execute("SELECT * FROM analyses WHERE ticker='AAPL'").fetchone()
     assert row["verdict"] == "WATCHLIST" and row["status"] == "complete" and row["verdict_raw"] == "BUY"
-    assert row["entry_price"] == 22.8 and row["required_mos_pct"] == 50.0 and row["business_class"] == "average"
-    assert row["methodology_version"] == "H2"
+    assert row["entry_price"] == 22.8 and row["business_class"] == "average"
+    assert row["hurdle_pct"] == 10.0 and row["implied_return_pct"] == 7.2 and row["bear_return_pct"] == 3.1
+    assert row["methodology_version"] == "H2b"
 
 
 # ---------------------------------------------------------------------------
-# Bloque A, A4 (ADR-043): "What the price implies" — expectativas del precio en lenguaje llano
+# Bloque B (B2): primera página con las secciones de report_facts
 # ---------------------------------------------------------------------------
 
-def _expectations_state(implied, implied_10y, cagr=0.077, price=88.05):
+def _decision_state(implied=0.072, cagr=0.077, price=88.05):
     from due_diligence.schemas.base import MetricValue
-    from due_diligence.schemas.reports import MarketReport, ValuationInput, ValuationReport
+    from due_diligence.schemas.reports import DcfScenario, MarketReport, ValuationInput, ValuationReport
     return {
         "ticker": "KO", "historical_cagr_5y": cagr, "historical_cagr_years": 5,
         "market": MarketReport(ticker="KO", stub=False, price_current=MetricValue(
             value=price, unit="USD", period="2026-10-10", source="Polygon")),
         "valuation": ValuationReport(
-            ticker="KO", stub=False, reverse_dcf_implied_growth=implied,
-            reverse_dcf_10y_equivalent=implied_10y, stage1_years_used=5, fade_years_used=5,
-            assumptions=ValuationInput(checkpoint_id="c2", wacc_pct=8.6, terminal_growth_pct=2.5,
-                                       projection_years=10)),
+            ticker="KO", stub=False, reverse_dcf_implied_growth=0.22, reverse_dcf_10y_equivalent=0.12,
+            stage1_years_used=5, fade_years_used=5, hurdle_rate=0.101, risk_free_rate=0.051,
+            hurdle_source="max(10.0% investor hurdle, Rf 5.10% + ERP 5.0%) = 10.1%",
+            implied_return=implied, entry_price=26.58, entry_basis="base case returns the 10.1% hurdle",
+            dcf_scenarios=[
+                DcfScenario(name="bear", fcff_margin=0.12, near_term_growth=0.015, per_share=11.46, upside_pct=-88.0,
+                            implied_return=0.021),
+                DcfScenario(name="base", fcff_margin=0.219, near_term_growth=0.032, per_share=26.68, upside_pct=-72.0,
+                            implied_return=implied),
+                DcfScenario(name="bull", fcff_margin=0.222, near_term_growth=0.078, per_share=34.67, upside_pct=-63.0,
+                            implied_return=0.051)],
+            assumptions=ValuationInput(checkpoint_id="c2", wacc_pct=9.5, terminal_growth_pct=2.5, projection_years=10)),
     }
 
 
-def test_price_expectations_block_states_implied_growth_vs_history():
-    from due_diligence.agents.archiver import _render_markdown
-    md = _render_markdown(_expectations_state(0.12, 0.095))
-    assert "### What the price implies" in md
-    assert "12.0% a year for 5 years" in md and "fading to 2.5% by year 10" in md
-    assert "~9.5% a year over 10 years" in md
-    assert "revenue grew 7.7% a year over the last 5 years" in md
-    # 9,5 % frente a 7,7 %: +1,8 pp → dentro de ±3 pp (misma regla que el método "Reverse DCF")
-    assert "in line with the company's own history" in md
+def test_front_page_leads_with_expected_return_vs_hurdle_and_entry_price():
+    md = _render_markdown(_decision_state())
+    front = md.split("# Appendix — detail")[0]
+    assert "## Decision inputs (expected return vs hurdle)" in front
+    assert "| Expected annual return at today's price — base case | 7.2% |" in front
+    assert "| Expected annual return — bear case | 2.1% |" in front
+    assert "| Entry price | $26.58 (base case returns the 10.1% hurdle) |" in front
+    assert "231% above the entry price" in front
+    assert front.index("## Decision inputs") < front.index("## What the price implies") < front.index("## Value range")
 
 
-@pytest.mark.parametrize("implied_10y,phrase", [
-    (0.20, "well above the company's own history"),
-    (0.02, "less growth than the company has delivered"),
-])
-def test_price_expectations_reading_uses_three_point_band(implied_10y, phrase):
-    from due_diligence.agents.archiver import _render_markdown
-    assert phrase in _render_markdown(_expectations_state(0.2, implied_10y))
+def test_price_implies_puts_expected_return_first_and_flags_implied_growth_as_secondary():
+    md = _render_markdown(_decision_state())
+    assert "| Expected return vs hurdle | 7.2% vs 10.1% (2.9 pp below) |" in md
+    assert "| Market-implied FCFF growth | 22.0% for 5y, fading (~12.0% a year over 10y) |" in md
+    assert "| Revenue growth, last 5 years | 7.7% |" in md
+    assert "secondary to the expected return" in md
 
 
-def test_price_expectations_explains_when_not_computable():
-    from due_diligence.agents.archiver import _render_markdown
-    md = _render_markdown(_expectations_state(None, None))
-    assert "### What the price implies" in md and "not computable" in md
+def test_value_range_shows_the_three_scenarios_with_their_returns():
+    md = _render_markdown(_decision_state())
+    assert "| Bear — FCFF margin 12.0%, growth 1.5% | $11.46 per share (-88% vs price); expected return 2.1% |" in md
+    assert "| Bull — FCFF margin 22.2%, growth 7.8% | $34.67 per share (-63% vs price); expected return 5.1% |" in md
 
 
-def test_accounting_scores_section_renders_readings_including_na():
-    from due_diligence.agents.archiver import _render_accounting_scores
+def test_quality_section_carries_the_accounting_scores():
+    from due_diligence.agents.report_facts import quality_section
     from due_diligence.schemas.base import AccountingScores, ScoreResult
     s = AccountingScores(
         piotroski=ScoreResult(name="Piotroski F-score", value=8, period="FY2025 vs FY2024", reading="8/9 — strong (8–9)"),
         altman_z2=ScoreResult(name="Altman Z''", period="FY2025", reading="n/m — book equity ≤ 0"),
         beneish_m=ScoreResult(name="Beneish M-score", period="FY2025 vs FY2024", reading="n/a — missing: sga FY2025"),
         sloan_accruals=ScoreResult(name="Sloan accruals", value=-0.019, period="FY2025", reading="-1.9% of assets"))
-    md = "\n".join(_render_accounting_scores(type("F", (), {"accounting_scores": s})()))
-    assert "## Accounting quality scores" in md
-    assert "| Piotroski F-score | 8/9 — strong (8–9) | FY2025 vs FY2024 |" in md
-    assert "n/a — missing: sga FY2025" in md and "n/m — book equity ≤ 0" in md
+    fin = type("F", (), {"accounting_scores": s, "roic_series": [], "incremental_roic": None, "free_cash_flow": [],
+                         "net_income": [], "diluted_shares": []})()
+    rows = dict(quality_section(fin).rows)
+    assert rows["Piotroski F-score"] == "8/9 — strong (8–9) (FY2025 vs FY2024)"
+    assert rows["Beneish M-score"].startswith("n/a — missing: sga FY2025")
+    assert "n/m — book equity ≤ 0" in rows["Altman Z''"]
 
 
-def test_accounting_scores_section_absent_for_legacy_financials():
-    from due_diligence.agents.archiver import _render_accounting_scores
-    assert _render_accounting_scores(None) == []
+def test_changes_since_last_analysis_only_when_the_database_was_queried():
+    state = _decision_state()
+    assert "Changes since the last analysis" not in _render_markdown(state)
+    first = _render_markdown(state, previous=None)
+    assert "## Changes since the last analysis" in first and "First analysis of this ticker" in first
+    prev = {"analysis_date": "2026-10-03", "verdict": "HOLD", "price_at_analysis": 80.0, "entry_price": None,
+            "implied_return_pct": None, "dcf_per_share": 30.0, "run_id": "r1"}
+    md = _render_markdown(state, previous=prev)
+    assert "| Previous analysis | 2026-10-03 — HOLD |" in md and "$80.00 → $88.05 (+10%)" in md
+    assert "older methodology" in md
 
 
-def test_dcf_scenarios_table_rendered():
-    from due_diligence.agents.archiver import _render_markdown
-    from due_diligence.schemas.reports import DcfScenario, ValuationReport
-    v = ValuationReport(ticker="KO", stub=False, dcf_scenarios=[
-        DcfScenario(name="bear", fcff_margin=0.12, near_term_growth=0.036, per_share=40.5, upside_pct=-54.0),
-        DcfScenario(name="base", fcff_margin=0.219, near_term_growth=0.077, per_share=70.0, upside_pct=-20.5),
-        DcfScenario(name="bull", fcff_margin=0.222, near_term_growth=0.10, per_share=None, upside_pct=None)])
-    md = _render_markdown({"ticker": "KO", "valuation": v})
-    assert "### DCF scenarios (assumptions from the company's own history)" in md
-    assert "| bear | 12.0% | 3.6% | $40.50 | -54% |" in md
-    assert "| bull | 22.2% | 10.0% | n/m | n/a |" in md
+def test_previous_analysis_reads_the_last_complete_row(tmp_path):
+    from due_diligence.agents.report_facts import previous_analysis
+    db = str(tmp_path / "a.db")
+    _ensure_db(db)
+    with sqlite3.connect(db) as conn:
+        for rid, verdict, price in (("r1", "HOLD", 70.0), ("r2", None, 75.0), ("r3", "WATCHLIST", 80.0)):
+            conn.execute("INSERT INTO analyses (ticker, run_id, analysis_date, verdict, price_at_analysis) "
+                         "VALUES ('KO', ?, '2026-10-01', ?, ?)", (rid, verdict, price))
+    assert previous_analysis(db, "KO")["run_id"] == "r3"
+    assert previous_analysis(db, "KO", before_run_id="r3")["run_id"] == "r1"   # r2 sin veredicto: incompleto
+    assert previous_analysis(db, "MSFT") is None
+    assert previous_analysis(str(tmp_path / "missing.db"), "KO") is None
+
+
+def test_citation_links_only_for_urls_and_gaap_flag_shown():
+    from due_diligence.agents.archiver import _source_link
+    assert _source_link("https://sec.gov/x") == "[https://sec.gov/x](https://sec.gov/x)"
+    assert _source_link("10-K Item 1") == "10-K Item 1"
+
+
+def test_previous_analysis_keeps_rows_without_run_id_and_reads_the_methodology(tmp_path):
+    from due_diligence.agents.report_facts import changes_section, previous_analysis
+    db = str(tmp_path / "a.db")
+    _ensure_db(db)
+    with sqlite3.connect(db) as conn:
+        conn.execute("INSERT INTO analyses (ticker, run_id, analysis_date, verdict, methodology_version) "
+                     "VALUES ('KO', NULL, '2026-05-01', 'HOLD', NULL)")
+        conn.execute("INSERT INTO analyses (ticker, run_id, analysis_date, verdict, methodology_version) "
+                     "VALUES ('KO', 'r9', '2026-10-17', 'WATCHLIST', 'H2b')")
+    old = previous_analysis(db, "KO", before_run_id="r9")
+    assert old is not None and old["analysis_date"] == "2026-05-01"          # run_id NULL no se pierde
+    notes = changes_section(old, verdict="WATCHLIST", price=90.0, entry=None, implied_return=None).notes
+    assert any("older methodology (pre-H1)" in n for n in notes)
+    new = previous_analysis(db, "KO")
+    # Una fila H2b sin precio de entrada calculable NO es "metodología antigua" (revisión #4).
+    assert not changes_section(new, verdict="WATCHLIST", price=90.0, entry=None, implied_return=None).notes

@@ -86,10 +86,14 @@ def _build_critic_prompt(state: AnalysisState) -> str:
                      f"suggested sizing: {synthesis.suggested_sizing_pct:.0f}%)")
         d = getattr(synthesis, "decision", None)
         if d is not None:
-            # H2-2: el Critic ataca también el supuesto de margen de seguridad (ancla y clase de negocio).
+            # El Critic ataca también la base numérica de la decisión (ADR-044): rentabilidad frente al
+            # listón, caso pesimista y precio de entrada.
             entry = f"${d.entry_price:,.2f}" if d.entry_price is not None else "none"
-            lines.append(f"Margin of safety: business class {d.business_class}, required {d.required_mos:.0%}, "
-                         f"intrinsic anchor {d.anchor_source}, entry price {entry}.")
+            ret = f"{d.implied_return:.1%}" if d.implied_return is not None else "n/a"
+            bear = f"{d.implied_return_bear:.1%}" if d.implied_return_bear is not None else "n/a"
+            hurdle = f"{d.hurdle_rate:.1%}" if d.hurdle_rate is not None else "n/a"
+            lines.append(f"Decision basis: business class {d.business_class}; expected return {ret} (bear {bear}) "
+                         f"vs hurdle {hurdle}; entry price {entry} ({d.entry_basis}).")
         if synthesis.business_understanding:
             lines.append(f"\nBull case summary: {synthesis.business_understanding}")
         if synthesis.moat_analysis:

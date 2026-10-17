@@ -22,9 +22,10 @@ Por qué top-level imports en los agentes:
     el patch no alcanzaría el objeto correcto.
 """
 
-import json
 import pytest
 
+from due_diligence.schemas.base import FinancialsReport
+from due_diligence.schemas.reports import ValueExpertReport
 from due_diligence.agents.management import management_agent
 from due_diligence.agents.filings import filings_agent
 from due_diligence.llm.errors import LLMProviderError, LLMSchemaError, LLMTruncatedError
@@ -212,7 +213,6 @@ def test_management_agent_uses_structured_output(mocker, mgmt_sources):
     assert rep.capital_allocation_summary == "Buybacks."
     assert rep.form4_transactions_12m == 0
     assert client.structured.call_args.args[0] is ManagementLLMOutput
-    client.complete.assert_not_called()
 
 
 def test_management_agent_fails_loud_on_llm_error(mocker, mgmt_sources):
@@ -397,7 +397,6 @@ def test_filings_agent_uses_structured_output(mocker, edgar_texts):
     assert report.business_description == "Makes widgets."
     assert report.model_used == "gpt-4.1"
     assert client.structured.call_args.args[0] is FilingsLLMOutput
-    client.complete.assert_not_called()
 
 
 def test_filings_agent_fails_loud_on_llm_error(mocker, edgar_texts):
@@ -990,7 +989,6 @@ def test_competitive_agent_uses_structured_output(mocker, competitive_state):
     assert rep.stub is False and rep.error is None and rep.moat_classification == "none"
     assert rep.peer_roic_comparison == []   # lo rellena peers_node después (ADR-015)
     assert client.structured.call_args.args[0] is CompetitiveLLMOutput
-    client.complete.assert_not_called()
 
 
 def test_competitive_agent_fails_loud_on_llm_error(mocker, competitive_state):

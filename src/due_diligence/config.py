@@ -93,6 +93,12 @@ class Settings(BaseSettings):
         validation_alias="EDGAR_8K_ITEMS",
     )
 
+    # --- Decisión (bloque B, ADR-044) ---
+    # Listón de rentabilidad anual que exige el inversor (%). El efectivo es max(este valor, Rf + ERP):
+    # nunca menos que lo que se exige a la bolsa en conjunto. 10 % ≈ rentabilidad nominal histórica de
+    # la bolsa de EE. UU.: comprar por debajo de él no compensa frente a un fondo indexado.
+    hurdle_rate_pct: float = Field(10.0, validation_alias="HURDLE_RATE_PCT")
+
     # --- Performance tracking (ADR-021) ---
     # Tasa de cambio USD→EUR para reportar costes de LLM en EUR.
     # Usar USD_EUR_RATE en .env para actualizar sin tocar código.

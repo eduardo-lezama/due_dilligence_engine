@@ -252,7 +252,6 @@ def test_peer_valuation_schema_with_all_fields():
 
 def test_peer_valuations_state_key_exists():
     """peer_valuations is a valid key in AnalysisState TypedDict."""
-    from due_diligence.schemas.reports import PeerValuation
     from due_diligence.graph.state import AnalysisState
     import typing
 

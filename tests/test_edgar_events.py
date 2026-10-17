@@ -13,7 +13,7 @@ Estrategia de aislamiento:
     Zero llamadas reales a EDGAR.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

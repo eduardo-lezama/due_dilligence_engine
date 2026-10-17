@@ -47,7 +47,6 @@ Checklist cubierto (docs/checklist-value-investing.md):
 from __future__ import annotations
 
 import re
-import statistics
 
 import structlog
 
@@ -56,13 +55,15 @@ from due_diligence.graph.state import AnalysisState
 from due_diligence.agents import verdict_policy
 from due_diligence.agents.archiver import _count_verified_citations, collect_failures
 from due_diligence.agents.llm_support import error_label, model_used
+from due_diligence.agents import report_facts
+from due_diligence.agents.report_facts import filings_coverage_gaps, roic_trend
 from due_diligence.llm.client import get_client
 from due_diligence.llm.errors import LLMError, LLMSchemaError
 from due_diligence.schemas.llm_outputs import ThesisBreakCheck, ValueExpertLLMOutput
 from due_diligence.schemas.reports import ValueExpertReport
 
 from due_diligence.utils.formatting import fmt_insider_ownership, fmt_usd as _fmt_usd
-from due_diligence.utils.periods import align_by_period, fiscal_year, value_at
+from due_diligence.utils.periods import align_by_period, value_at
 from due_diligence.validation.citations import llm_evidence_count
 
 log = structlog.get_logger()
@@ -75,8 +76,8 @@ Your task is NOT to summarize the specialist reports — it is to INTEGRATE and 
 RULES — NON-NEGOTIABLE:
 1. Every numerical claim must come VERBATIM from the provided reports. Never generate, estimate, or interpolate numbers.
 2. You MUST name at least 2 conflicting signals across the specialist reports and explain how you adjudicate them. Example: "moat classified 'narrow' but ROIC=25% — I adjudicate as narrow because margin compression in MD&A overrides the trailing ROIC."
-3. §6 Valuation MUST explicitly contrast the reverse-DCF implied growth against the historical 5y revenue CAGR (provided in context as HISTORICAL CONTEXT). State whether the market is pricing in expansion, contraction, or continuation vs the historical rate.
-4. §9 Decision Frame MUST name the thesis-breaker as a concrete, observable condition. Example: "thesis breaks if gross margin prints below 35% for two consecutive quarters." Vague phrases like "monitor execution" are not acceptable.
+3. §6 Valuation MUST lead with the expected annual return at today's price versus the hurdle (from '## DECISION INPUTS') and the bear-case return. Then, as a secondary check, contrast the reverse-DCF implied growth against the historical revenue CAGR (HISTORICAL CONTEXT): state whether the market is pricing expansion, contraction or continuation.
+4. §9 Decision Frame MUST name the thesis-breaker as a concrete, observable condition about the BUSINESS. Example: "thesis breaks if gross margin prints below 35% for two consecutive quarters." Vague phrases like "monitor execution" are not acceptable. For a cyclical business, losses or weak quarters at a trough are the expected cycle, not a thesis-breaker: name business deterioration instead (share loss, unit costs versus peers, balance-sheet stress, a broken capital-allocation record).
 5. §7 Risks MUST incorporate any 8-K material events from context (especially Item 4.02 restatements), not only 10-K Item 1A.
 6. §3 Management MUST reconcile insider sale prices against current market price when both are available. If insider transaction pattern reports specific sale prices and the current price is materially different (>15% gap), state the gap explicitly and what it implies (selling at peak before crash = potential value trap signal; or routine diversification at fair value = neutral).
 7. §5 Growth & Reinvestment MUST report the reinvestment rate (capex as % of OCF) when 'Reinvestment rate' is in context. State whether the company is in invest mode (>50%), balanced (20-50%), or harvest mode (<20%).
@@ -94,11 +95,11 @@ RULES — NON-NEGOTIABLE:
 15. THESIS-BREAK SELF-CHECK (§9): BEFORE finalizing the verdict, verify that the thesis-breaker condition you define in §9 is NOT ALREADY TRUE in the data you just analyzed. If the condition IS already met (e.g., you state "thesis breaks if gross margin falls below 30%" but §4 shows gross margin is already 28%), you MUST either (a) revise the verdict to reflect the already-broken thesis, or (b) choose a DIFFERENT thesis-breaker that is forward-looking. A verdict that contradicts its own thesis-breaker is a critical logical error.
 16. BACKLOG & BOOK-TO-BILL (§5): for defense, aerospace, industrial, government-contract, or long-cycle businesses, backlog and book-to-bill ratio are CRITICAL forward indicators. If the QUARTERLY UPDATE, press release, or filings report mentions backlog, orders, or book-to-bill, you MUST: (a) extract the absolute backlog figure and YoY change, (b) compute book-to-bill if orders and revenue are both available (orders/revenue; >1.0 = growing, <1.0 = shrinking), (c) integrate into §5 Growth as the PRIMARY growth signal (more reliable than revenue CAGR for contract businesses). If backlog is declining while revenue appears stable, flag this as a LEADING INDICATOR of future revenue decline in §7.
 17. 10b5-1 PLAN SALES (§3): transactions explicitly marked as "10b5-1 PRE-ARRANGED PLAN" in the insider activity data are NOT informative about current management sentiment. These sales were programmed months before execution — the decision date is the plan adoption date, not the execution date. Do NOT use them as evidence of insider distribution, bearish sentiment, or value trap signals. Instead, note them factually as "pre-arranged plan sale" and EXCLUDE them from your insider sentiment assessment. The relevant signals from insiders are: (a) discretionary open-market purchases (bullish), (b) ABSENCE of buying during drawdowns (mildly bearish per rule 11), (c) discretionary sales NOT under a plan (bearish). A CEO with a 10b5-1 for estate planning who also owns 15%+ is demonstrating alignment through ownership magnitude, not trading activity.
-18. PEER RELATIVE VALUATION (§6): when context contains a "## PEER RELATIVE VALUATION" block, §6 Valuation MUST use it. Specifically:
+18. PEER RELATIVE VALUATION (§6): when context contains a "## RELATIVE CHECK (PEERS)" block with peer multiples, §6 Valuation MUST use it. Specifically:
     (a) State whether the subject trades at a discount or premium to the peer median EV/EBIT — name both numbers and the % gap. A premium requires a growth or quality justification; a discount is a potential margin of safety signal only if moat and quality pass.
     (b) State whether the subject FCF yield is above or below the peer median — name both numbers. FCF yield above peer median suggests relative cheapness on cash generation; below suggests the market prices in higher growth or the business generates less cash than peers.
     (c) If Magic Formula rank is available, name it and interpret it: rank 1 = best combined earnings yield + ROIC in the peer group; rank N = worst. A rank in the bottom half with a BUY thesis requires explicit justification.
-    (d) If all peers failed to fetch (block is absent), explicitly note in §6 that relative valuation context is unavailable and the absolute multiples (EV/EBIT, EV/FCF) must be interpreted without sector benchmarks — increase uncertainty accordingly.
+    (d) If the block has no peer multiples, explicitly note in §6 that relative valuation context is unavailable and the absolute multiples (EV/EBIT, EV/FCF) must be interpreted without sector benchmarks — increase uncertainty accordingly.
 19. POST-10-K ACQUISITION (§4+§5+§6): when context contains a "## POST-10-K ACQUISITION DETECTED" block, treat this as a CRITICAL staleness warning for balance sheet and growth data:
     (a) §4 Financial Quality MUST explicitly flag that reported debt and cash figures come from the 10-K balance sheet, which PREDATES the acquisition. If the deal involved material cash outlay or new credit facilities (visible in 8-K events), state that the actual post-acquisition balance sheet is materially different from the reported figures. Do NOT present pre-acquisition debt/cash as current fact.
     (b) §5 Growth & Reinvestment MUST distinguish organic from inorganic revenue. If the acquisition closed DURING the most recent quarter reported (visible from the acquisition date vs Q1 press release date), the reported quarterly revenue growth includes an inorganic component. Flag this explicitly — do NOT present the blended growth rate as a pure organic signal. If the acquisition date and Q1 close date allow estimation of inorganic contribution, make the estimate.
@@ -106,16 +107,16 @@ RULES — NON-NEGOTIABLE:
     (d) §9 Decision Frame MUST name the pending 10-Q (first quarterly filing post-acquisition) as the event that will resolve the balance sheet uncertainty and clarify organic growth rate.
 20. DCF GROWTH ASSUMPTION REFLEXION (§6): the context provides a "## DCF GROWTH ASSUMPTION" block with the near-term growth rate used and its source. In §6 you MUST:
     (a) State the growth rate used and its source in one sentence.
-    (b) Assess whether it is credible given §5 growth analysis and the quarterly data — does historical FCF CAGR reflect a sustainable run-rate or a cyclical peak/trough?
+    (b) Assess whether it is credible given §5 growth analysis and the quarterly data — does the historical revenue trend reflect a sustainable run-rate, a cyclical peak/trough, or a structural break (refranchising, spin-off, large M&A)?
     (c) If the source is "GENERIC FALLBACK" (default_7pct), explicitly warn the reader that the DCF upside has no empirical basis and should be treated as purely illustrative. Do NOT present a DCF upside anchored on 7% generic as a solid investment thesis.
     (d) If source is "revenue CAGR proxy", note the limitation: revenue growing ≠ FCF growing if margins are compressing. State whether this is expansionary or contractionary for FCF specifically.
     (e) State the 3-stage split used (e.g. "5y constant growth at X%, then 5y fade to terminal Y%") so the reader understands the model structure.
 
 21. VALUATION CONVERGENCE (§6): the context provides a "## VALUATION METHODS CONVERGENCE" block with 4 methods classified as cheap/fair/expensive. You MUST:
     (a) Count the signals and state the convergence explicitly: "3 of 4 methods signal cheap", not just describe each individually.
-    (b) If 3 or 4 methods classify as "cheap" → state that conviction is high and explain why the convergence is meaningful.
-    (c) If methods diverge (e.g. DCF cheap but EPV expensive) → never BUY; adopt a WATCHLIST or PASS bias by default. Explain in §6 which method you weight most and WHY — e.g. "EPV is the more conservative anchor here because the DCF relies on a growth rate the market is not pricing."
-    (d) EPV is the zero-growth floor: if EPV per share > price (EPV upside > 0%), state explicitly that a BUY does NOT require growth assumptions to hold — the margin of safety exists in the static business alone. This is the highest-conviction BUY signal.
+    (b) If 3 or 4 methods classify as "cheap" → state that the valuation signals converge and explain why; a BUY still requires the price to be at or below the entry price in '## DECISION INPUTS'.
+    (c) If methods diverge (e.g. DCF cheap but EPV expensive) → explain in §6 which method you weight most and WHY. A price above EPV means the buyer pays for growth: a BUY then requires that the growth is backed by the moat (§2) and by positive incremental ROIC (§5); if it is not, adopt WATCHLIST or PASS.
+    (d) EPV is the zero-growth floor: if EPV per share > price (EPV upside > 0%), state explicitly that the value does NOT depend on growth assumptions holding. A BUY still requires the price to be at or below the entry price in '## DECISION INPUTS'.
     (e) Never ignore the convergence count. A sentence like "DCF shows 35% upside" with no mention of EPV or reverse DCF is an incomplete §6.
 
 22. ROIC TREND & INCREMENTAL (§4+§5): the ROIC trend label and the incremental ROIC figure are computed deterministically; narrative MUST be consistent with both; if incremental ROIC is n/m, say so and do not infer reinvestment quality. The 'ROIC trend interpretation' label (RISING, FALLING, or STABLE) is AUTHORITATIVE — you MUST NOT use language that contradicts it:
@@ -125,20 +126,21 @@ RULES — NON-NEGOTIABLE:
     Critical distinction: absolute ROIC level (negative = poor quality capital allocation) vs ROIC direction (RISING = marginal capital is earning improving returns). A company going from -28% to +5% ROIC is at a potential inflection point — not in erosion. Describing RISING trend as "eroding moat" is a category error that produces incorrect verdicts with high spurious confidence.
 23. GOVERNANCE RED FLAGS (§3+§7+§9): when context contains a '## GOVERNANCE RED FLAGS' block, §7 MUST list each flag explicitly, §3 MUST assess its implication for management trust, and §9 MUST state whether any flag is a thesis-breaker.
 24. INVESTOR HYPOTHESES: the '## INVESTOR'S OWN HYPOTHESES' block is the user's opinion. In §8 Psychological Lens, evaluate each hypothesis against the evidence, label it SUPPORTED / CONTRADICTED / UNTESTABLE, and never cite it as evidence elsewhere.
+25. ACCOUNTING QUALITY (§4+§7): the '## BUSINESS QUALITY' block lists deterministic accounting scores (Piotroski, Altman Z'', Beneish M, Sloan accruals) with their published reading. §4 MUST mention every score in a warning reading (distress zone, likely manipulator, high accruals, weak Piotroski) and §7 MUST treat it as a risk; a score that is n/a must not be described.
 
-BUSINESS CLASS (§9.1 — sets the required margin of safety; read '## DECISION INPUTS'):
-- quality_compounder: confirmed wide/narrow moat + high sustained ROIC + reinvestment runway. Required MoS 30%.
-- average: decent business without a confirmed durable advantage. Required MoS 50%.
-- cyclical_or_low_quality: cyclical, turnaround, commodity or weak economics. Required MoS 60%.
-The code hardens your choice: a cyclical business is always cyclical_or_low_quality, and without a confirmed moat it cannot be quality_compounder. Choose honestly — never upgrade the class to reach a BUY.
+BUSINESS CLASS (§9.1 — describes the business; it does NOT change the entry price):
+- quality_compounder: confirmed wide/narrow moat + high sustained ROIC + reinvestment runway.
+- average: decent business without a confirmed durable advantage.
+- cyclical_or_low_quality: cyclical, turnaround, commodity or weak economics.
+The code hardens your choice: a cyclical business is always cyclical_or_low_quality, and without a confirmed moat it cannot be quality_compounder. The margin of safety comes from '## DECISION INPUTS': the entry price is the price at which the base case returns the hurdle AND the bear case (from the company's own history) returns at least the risk-free rate.
 
-VERDICT RUBRIC (ADR-041 — the label is yours; prices, confidence and sizing are computed by code):
-- BUY: business worth owning, thesis intact, conflicting signals resolved for the bull case, AND the current price is at or below the entry price for your business class in '## DECISION INPUTS'. Without an entry price there is no BUY.
+VERDICT RUBRIC (ADR-041, ADR-044 — the label is yours; prices, confidence and sizing are computed by code):
+- BUY: business worth owning, thesis intact, conflicting signals resolved for the bull case, AND the current price is at or below the entry price in '## DECISION INPUTS'. Without an entry price there is no BUY.
 - WATCHLIST: business worth owning but the price is above the entry price. §9 MUST state the entry price (from DECISION INPUTS) at which it becomes a BUY.
 - PASS: not investable at any reasonable price for this investor: mediocre or unprovable economics, outside the circle of competence, or data too weak to judge.
 - SELL: thesis broken, value trap, deteriorating fundamentals, recent Item 4.02 restatement, or severe overvaluation with red flags — "exit if owned, avoid otherwise".
 - confidence_adjustment: a number between -0.1 and +0.1 that nudges the deterministic confidence. Use 0 unless qualitative evidence clearly strengthens (+) or weakens (−) the case beyond the quantitative signals.
-- Do NOT state a position size or a confidence percentage anywhere: the code computes both from the margin of safety.
+- Do NOT state a position size or a confidence percentage anywhere: the code computes both from the expected return and the bear case.
 
 SECTION GUIDANCE (content of each field — the format is enforced by the schema):
 - business_understanding: §1: 3-4 sentences. What does it do, how does it make money, circle of competence
@@ -146,10 +148,10 @@ SECTION GUIDANCE (content of each field — the format is enforced by the schema
 - management_assessment: §3: skin in the game (insider %) + capital allocation track record + earnings call Q&A tone if available. Quote one verbatim phrase from transcripts if available. MUST reconcile insider sale prices vs current market price when both are in context — name the gap explicitly. MUST classify insider buying by TOTAL DOLLAR MAGNITUDE per rule 11: token (<$50K) is cosmetic, NOT conviction. ABSENCE of CEO/CFO open-market buying during drawdown >30% is itself a negative signal.
 - financial_quality: §4: FCF conversion, balance sheet, margin trends, earnings quality. If 'Capital returned to shareholders' is in context, you MUST report it explicitly: how much was returned, what % of FCF, split between buybacks/dividends. Capital allocation is core to value investing thesis. If quarterly news data is more recent than 10-K, update conclusions accordingly (rule 13).
 - growth_reinvestment: §5: reinvestment rate (capex/OCF — MUST report the precomputed value if available) + ROIC trend label + the precomputed incremental ROIC (ΔNOPAT/ΔIC; if n/m say so — rule 22). State whether the company is in invest/balanced/harvest mode AND whether marginal returns are positive or negative based on the incremental ROIC figure. Integrate quarterly news data when more recent than 10-K (rule 13).
-- valuation_section: §6: MUST contrast reverse-DCF implied growth vs historical 5y revenue CAGR. State the spread and what it implies about market expectations.
+- valuation_section: §6: MUST state the expected return at today's price vs the hurdle and the bear-case return (DECISION INPUTS), the value range (VALUE RANGE), and then contrast reverse-DCF implied growth vs historical revenue CAGR as a secondary check.
 - risks: §7: include any 8-K material events (especially Item 4.02) PLUS top risks from 10-K Item 1A. MUST cross-check news flow + insider activity + margin trends — if multiple signals point negative, name the value trap pattern explicitly. MUST analyze named risks PER SEGMENT when company is multi-segment (rule 12) — same tariff/regulatory/commodity risk often has opposite signs across segments. MUST integrate any quarterly news data more recent than the 10-K (Q1/Q2/Q3 metrics, guidance changes) and weigh them in the verdict, not just mention as factoids (rule 13).
 - psychological_lens: §8: why might this be mispriced? Contrarian thesis or consensus trap?
-- decision_frame: §9: MUST state the thesis-breaker as a concrete observable condition. No vague placeholders. MUST cite the required margin of safety and the entry price for the chosen business class from '## DECISION INPUTS' (or say there is none).
+- decision_frame: §9: MUST state the thesis-breaker as a concrete observable condition about the business (rule 4). No vague placeholders. MUST cite the entry price and the expected return vs the hurdle from '## DECISION INPUTS' (or say there is no entry price).
 - verdict: one of BUY, WATCHLIST, PASS, SELL
 - business_class: one of quality_compounder, average, cyclical_or_low_quality
 - confidence_adjustment: -0.1 to +0.1
@@ -220,6 +222,7 @@ def _data_gaps(state: AnalysisState) -> list[tuple[str, str]]:
             gaps.append((label, "0 verified citations — its narrative below is unverified"))
         else:
             gaps.append((label, "report not available"))
+    gaps += filings_coverage_gaps(state.get("filings"))  # type: ignore[typeddict-item]  # EC-106
     return gaps
 
 
@@ -356,35 +359,11 @@ def _format_context(state: AnalysisState) -> str:
             # usa la serie completa, así que el display debe ser consistente.
             roic_str = ", ".join(f"{r.period}: {r.value:.1%}" for r in financials.roic_series[:5])
             lines.append(f"ROIC series: {roic_str}")
-            # Tendencia del ROIC (Fix #3 + EC-32): label + delta concreto en pp. Desde T9 la
-            # tendencia ya NO se presenta como "ROIC marginal": el ROIC incremental real
-            # (ΔNOPAT/ΔIC) va en su propia línea, calculado en parse_financials (EC-85).
+            # Tendencia del ROIC (Fix #3 + EC-32): una sola definición en report_facts.roic_trend
+            # (años fiscales, tolerancia absoluta). El ROIC incremental real (ΔNOPAT/ΔIC) va en su
+            # propia línea, calculado en parse_financials (EC-85).
             if len(financials.roic_series) >= 2:
-                roic_latest = financials.roic_series[0].value
-                # Ventana de 5 años (T7) medida en AÑOS FISCALES, no en posiciones (revisión final
-                # H1, #9): con un año ausente, el índice 4 no es "4 años atrás" y el ΔROIC anual
-                # salía inflado. Fallback a posiciones si las etiquetas no son FYxxxx.
-                try:
-                    y0 = fiscal_year(financials.roic_series[0].period)
-                    window = [r for r in financials.roic_series[1:] if 0 < y0 - fiscal_year(r.period) <= 4]
-                    # Sin ningún punto en 4 años no hay tendencia (H2-1): AAPL tiene ROIC n/m en
-                    # FY2018-FY2024 (IC < 5 % de activos) y se comparaba FY2025 con FY2017 "a 8 años".
-                    oldest = window[-1] if window else None
-                    n_periods = max(y0 - fiscal_year(oldest.period), 1) if oldest else 0
-                except ValueError:
-                    oldest = financials.roic_series[min(4, len(financials.roic_series) - 1)]
-                    n_periods = financials.roic_series.index(oldest)
-                roic_oldest = oldest.value if oldest else None
-                avg_annual_delta_pp = ((roic_latest - roic_oldest) / n_periods * 100) if oldest else 0.0
-                if oldest is None:
-                    interp = "n/a (no ROIC data within the last 4 fiscal years to compare)"
-                elif roic_latest > roic_oldest * 1.05:
-                    interp = f"RISING (avg ΔROIC: +{avg_annual_delta_pp:.1f}pp/year over {n_periods} years)"
-                elif roic_latest < roic_oldest * 0.95:
-                    interp = f"FALLING (avg ΔROIC: {avg_annual_delta_pp:.1f}pp/year over {n_periods} years)"
-                else:
-                    interp = f"STABLE (avg ΔROIC: {avg_annual_delta_pp:+.1f}pp/year)"
-                lines.append(f"ROIC trend interpretation (use in §5): {interp}")
+                lines.append(f"ROIC trend interpretation (use in §5): {roic_trend(financials.roic_series)[1]}")
             # ROIC incremental real (regla 22): ΔNOPAT/ΔIC frente al ROIC medio de la misma ventana.
             window = financials.roic_series[:5]
             avg_roic = sum(r.value for r in window) / len(window)
@@ -444,8 +423,8 @@ def _format_context(state: AnalysisState) -> str:
                 # Auto-flag de compresión si 3+ años consecutivos descendentes
                 if len(margins) >= 3 and all(margins[i][1] < margins[i + 1][1] for i in range(2)):
                     lines.append(
-                        f"⚠️ STRUCTURAL MARGIN RISK: gross margin has compressed 3 consecutive years. "
-                        f"Elevate to §7 Risks as 'structural margin pressure'."
+                        "⚠️ STRUCTURAL MARGIN RISK: gross margin has compressed 3 consecutive years. "
+                        "Elevate to §7 Risks as 'structural margin pressure'."
                     )
         lines.append("")
         # Data quality flags (deterministas, parse_financials): identidades contables rotas,
@@ -853,7 +832,7 @@ def _format_context(state: AnalysisState) -> str:
                     f"given competitive position, capacity for reinvestment, and quarterly trend."
                 )
 
-            lines.append(f"\n## DCF GROWTH ASSUMPTION (use in §6 — most sensitive DCF parameter)")
+            lines.append("\n## DCF GROWTH ASSUMPTION (use in §6 — most sensitive DCF parameter)")
             lines.append(growth_block)
 
         # EC-92: diagnóstico de ciclicidad determinista. Sin él, el Expert leía "3 de 4 métodos baratos"
@@ -894,66 +873,6 @@ def _format_context(state: AnalysisState) -> str:
                     "EPV note: EPV per share > price — the stock is potentially below zero-growth value. "
                     "A BUY verdict here does NOT require growth assumptions to hold."
                 )
-
-        lines.append("")
-
-    # --- Peer Relative Valuation context for §6 (MCE-18) ---
-    # Provides LLM with peer medians and MF rank so §6 Valuation can answer
-    # "is this company cheap or expensive relative to its sector?"
-    peer_valuations_ctx = state.get("peer_valuations") or []  # type: ignore[typeddict-item]
-    if peer_valuations_ctx:
-        lines.append("## PEER RELATIVE VALUATION (use in §6 — relative cheapness vs sector)")
-
-        valid_ev_ebits = [pv.ev_ebit for pv in peer_valuations_ctx if pv.ev_ebit is not None]
-        valid_fcf_yields = [pv.fcf_yield_pct for pv in peer_valuations_ctx if pv.fcf_yield_pct is not None]
-
-        # Subject EV/EBIT vs peer median
-        valuation_ctx = state.get("valuation")  # type: ignore[typeddict-item]
-        if valuation_ctx and valuation_ctx.ev_ebit_multiple and valid_ev_ebits:
-            peer_median_ev = statistics.median(valid_ev_ebits)
-            direction = "discount" if valuation_ctx.ev_ebit_multiple.value < peer_median_ev else "premium"
-            lines.append(
-                f"Subject EV/EBIT: {valuation_ctx.ev_ebit_multiple.value:.1f}x "
-                f"| Peer median: {peer_median_ev:.1f}x "
-                f"-> subject trades at {direction} to peers"
-            )
-
-        # Subject FCF yield vs peer median (computed from raw state — not in ValuationReport)
-        financials_ctx = state.get("financials")   # type: ignore[typeddict-item]
-        market_ctx = state.get("market")           # type: ignore[typeddict-item]
-        if (
-            financials_ctx and financials_ctx.free_cash_flow
-            and market_ctx and market_ctx.market_cap and market_ctx.market_cap.value
-            and valid_fcf_yields
-        ):
-            fcf_val = financials_ctx.free_cash_flow[0].value
-            mkt_val = market_ctx.market_cap.value
-            if fcf_val > 0 and mkt_val > 0:
-                subj_fcf_yield = fcf_val / mkt_val * 100
-                peer_median_fcf = statistics.median(valid_fcf_yields)
-                direction_fcf = "above" if subj_fcf_yield > peer_median_fcf else "below"
-                lines.append(
-                    f"Subject FCF yield: {subj_fcf_yield:.1f}% "
-                    f"| Peer median: {peer_median_fcf:.1f}% "
-                    f"-> subject FCF yield is {direction_fcf} peer median"
-                )
-
-        # MF rank
-        if valuation_ctx and valuation_ctx.magic_formula_rank is not None:
-            valid_pvs = [pv for pv in peer_valuations_ctx if pv.mf_rank is not None]
-            total = len(valid_pvs) + 1
-            lines.append(
-                f"Subject MF rank: #{valuation_ctx.magic_formula_rank} of {total} "
-                f"(Greenblatt earnings yield + ROIC — #1 = best)"
-            )
-
-        # Warnings for excluded peers
-        excluded = [pv.ticker for pv in peer_valuations_ctx if pv.no_market_data]
-        ebit_excluded = [pv.ticker for pv in peer_valuations_ctx if not pv.no_market_data and pv.ev_ebit is None]
-        for t in excluded:
-            lines.append(f"[WARNING] {t} excluded from MF rank — no market data available")
-        for t in ebit_excluded:
-            lines.append(f"[WARNING] {t} excluded from MF rank — no valid EBIT for EV/EBIT computation")
 
         lines.append("")
 
@@ -1004,7 +923,18 @@ def _format_context(state: AnalysisState) -> str:
         # bloque de hipótesis del inversor, al final.
         lines.append("")
 
-    lines += _format_decision_inputs(state)
+    # --- Hechos compartidos con el informe y la consola (bloque B, report_facts): una sola redacción ---
+    # Rango de valor, calidad (scores contables incluidos), comparables y entradas de la decisión
+    # (rentabilidad frente al listón, ADR-044). Antes los scores y los escenarios del bloque A solo
+    # llegaban al informe en markdown, no a la decisión.
+    valuation_f = state.get("valuation")  # type: ignore[typeddict-item]
+    market_f = state.get("market")  # type: ignore[typeddict-item]
+    if valuation_f is not None and not valuation_f.stub:
+        lines += report_facts.price_implies_section(valuation_f, state).as_context()
+        lines += report_facts.value_range_section(valuation_f).as_context()
+    lines += report_facts.quality_section(state.get("financials")).as_context()  # type: ignore[typeddict-item]
+    lines += report_facts.relative_section(state).as_context()
+    lines += report_facts.decision_inputs_section(valuation_f, market_f).as_context()
 
     # --- Hipótesis del inversor: SIEMPRE el último bloque (T4b, regla 24) ---
     lines += _format_investor_hypotheses(state)
@@ -1012,52 +942,14 @@ def _format_context(state: AnalysisState) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _format_decision_inputs(state: AnalysisState) -> list[str]:
-    """Bloque '## DECISION INPUTS' (H2-2, ADR-041): margen exigido y precio de entrada por tipo de negocio,
-    calculados en código con verdict_policy. El Expert los cita en §9 sin inventar cifras (invariante 1)."""
-    valuation = state.get("valuation")  # type: ignore[typeddict-item]
-    market = state.get("market")  # type: ignore[typeddict-item]
-    competitive = state.get("competitive")  # type: ignore[typeddict-item]
-    if valuation is None or valuation.stub:
-        return ["## DECISION INPUTS (margin of safety, §9.1)",
-                "No valuation available: no entry price can be computed, so BUY is not possible.", ""]
-    price = market.price_current.value if market is not None and market.price_current is not None else None
-    moat = competitive.moat_classification if competitive is not None and not competitive.stub else None
-    cyclical = getattr(getattr(valuation, "cyclicality", None), "is_cyclical", None)
-    dcf = valuation.dcf_intrinsic_per_share.value if valuation.dcf_intrinsic_per_share else None
-    epv = valuation.epv_per_share.value if valuation.epv_per_share else None
-    reliable = verdict_policy.dcf_is_reliable(terminal_value_share=valuation.terminal_value_share,
-                                              growth_source=valuation.near_term_growth_source)
-    lines = ["## DECISION INPUTS (margin of safety, §9.1 — computed by code)",
-             f"Current price: {'$' + format(price, ',.2f') if price else 'unavailable'}",
-             f"Constraints: moat = {moat or 'unknown'}; cyclical = {bool(cyclical)}"
-             f"{' → only cyclical_or_low_quality allowed' if cyclical else ''}"
-             f"{' → quality_compounder not allowed (no confirmed moat)' if moat not in ('wide', 'narrow') else ''}"]
-    for cls in ("quality_compounder", "average", "cyclical_or_low_quality"):
-        # Solo las clases permitidas: mostrar el precio de entrada de una clase vetada (p.ej. compounder sin
-        # moat) invitaría a forzarla para justificar un BUY (sicofancia).
-        if verdict_policy.effective_business_class(cls, moat=moat, is_cyclical=cyclical)[0] != cls:
-            continue
-        mos = verdict_policy.REQUIRED_MOS[cls]
-        anchor, source = verdict_policy.intrinsic_anchor(cls, dcf_ps=dcf, epv_ps=epv, dcf_reliable=reliable)
-        if anchor is None:
-            lines.append(f"- {cls}: required MoS {mos:.0%}; no entry price ({source})")
-            continue
-        entry = verdict_policy.entry_price(anchor, mos)
-        status = "" if price is None else (" → price is BELOW entry" if price <= entry else " → price is ABOVE entry")
-        lines.append(f"- {cls}: required MoS {mos:.0%}; intrinsic anchor ${anchor:,.2f} ({source}); "
-                     f"entry price ${entry:,.2f}{status}")
-    return lines + [""]
-
-
 def _to_report(out: ValueExpertLLMOutput, ticker: str,
                state: AnalysisState | None = None) -> ValueExpertReport:
     """Post-validación de negocio sobre la salida ya tipada (ADR-032, ADR-041).
 
     El modelo elige la etiqueta (BUY/WATCHLIST/PASS/SELL) y el tipo de negocio; la parte numérica la
-    calcula `verdict_policy.decide`: precio de entrada por margen de seguridad (§9.1), confianza compuesta
-    y tamaño por margen. El código solo hace el veredicto MÁS prudente (un BUY sin margen baja a
-    WATCHLIST). Después se aplican los topes deterministas de confianza ya existentes: ≤ 0,6 si falta
+    calcula `verdict_policy.decide`: precio de entrada por rentabilidad frente al listón (ADR-044),
+    confianza compuesta y tamaño por el caso pesimista. El código solo hace el veredicto MÁS prudente
+    (un BUY por encima del precio de entrada baja a WATCHLIST). Después se aplican los topes deterministas de confianza ya existentes: ≤ 0,6 si falta
     Filings o Management (DATA GAPS) o hay governance verificado.
     """
     state = state or {}

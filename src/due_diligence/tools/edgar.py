@@ -877,10 +877,43 @@ def _get_latest_full_10k(company):
     return filings.latest()  # patrón latest() aceptado: degraded mode, ya logueado arriba
 
 
-# Límite por apartado del 10-K (Items 1, 1A, 7) enviado al Filings agent (EC-94).
-# Antes 8 000 / 10 000: en CALM era el 15-20 % de cada sección y el LLM no podía citar lo que no
-# veía. 25 000 × 3 ≈ 19K tokens con gpt-4o-mini (< 0,5 céntimos por análisis).
-TENK_ITEM_MAX_CHARS = 25_000
+# Límite por apartado del 10-K (Items 1, 1A, 7) enviado al Filings agent (EC-94, EC-106).
+# Medido el 2026-10-17: AAPL 16K / 68K / 18K, CALM 51K / 69K / 50K caracteres. Con 25 000 el 1A de
+# AAPL llegaba recortado a un tercio sin aviso. 60 000 cubre la sección entera en casi todos los
+# casos (≈ 45K tokens los tres); si aun así se recorta, el texto lleva una marca visible.
+TENK_ITEM_MAX_CHARS = 60_000
+# Por debajo de esto el parser primario no ha encontrado la sección real (índice o referencia suelta).
+_MIN_PRIMARY_SECTION_CHARS = 500
+
+
+def _section_text(filing, ticker: str, item: str, primary: str, max_chars: int) -> str:
+    """Texto de la sección del 10-K: parser de edgartools; si falla, encabezados del texto completo.
+
+    EC-106: edgartools devuelve las secciones vacías en algunos 10-K (KO, JNJ en 2025) aunque el
+    texto completo existe; antes el Filings agent recibía "" sin que se viera en el informe. El
+    resultado se recorta con marca visible (tenk_sections.truncate_visibly) y se registra.
+    """
+    from due_diligence.tools.tenk_sections import extract_section, truncate_visibly
+
+    text, source = primary or "", "edgartools"
+    if len(text) < _MIN_PRIMARY_SECTION_CHARS:
+        try:
+            full_text = filing.document.text() if hasattr(filing, "document") else ""
+        except Exception as e:  # el texto completo es el fallback: si falla, se devuelve lo que haya
+            log.warning("10k_full_text_failed", ticker=ticker, item=item, error=str(e))
+            full_text = ""
+        fallback = extract_section(full_text, item)
+        if fallback:
+            text, source = fallback, "full-text headers"
+    if not text:
+        log.warning("10k_section_not_found", ticker=ticker, item=item)
+        return ""
+    out, truncated = truncate_visibly(text, max_chars)
+    log.info("10k_section_fetched", ticker=ticker, item=item, source=source, chars=len(text),
+             truncated=truncated)
+    if truncated:
+        log.warning("10k_section_truncated", ticker=ticker, item=item, kept=max_chars, total=len(text))
+    return out
 
 
 class EdgarFilingsAdapter:
@@ -894,7 +927,8 @@ class EdgarFilingsAdapter:
 
     Los tres métodos comparten el mismo patrón: obtener el 10-K original más reciente
     (excluyendo 10-K/A — ver `_get_latest_full_10k`), extraer la sección semántica
-    via edgartools 5.x, y truncar para el contexto LLM. Se mockean individualmente
+    via edgartools 5.x (con fallback por encabezados, EC-106) y recortar con marca visible.
+    Se mockean individualmente
     en tests — ver tests/test_agents_1b.py.
     """
 
@@ -922,35 +956,27 @@ class EdgarFilingsAdapter:
         log.info("10k_business_fetch", ticker=ticker, period=str(filing.period_of_report))
 
         try:
-            tenk = filing.obj()
-            text = str(tenk.business or "")
-        except Exception as e:
+            primary = str(filing.obj().business or "")
+        except Exception as e:  # el fallback por encabezados se intenta igualmente
             log.warning("10k_business_extraction_failed", ticker=ticker, error=str(e))
-            return ""
-
-        return text[:max_chars]
+            primary = ""
+        return _section_text(filing, ticker, "1", primary, max_chars)
 
     @staticmethod
     def fetch_10k_risk_factors(ticker: str, max_chars: int = TENK_ITEM_MAX_CHARS) -> str:
         """
-        Obtiene el Item 1A del 10-K (Risk Factors) con fallback regex (EC-27).
+        Obtiene el Item 1A del 10-K (Risk Factors).
 
         Contiene los riesgos materiales que la empresa reconoce formalmente:
         regulatorios, competitivos, tecnológicos, macroeconómicos. Es la
         fuente primaria para §7.2 (Regulatory exposure) y §7.3 (Disruption)
         del checklist.
 
-        Estrategia con dos pasos:
-            1. Primary: `tenk.risk_factors` de edgartools (rápido cuando funciona).
-            2. Fallback: regex sobre el texto completo del filing — busca encabezado
-               "Item 1A" y extrae hasta "Item 1B" o "Item 2". Necesario porque
-               edgartools 5.x falla en parsear Item 1A para muchos 10-K (BBW,
-               retailers, small caps con markup no estándar — verificado en vivo).
-
-        Esto sigue el mismo patrón que EC-21 (operating income con fallbacks):
-        no asumir que un parser único funciona para todo el universo de filers.
+        Primary: `tenk.risk_factors` de edgartools. Fallback (EC-27, EC-106): encabezados en el texto
+        completo del filing (`tenk_sections.extract_section`), el mismo para los Items 1, 1A y 7.
+        Antes el 1A tenía un regex propio que tomaba la ÚLTIMA aparición del encabezado; en JNJ esa
+        era una referencia cruzada de 2.338 caracteres.
         """
-        import re
         from edgar import Company, set_identity  # type: ignore[import]
 
         set_identity(settings.sec_user_agent)
@@ -963,58 +989,12 @@ class EdgarFilingsAdapter:
 
         log.info("10k_risk_factors_fetch", ticker=ticker, period=str(filing.period_of_report))
 
-        # Step 1: primary — parser de edgartools
         try:
-            tenk = filing.obj()
-            text = str(tenk.risk_factors or "")
-            if text and len(text) > 500:  # threshold mínimo para considerar válido
-                return text[:max_chars]
-        except Exception as e:
+            primary = str(filing.obj().risk_factors or "")
+        except Exception as e:  # el fallback por encabezados se intenta igualmente
             log.warning("10k_risk_factors_primary_failed", ticker=ticker, error=str(e))
-
-        # Step 2: fallback — regex sobre el texto completo del filing
-        try:
-            full_text = filing.document.text() if hasattr(filing, "document") else ""
-            if not full_text:
-                full_text = str(filing.text() if hasattr(filing, "text") else "")
-            if not full_text:
-                log.warning("10k_risk_factors_no_full_text", ticker=ticker)
-                return ""
-
-            # Buscar el header "Item 1A" (con variantes de capitalización y separadores).
-            # Un 10-K típico tiene varios "Item 1A" matches (índice + cuerpo); tomar el
-            # primero que esté seguido por "Risk Factors" en la siguiente línea o cerca.
-            # Patrón: "Item 1A" + opcional ". " + "Risk Factors" en los siguientes 100 chars
-            start_pattern = re.compile(
-                r"Item\s*1A\.?\s*[\.\:\s—-]*\s*Risk\s*Factors",
-                re.IGNORECASE,
-            )
-            # Extraer la última ocurrencia (la primera suele ser TOC/índice).
-            matches = list(start_pattern.finditer(full_text))
-            if not matches:
-                log.warning("10k_risk_factors_regex_no_match", ticker=ticker)
-                return ""
-            start_idx = matches[-1].end()  # última = cuerpo, no índice
-
-            # Buscar el final: próximo "Item 1B" o "Item 2" después de start_idx
-            end_pattern = re.compile(
-                r"Item\s*(1B|2)\.?\s",
-                re.IGNORECASE,
-            )
-            end_match = end_pattern.search(full_text, start_idx)
-            end_idx = end_match.start() if end_match else min(start_idx + 50000, len(full_text))
-
-            extracted = full_text[start_idx:end_idx].strip()
-            log.info(
-                "10k_risk_factors_regex_extracted",
-                ticker=ticker,
-                length=len(extracted),
-            )
-            return extracted[:max_chars]
-
-        except Exception as e:
-            log.warning("10k_risk_factors_fallback_failed", ticker=ticker, error=str(e))
-            return ""
+            primary = ""
+        return _section_text(filing, ticker, "1A", primary, max_chars)
 
     @staticmethod
     def fetch_10k_mda(ticker: str, max_chars: int = TENK_ITEM_MAX_CHARS) -> str:
@@ -1041,13 +1021,11 @@ class EdgarFilingsAdapter:
         log.info("10k_mda_fetch", ticker=ticker, period=str(filing.period_of_report))
 
         try:
-            tenk = filing.obj()
-            text = str(tenk.management_discussion or "")
-        except Exception as e:
+            primary = str(filing.obj().management_discussion or "")
+        except Exception as e:  # el fallback por encabezados se intenta igualmente
             log.warning("10k_mda_extraction_failed", ticker=ticker, error=str(e))
-            return ""
-
-        return text[:max_chars]
+            primary = ""
+        return _section_text(filing, ticker, "7", primary, max_chars)
 
 
 # ---------- Form 4 institutional holder detection (EC-43) ---------- #
@@ -1336,13 +1314,12 @@ class EdgarEventsAdapter:
                 filing_date_str = str(f.filing_date)
                 obj = f.obj()
                 filed_items_raw = list(getattr(obj, "items", []) or [])
-                # Normalizar items del filing: strip "Item " prefix para comparar (EC-30)
-                filed_normalized = {i.replace("Item ", "").strip().lower() for i in filed_items_raw}
 
                 # Aplicar cutoff por item: 4.02 usa restatement_months, resto usa months.
                 # Esto evita surfacear 2.02/5.02 de hace 23 meses como "noticias recientes".
                 matching = []
                 for raw_item in filed_items_raw:
+                    # Normalizar el item del filing: strip "Item " prefix para comparar (EC-30)
                     item_key = raw_item.replace("Item ", "").strip().lower()
                     if item_key not in items_normalized:
                         continue

@@ -20,11 +20,14 @@ Qué calcula (plano enterprise, ADR-033 — la aritmética vive en valuation_mat
     5. Múltiplos sobre market EV: EV/EBIT, EV/FCFF, P/E (equity de mercado / NI), earnings yield
     6. Tabla de sensibilidad WACC × near-term growth (3×3) en USD/share
     7. Convergencia de los 4 métodos (ADR-030, umbrales ADR-033)
+    8. Rentabilidad implícita al precio de hoy (caso base y pesimista) frente al listón del inversor
+       y precio de entrada (bloque B, ADR-044): la cifra que decide BUY / WATCHLIST
 
-Por qué near-term growth se calcula desde FCF histórico y no desde revenue:
-    Ya tenemos el FCF calculado en FinancialsReport. Proyectar FCF directamente
-    evita construir un modelo completo de márgenes — más simple y menos propenso
-    a errores en Phase 1. El usuario puede override con revenue_growth_yr1_pct.
+Por qué el crecimiento de la etapa 1 sale de la tendencia de VENTAS (bloque A, ADR-043):
+    La base del DCF es "margen FCFF normalizado × ventas actuales"; con margen constante el FCFF
+    crece como las ventas. La tendencia por mínimos cuadrados (hasta 10 años) no depende del año de
+    inicio, como sí le pasaba al CAGR del FCF entre dos años extremos. El usuario puede hacer
+    override con revenue_growth_yr1_pct en el checkpoint 2.
 
 Por qué no hay LLM aquí:
     Los números de valoración deben ser deterministas y auditables. Si el LLM
@@ -66,8 +69,11 @@ from due_diligence.agents.valuation_math import (
     net_claims,
     per_share,
     resolve_share_count,
+    solve_decreasing,
     validate_dcf_rates,
+    wacc_for_cost_of_equity,
 )
+from due_diligence.config import settings
 from due_diligence.schemas.reports import CyclicalityAssessment
 
 log = structlog.get_logger()
@@ -83,13 +89,21 @@ _MIN_NEAR_TERM_GROWTH = -0.15  # -15% mínimo
 _MAX_AUTO_GROWTH = 0.15
 # Años de la base normalizada no cíclica (mediana del margen FCFF): mismos que el EPV (EBIT 5 años).
 _NORMALIZATION_YEARS = 5
+# Bloque B (B1): búsqueda de la rentabilidad implícita del accionista. Por encima del 60 % la cifra
+# exacta no cambia la decisión; por debajo del suelo el WACC no supera al crecimiento terminal en 1 pp.
+_MAX_IMPLIED_RETURN = 0.60
+# Aviso de ruptura estructural: tendencia de 10 años y CAGR de 5 años separadas más de 4 pp
+# (refranchising de KO y MCD, escisión de Kenvue en JNJ). Solo avisa: no cambia g.
+_STRUCTURAL_BREAK_PP = 0.04
+# Escenarios de una cíclica: medias móviles de este nº de años para el pesimista y el optimista.
+_CYCLE_SMOOTHING_YEARS = 3
 
 
 def _fcf_cagr_with_window(fcf_series: list[MetricValue]) -> tuple[Optional[float], int]:
     """
     Calcula el CAGR del FCF usando la ventana válida más larga disponible (EC-60).
 
-    Problema del enfoque full-span anterior (_fcf_cagr): usaba siempre el punto más
+    Problema del enfoque full-span anterior: usaba siempre el punto más
     antiguo como denominador. Si ese año tenía FCF negativo (empresa en turnaround o
     early stage), devolvía None aunque los años recientes fueran perfectamente positivos.
     Ejemplo PATH: FCF negativo FY2022-2023, positivo FY2024-2026 → caída al revenue
@@ -110,17 +124,6 @@ def _fcf_cagr_with_window(fcf_series: list[MetricValue]) -> tuple[Optional[float
     return r if r else (None, 0)
 
 
-def _fcf_cagr(fcf_series: list[MetricValue]) -> Optional[float]:
-    """
-    Calcula el CAGR del FCF desde la serie histórica.
-
-    Wrapper de compatibilidad retroactiva sobre _fcf_cagr_with_window.
-    Devuelve solo el CAGR sin el número de períodos utilizados.
-    """
-    cagr, _ = _fcf_cagr_with_window(fcf_series)
-    return cagr
-
-
 def _three_stage_dcf(
     base_fcf: float,
     g1: float,
@@ -137,7 +140,7 @@ def _three_stage_dcf(
     Stage 2 (años stage1_years+1..stage1_years+fade_years): fade lineal g1 → terminal_growth.
     Stage 3: perpetuidad a terminal_growth (Gordon Growth Model).
 
-    fade_years=0 degrada al 2-stage clásico (compatibilidad retroactiva).
+    fade_years=0 degrada al 2-stage clásico.
     El fade reconoce que mantener g1 durante una década completa es menos probable
     que normalizar hacia el crecimiento de la economía tras los primeros años de ventaja.
 
@@ -152,25 +155,6 @@ def _three_stage_dcf(
     return dcf_components(
         base_fcf, g1, terminal_growth, wacc, stage1_years, fade_years, mid_year=mid_year,
     ).enterprise_value
-
-
-def _two_stage_dcf(
-    base_fcf: float,
-    near_term_growth: float,
-    terminal_growth: float,
-    wacc: float,
-    years: int,
-) -> float:
-    """
-    Wrapper de compatibilidad — delega a _three_stage_dcf con fade_years=0.
-
-    Mantiene la firma original para que cualquier test o código externo que llame
-    _two_stage_dcf directamente siga funcionando sin cambios.
-    """
-    return _three_stage_dcf(
-        base_fcf, near_term_growth, terminal_growth, wacc,
-        stage1_years=years, fade_years=0,
-    )
 
 
 def _resolve_stages(
@@ -273,40 +257,6 @@ def _ten_year_equivalent_cagr(
     return round(growth ** (1 / n) - 1, 4)
 
 
-def _normalized_fcf_proxy(
-    ebit: float, net_income: Optional[float], tax_rate: Optional[float] = None,
-) -> Optional[float]:
-    """
-    Proxy de cash generation normalizado cuando el FCF reportado es negativo (EC-13).
-
-    Cuándo se usa: empresas en trough cíclico (MOS FY2025: FCF -$535M pero EBIT $822M)
-    o en heavy reinvestment (growth-stage). Sin este fallback, el DCF se salta y el
-    sistema devuelve "N/A — FCF insufficient", lo que pierde toda valoración para una
-    clase entera del universo value (cyclicals descontados, compounders en inversión).
-
-    Cálculo: NOPAT = EBIT × (1 − t).
-        - t = `tax_rate` si el llamador pasa la tasa canónica (effective_tax_rate_multi).
-        - Si no: MARGINAL_TAX_RATE (25 %). La antigua 1 − NI/EBIT metía los intereses
-          (y la NCI) en el impuesto: EBIT 300, int 40, NI 195 → 35 % en vez de 25 % (EC-77).
-        - `net_income` ya no se usa; se conserva en la firma por compatibilidad de llamadas.
-
-    Limitación: ignora working capital y maintenance vs growth capex. Sobreestima FCF
-    sostenible para cyclicals en trough (cuando capex de mantenimiento es alto). Se
-    documenta en `dcf_reliability_note` para que el lector lo trate como directional.
-
-    Args:
-        ebit: Operating income (EBIT) en USD, periodo más reciente.
-        net_income: Net income en USD (para derivar tax rate), opcional.
-
-    Returns:
-        NOPAT proxy en USD, o None si EBIT no disponible/no-positivo.
-    """
-    if ebit is None or ebit <= 0:
-        return None
-    t = tax_rate if tax_rate is not None else MARGINAL_TAX_RATE
-    return ebit * (1 - t)
-
-
 def _fcf_quality_flag(
     fcf_latest: float,
     revenue_latest: float,
@@ -354,14 +304,6 @@ def _fcf_quality_flag(
         )
     return None
 
-
-
-# --- Constantes WACC advisory (ADR-029) ---
-# Un hecho = un lugar: los valores viven en valuation_math; aquí solo alias históricos
-# para no romper imports existentes (cli, tests).
-_RF_PCT: float = RF_PCT              # US 10y Treasury, as of 2026-05
-_ERP_PCT: float = ERP_PCT            # Damodaran historical ERP (US)
-_BETA_DEFAULT: float = BETA_DEFAULT  # simplificación: β=1, sin β específica de empresa
 
 
 def _ebit_median(
@@ -432,7 +374,8 @@ def _compute_epv(
                                                  preferentes, caja, STI, LTI)
     EPV_per_share  = EPV_equity / shares
 
-    NOPAT normalizado = mediana(EBIT, incluidos años negativos) × (1 − MARGINAL_TAX_RATE).
+    NOPAT normalizado = EBIT normalizado (margen mediano × ventas actuales; fallback: mediana del EBIT
+    en dólares, incluidos años negativos) × (1 − MARGINAL_TAX_RATE).
     growth_premium = 1 − EPV/sh ÷ precio (Greenwald): fracción del precio que paga por
     crecimiento. Positivo = el mercado paga crecimiento (coherente solo con moat); negativo =
     el precio está por debajo del valor sin crecimiento.
@@ -443,8 +386,8 @@ def _compute_epv(
         (epv_enterprise_mv, epv_per_share_mv, epv_upside_pct, source_label, growth_premium)
         Todos pueden ser None si no hay datos suficientes.
     """
-    # normalized_ebit (EC-92): EBIT mid-cycle de una cíclica (margen mediano × ventas actuales);
-    # sustituye a la mediana de 5 años en dólares, que en CALM incluía dos años de gripe aviar.
+    # normalized_ebit: margen EBIT mediano × ventas actuales (mid-cycle en cíclicas, EC-92; 5 años en el
+    # resto, bloque B). La mediana en dólares queda como fallback sin márgenes suficientes.
     if normalized_ebit is not None and normalized_ebit[0] > 0:
         ebit_med, source = normalized_ebit
     else:
@@ -485,9 +428,9 @@ def _compute_epv(
 
 def _compute_suggested_wacc(
     market_cap: Optional[float],
-    rf_pct: float = _RF_PCT,
-    erp_pct: float = _ERP_PCT,
-    beta: float = _BETA_DEFAULT,
+    rf_pct: float = RF_PCT,
+    erp_pct: float = ERP_PCT,
+    beta: float = BETA_DEFAULT,
     size_premium: bool = False,
 ) -> tuple[float, str]:
     """
@@ -543,9 +486,9 @@ def suggest_wacc(financials, market_cap: Optional[float], *, size_premium: bool 
     if market_cap is None or market_cap <= 0 or financials is None:
         return None
     # A5 (ADR-043): Rf vivo (FRED DGS10) si el nodo de mercado lo obtuvo; si no, el estático, dicho.
-    rf_pct = rf.value if rf is not None else _RF_PCT
+    rf_pct = rf.value if rf is not None else RF_PCT
     rf_label = (f"{rf.source} {rf.period}" if rf is not None
-                else f"static default as of 2026-05, FRED unavailable")
+                else "static default as of 2026-05, FRED unavailable")
     ke_pct, ke_src = _compute_suggested_wacc(market_cap, rf_pct=rf_pct, size_premium=size_premium)
     ke_src = f"{ke_src}; Rf source: {rf_label}"
     # Cobertura EBIT/intereses del MISMO ejercicio: interest_expense[0] puede ser de otro año si la
@@ -647,6 +590,7 @@ def _build_methods_summary(
     ev_ebit,            # Optional[MetricValue]
     peer_ev_ebit_median: Optional[float],
     reverse_10y_equivalent: Optional[float] = None,
+    historical_years: Optional[int] = None,
 ) -> list[dict]:
     """
     Tabla de 4 métodos de valoración con clasificación uniforme (ADR-030, umbrales ADR-033 §8).
@@ -657,6 +601,10 @@ def _build_methods_summary(
     Reverse DCF (revisión M2): si se pasa `reverse_10y_equivalent`, la clasificación compara la
     CAGR equivalente a 10 años del camino implícito (stage1 + fade) con la CAGR histórica de
     ingresos — un g1 del 8 % con fade no es comparable con una CAGR plana de 5 años.
+
+    `historical_years`: años de la CAGR histórica. Se imprimen siempre: en cíclicas la tabla usa la
+    ventana completa (hasta 10 años) y el resto del informe la de 5; sin los años parecían dos cifras
+    contradictorias del mismo dato (CALM: 16,6 % y 11,7 %).
 
     Los classifiers siguen umbrales simples: ver _classify_* functions.
     La síntesis de la convergencia la hace el LLM (Value Expert regla #21)
@@ -672,6 +620,7 @@ def _build_methods_summary(
         return f"{v:.1f}x" if v is not None else "N/A"
 
     ev_ebit_val = ev_ebit.value if ev_ebit is not None else None
+    hist_label = f"{historical_years}y revenue CAGR" if historical_years else "revenue CAGR"
 
     return [
         {
@@ -693,10 +642,10 @@ def _build_methods_summary(
             "per_share": "N/A",
             "upside_pct": None,
             "display_upside": (
-                f"implied {_fmt_pct(reverse_growth)} vs historical {_fmt_pct(historical_cagr)}"
+                f"implied {_fmt_pct(reverse_growth)} vs historical {_fmt_pct(historical_cagr)} {hist_label}"
                 if reverse_10y_equivalent is None else
                 f"implied g1 {_fmt_pct(reverse_growth)} (10y-equiv {_fmt_pct(reverse_10y_equivalent)}) "
-                f"vs historical {_fmt_pct(historical_cagr)} revenue CAGR"
+                f"vs historical {_fmt_pct(historical_cagr)} {hist_label}"
             ),
             "classification": _classify_reverse_vs_historical(
                 reverse_10y_equivalent if reverse_10y_equivalent is not None else reverse_growth,
@@ -730,16 +679,34 @@ def _cyclicality(financials) -> CyclicalityAssessment:
     return assess_cyclicality(_operating_margins(financials))
 
 
-def _mid_cycle_ebit(financials, cyc: Optional[CyclicalityAssessment]) -> Optional[float]:
-    """EBIT mid-cycle = margen operativo mediano (≤10 años) × ventas del último ejercicio.
+def _normalized_ebit(financials, cyc: Optional[CyclicalityAssessment]) -> tuple[Optional[float], str]:
+    """EBIT normalizado = margen operativo mediano × ventas del último ejercicio → (valor, etiqueta).
 
     Por qué margen × ventas actuales y no la mediana del EBIT en dólares: la empresa puede haber
     cambiado de tamaño (CALM triplicó ventas en 10 años); el margen normaliza el ciclo y las ventas
-    actuales el tamaño (Damodaran, "normalized margin"). None si no es cíclica o no hay datos.
+    actuales el tamaño (Damodaran, "normalized margin").
+      - Cíclica (EC-92): margen mediano de hasta 10 años (nivel mid-cycle).
+      - Resto (bloque B, B1): margen mediano de hasta 5 años, como la base FCFF del DCF. Antes el EPV
+        usaba la mediana del EBIT en DÓLARES de 5 años e infravaloraba a toda empresa que crece
+        (MSFT −26 %); y como el EPV solía fijar el precio de entrada, el sesgo llegaba al veredicto.
+    Lo usan el EPV y el NOPAT del valor terminal: misma base que el FCFF normalizado.
+    (None, "") si hay < 3 márgenes o no hay ventas: el llamador cae a la mediana en dólares / último año.
     """
-    if cyc is None or not cyc.is_cyclical or cyc.median_margin is None or not financials.revenue:
-        return None
-    return cyc.median_margin * financials.revenue[0].value
+    if financials is None or not financials.revenue:
+        return None, ""
+    if cyc is not None and cyc.is_cyclical and cyc.median_margin is not None:
+        return cyc.median_margin * financials.revenue[0].value, f"mid_cycle_margin_{cyc.years}y"
+    margins = [m for _, m in _operating_margins(financials, max_years=_NORMALIZATION_YEARS)]
+    if len(margins) < 3:
+        return None, ""
+    med = median(margins)
+    if med <= 0:
+        # Historia en pérdidas (giro reciente a beneficios): no hay margen normal que perpetuar. Un EBIT
+        # normalizado negativo dejaría el terminal sin NOPAT y caería al legacy FCFF × (1+g), que sobrevalora;
+        # se usa el EBIT del último año (comportamiento anterior al bloque B) y la ciclicidad ya lo marca
+        # como `loss_making` (revisión de código del bloque B, #7).
+        return None, ""
+    return med * financials.revenue[0].value, f"ebit_margin_median_{len(margins)}y"
 
 
 def _compute_near_term_growth(
@@ -1054,7 +1021,8 @@ def _dcf_scenarios(margins: list[float], revenue: list[MetricValue], *, g_base: 
 
     Solo varían los dos supuestos que tienen historia; WACC y terminal ya tienen su tabla de
     sensibilidad. No hay deltas inventados ("±3 pp"):
-      - margen FCFF: P25 / mediana / P75 de los márgenes de la ventana de normalización;
+      - margen FCFF: P25 / mediana / P75 de los márgenes de la ventana de normalización (en cíclicas,
+        P25 y P75 de medias móviles de 3 años: ver abajo);
       - crecimiento: mín / base / máx entre el g1 base y los CAGR de ventas a 3, 5 y 10 años,
         acotados igual que el automático ([−15 %, 15 %]). En cíclicas el crecimiento es el terminal
         en los tres (el CAGR depende del punto del ciclo, EC-92).
@@ -1069,6 +1037,16 @@ def _dcf_scenarios(margins: list[float], revenue: list[MetricValue], *, g_base: 
     if len(margins) < 3 or not revenue:
         return []
     p25, p50, p75 = quantiles(margins, n=4, method="inclusive")
+    if cyclical and len(margins) >= _CYCLE_SMOOTHING_YEARS + 2:
+        # Bloque B: en una cíclica el margen de UN año depende de la fase del ciclo, y el valor terminal es
+        # una perpetuidad: perpetuar el año valle no es un escenario pesimista, es suponer que el ciclo no
+        # vuelve (CALM: −2,5 % para siempre → equity casi nulo con 0,9 B$ de caja neta). Pesimista y
+        # optimista salen de medias móviles de 3 años (Graham: beneficio de varios años); el base sigue
+        # siendo la mediana de los años sueltos, la misma del titular.
+        k = _CYCLE_SMOOTHING_YEARS
+        rolling = [sum(margins[i:i + k]) / k for i in range(len(margins) - k + 1)]
+        r25, _, r75 = quantiles(rolling, n=4, method="inclusive")
+        p25, p75 = min(r25, p50), max(r75, p50)
     if cyclical:
         g_low = g_high = g_base
     else:
@@ -1122,6 +1100,103 @@ def _build_fcff(financials, tax_rate: float, *, cyclical: bool = False,
         return (latest, base, missing, year_gaps,
                 f"median FCFF margin ({n}y) × latest revenue = {median_margin:.1%}")
     return latest, latest.fcff, missing, latest_gaps, "latest FY FCFF"
+
+
+class _Returns:
+    """Resultado de _implied_returns: rentabilidad base, escenarios con su rentabilidad y entrada."""
+
+    def __init__(self, base, base_note, entry, entry_basis, scenarios):
+        self.base, self.base_note = base, base_note
+        self.entry, self.entry_basis = entry, entry_basis
+        self.scenarios = scenarios
+
+
+def _implied_returns(base_fcf: float, g1: float, scenarios: list[DcfScenario], *, terminal_growth: float,
+                     stage1_years: int, fade_years: int, mid_year: bool, terminal_nopat: Optional[float],
+                     ronic: float, wacc_breakdown, days_since_fye: int, claims_kwargs: dict,
+                     share_count: float, lease_liabilities: Optional[float], price: Optional[float],
+                     hurdle: float, rf: float) -> _Returns:
+    """Rentabilidad anual del accionista al precio de hoy y precio de entrada (bloque B, B1, ADR-044).
+
+    Pregunta que responde: "si compro hoy y la empresa cumple el escenario, ¿qué rentabilidad anual
+    obtengo?". Es la Ke que iguala el valor por acción al precio, por el MISMO camino que el titular
+    (dcf_components → capitalización → bridge → por acción) con WACC = wE·Ke + wD·Kd(1−t) a pesos de
+    mercado. RONIC del valor terminal = WACC de MERCADO: es una propiedad económica de la empresa, no
+    de lo que exige el inversor.
+
+    Precio de entrada = el máximo precio con el que (a) el caso base rinde al menos el listón y (b) el
+    pesimista rinde al menos Rf (en el escenario malo no se pierde frente al bono). Es el margen de
+    seguridad de Graham expresado en rentabilidad y medido con la propia historia de la empresa: una
+    cíclica tiene un pesimista mucho peor y por tanto una entrada más baja, sin tablas por clase.
+    Sin escenarios (base NOPAT o < 3 años de márgenes) la entrada usa solo (a) y lo dice.
+    """
+    lease = lease_liabilities
+
+    def value_at(ke: float, fcf: float, g: float, scale: float) -> float:
+        w = wacc_for_cost_of_equity(ke, wacc_breakdown)
+        ev = dcf_components(fcf, g, terminal_growth, w, stage1_years, fade_years, mid_year=mid_year,
+                            nopat_base=terminal_nopat * scale if terminal_nopat is not None else None,
+                            ronic=ronic).enterprise_value * (1 + w) ** (days_since_fye / 365)
+        eq = equity_bridge(ev, **claims_kwargs, lease_liabilities=lease).equity_value
+        return per_share(eq, share_count)
+
+    # Suelo de Ke: el WACC resultante debe superar al crecimiento terminal en ≥ 1 pp (validate_dcf_rates).
+    if wacc_breakdown is not None and wacc_breakdown.equity_weight > 0:
+        ke_lo = (terminal_growth + 0.0101 - wacc_breakdown.debt_weight * wacc_breakdown.after_tax_cost_of_debt
+                 ) / wacc_breakdown.equity_weight
+    else:
+        ke_lo = terminal_growth + 0.0101
+    ke_lo = max(ke_lo, terminal_growth + 0.0101)
+
+    def solve(fcf: float, g: float, scale: float) -> tuple[Optional[float], Optional[str]]:
+        if not price:
+            return None, "price unavailable"
+        r, status = solve_decreasing(lambda k: value_at(k, fcf, g, scale), price, ke_lo, _MAX_IMPLIED_RETURN)
+        if status == "above":
+            return None, f"above {_MAX_IMPLIED_RETURN:.0%}, the search bound"
+        if status == "below":
+            return None, f"below {ke_lo:.1%}: the price exceeds the value even at the lowest valid discount rate"
+        return r, None
+
+    base, base_note = solve(base_fcf, g1, 1.0)
+    p50 = next((sc.fcff_margin for sc in scenarios if sc.name == "base"), None)
+    revenue_scale = base_fcf / p50 if p50 else None       # ventas del último año (base = p50 × ventas)
+    updated: list[DcfScenario] = []
+    bear_entry: Optional[float] = None
+    for sc in scenarios:
+        if revenue_scale is None:
+            updated.append(sc)
+            continue
+        scale = sc.fcff_margin / p50 if p50 and p50 > 0 else 1.0
+        fcf = sc.fcff_margin * revenue_scale
+        r, note = (base, base_note) if sc.name == "base" else solve(fcf, sc.near_term_growth, scale)
+        updated.append(sc.model_copy(update={"implied_return": r, "implied_return_note": note}))
+        if sc.name == "bear":
+            # Revisión de código (bloque B): con deuda o un g terminal alto el suelo de Ke supera a Rf; antes
+            # el pesimista dejaba de evaluarse y el informe decía "sin escenario pesimista". Se evalúa al
+            # mayor de los dos tipos: a un tipo más alto vale menos, así que la entrada es más prudente.
+            bear_rate = max(rf, ke_lo)
+            bear_entry = value_at(bear_rate, fcf, sc.near_term_growth, scale)
+
+    base_entry = value_at(hurdle, base_fcf, g1, 1.0) if hurdle >= ke_lo else None
+    candidates = [(v, why) for v, why in (
+        (base_entry, f"base case returns the {hurdle:.1%} hurdle"),
+        (bear_entry, f"bear case returns the risk-free {rf:.2%}" if rf >= ke_lo else
+         f"bear case returns {ke_lo:.2%} (the lowest valid discount rate, above the risk-free {rf:.2%})"),
+    ) if v is not None]
+    if not candidates:
+        return _Returns(base, base_note, None, "not computable (discount-rate floor)", updated)
+    entry, why = min(candidates, key=lambda c: c[0])
+    if bear_entry is None:
+        why += " (no bear scenario: downside not tested)"
+    if entry <= 0:
+        # Dice QUÉ condición no tiene solución: si el pesimista vale ≤ 0 incluso al tipo sin riesgo, ningún
+        # precio supera la prueba de pérdida (no hay compra posible, aunque el base sí tenga valor).
+        reason = ("bear case has no positive equity value even at the risk-free rate: no price passes the "
+                  "downside test" if bear_entry is not None and bear_entry <= 0 else
+                  "no positive equity value at the hurdle (net claims exceed EV)")
+        return _Returns(base, base_note, None, reason, updated)
+    return _Returns(base, base_note, round(entry, 2), why, updated)
 
 
 def valuation_agent(state: AnalysisState) -> dict:
@@ -1251,12 +1326,16 @@ def _run_valuation(state: AnalysisState) -> dict:
     is_cyclical = cyclicality is not None and cyclicality.is_cyclical
     fcff_bd, fcff_base_value, fcff_missing, fcff_year_gaps, fcff_source = _build_fcff(
         financials, tax_rate, cyclical=is_cyclical)
-    mid_cycle_ebit = _mid_cycle_ebit(financials, cyclicality)
+    normalized_ebit, normalized_ebit_label = _normalized_ebit(financials, cyclicality)
     if is_cyclical:
         note_parts.append(
             f"⚠️ Cyclical business ({cyclicality.evidence}). Valuation uses the mid-cycle level "
             f"(median margins × latest revenue) and stage-1 growth = terminal growth unless overridden. "
             f"Latest-year results are not the normal earning power.")
+    elif cyclicality is not None and (not cyclicality.assessed or cyclicality.loss_making):
+        # Bloque B (B1): "no evaluada" o "en pérdidas" no equivale a "no cíclica" (invariante 5).
+        note_parts.append(f"⚠️ Cyclicality: {cyclicality.evidence}. The valuation does not normalize a "
+                          f"cycle; read latest-year margins with care.")
     if tax_rate_source.startswith("default"):
         note_parts.append(f"ℹ️ Tax rate: {tax_rate_source}.")
     share_count, share_source = resolve_share_count(
@@ -1379,6 +1458,20 @@ def _run_valuation(state: AnalysisState) -> dict:
         )
         log.warning("valuation_dcf_growth_capped", ticker=ticker, raw_cagr=f"{raw_cagr:.0%}")
 
+    # Ruptura estructural (bloque B, B1): la tendencia de 10 años no ve refranchisings, escisiones ni
+    # adquisiciones grandes. Si se separa > 4 pp del CAGR de 5 años se avisa; g NO cambia (usar el CAGR
+    # de 5 años reintroduciría el rebote post-COVID que A1 corrigió: XOM 13 %).
+    growth_structural_break: Optional[str] = None
+    if (near_term_growth_source.startswith("revenue_trend_") and revenue_cagr is not None
+            and raw_cagr is not None and abs(raw_cagr - revenue_cagr) > _STRUCTURAL_BREAK_PP):
+        growth_structural_break = (
+            f"⚠️ Possible structural break: the {near_term_growth_source.split('_')[2]} revenue trend "
+            f"({raw_cagr:.1%}) and the {revenue_cagr_years or 5}y revenue CAGR ({revenue_cagr:.1%}) differ by "
+            f"{abs(raw_cagr - revenue_cagr) * 100:.1f} pp (refranchising, spin-off or large M&A?). Stage-1 "
+            f"growth uses the trend; check the bear/bull scenarios and override at checkpoint 2 if the "
+            f"business changed.")
+        note_parts.append(growth_structural_break)
+
     # EC-65: FCF quality flag — detecta FCF inflado por advance payments o project timing.
     # No modifica el DCF; solo añade advertencia cuando FCF margin >> gross margin.
     fcf_quality_warning: Optional[str] = None
@@ -1433,10 +1526,11 @@ def _run_valuation(state: AnalysisState) -> dict:
     )
 
     # --- 5. DCF sobre FCFF; fallback NOPAT (ya unlevered → misma base, EC-13) ---
-    # NOPAT del último año con el tipo canónico: ancla del valor terminal con reinversión
-    # (Damodaran/Koller) y fallback del DCF cuando el FCFF es negativo (trough / reinversión fuerte).
-    # EC-92: en una cíclica el EBIT de partida es el mid-cycle, no el del último año.
-    ebit_for_value = mid_cycle_ebit if mid_cycle_ebit is not None else ebit
+    # NOPAT normalizado con el tipo canónico: ancla del valor terminal con reinversión (Damodaran/Koller)
+    # y fallback del DCF cuando el FCFF es negativo (trough / reinversión fuerte). Base = margen EBIT
+    # mediano × ventas actuales (mid-cycle en cíclicas, EC-92; 5 años en el resto, bloque B): la misma
+    # normalización que el FCFF. Sin márgenes suficientes, el EBIT del último año.
+    ebit_for_value = normalized_ebit if normalized_ebit is not None else ebit
     nopat_base: Optional[float] = ebit_for_value * (1 - tax_rate) if ebit_for_value is not None else None
     # El valor terminal es perpetuidad: ahí el efectivo converge al MARGINAL (Damodaran; ADR-033).
     # Usar el efectivo de un año con créditos fiscales (10 %) inflaba el TV (revisión final H1, #3).
@@ -1528,7 +1622,8 @@ def _run_valuation(state: AnalysisState) -> dict:
             f"(historical CAGR) but the market currently prices only {reverse_growth:.1%} "
             f"(spread: {spread_pp:.0f}pp). The DCF upside is conditional on the analyst's "
             f"growth assumption being correct vs what the market discounts — not a free margin "
-            f"of safety. Reverse DCF is the more informative valuation anchor."
+            f"of safety. The expected return at today's price and the bear case are the decision "
+            f"figures; the DCF upside is not."
         )
         log.warning(
             "valuation_dcf_spread",
@@ -1632,6 +1727,28 @@ def _run_valuation(state: AnalysisState) -> dict:
         dcf_scenarios = _dcf_scenarios(margins, financials.revenue, g_base=near_term_growth,
                                        cyclical=is_cyclical, value_fn=_scenario_value)
 
+    # --- 8a-bis. Rentabilidad implícita frente al listón y precio de entrada (bloque B, ADR-044) ---
+    rf_mv = market.risk_free_rate if market is not None else None
+    rf = (rf_mv.value if rf_mv is not None else RF_PCT) / 100
+    hurdle = max(settings.hurdle_rate_pct / 100, rf + ERP_PCT / 100)
+    hurdle_source = (f"max({settings.hurdle_rate_pct:.1f}% investor hurdle, Rf {rf:.2%} + ERP {ERP_PCT:.1f}%)"
+                     f" = {hurdle:.1%}")
+    implied_return: Optional[float] = None
+    implied_return_note: Optional[str] = None
+    entry: Optional[float] = None
+    entry_basis: Optional[str] = None
+    if dcf_base is not None and share_count:
+        returns = _implied_returns(
+            dcf_base, near_term_growth, dcf_scenarios, terminal_growth=terminal_growth,
+            stage1_years=stage1_years, fade_years=fade_years, mid_year=assumptions.mid_year_convention,
+            terminal_nopat=terminal_nopat, ronic=wacc, wacc_breakdown=wacc_suggestion,
+            days_since_fye=days_since_fye, claims_kwargs=claims_kwargs, share_count=share_count,
+            lease_liabilities=_mv_val(financials.operating_lease_liabilities) if financials is not None else None,
+            price=price, hurdle=hurdle, rf=rf)
+        implied_return, implied_return_note = returns.base, returns.base_note
+        entry, entry_basis = returns.entry, returns.entry_basis
+        dcf_scenarios = returns.scenarios
+
     # --- 8b. EPV (Greenwald) — piso de valor sin crecimiento (ADR-029) ---
     # Mismo bridge (claims) y misma capitalización a fecha de valoración que el DCF (ADR-033):
     # antes el DCF no restaba deuda y el EPV sí → la convergencia comparaba planos distintos.
@@ -1644,8 +1761,7 @@ def _run_valuation(state: AnalysisState) -> dict:
         price_current=price,
         mid_year=assumptions.mid_year_convention,
         capitalization=capitalization,
-        normalized_ebit=((mid_cycle_ebit, f"mid_cycle_margin_{cyclicality.years}y")
-                         if mid_cycle_ebit is not None else None),
+        normalized_ebit=(normalized_ebit, normalized_ebit_label) if normalized_ebit is not None else None,
     )
     if epv_growth_premium is not None:
         # Lectura de Greenwald: el EPV no es "caro/barato" a secas; dice cuánto paga el precio
@@ -1712,11 +1828,13 @@ def _run_valuation(state: AnalysisState) -> dict:
     # near_term_growth, que ya es el input del DCF directo: comparar el reverse contra él era
     # circular (el "histórico" salía del mismo FCF CAGR que alimentaba el modelo).
     historical_cagr_for_conv = revenue_cagr
+    historical_years_for_conv = revenue_cagr_years or (5 if revenue_cagr is not None else None)
     if is_cyclical and financials is not None:
         # EC-92: el CAGR de 5 años de una cíclica depende de los extremos (CALM 16,6 % por la gripe
         # aviar). Se compara con el de toda la ventana (hasta 10 años), menos sensible al pico.
         full = cagr_by_fiscal_years(financials.revenue, max_years=10)
-        historical_cagr_for_conv = full[0] if full else revenue_cagr
+        if full:
+            historical_cagr_for_conv, historical_years_for_conv = full
     # Reverse comparable (revisión M2): CAGR media a 10 años del camino implícito stage1 + fade.
     reverse_10y = (
         _ten_year_equivalent_cagr(reverse_growth, terminal_growth, stage1_years, fade_years)
@@ -1732,6 +1850,7 @@ def _run_valuation(state: AnalysisState) -> dict:
         ev_ebit=ev_ebit_mv,
         peer_ev_ebit_median=peer_ev_ebit_median,
         reverse_10y_equivalent=reverse_10y,
+        historical_years=historical_years_for_conv,
     )
 
     # --- 10. Construir el report ---
@@ -1751,6 +1870,14 @@ def _run_valuation(state: AnalysisState) -> dict:
         magic_formula_rank=mf_rank,
         sensitivity_table=sensitivity,
         dcf_scenarios=dcf_scenarios,
+        hurdle_rate=hurdle,
+        hurdle_source=hurdle_source,
+        risk_free_rate=rf,
+        implied_return=implied_return,
+        implied_return_note=implied_return_note,
+        entry_price=entry,
+        entry_basis=entry_basis,
+        growth_structural_break=growth_structural_break,
         assumptions=assumptions,
         dcf_reliability_note=dcf_reliability_note,
         near_term_growth_used_pct=near_term_growth,

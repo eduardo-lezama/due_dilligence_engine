@@ -72,6 +72,7 @@ class AnalysisState(TypedDict):
     # peers: tickers aportados por el usuario en Checkpoint 1 (puede ser [] si skip)
     # peer_financials: FinancialsReport de cada peer, fetched por peers_node
     peers: NotRequired[list[str]]
+    peers_source: NotRequired[str]   # "auto" (sugeridos por Finnhub y aceptados) | "user" (bloque B, B3)
     peer_financials: NotRequired[list[FinancialsReport]]
     peers_attempted_no_roic: NotRequired[list[str]]  # peers fetched pero sin ROIC calculable
     peer_sic_mismatches: NotRequired[list[str]]  # peers con SIC distinto al subject (EC-42)

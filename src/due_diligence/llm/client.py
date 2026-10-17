@@ -1,25 +1,24 @@
 """
-LLM Client — wrapper unificado para Anthropic Claude y OpenAI GPT.
+LLM Client — wrapper unificado para Anthropic Claude y OpenAI GPT (ADR-004, ADR-032).
 
 Qué hace este módulo:
-    Proporciona LLMClient con un método complete() unificado que:
-    - Intenta usar Anthropic Claude (modelo principal) primero
-    - Fallback automático a OpenAI GPT-4 si Claude falla
-    - Lazy initialization de clientes (solo se crean cuando se necesitan)
+    Proporciona LLMClient.structured(): llama al proveedor que corresponde al modelo
+    ('claude*' → Anthropic si hay key; el resto → OpenAI) y devuelve una instancia Pydantic
+    validada. Contabiliza tokens y coste de cada llamada (RunStats, ADR-021).
 
-Por qué fallback automático:
-    - Claude tiene mejor calidad para análisis financieros complejos
-    - Si la API key no está configurada o hay rate limits, fallback a GPT-4
-    - Garantiza que el sistema siempre funcione aunque un proveedor falle
+Fallback:
+    Solo ante errores de transporte (LLMProviderError con fallback_eligible=True: red,
+    401/403/408/409/429/5xx). Truncación, schema inválido y refusal se propagan: fail loud.
+    El antiguo complete() (texto libre con fallback ante cualquier excepción) se eliminó en
+    el bloque B: no tenía llamadores y su except genérico contradecía ADR-032.
 
 Lazy initialization:
-    - Los clientes (_anthropic, _openai) se crean en la primera llamada
-    - Evita importar librerías pesadas si no se usan
-    - Permite arrancar el CLI sin API keys configuradas
+    Los clientes (_anthropic, _openai) se crean en la primera llamada; el CLI arranca sin
+    API keys configuradas.
 
 Uso:
     client = get_client()
-    response = client.complete(messages=[...], model="claude-sonnet-4-6")
+    report = client.structured(MySchema, messages=[...], system=..., model="gpt-6-luna")
 """
 
 from dataclasses import dataclass, field
@@ -152,7 +151,7 @@ class RunStats:
 log = structlog.get_logger()
 
 # Errores tipados en módulo propio (ver llm/errors.py: identidad de clase estable ante reload).
-from due_diligence.llm.errors import (  # noqa: E402  re-export para compatibilidad
+from due_diligence.llm.errors import (  # noqa: E402, F401  LLMError: re-export (llm/__init__.py)
     LLMError, LLMProviderError, LLMSchemaError, LLMTruncatedError,
 )
 
@@ -202,125 +201,6 @@ class LLMClient:
             import openai
             self._openai = openai.OpenAI(api_key=settings.openai_api_key)
         return self._openai
-
-    def complete(
-        self,
-        messages: list[dict],
-        model: Optional[str] = None,
-        system: Optional[str] = None,
-        max_tokens: int = 4096,
-        response_format: Optional[dict] = None,
-        temperature: float = 0.2,
-    ) -> str:
-        """
-        Envía mensajes al LLM con fallback automático.
-
-        Args:
-            messages: Lista de dicts con role/content
-            model: Modelo a usar (default: settings.default_model)
-            system: Prompt del sistema (opcional)
-            max_tokens: Máximo tokens en la respuesta
-            response_format: OpenAI response_format dict (e.g. {"type": "json_object"}).
-                             Ignored for Anthropic calls.
-            temperature: Temperatura de sampling (default: 0.2). Bajo para máximo
-                         instruction-following y determinismo — los agentes de este sistema
-                         hacen JSON estructurado y role-identification, no escritura creativa.
-                         T=0.2 previene reasoning drift sin los artefactos de T=0 exacto.
-
-        Returns:
-            Texto de la respuesta del LLM
-        """
-        model = model or settings.default_model
-        # Si no hay API key de Anthropic configurada, ir directo a OpenAI.
-        if not settings.anthropic_api_key:
-            # Resolver el modelo OpenAI real antes de loguear para evitar
-            # confusión al ver "claude-*" en los logs siendo provider=openai.
-            oai_model = model if (model and not model.startswith("claude")) else settings.openai_fallback_model
-            log.info("llm_complete", provider="openai", reason="no_anthropic_key", model=oai_model)
-            return self._complete_openai(messages, system, max_tokens, model=oai_model, response_format=response_format, temperature=temperature)
-        try:
-            result = self._complete_anthropic(messages, model, system, max_tokens, temperature=temperature)
-            log.debug("llm_complete", provider="anthropic", model=model, temperature=temperature)
-            return result
-        except Exception as e:  # legacy: structured() es el camino fail-loud (ADR-032)
-            log.warning("anthropic_failed_falling_back", error=str(e), model=model)
-            return self._complete_openai(messages, system, max_tokens, model=model, response_format=response_format, temperature=temperature)
-
-    def _complete_anthropic(
-        self, messages: list[dict], model: str, system: Optional[str], max_tokens: int,
-        temperature: float = 0.2,
-    ) -> str:
-        """Llamada a la API de Anthropic Claude."""
-        client = self._get_anthropic()
-        kwargs: dict = {
-            "model": model,
-            "max_tokens": max_tokens,
-            "messages": messages,
-        }
-        # Opus 4.7+/Sonnet 5.5/Fable rechazan temperature con un 400: solo se envía donde se acepta.
-        if _claude_accepts_temperature(model):
-            kwargs["temperature"] = temperature
-        if system:
-            kwargs["system"] = system
-        response = client.messages.create(**kwargs)
-        # Antes las llamadas a Claude no se contabilizaban (coste ≈ 0 en el informe).
-        usage = getattr(response, "usage", None)
-        if usage is not None:
-            self._record_usage(model, usage.input_tokens, usage.output_tokens)
-        return next((b.text for b in response.content if getattr(b, "type", "text") == "text"), "")
-
-    def _complete_openai(
-        self, messages: list[dict], system: Optional[str], max_tokens: int,
-        model: Optional[str] = None,
-        response_format: Optional[dict] = None,
-        temperature: float = 0.2,
-    ) -> str:
-        """
-        Llamada a la API de OpenAI.
-
-        model: si el caller pasa un modelo Claude (empieza por 'claude-'), se ignora
-               y se usa openai_fallback_model. Si pasa un modelo OpenAI explícito
-               (ej. 'gpt-5.4-mini'), se usa ese directamente.
-        response_format: si se pasa {"type": "json_object"}, fuerza JSON mode en
-               la respuesta del modelo. Previene truncaciones mid-JSON.
-        """
-        client = self._get_openai()
-        # Ignorar modelos Claude si llegan aquí por fallback
-        if model and not model.startswith("claude"):
-            resolved_model = model
-        else:
-            resolved_model = settings.openai_fallback_model
-        oai_messages = []
-        if system:
-            oai_messages.append({"role": "system", "content": system})
-        oai_messages.extend(messages)
-        # GPT-5.x usa max_completion_tokens en lugar de max_tokens.
-        # max_completion_tokens funciona en todos los modelos OpenAI actuales.
-        create_kwargs: dict = {
-            "model": resolved_model,
-            "messages": oai_messages,
-            "max_completion_tokens": max_tokens,
-        }
-        if _openai_accepts_temperature(resolved_model):
-            create_kwargs["temperature"] = temperature
-        if response_format is not None:
-            create_kwargs["response_format"] = response_format
-        response = client.chat.completions.create(**create_kwargs)
-        choice = response.choices[0]
-        # Detectar truncación por límite de tokens — el JSON quedará incompleto.
-        if choice.finish_reason == "length":
-            log.warning(
-                "llm_response_truncated",
-                model=resolved_model,
-                max_tokens=max_tokens,
-                finish_reason="length",
-                hint="Increase max_tokens for this agent if parse errors follow.",
-            )
-        # Acumular tokens y coste (ADR-021)
-        if response.usage:
-            self._record_usage(resolved_model, response.usage.prompt_tokens,
-                               response.usage.completion_tokens, _cached_tokens(response.usage))
-        return choice.message.content
 
     def _record_usage(self, model: str, tokens_in: int, tokens_out: int, cached: int = 0) -> None:
         """Único punto de contabilidad (ADR-021): RunStats + last_model_used + log DEBUG."""

@@ -353,16 +353,27 @@ Referencia: Howard Marks.
 
 ## 9. Decision frame
 
-### 9.1 Margin of safety target [hybrid]
-- **Quality compounder**: MOS 30% suficiente.
-- **Average business**: MOS 50%.
-- **Cyclical / turnaround / low-quality**: MOS 60%+.
-- MOS = (intrinsic − price) / intrinsic.
+### 9.1 Margin of safety target [hybrid] — rentabilidad frente a un listón (ADR-044)
+- **Listón** (hurdle): rentabilidad anual mínima que exige el inversor. Por defecto max(10 %, Rf + ERP):
+  la rentabilidad nominal histórica de la bolsa de EE. UU., y nunca menos que lo que se exige al mercado
+  en conjunto. Configurable (`HURDLE_RATE_PCT`).
+- **Rentabilidad implícita**: la que obtiene quien compra hoy si se cumple el escenario (mismos flujos,
+  puente y acciones que el DCF).
+- **Precio de entrada** = el máximo precio con el que el caso base rinde ≥ listón Y el caso pesimista
+  (con la propia historia de la empresa: margen FCFF P25 y crecimiento mínimo) rinde ≥ Rf.
+- **El margen de seguridad** es la distancia entre la rentabilidad y el listón, más la protección del caso
+  pesimista. Un negocio más incierto (cíclico, márgenes dispersos) tiene un pesimista peor y, por tanto,
+  una entrada más baja, sin tablas por tipo de negocio. El tipo de negocio (compounder / normal /
+  cíclico) es descriptivo.
+- Sustituye a "MOS 30/50/60 % sobre mín(DCF, EPV)" (ADR-041): era un margen apilado sobre
+  estimaciones ya conservadoras.
 
 ### 9.2 Position sizing [quant]
 - Kelly-informed pero capped (Pabrai: ~10% max; Spier style).
 - Never all-in (incluso alta convicción: 10-15% max).
 - Porfolio concentration: ≤15 posiciones ideal (Sleep/Pabrai) vs ≤25.
+- En el sistema (ADR-044): 5 % de base para un BUY; +2,5 % si incluso el pesimista rinde el listón;
+  −2,5 % si el precio está por encima del EPV (paga crecimiento); máximo 10 %.
 
 ### 9.3 Kill criteria [qual]
 Definidos **ex-ante** — no inventar después.

@@ -10,7 +10,6 @@ Qué se testea:
 """
 
 import sqlite3
-import pytest
 
 
 # ---------------------------------------------------------------------------
@@ -19,7 +18,7 @@ import pytest
 
 def test_runstats_add_accumulates_correctly():
     """add() acumula tokens y calcula coste para gpt-4o-mini."""
-    from due_diligence.llm.client import RunStats, _MODEL_PRICING
+    from due_diligence.llm.client import RunStats
     stats = RunStats()
     stats.add("gpt-4o-mini", prompt_tokens=1_000_000, completion_tokens=0)
     # 1M input tokens @ $0.15/M = $0.15

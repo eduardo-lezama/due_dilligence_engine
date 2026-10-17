@@ -78,7 +78,7 @@ def test_archiver_node_writes_incomplete_file_and_status_columns(mocker, tmp_pat
         row = conn.execute("SELECT * FROM analyses").fetchone()
     assert row["status"] == "incomplete" and row["verdict"] is None
     assert row["models_used"] == "gpt-4.1: 4"
-    assert row["n_verified_citations"] == 0 and row["methodology_version"] == "H2"
+    assert row["n_verified_citations"] == 0 and row["methodology_version"] == "H2b"
 
 
 def test_ensure_db_migrates_old_table_idempotently(tmp_path):
@@ -169,15 +169,20 @@ def test_confidence_not_capped_when_specialists_present(mocker):
 
 
 def test_cli_verdict_panel_shows_entry_price_and_downgrade(mocker):
-    """H2-2: la CLI muestra las etiquetas nuevas, el precio de entrada y si el código rebajó el veredicto."""
-    from due_diligence.schemas.reports import VerdictDecision
-    mocker.patch.object(cli, "console", Console(record=True, width=140))
+    """H2-2 / bloque B: la CLI muestra la etiqueta, el precio de entrada, la rebaja del código y la MISMA
+    sección "Decision inputs" que el informe y el Expert (report_facts)."""
+    from due_diligence.schemas.reports import VerdictDecision, ValuationReport
+    mocker.patch.object(cli, "console", Console(record=True, width=160))
     d = VerdictDecision(verdict="WATCHLIST", verdict_raw="BUY", business_class_llm="average", business_class="average",
-                        required_mos=0.5, anchor_value=45.6, anchor_source="EPV", entry_price=22.8, price=25.53,
-                        actual_mos=0.44, confidence=0.55, sizing_pct=0.0)
+                        hurdle_rate=0.10, implied_return=0.072, entry_price=22.8,
+                        entry_basis="base case returns the 10.0% hurdle", price=25.53, confidence=0.55, sizing_pct=0.0)
+    val = ValuationReport(ticker="T", stub=False, hurdle_rate=0.10, implied_return=0.072, entry_price=22.8,
+                          entry_basis="base case returns the 10.0% hurdle")
     cli._show_verdict({"synthesis": ValueExpertReport(ticker="T", stub=False, verdict="WATCHLIST",
                                                       verdict_confidence=0.55, suggested_sizing_pct=0.0,
-                                                      verdict_rationale="Wait.", decision=d)})
+                                                      verdict_rationale="Wait.", decision=d),
+                       "valuation": val})
     text = cli.console.export_text()
-    assert "WATCHLIST" in text and "entry price $22.80" in text and "required MoS 50%" in text
-    assert "model said BUY" in text
+    assert "WATCHLIST" in text and "entry price $22.80" in text
+    assert "model said BUY" in text and "price above the entry price" in text
+    assert "Decision inputs (expected return vs hurdle)" in text and "7.2%" in text

@@ -170,9 +170,13 @@ def checkpoint1_node(state: AnalysisState) -> dict:
     peers_raw = (user_input or {}).get("peers", "") if isinstance(user_input, dict) else ""
     peers = [p.strip().upper() for p in peers_raw.split(",") if p.strip()] if isinstance(peers_raw, str) else []
 
+    # Origen de la lista (bloque B, B3): el informe dice si los competidores los eligió el inversor o
+    # son la sugerencia automática aceptada con Enter.
+    source = (user_input or {}).get("peers_source", "user") if isinstance(user_input, dict) else "user"
     return {
         "checkpoint1_user_input": user_input if user_input else {"proceed": True},
         "peers": peers,
+        "peers_source": source if source in ("auto", "user") else "user",
     }
 
 
@@ -252,7 +256,7 @@ def _build_checkpoint2_summary(state: AnalysisState) -> dict:
         "defaults": {
             **CHECKPOINT2_DEFAULTS,
             "wacc_pct": wacc_default,
-            "revenue_growth_yr1_pct": "auto (historical FCF CAGR or 7%)",
+            "revenue_growth_yr1_pct": "auto (revenue trend, within [-15%, 15%])",
         },
     }
 

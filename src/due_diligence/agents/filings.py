@@ -41,6 +41,7 @@ from due_diligence.llm.errors import LLMError
 from due_diligence.schemas.llm_outputs import FilingsLLMOutput
 from due_diligence.schemas.reports import FilingsRAGReport
 from due_diligence.tools.edgar import EdgarFilingsAdapter
+from due_diligence.tools.tenk_sections import TRUNCATION_TAG
 from due_diligence.validation.citations import (count_verified, dedupe_citations, gate_llm_value,
                                                 llm_evidence_count, validate_and_relabel)
 
@@ -291,8 +292,13 @@ def filings_agent(state: AnalysisState) -> dict:
         report = _retry_for_evidence(client, user_prompt, report, ticker, corpus)
     n_ok, n_bad = count_verified(report.citations)
     log.info("filings_citations_validated", ticker=ticker, verified=n_ok, unverified=n_bad)
-    # Modelo que realmente respondió (puede ser el fallback de otro proveedor).
-    report = report.model_copy(update={"model_used": model_used(client)})
+    # Modelo que realmente respondió (puede ser el fallback de otro proveedor) y cobertura del 10-K
+    # (EC-106): secciones ausentes o recortadas, visibles para el Expert y el informe.
+    report = report.model_copy(update={
+        "model_used": model_used(client),
+        "sections_missing": empty,
+        "sections_truncated": [name for name, text in items.items() if TRUNCATION_TAG in (text or "")[-120:]],
+    })
 
     log.info(
         "filings_agent_complete",

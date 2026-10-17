@@ -31,6 +31,7 @@ from pathlib import Path
 
 import structlog
 
+from due_diligence.agents import report_facts
 from due_diligence.validation.citations import llm_evidence_count
 from due_diligence.config import settings
 from due_diligence.graph.state import AnalysisState
@@ -65,8 +66,9 @@ CREATE TABLE IF NOT EXISTS analyses (
     epv_per_share   REAL,
     reverse_dcf_growth REAL,
     entry_price     REAL,
-    required_mos_pct REAL,
-    actual_mos_pct  REAL,
+    hurdle_pct      REAL,
+    implied_return_pct REAL,
+    bear_return_pct REAL,
     verdict_raw     TEXT,
     business_class  TEXT
 )
@@ -92,14 +94,19 @@ _MIGRATION_SQLS = [
     "ALTER TABLE analyses ADD COLUMN reverse_dcf_growth REAL",   # g1 implícito en el precio
     # H2-2 (ADR-041): decisión numérica del veredicto. Filas H1 → NULL (no se reetiqueta el pasado).
     "ALTER TABLE analyses ADD COLUMN entry_price REAL",
-    "ALTER TABLE analyses ADD COLUMN required_mos_pct REAL",
-    "ALTER TABLE analyses ADD COLUMN actual_mos_pct REAL",
     "ALTER TABLE analyses ADD COLUMN verdict_raw TEXT",
     "ALTER TABLE analyses ADD COLUMN business_class TEXT",
+    # Bloque B (ADR-044): rentabilidad frente al listón. Sustituyen a required_mos_pct/actual_mos_pct de
+    # ADR-041, que nunca llegaron a escribirse (ningún análisis H2 en la base al cambiar el método).
+    "ALTER TABLE analyses ADD COLUMN hurdle_pct REAL",
+    "ALTER TABLE analyses ADD COLUMN implied_return_pct REAL",
+    "ALTER TABLE analyses ADD COLUMN bear_return_pct REAL",
 ]
 
 # Versión de metodología que se graba en cada fila nueva (comparabilidad histórica).
-METHODOLOGY_VERSION = "H2"   # H2: taxonomía BUY/WATCHLIST/PASS/SELL y decisión numérica en código (ADR-041)
+# H2: taxonomía BUY/WATCHLIST/PASS/SELL y decisión numérica en código (ADR-041).
+# H2b: la decisión numérica pasa a rentabilidad frente a un listón (bloque B, ADR-044).
+METHODOLOGY_VERSION = "H2b"
 
 # Etiquetas válidas: las de H2 más HOLD, que solo aparece en informes H1 (siguen nombrándose igual).
 _KNOWN_VERDICTS = ("BUY", "WATCHLIST", "PASS", "SELL", "HOLD")
@@ -152,28 +159,35 @@ def _format_models_used(run_stats) -> str:
 
 
 def _render_decision_rows(d) -> list[str]:
-    """Filas de la cabecera con la parte numérica del veredicto (H2-2, ADR-041): todas calculadas por código."""
-    rows = [f"| Business class | {d.business_class} |",
-            f"| Required margin of safety | {d.required_mos:.0%} ({d.business_class}) |"]
-    if d.anchor_value is not None:
-        rows.append(f"| Intrinsic anchor | ${d.anchor_value:,.2f} ({d.anchor_source}) |")
-    rows.append(f"| Entry price | {'$' + format(d.entry_price, ',.2f') if d.entry_price is not None else 'n/a (no positive DCF/EPV)'} |")
+    """Filas de la cabecera con la parte numérica del veredicto (ADR-041, ADR-044): todas calculadas por código."""
+    rows = [f"| Business class | {d.business_class} |"]
+    if d.implied_return is not None and d.hurdle_rate is not None:
+        rows.append(f"| Expected return vs hurdle | {d.implied_return:.1%} vs {d.hurdle_rate:.1%} |")
+    entry = f"${d.entry_price:,.2f}" if d.entry_price is not None else "n/a"
+    rows.append(f"| Entry price | {entry} ({d.entry_basis}) |" if d.entry_basis else f"| Entry price | {entry} |")
     if d.price is not None:
-        margin = f"{d.actual_mos:.0%}" if d.actual_mos is not None else "n/a"
-        rows.append(f"| Current price / actual margin | ${d.price:,.2f} / {margin} |")
+        rows.append(f"| Current price | ${d.price:,.2f} |")
     return rows
 
 
 def _render_decision_notes(d) -> list[str]:
-    """Rebajas, endurecimiento de clase y componentes de la confianza: lo que el código cambió, a la vista."""
+    """Rebajas, endurecimiento de clase, avisos y componentes: lo que el código cambió o no pudo comprobar."""
     lines = []
     if d.verdict != d.verdict_raw:
-        lines.append(f"> Model verdict {d.verdict_raw} was downgraded to {d.verdict} by the margin-of-safety rule.")
+        reason = next((c.split(": ", 1)[1] for c in d.caveats if "downgraded" in c and ": " in c),
+                      "the price is above the entry price")
+        lines.append(f"> Model verdict {d.verdict_raw} was downgraded to {d.verdict}: {reason}")
     if d.business_class != d.business_class_llm:
         lines.append(f"> Business class hardened: {d.business_class_llm} → {d.business_class}.")
+    for c in d.caveats:
+        if "downgraded" not in c and "hardened" not in c:     # esos dos ya están arriba
+            lines.append(f"> {c}")
     if d.confidence_components:
         parts = ", ".join(f"{k} {v:+.2f}" for k, v in d.confidence_components.items())
         lines.append(f"> Confidence components: {parts}.")
+    if d.sizing_pct and d.sizing_components:
+        parts = ", ".join(f"{k} {v:+.1f}%" for k, v in d.sizing_components.items())
+        lines.append(f"> Sizing components: {parts}.")
     return lines + ([""] if lines else [])
 
 
@@ -191,68 +205,6 @@ def _count_verified_citations(state) -> int:
 # ---------------------------------------------------------------------------
 # Markdown renderer
 # ---------------------------------------------------------------------------
-
-def _render_accounting_scores(financials) -> list[str]:
-    """Sección "Accounting quality scores" (A2): valor, lectura con el umbral publicado y periodo.
-
-    Se muestra también cuando un score es n/a: decir qué falta es parte del dato (fail loud).
-    """
-    scores = financials.accounting_scores if financials is not None else None
-    if scores is None:
-        return []
-    lines = ["## Accounting quality scores", "",
-             "Deterministic, from the same XBRL statements (Piotroski 2000, Altman Z'' 1995, "
-             "Beneish 1999, Sloan 1996). Flags to look closer, not verdicts.", "",
-             "| Score | Reading | Period |", "|---|---|---|"]
-    for r in (scores.piotroski, scores.altman_z2, scores.beneish_m, scores.sloan_accruals):
-        lines.append(f"| {r.name} | {r.reading} | {r.period} |")
-    return lines + [""]
-
-
-# Banda de lectura del reverse DCF frente a la historia: la MISMA que el método "Reverse DCF" de
-# valuation._classify_reverse_vs_historical (±3 pp), para que informe y tabla no se contradigan.
-_EXPECTATIONS_BAND = 0.03
-
-
-def _render_price_expectations(state, valuation) -> list[str]:
-    """Bloque "What the price implies" (bloque A, A4, ADR-043): expectativas del precio en llano.
-
-    Expectations investing (Mauboussin y Rappaport): en vez de partir de UNA estimación del valor,
-    se pregunta qué crecimiento descuenta ya el precio y si es plausible frente a la historia de la
-    empresa. Necesita menos supuestos que el DCF directo y por eso va primero. Solo reformula
-    números que ya calculó la valoración (reverse DCF, CAGR de ventas): no añade ninguno.
-    """
-    lines = ["### What the price implies", ""]
-    g, g10 = valuation.reverse_dcf_implied_growth, valuation.reverse_dcf_10y_equivalent
-    if g is None:
-        return lines + ["Market-implied growth is not computable (negative base FCFF, or the growth "
-                        "needed is outside the −50%…200% search range).", ""]
-    market = state.get("market")
-    price = market.price_current.value if market is not None and market.price_current else None
-    a = valuation.assumptions
-    s1, fade = valuation.stage1_years_used, valuation.fade_years_used
-    at_price = f"At the current price (${price:,.2f})" if price else "At the current price"
-    path = (f"**FCFF growth of {g:.1%} a year for {s1} years**, fading to "
-            f"{a.terminal_growth_pct:.1f}% by year {s1 + fade}" if s1 and fade is not None and a else
-            f"**FCFF growth of {g:.1%} a year** in stage 1")
-    lines.append(f"{at_price}, the market is pricing {path}"
-                 + (f" — equivalent to **~{g10:.1%} a year over {s1 + fade} years**." if g10 is not None
-                    and s1 and fade is not None else "."))
-    cagr, years = state.get("historical_cagr_5y"), state.get("historical_cagr_years") or 5
-    if cagr is None:
-        return lines + ["", "No revenue history to compare with.", ""]
-    lines += ["", f"Company history: revenue grew {cagr:.1%} a year over the last {years} years."]
-    spread = (g10 if g10 is not None else g) - cagr
-    if spread > _EXPECTATIONS_BAND:
-        reading = (f"the price requires growth well above the company's own history "
-                   f"({spread * 100:+.1f} pp). Ask what would have to change for that to happen.")
-    elif spread < -_EXPECTATIONS_BAND:
-        reading = (f"the price requires less growth than the company has delivered "
-                   f"({spread * 100:+.1f} pp): margin for error if the business holds its course.")
-    else:
-        reading = f"the price is in line with the company's own history ({spread * 100:+.1f} pp)."
-    return lines + ["", f"**Reading:** {reading}", ""]
-
 
 def _render_equity_bridge(bridge, share_count, per_share, *, share_count_source=None) -> list[str]:
     """
@@ -296,61 +248,101 @@ def _render_equity_bridge(bridge, share_count, per_share, *, share_count_source=
     return lines
 
 
-def _render_markdown(state: AnalysisState, run_stats=None) -> str:
-    """
-    Serializa el estado completo en un report markdown estructurado.
+_NOT_QUERIED = object()   # `previous` sin consultar (tests): se omite "Changes since the last analysis"
 
-    Secciones: header → (analysis incomplete) → valuation → expert analysis (9 §) →
-    critic → citations → footer (con "Models used" si se pasa `run_stats`).
-    Los campos None se omiten para no contaminar el report; los FALLOS no se omiten
-    (sección "Analysis incomplete", ADR-032).
+
+def _render_front_page(state, synthesis, valuation, previous, *, as_of, run_id, today) -> list[str]:
+    """Primera página (bloque B, B2): lo que un gestor necesita para decidir en cinco minutos.
+
+    Orden: decisión → tesis → fallos → rentabilidad frente al listón → qué implica el precio → rango de
+    valor → comparables → calidad → riesgos → qué haría cambiar la tesis → cambios desde el último
+    análisis. Los hechos deterministas salen de report_facts (los mismos que ven el Expert y la consola).
     """
     ticker = state["ticker"]
+    ok = synthesis is not None and not synthesis.stub
+    verdict = (synthesis.verdict if ok else None) or "INCOMPLETE"
+    decision = getattr(synthesis, "decision", None) if ok else None
+    market = state.get("market")
+    lines = [f"# Due Diligence Report: {ticker}", "", "| Field | Value |", "|---|---|",
+             f"| **VERDICT** | **{verdict}** |"]
+    if ok and synthesis.verdict_confidence is not None:
+        lines.append(f"| Confidence | {synthesis.verdict_confidence:.0%} |")
+    if ok and synthesis.suggested_sizing_pct is not None:
+        lines.append(f"| Suggested sizing | {synthesis.suggested_sizing_pct:.0f}% of portfolio |")
+    if decision is not None:
+        lines += _render_decision_rows(decision)
+    lines += [f"| {k} | {v} |" for k, v in report_facts.market_snapshot_rows(valuation, market)]
+    lines += [f"| 10-K as of | {as_of} |", f"| Analysis date | {today} |", f"| Run ID | {run_id} |", ""]
+    if decision is not None:
+        lines += _render_decision_notes(decision)
+    if ok and synthesis.verdict_rationale:
+        lines += ["## Thesis", "", synthesis.verdict_rationale, ""]
+
+    lines += _render_failures(state)          # ADR-032, EC-68: lo que falta, antes que nada más
+
+    if valuation is not None and not valuation.stub:
+        lines += report_facts.decision_inputs_section(valuation, market).as_markdown(level=2)
+        lines += report_facts.price_implies_section(valuation, state).as_markdown(level=2)
+        lines += report_facts.value_range_section(valuation).as_markdown(level=2)
+    elif valuation is not None and valuation.error:
+        lines += ["## Valuation", "", f"> ⚠️ Valuation not computed — {valuation.error}", ""]
+    lines += report_facts.relative_section(state).as_markdown(level=2)
+    lines += report_facts.quality_section(state.get("financials")).as_markdown(level=2)
+
+    filings = state.get("filings")
+    if (ok and synthesis.risks) or (filings is not None and not filings.stub and filings.governance_red_flags):
+        lines += ["## Key risks", ""]
+        if filings is not None and not filings.stub and filings.governance_red_flags:
+            verified = [name for name, on in (("Active SEC investigation", filings.active_sec_investigation),
+                                              ("Material weakness in ICFR", filings.material_weakness)) if on]
+            lines += [f"**Governance red flags (10-K):** {filings.governance_red_flags}"
+                      + (f" — citation-verified: {', '.join(verified)} (confidence capped at 60%)" if verified else ""),
+                      ""]
+        if ok and synthesis.risks:
+            lines += [synthesis.risks, ""]
+
+    critique = state.get("critique")
+    pre_mortem = critique.pre_mortem_scenario if critique is not None and not critique.stub else None
+    if (ok and synthesis.decision_frame) or pre_mortem:
+        lines += ["## What would make this wrong", ""]
+        if ok and synthesis.decision_frame:
+            lines += [synthesis.decision_frame, ""]
+        if pre_mortem:
+            lines += [f"**Pre-mortem (Critic):** {pre_mortem}", ""]
+
+    if previous is not _NOT_QUERIED:
+        lines += report_facts.changes_section(
+            previous, verdict=verdict if ok else None,
+            price=market.price_current.value if market is not None and market.price_current else None,
+            entry=decision.entry_price if decision is not None else None,
+            implied_return=decision.implied_return if decision is not None else None).as_markdown(level=2)
+    return lines
+
+
+def _render_markdown(state: AnalysisState, run_stats=None, previous=_NOT_QUERIED) -> str:
+    """
+    Serializa el estado completo en un report markdown: primera página + apéndice (bloque B, B2).
+
+    Primera página: _render_front_page. Apéndice: detalle de la valoración (bridge, sensibilidad,
+    convergencia), datos operativos, análisis completo del Expert (§1–§6, §8), Critic, comparables,
+    eventos 8-K, noticias y citas. `previous` = último análisis del ticker (report_facts.previous_analysis);
+    sin pasar, no se muestra la sección de cambios. Los campos None se omiten; los FALLOS no (ADR-032).
+    """
     as_of = state.get("as_of_date", "N/A")  # type: ignore[typeddict-item]
     run_id = state.get("run_id", "N/A")     # type: ignore[typeddict-item]
     today = date.today().isoformat()
 
     lines: list[str] = []
-
-    # --- Header ---
     synthesis = state.get("synthesis")      # type: ignore[typeddict-item]
-    # Sin síntesis válida → INCOMPLETE (no "N/A"): el lector debe ver que falta el VERDICT.
-    verdict = (synthesis.verdict if synthesis and not synthesis.stub else None) or "INCOMPLETE"
-    confidence = synthesis.verdict_confidence if synthesis and not synthesis.stub else None
-    sizing = synthesis.suggested_sizing_pct if synthesis and not synthesis.stub else None
+    valuation = state.get("valuation")      # type: ignore[typeddict-item]
+    lines += _render_front_page(state, synthesis, valuation, previous, as_of=as_of, run_id=run_id, today=today)
 
-    lines += [
-        f"# Due Diligence Report: {ticker}",
-        f"",
-        f"| Field | Value |",
-        f"|---|---|",
-        f"| Ticker | {ticker} |",
-        f"| 10-K as of | {as_of} |",
-        f"| Analysis date | {today} |",
-        f"| Run ID | {run_id} |",
-        f"| **VERDICT** | **{verdict}** |",
-    ]
-    if confidence is not None:
-        lines.append(f"| Confidence | {confidence:.0%} |")
-    if sizing is not None:
-        lines.append(f"| Suggested sizing | {sizing:.0f}% of portfolio |")
-    decision = getattr(synthesis, "decision", None) if synthesis and not synthesis.stub else None
-    if decision is not None:
-        lines += _render_decision_rows(decision)
-    lines.append("")
-    if decision is not None:
-        lines += _render_decision_notes(decision)
-    if synthesis and not synthesis.stub and synthesis.verdict_rationale:
-        lines += [f"> {synthesis.verdict_rationale}", ""]
-
-    # --- Fallos visibles (ADR-032, EC-68) ---
-    lines += _render_failures(state)
+    # ===================== Apéndice: el detalle que respalda la primera página =====================
+    lines += ["---", "", "# Appendix — detail", ""]
 
     # --- Valuation summary table ---
-    valuation = state.get("valuation")      # type: ignore[typeddict-item]
     if valuation and not valuation.stub:
-        lines += ["## Valuation Summary", ""]
-        lines += _render_price_expectations(state, valuation)
+        lines += ["## Valuation detail", ""]
 
         # MCE-21: cuando hay spread DCF detectado, el warning sube a la cabecera
         # de la sección Valuation antes de la tabla — el lector ve primero la advertencia,
@@ -365,9 +357,9 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
             lines += [
                 f"> {valuation.dcf_reliability_note}",
                 "",
-                "> **Reading guide**: when forward DCF and reverse DCF diverge materially, "
-                "the **reverse DCF (market-implied growth)** is the more informative anchor — "
-                "it tells you what assumptions the current price already discounts.",
+                "> **Reading guide**: when forward DCF and reverse DCF diverge materially, the DCF "
+                "upside depends on the growth assumption. Read the expected return vs the hurdle and "
+                "the bear case (first page) before the upside.",
                 "",
             ]
 
@@ -416,9 +408,10 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
         # Métricas agregadas — orden depende de si hay contradicción (MCE-21)
         rows = []
         if has_contradiction and valuation.reverse_dcf_implied_growth is not None:
-            # Reverse DCF como métrica primaria (headline) cuando contradice forward DCF
+            # Con contradicción, el reverse DCF va primero en la tabla de detalle (la cifra principal del
+            # informe es la rentabilidad frente al listón, en la primera página: ADR-044).
             rows.append(
-                ("**Implied growth (reverse DCF — primary anchor)**",
+                ("**Implied growth (reverse DCF)**",
                  f"**{valuation.reverse_dcf_implied_growth:.1%}**")
             )
         if valuation.dcf_intrinsic_value:
@@ -548,25 +541,6 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
             lines.append(f"*Convergence: {', '.join(summary_parts)} out of {len(valuation.valuation_methods_summary)} methods.*")
             lines.append("")
 
-    # Valoración fallida con error tipado (ADR-033 §6): se muestra, no se omite en silencio.
-    if valuation and valuation.stub and valuation.error:
-        lines += ["## Valuation Summary", "",
-                  f"> ⚠️ Valuation not computed — {valuation.error}", ""]
-
-    # --- Escenarios del DCF (A3, ADR-043): el valor como rango, con supuestos de la historia ---
-    if valuation and not valuation.stub and valuation.dcf_scenarios:
-        lines += ["### DCF scenarios (assumptions from the company's own history)", "",
-                  "Only the FCFF margin (P25 / median / P75 of the normalization window) and stage-1 "
-                  "growth (min / base / max of the 3, 5 and 10-year revenue CAGRs) change; WACC and "
-                  "terminal growth are those of the sensitivity table below.", "",
-                  "| Scenario | FCFF margin | Stage-1 growth | Value / share | vs price |",
-                  "|---|---|---|---|---|"]
-        for sc in valuation.dcf_scenarios:
-            value = f"${sc.per_share:,.2f}" if sc.per_share is not None else "n/m"
-            vs = f"{sc.upside_pct:+.0f}%" if sc.upside_pct is not None else "n/a"
-            lines.append(f"| {sc.name} | {sc.fcff_margin:.1%} | {sc.near_term_growth:.1%} | {value} | {vs} |")
-        lines.append("")
-
     # --- Sensitivity table ---
     if valuation and valuation.sensitivity_table:
         # Unidad explícita: USD/share desde ADR-033; reports viejos sin el campo eran equity en USD B.
@@ -582,16 +556,17 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
             lines.append(f"| {row['near_term_growth_pct']}% | {vals} |")
         lines.append("")
 
-    # --- Scores contables (A2, ADR-043): calidad contable y riesgo, deterministas ---
-    lines += _render_accounting_scores(state.get("financials"))  # type: ignore[typeddict-item]
-
     # --- Data quality flags (deterministas, de parse_financials) ---
     # Identidades contables rotas, fallbacks de conceptos XBRL... Antes no tenían consumidor:
     # el lector del informe debe verlos junto a las cifras que pueden estar afectadas.
     fin_for_flags = state.get("financials")  # type: ignore[typeddict-item]
-    if fin_for_flags is not None and fin_for_flags.data_quality_flags:
+    # EC-106: secciones del 10-K ausentes o recortadas (misma redacción que el contexto del Expert).
+    from due_diligence.agents.report_facts import filings_coverage_gaps
+    flags = list(fin_for_flags.data_quality_flags) if fin_for_flags is not None else []
+    flags += [reason for _, reason in filings_coverage_gaps(state.get("filings"))]  # type: ignore[typeddict-item]
+    if flags:
         lines += ["## Data quality flags", ""]
-        lines += [f"- {flag}" for flag in fin_for_flags.data_quality_flags]
+        lines += [f"- {flag}" for flag in flags]
         lines.append("")
 
     # --- Key operational data from filings (backlog, guidance, regulatory events) ---
@@ -610,17 +585,9 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
             if filings.key_regulatory_events:
                 lines += [f"**Regulatory events:** {filings.key_regulatory_events}", ""]
 
-    # --- Governance red flags (EC-70): sección propia, no diluida en "Key Operational Data" ---
-    if filings and not filings.stub and filings.governance_red_flags:
-        lines += ["## Governance Red Flags (10-K)", "", filings.governance_red_flags, ""]
-        verified_flags = [name for name, on in (("Active SEC investigation", filings.active_sec_investigation),
-                                                ("Material weakness in ICFR", filings.material_weakness)) if on]
-        if verified_flags:
-            lines += [f"**Citation-verified flags:** {', '.join(verified_flags)} "
-                      f"(verdict confidence capped at 60%)", ""]
-
     # --- Expert analysis: 9 sections ---
     if synthesis and not synthesis.stub:
+        # §7 (riesgos) y §9 (marco de decisión) están en la primera página: aquí no se repiten.
         lines += ["## Value Expert Analysis", ""]
         sections = [
             ("§1 Business Understanding", synthesis.business_understanding),
@@ -629,9 +596,7 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
             ("§4 Financial Quality", synthesis.financial_quality),
             ("§5 Growth & Reinvestment", synthesis.growth_reinvestment),
             ("§6 Valuation", synthesis.valuation_section),
-            ("§7 Risks & Red Flags", synthesis.risks),
             ("§8 Psychological Lens", synthesis.psychological_lens),
-            ("§9 Decision Frame", synthesis.decision_frame),
         ]
         for title, content in sections:
             if content:
@@ -649,8 +614,7 @@ def _render_markdown(state: AnalysisState, run_stats=None) -> str:
             lines.append("")
         if critique.contra_thesis:
             lines += ["**Contra-thesis:**", "", critique.contra_thesis, ""]
-        if critique.pre_mortem_scenario:
-            lines += ["**Pre-mortem scenario:**", "", critique.pre_mortem_scenario, ""]
+        # El pre-mortem está en la primera página ("What would make this wrong").
 
     # --- Peer ROIC comparison (ADR-015) ---
     competitive = state.get("competitive")    # type: ignore[typeddict-item]
@@ -882,9 +846,11 @@ def _render_citations_section(state: AnalysisState) -> list[str]:
             lines.append("")
             for c in cits:
                 conf = f"{c.confidence:.0%}"
-                lines.append(f"- **{c.claim}** (confidence: {conf})")
+                # Invariante 2: la marca GAAP / Non-GAAP de la cita se muestra cuando existe.
+                gaap = f", {c.gaap_vs_nongaap_flag}" if c.gaap_vs_nongaap_flag else ""
+                lines.append(f"- **{c.claim}** (confidence: {conf}{gaap})")
                 lines.append(f"  > {c.excerpt}")
-                lines.append(f"  Source: [{c.source_url}]({c.source_url})")
+                lines.append(f"  Source: {_source_link(c.source_url)}")
                 lines.append("")
     if unverified:
         lines += ["## Unverified citations (excluded from synthesis)", "",
@@ -895,6 +861,14 @@ def _render_citations_section(state: AnalysisState) -> list[str]:
             lines.append(f"  > {c.excerpt}")
             lines.append("")
     return lines
+
+
+def _source_link(source: str) -> str:
+    """Enlace markdown solo si la fuente es una URL; si es una etiqueta ("10-K Item 1") va en texto.
+
+    Antes se generaba "[10-K Item 1](10-K Item 1)": un enlace roto en cualquier visor de markdown.
+    """
+    return f"[{source}]({source})" if source.startswith(("http://", "https://")) else source
 
 
 # ---------------------------------------------------------------------------
@@ -952,12 +926,15 @@ def update_performance_metrics(
 
 
 def _decision_columns(synthesis) -> dict:
-    """Columnas de la decisión numérica (H2-2); vacías para síntesis H1, stub o sin decisión."""
+    """Columnas de la decisión numérica (ADR-041, ADR-044); vacías para síntesis H1, stub o sin decisión."""
     d = getattr(synthesis, "decision", None) if synthesis is not None and not synthesis.stub else None
     if d is None:
         return {}
-    return {"entry_price": d.entry_price, "required_mos_pct": round(d.required_mos * 100, 2),
-            "actual_mos_pct": round(d.actual_mos * 100, 2) if d.actual_mos is not None else None,
+
+    def pct(v):
+        return round(v * 100, 2) if v is not None else None
+    return {"entry_price": d.entry_price, "hurdle_pct": pct(d.hurdle_rate),
+            "implied_return_pct": pct(d.implied_return), "bear_return_pct": pct(d.implied_return_bear),
             "verdict_raw": d.verdict_raw, "business_class": d.business_class}
 
 
@@ -974,19 +951,20 @@ def _insert_row(db_path: str, row: dict) -> None:
          suggested_sizing_pct, dcf_upside_pct, moat_classification, report_path,
          status, models_used, n_verified_citations, methodology_version,
          price_at_analysis, dcf_per_share, epv_per_share, reverse_dcf_growth,
-         entry_price, required_mos_pct, actual_mos_pct, verdict_raw, business_class)
+         entry_price, hurdle_pct, implied_return_pct, bear_return_pct, verdict_raw, business_class)
     VALUES
         (:ticker, :run_id, :as_of_date, :analysis_date, :verdict, :verdict_confidence,
          :suggested_sizing_pct, :dcf_upside_pct, :moat_classification, :report_path,
          :status, :models_used, :n_verified_citations, :methodology_version,
          :price_at_analysis, :dcf_per_share, :epv_per_share, :reverse_dcf_growth,
-         :entry_price, :required_mos_pct, :actual_mos_pct, :verdict_raw, :business_class)
+         :entry_price, :hurdle_pct, :implied_return_pct, :bear_return_pct, :verdict_raw, :business_class)
     """
     # Columnas H1 opcionales para llamadores antiguos: ausentes → NULL (no inventar status).
     h1_defaults = {"status": None, "models_used": None, "n_verified_citations": None,
                    "methodology_version": None, "price_at_analysis": None, "dcf_per_share": None,
                    "epv_per_share": None, "reverse_dcf_growth": None, "entry_price": None,
-                   "required_mos_pct": None, "actual_mos_pct": None, "verdict_raw": None, "business_class": None}
+                   "hurdle_pct": None, "implied_return_pct": None, "bear_return_pct": None,
+                   "verdict_raw": None, "business_class": None}
     with sqlite3.connect(db_path) as conn:
         conn.execute(sql, {**h1_defaults, **row})
         conn.commit()
@@ -1034,7 +1012,9 @@ def archiver_node(state: AnalysisState) -> dict:
         run_stats = None
 
     # --- Render markdown ---
-    report_md = _render_markdown(state, run_stats=run_stats)
+    # Último análisis del mismo ticker (antes de insertar el actual): "Changes since the last analysis".
+    previous = report_facts.previous_analysis(settings.db_path, ticker, before_run_id=run_id)
+    report_md = _render_markdown(state, run_stats=run_stats, previous=previous)
 
     # --- Escribir markdown ---
     # Formato: <DATE>-<TICKER>-<VERDICT>.md (ordenable cronológicamente + filtrable por verdict).

@@ -33,8 +33,6 @@ from typing import Optional
 
 import structlog
 import typer
-
-log = structlog.get_logger()
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -42,6 +40,8 @@ from rich import box
 
 from due_diligence.config import settings
 from due_diligence.utils.formatting import fmt_insider_ownership, fmt_usd as _fmt_usd
+
+log = structlog.get_logger()
 
 app = typer.Typer(help="Due Diligence — value investing analysis system")
 console = Console()
@@ -434,6 +434,20 @@ def _show_valuation(state: dict) -> None:
         )
 
 
+def _print_section(section) -> None:
+    """Una sección de report_facts como tabla rich (misma redacción que el informe y el Expert)."""
+    if not section.rows and not section.notes:
+        return
+    table = Table(title=section.title, box=box.SIMPLE, show_header=False)
+    table.add_column("", style="bold")
+    table.add_column("")
+    for label, value in section.rows:
+        table.add_row(label, value)
+    console.print(table)
+    for note in section.notes:
+        console.print(f"[dim]{note}[/dim]")
+
+
 def _show_verdict(state: dict) -> None:
     synthesis = state.get("synthesis")
     if not synthesis or synthesis.stub:
@@ -456,13 +470,17 @@ def _show_verdict(state: dict) -> None:
     d = getattr(synthesis, "decision", None)
     if d is not None:
         entry = f"${d.entry_price:,.2f}" if d.entry_price is not None else "n/a"
-        body += f"\n{d.business_class}  |  required MoS {d.required_mos:.0%}  |  entry price {entry}"
+        body += f"\n{d.business_class}  |  entry price {entry}"
         if d.verdict != d.verdict_raw:
-            body += f"  |  model said {d.verdict_raw} (downgraded: no margin of safety)"
+            body += f"  |  model said {d.verdict_raw} (downgraded: price above the entry price)"
     if rationale:
         body += f"\n\n{rationale}"
 
     console.print(Panel(body, title="VERDICT", border_style=border))
+
+    # Bloque B (B2): las mismas secciones deterministas que el informe y el contexto del Expert.
+    from due_diligence.agents import report_facts
+    _print_section(report_facts.decision_inputs_section(state.get("valuation"), state.get("market")))
 
     # Tabla de comparación precio actual vs intrínseco + múltiplos
     valuation = state.get("valuation")
@@ -739,8 +757,7 @@ def analyze_cmd(
     from due_diligence.tools.edgar import DataUnavailableError
 
     ticker = ticker.upper()
-    # Iniciar timer y resetear acumulador de tokens/coste (ADR-021)
-    t0 = time.time()
+    # Resetear el acumulador de tokens/coste (ADR-021).
     llm_client = get_client()
     llm_client.reset_run_stats()
 
@@ -749,12 +766,24 @@ def analyze_cmd(
     graph = build_graph(checkpointer=checkpointer)
     config = {"configurable": {"thread_id": f"{ticker}-latest"}}
 
+    # Latencia = tiempo de CÓMPUTO del grafo, no de reloj desde el inicio: con el reloj contaba el
+    # tiempo que el usuario tarda en responder los checkpoints (ZBRA: 16,5 h con la terminal abierta).
+    compute_s = 0.0
+
+    def _invoke(arg):
+        nonlocal compute_s
+        started = time.perf_counter()
+        try:
+            return graph.invoke(arg, config=config)
+        finally:
+            compute_s += time.perf_counter() - started
+
     console.print(f"\n[bold cyan]Due Diligence Analysis — {ticker}[/bold cyan]\n")
 
     # ── Phase 1a + 1b: supervisor → financials → specialists ──────────────
     try:
         with console.status("[bold green]Running Phase 1a+1b (EDGAR + specialists)…"):
-            graph.invoke({"ticker": ticker}, config=config)
+            _invoke({"ticker": ticker})
     except TavilyQuotaExceededError as e:
         console.print("\n[bold red]Tavily quota exhausted — analysis aborted.[/bold red]")
         console.print(f"[red]{e}[/red]")
@@ -790,14 +819,23 @@ def analyze_cmd(
 
     # Peer tickers (ADR-015) — la última pregunta Socratic ya lo cubre, pero
     # lo extraemos explícitamente para el resume value.
+    # Bloque B (B3): por defecto, los competidores que sugiere Finnhub (misma industria). Enter acepta,
+    # "none" salta la comparación, o se escribe la lista propia.
+    market_cp1 = state.get("market")
+    suggested = ",".join(market_cp1.suggested_peers) if market_cp1 is not None and not market_cp1.stub else ""
     peers_raw = typer.prompt(
-        "\nPeer tickers (comma-separated, e.g. MSFT,GOOGL,AMZN)"
-        "\n  — press Enter to skip (moat analysis will use 10-K only)",
-        default="",
+        "\nPeer tickers (comma-separated)"
+        + ("\n  — Enter accepts the suggestion (same industry, Finnhub); type 'none' to skip" if suggested
+           else "\n  — press Enter to skip (moat analysis will use 10-K only)"),
+        default=suggested,
     )
+    peers_source = "auto" if suggested and peers_raw.strip().upper() == suggested.upper() else "user"
+    if peers_raw.strip().lower() == "none":
+        peers_raw = ""
     if peers_raw.strip():
         peers_display = [t.strip().upper() for t in peers_raw.split(",") if t.strip()]
-        console.print(f"[dim]Peers: {', '.join(peers_display)}[/dim]")
+        console.print(f"[dim]Peers ({'suggested' if peers_source == 'auto' else 'yours'}): "
+                      f"{', '.join(peers_display)}[/dim]")
     else:
         console.print("[dim]Peers skipped — moat analysis will use 10-K only.[/dim]")
 
@@ -805,10 +843,9 @@ def analyze_cmd(
     # NOTE: Command(resume={}) no funciona en LangGraph — dict vacío es falsy
     # y LangGraph no procesa el resume. Usar un valor truthy explícito.
     with console.status("[bold green]Passing checkpoint 1 + fetching peer data…"):
-        cp1_result = graph.invoke(
-            Command(resume={"proceed": True, "peers": peers_raw, "answers": socratic_answers}),
-            config=config,
-        )
+        cp1_result = _invoke(
+            Command(resume={"proceed": True, "peers": peers_raw, "peers_source": peers_source,
+                            "answers": socratic_answers}))
 
     state = graph.get_state(config).values
     # Payload del interrupt de checkpoint 2: WACC real sugerido + defaults únicos (ADR-033).
@@ -837,7 +874,7 @@ def analyze_cmd(
         if growth_justification:
             assumptions["growth_justification"] = growth_justification
         with console.status("[bold green]Running valuation + expert + critic + archiver…"):
-            cp2_result = graph.invoke(Command(resume=assumptions), config=config)
+            cp2_result = _invoke(Command(resume=assumptions))
         pending = _pending_interrupt_payload(cp2_result, graph, config)
         if not pending or pending.get("phase") != "checkpoint2":
             break
@@ -855,7 +892,7 @@ def analyze_cmd(
     _show_critic(state)
 
     # ── Performance metadata (ADR-021) ────────────────────────────────────
-    latency_ms = (time.time() - t0) * 1000
+    latency_ms = compute_s * 1000
     run_stats = llm_client.get_run_stats()
     cost_eur = run_stats.cost_usd * settings.usd_eur_rate
     run_id = state.get("run_id", "")

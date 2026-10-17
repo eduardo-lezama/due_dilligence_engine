@@ -194,7 +194,6 @@ def test_check_tavily_quota_raises_when_nearly_exhausted(mocker):
     para acceder a la implementación real sin que el autouse mock interfiera.
     """
     import json
-    import due_diligence.config as config_module
     from due_diligence.tools.tavily import TavilyQuotaExceededError
 
     mock_resp = mocker.MagicMock()

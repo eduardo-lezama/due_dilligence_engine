@@ -28,7 +28,7 @@ def test_roic_trend_delta_uses_fiscal_years_not_positions():
     # FY2024 ausente: de 10 % (FY2023) a 20 % (FY2025) son +5 pp/año en 2 años, no +10 pp en 1.
     fin = _fin(roic_series=[_mv(0.20, "FY2025", "ratio"), _mv(0.10, "FY2023", "ratio")])
     ctx = _format_context({"ticker": "TST", "financials": fin})
-    assert "RISING (avg ΔROIC: +5.0pp/year over 2 years)" in ctx
+    assert "RISING (FY2023 10.0% → FY2025 20.0%, avg ΔROIC +5.0pp/year over 2 years)" in ctx
 
 
 def test_capital_return_flag_compares_same_fiscal_year():
@@ -68,3 +68,16 @@ def test_roic_trend_not_computed_when_no_point_within_four_years():
     ctx = _format_context({"ticker": "TST", "financials": fin})
     assert "ROIC trend interpretation (use in §5): n/a" in ctx
     assert "over 8 years" not in ctx
+
+
+def test_roic_trend_negative_roic_getting_worse_is_falling():
+    # Bloque B: la comparación multiplicativa (último > antiguo × 1,05) daba RISING aquí.
+    from due_diligence.agents.report_facts import roic_trend
+    label, _ = roic_trend([_mv(-0.29, "FY2025", "ratio"), _mv(-0.20, "FY2023", "ratio")])
+    assert label == "FALLING"
+    label, _ = roic_trend([_mv(0.05, "FY2025", "ratio"), _mv(-0.28, "FY2023", "ratio")])
+    assert label == "RISING"
+    # Serie desordenada (último año al final, como antes de F0): se ordena por año fiscal.
+    label, text = roic_trend([_mv(0.64, "FY2024", "ratio"), _mv(1.01, "FY2022", "ratio"),
+                              _mv(0.43, "FY2026", "ratio")])
+    assert label == "FALLING" and "FY2022" in text and "FY2026" in text

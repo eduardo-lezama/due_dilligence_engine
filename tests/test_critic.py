@@ -294,7 +294,6 @@ def test_build_prompt_includes_risk_factors_when_present():
 def test_build_prompt_includes_implied_growth():
     """El growth implícito del reverse DCF debe aparecer en el prompt."""
     from due_diligence.schemas.reports import ValuationReport
-    from due_diligence.schemas.base import MetricValue
     state = {
         "ticker": "AAPL",
         "valuation": ValuationReport(

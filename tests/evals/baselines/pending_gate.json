@@ -1,0 +1,5 @@
+{
+  "prompt_sha": "cf137480d0ff",
+  "decided": "2026-10-17",
+  "reason": "Bloque B (ADR-044, ADR-045): prompt y contexto del Value Expert cambiados antes de pasar la puerta, por decisión de Eduardo. La puerta (B4) se pasa una sola vez tras B1-B3: re-congelar el dataset con el código actual, correr scripts/run_evals.py --compare y re-guardar las baselines; después borrar este archivo."
+}

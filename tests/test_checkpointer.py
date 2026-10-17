@@ -48,7 +48,7 @@ def test_realistic_state_roundtrips_as_objects_in_strict_mode(caplog):
         restored = serde.loads_typed(serde.dumps_typed(state))
     assert not [r for r in caplog.records if "msgpack" in r.getMessage().lower()]
     for key in ("valuation", "financials", "mgmt", "filings", "competitive", "quarterly_snapshot"):
-        assert type(restored[key]) is type(state[key]), key
+        assert type(restored[key]) is type(state[key]), key  # noqa: E721 — tipo EXACTO, no subclase
         assert restored[key] == state[key], key
     assert isinstance(restored["peer_valuations"][0], PeerValuation)
     assert isinstance(restored["valuation"], ValuationReport)

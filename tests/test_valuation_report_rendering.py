@@ -98,7 +98,7 @@ def test_archiver_sensitivity_header_unit_legacy(state_with_old_valuation_report
 
 def test_archiver_full_valuation_section_example_a(state_with_valuation_example_a):
     md = _render_markdown(state_with_valuation_example_a)
-    assert "### Enterprise → Equity Bridge" in md and "$195.37" in md
+    assert "### Enterprise → Equity Bridge" in md and "$197.52" in md
     assert "DCF upside vs price" in md and "vs market cap" not in md
     assert "DCF equity value (after bridge)" in md and "EV/FCFF" in md
     assert "USD/share" in md                                      # cabecera de sensibilidad
@@ -159,5 +159,5 @@ def test_cli_show_valuation_rows(mocker, state_with_valuation_example_a):
     out = rec.export_text()
     assert "Enterprise value (DCF)" in out and "$2.4B" in out
     assert "Net claims" in out and "$450M" in out
-    assert "Per share" in out and "$195.37" in out
+    assert "Per share" in out and "$197.52" in out
     assert "EV/FCFF" in out

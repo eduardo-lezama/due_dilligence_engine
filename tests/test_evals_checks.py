@@ -7,9 +7,8 @@ del LLM: el código repara algunas reglas después y medir el informe final medi
 """
 import pytest
 
-from due_diligence.evals.checks import (CHECK_NAMES, check_buy_floor, check_rationale_matches_verdict,
-                                        check_repairs, check_rule21_count, check_rule21_divergence_no_buy,
-                                        check_rule22_roic_language, check_rule24_hypotheses,
+from due_diligence.evals.checks import (CHECK_NAMES, check_rationale_matches_verdict,
+                                        check_repairs, check_rule21_count, check_rule22_roic_language, check_rule24_hypotheses,
                                         check_sections_present, run_checks, ungrounded_numbers)
 from due_diligence.evals.legacy import ValueExpertLLMOutputH1 as ValueExpertLLMOutput
 from due_diligence.schemas.llm_outputs import ValueExpertLLMOutput as ValueExpertLLMOutputH2
@@ -47,7 +46,7 @@ HYP = ("## INVESTOR'S OWN HYPOTHESES (evaluate critically, do not adopt)\n"
 
 
 def test_check_names_unique_and_complete():
-    assert len(CHECK_NAMES) == len(set(CHECK_NAMES)) == 11
+    assert len(CHECK_NAMES) == len(set(CHECK_NAMES)) == 9
     assert [r.name for r in run_checks(_raw(), _report(), "", _state())] == list(CHECK_NAMES)
 
 
@@ -113,33 +112,6 @@ def test_rule21_count_not_applicable_when_no_method_classified():
 def test_rule21_count_not_applicable_without_block():
     r = check_rule21_count(_raw(), _report(), "no block", {})
     assert r.applicable is False and r.passed is None
-
-
-# --- rule21_divergence_no_buy ---
-def test_divergence_parsed_from_real_convergence_line():
-    ctx = CONV + "\nConvergence: 1 cheap, 1 fair, 1 expensive out of 4 methods."
-    assert check_rule21_divergence_no_buy(_raw(verdict="BUY"), _report(), ctx, {}).passed is False
-    assert check_rule21_divergence_no_buy(_raw(verdict="HOLD"), _report(), ctx, {}).passed is True
-
-
-def test_divergence_not_applicable_when_methods_agree():
-    ctx = CONV + "\nConvergence: 3 cheap, 0 fair, 0 expensive out of 4 methods."
-    assert check_rule21_divergence_no_buy(_raw(verdict="BUY"), _report(), ctx, {}).applicable is False
-
-
-# --- buy_floor ---
-def test_buy_floor_requires_20pct_upside():
-    assert check_buy_floor(_raw(verdict="BUY"), _report(), "", _state(upside=12.0)).passed is False
-    assert check_buy_floor(_raw(verdict="BUY"), _report(), "", _state(upside=35.0)).applicable is False  # BUY permitido
-
-
-def test_buy_floor_applicability_comes_from_context_not_from_the_verdict():
-    # Revisión final: si solo aplicara cuando el modelo dice BUY, una baseline HOLD nunca lo activaría y
-    # la puerta no vería un candidato que pasa a BUY con poco upside.
-    hold_low = check_buy_floor(_raw(verdict="HOLD"), _report(), "", _state(upside=12.0))
-    assert hold_low.applicable and hold_low.passed is True
-    assert check_buy_floor(_raw(verdict="HOLD"), _report(), "", _state(upside=35.0)).applicable is False
-    assert check_buy_floor(_raw(verdict="BUY"), _report(), "", _state(upside=None)).applicable is False
 
 
 # --- rule22_roic_language ---
@@ -284,7 +256,8 @@ def _raw_h2(**over) -> ValueExpertLLMOutputH2:
 
 def _decision(**over) -> VerdictDecision:
     base = dict(verdict="WATCHLIST", verdict_raw="BUY", business_class_llm="average", business_class="average",
-                required_mos=0.5, anchor_value=45.6, anchor_source="EPV", entry_price=22.8, price=25.53)
+                hurdle_rate=0.10, implied_return=0.07, entry_price=22.8,
+                entry_basis="base case returns the 10.0% hurdle", price=25.53)
     base.update(over)
     return VerdictDecision(**base)
 

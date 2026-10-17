@@ -124,10 +124,6 @@ def _na(name: str) -> CheckResult:
     return CheckResult(name=name, applicable=False)
 
 
-def _valuation(state: AnalysisState):
-    return state.get("valuation") if isinstance(state, dict) else None
-
-
 # ----------------------------------------------------------------------------------------------
 def check_sections_present(raw, report, context, state) -> CheckResult:
     """Las 9 secciones del checklist con contenido real (≥ 40 caracteres)."""
@@ -158,29 +154,6 @@ def check_rule21_count(raw, report, context, state) -> CheckResult:
     ok = re.search(r"\b[0-4] of 4\b|\b[0-4] cheap, [0-4] fair,? (?:and )?[0-4] expensive out of 4\b",
                    raw.valuation_section or "", re.IGNORECASE) is not None
     return CheckResult(name="rule21_count", applicable=True, passed=ok, detail="" if ok else "no 'N of 4' in §6")
-
-
-def check_rule21_divergence_no_buy(raw, report, context, state) -> CheckResult:
-    """Regla 21(c): con métodos divergentes (≥1 cheap y ≥1 expensive) no hay BUY."""
-    m = _CONV_RE.search(context)
-    if not m or int(m.group(1)) == 0 or int(m.group(3)) == 0:
-        return _na("rule21_divergence_no_buy")
-    return CheckResult(name="rule21_divergence_no_buy", applicable=True, passed=raw.verdict != "BUY",
-                       detail=m.group(0))
-
-
-def check_buy_floor(raw, report, context, state) -> CheckResult:
-    """Un BUY exige más de un 20 % de upside de DCF (umbral 'cheap' de ADR-030/033).
-
-    Aplica según el CONTEXTO (upside conocido y ≤ 20 %), no según el veredicto: si solo aplicara cuando el
-    modelo dice BUY, una baseline casi toda HOLD nunca lo activaría y la puerta no vería un candidato que
-    pasa a BUY con poco upside (revisión final H2-1).
-    """
-    val = _valuation(state)
-    upside = getattr(val, "dcf_upside_pct", None)
-    if upside is None or upside > 20:
-        return _na("buy_floor")
-    return CheckResult(name="buy_floor", applicable=True, passed=raw.verdict != "BUY", detail=f"DCF upside {upside}%")
 
 
 # Frases prohibidas copiadas del prompt (regla 22). Un test guard comprueba que siguen en él.
@@ -264,17 +237,20 @@ def check_repairs(raw, report, context, state) -> CheckResult:
 
 
 def check_buy_mos_floor(raw, report, context, state) -> CheckResult:
-    """H2 (ADR-041): el modelo no elige BUY por encima del precio de entrada que exige el margen de seguridad.
+    """El modelo no elige BUY por encima del precio de entrada (ADR-041; entrada por rentabilidad, ADR-044).
 
     Aplica siempre que haya precio de entrada (no solo cuando el modelo dice BUY), para que la puerta vea
     un candidato que empieza a comprar sin margen. El código lo rebaja a WATCHLIST, pero se mide lo crudo.
+    Bloque B: es el ÚNICO check numérico del BUY. `rule21_divergence_no_buy` (métodos divergentes → nunca
+    BUY) y `buy_floor` (> 20 % de upside del DCF) se retiraron: apilaban márgenes sobre el precio de
+    entrada y vetaban cualquier compounder con precio por encima del EPV (revisión 2026-10-17).
     """
     d = getattr(report, "decision", None)
     if d is None or d.entry_price is None or d.price is None:
         return _na("buy_mos_floor")
     ok = not (raw.verdict == "BUY" and d.price > d.entry_price)
     return CheckResult(name="buy_mos_floor", applicable=True, passed=ok,
-                       detail=f"price {d.price:.2f} vs entry {d.entry_price:.2f} ({d.business_class})")
+                       detail=f"price {d.price:.2f} vs entry {d.entry_price:.2f} ({d.entry_basis})")
 
 
 def check_business_class_consistent(raw, report, context, state) -> CheckResult:
@@ -288,14 +264,13 @@ def check_business_class_consistent(raw, report, context, state) -> CheckResult:
 
 
 ALL_CHECKS: tuple[Callable[..., CheckResult], ...] = (
-    check_sections_present, check_ungrounded_numbers, check_rule21_count, check_rule21_divergence_no_buy,
-    check_buy_floor, check_rule22_roic_language, check_rule24_hypotheses, check_rationale_matches_verdict,
-    check_repairs, check_buy_mos_floor, check_business_class_consistent,
+    check_sections_present, check_ungrounded_numbers, check_rule21_count, check_rule22_roic_language,
+    check_rule24_hypotheses, check_rationale_matches_verdict, check_repairs, check_buy_mos_floor,
+    check_business_class_consistent,
 )
 CHECK_NAMES: tuple[str, ...] = (
-    "sections_present", "ungrounded_numbers", "rule21_count", "rule21_divergence_no_buy", "buy_floor",
-    "rule22_roic_language", "rule24_hypotheses", "rationale_matches_verdict", "repairs",
-    "buy_mos_floor", "business_class_consistent",
+    "sections_present", "ungrounded_numbers", "rule21_count", "rule22_roic_language", "rule24_hypotheses",
+    "rationale_matches_verdict", "repairs", "buy_mos_floor", "business_class_consistent",
 )
 
 

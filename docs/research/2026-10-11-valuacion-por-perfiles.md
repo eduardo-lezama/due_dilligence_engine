@@ -1,6 +1,7 @@
 # Investigación F1: valoración diferenciada por perfil de empresa (2026-10-11)
 
-> Entregable de la fase F1 del plan [`2026-10-11-h2v-valoracion-por-perfiles.md`](../superpowers/plans/2026-10-11-h2v-valoracion-por-perfiles.md). Es un documento de investigación, no un ADR: alimenta el futuro ADR-043.
+> Entregable de la fase F1 del plan [`2026-10-11-h2v-valoracion-por-perfiles.md`](../superpowers/plans/2026-10-11-h2v-valoracion-por-perfiles.md). Es un documento de investigación, no un ADR: alimentó ADR-043 (bloque A) y ADR-044 (bloque B).
+> **Estado 2026-10-17:** la valoración por perfiles (F2–F6) sigue en espera (MCE-39). La revisión de conjunto [`2026-10-17-big-picture-review.md`](../audits/2026-10-17-big-picture-review.md) cambió dos cosas de este documento: el criterio 2 (banda DCF/precio) queda retirado por circular y el listón de decisión pasa a ser una rentabilidad (ADR-044). Ver la nota en los criterios de aceptación.
 > Parte del diagnóstico [`2026-10-11-valuation-diagnostic.md`](../audits/2026-10-11-valuation-diagnostic.md) y de `data/evals/valuation_diag/2026-10-11.json` (después de F0).
 > Convención de fuentes: **[P]** = fuente primaria leída en esta sesión; **[S]** = fuente secundaria (resumen, blog, copia de un tercero) o primaria no verificada en el texto completo. Las cifras marcadas como **(sim.)** salen de una simulación propia sobre el JSON del diagnóstico. Sus supuestos están en el anexo A.
 
@@ -408,6 +409,8 @@ flowchart TD
 - **Cómo se nota:** cero BUY posibles incluso con precios un 40 % más bajos.
 
 **Criterios de aceptación verificables con `scripts/valuation_diagnostic.py`**
+
+> **Nota 2026-10-17 (ADR-044).** El criterio 2 queda **retirado**: una banda de DCF/precio mide sobre todo el tipo de descuento y ajustar el modelo hasta caer en ella calibra contra el propio precio (revisión de conjunto, S2). Los criterios 4 y 5 se mantienen, pero sobre el nuevo precio de entrada (rentabilidad base ≥ listón y pesimista ≥ Rf). Con el listón del 10 % y el mercado de octubre de 2026 (calidad a 40–50 veces su FCFF, rentabilidad implícita del 4–8 %), el 60 % del criterio 4 no se alcanza: un −40 % no lleva esas empresas al 10 %. No es un fallo del modelo, es lo que significa exigir la rentabilidad histórica del mercado. El diagnóstico publica el recuento como alarma, no como objetivo.
 
 1. **Agrupar por perfil del clasificador** (no por listas hechas a mano) y publicar por perfil la mediana de DCF/precio, EPV/precio, la rentabilidad implícita y el % de BUY potenciales.
 2. **Compounder + madura:** mediana DCF/precio en **[0,5; 0,9]** con los precios de octubre de 2026.

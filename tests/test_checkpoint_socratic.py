@@ -245,7 +245,8 @@ def test_checkpoint2_summary_small_cap_hints_use_adaptive_formatter():
     from due_diligence.schemas.base import FinancialsReport, MetricValue
     from due_diligence.schemas.reports import MarketReport
 
-    mv = lambda v, p="FY2025", u="USD": MetricValue(value=v, unit=u, period=p, source="test")
+    def mv(v, p="FY2025", u="USD"):
+        return MetricValue(value=v, unit=u, period=p, source="test")
     fin = FinancialsReport(
         ticker="BBW", cik="1", as_of_date="2026-01-31", source_filing="10-K FY2026",
         revenue=[mv(529.8e6)], gross_profit=[mv(290e6)], operating_income=[mv(60e6)], net_income=[mv(47e6)],

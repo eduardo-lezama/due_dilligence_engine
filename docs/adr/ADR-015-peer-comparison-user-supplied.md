@@ -1,6 +1,6 @@
 # ADR-015: Peer comparison user-supplied en Checkpoint 1
 
-**Status**: Accepted
+**Status**: Accepted — ampliado por [ADR-045](ADR-045-one-page-report-and-shared-facts.md) (2026-10-17): el checkpoint 1 propone por defecto los competidores que sugiere Finnhub; el inversor los acepta, los cambia o los salta. Las cifras siguen saliendo de EDGAR y Polygon.
 **Date**: 2026-04-21
 
 ## Context

@@ -35,7 +35,6 @@ def test_settings_anthropic_key_optional(monkeypatch):
 
 def test_settings_sec_user_agent_required(monkeypatch):
     """SEC_USER_AGENT es obligatorio: su ausencia levanta ValidationError."""
-    from pydantic import ValidationError
     from pydantic_settings import BaseSettings, SettingsConfigDict
     from pydantic import Field
 

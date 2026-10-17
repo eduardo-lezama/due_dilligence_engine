@@ -39,11 +39,6 @@ from due_diligence.config import settings
 log = structlog.get_logger()
 
 
-class TavilySearchError(Exception):
-    """Excepción cuando Tavily falla o no está configurado."""
-    pass
-
-
 class TavilyQuotaExceededError(Exception):
     """Raised cuando el cuota mensual de Tavily está casi agotada (< buffer créditos)."""
     pass

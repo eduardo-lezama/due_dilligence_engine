@@ -7,6 +7,8 @@ Qué hace este módulo:
       1. Noticias recientes de empresa (fetch_company_news) — texto libre.
       2. EPS / revenue actuals por quarter (fetch_quarterly_earnings) —
          datos estructurados beat/miss. Free tier: 60 req/min.
+      3. Earnings call transcripts (fetch_transcripts, ADR-016).
+      4. Sugerencia de competidores del mismo sector (fetch_company_peers, bloque B, B3).
 
 Por qué Finnhub para noticias:
     Finnhub indexa noticias de fuentes financieras confiables (Reuters,
@@ -94,6 +96,30 @@ class FinnhubAdapter:
 
         log.info("finnhub_news_complete", ticker=ticker, articles=len(articles))
         return articles
+
+    @staticmethod
+    def fetch_company_peers(ticker: str, limit: int = 5) -> list[str]:
+        """Competidores sugeridos por Finnhub (/stock/peers: misma industria y país), sin el propio ticker.
+
+        Bloque B (B3): en los informes de octubre de 2026 la comparación con competidores se saltaba siempre
+        ("Peer comparison skipped by user") y el informe no respondía "¿barata frente a qué?". Finnhub solo
+        PROPONE la lista: las cifras de cada competidor siguen saliendo de EDGAR XBRL y Polygon (peers_node)
+        y el inversor puede cambiarla en el checkpoint 1. Sin clave o con error → [] (degraded mode, logueado).
+        """
+        if not settings.finnhub_api_key:
+            log.warning("finnhub_peers_skipped", reason="FINNHUB_API_KEY not configured")
+            return []
+        import finnhub  # type: ignore[import]
+
+        try:
+            raw = finnhub.Client(api_key=settings.finnhub_api_key).company_peers(ticker) or []
+        except Exception as e:  # sugerencia opcional: un fallo no bloquea el análisis
+            log.warning("finnhub_peers_failed", ticker=ticker, error=str(e))
+            return []
+        subject = ticker.upper()
+        peers = [str(p).upper() for p in raw if str(p).strip() and str(p).upper() != subject]
+        log.info("finnhub_peers_fetched", ticker=ticker, peers=peers[:limit])
+        return peers[:limit]
 
     @staticmethod
     def fetch_quarterly_earnings(

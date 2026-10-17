@@ -24,7 +24,7 @@ _CONTINUOUS = ("ungrounded_numbers", "repairs")     # se comparan por su media, 
 _MIN_APPLICABLE_CASES = 4                           # con menos casos, un check diagnóstico solo informa
 # Reglas de veredicto: una sola regresión bloquea, sin mínimo de cobertura. Son raras en el dataset
 # (3 casos divergentes, 1 con hipótesis) y son justo lo que un cambio sicofántico rompería.
-_HARD_CHECKS = ("buy_floor", "rule21_divergence_no_buy", "rule24_hypotheses", "buy_mos_floor")
+_HARD_CHECKS = ("rule24_hypotheses", "buy_mos_floor")   # bloque B: buy_floor y rule21_divergence retirados
 
 
 class CaseResult(BaseModel):

@@ -49,7 +49,7 @@ def test_score_aggregates_by_case_with_majority():
     sc = score(_run(recs, ["A"]), _states(["A"]), label="t")
     [cr] = sc.case_results
     assert cr.checks["rule21_count"] is True                 # 2 de 3 repeticiones pasan → mayoría
-    assert cr.checks["buy_floor"] is None                    # nunca aplica
+    assert cr.checks["buy_mos_floor"] is None                # sin decisión H2 en el informe: no aplica
     assert cr.verdicts == {"HOLD": 3} and cr.disagreement == 0.0 and cr.n_ok_runs == 3
 
 
@@ -119,14 +119,14 @@ def test_run_roundtrip_and_rescore_without_llm(tmp_path):
 
 
 def test_hard_rule_checks_block_on_any_regression_even_with_low_coverage():
-    """Revisión final: con < 4 casos aplicables, buy_floor/divergencia/regla 24 eran solo informativos."""
+    """Revisión final: con < 4 casos aplicables, las reglas de veredicto eran solo informativas."""
     def sc(ok):
         s = _sc(cases=("A", "B"))
         for cr in s.case_results:
-            cr.checks["rule21_divergence_no_buy"] = ok if cr.case == "A" else None
+            cr.checks["buy_mos_floor"] = ok if cr.case == "A" else None
         return s
     g = compare(sc(True), sc(False), noise=_NOISE)
-    assert not g.passed and any("rule21_divergence_no_buy" in r for r in g.reasons)
+    assert not g.passed and any("buy_mos_floor" in r for r in g.reasons)
 
 
 def test_cases_without_enough_valid_runs_make_the_gate_inconclusive():

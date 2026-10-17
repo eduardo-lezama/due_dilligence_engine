@@ -24,7 +24,7 @@ __all__ = [
     "effective_tax_rate", "effective_tax_rate_multi", "validate_dcf_rates",
     "fcff_breakdown", "compute_fcff", "net_claims", "equity_bridge", "per_share",
     "resolve_share_count", "dcf_components", "estimate_pre_tax_cost_of_debt", "compute_wacc",
-    "describe_wacc",
+    "describe_wacc", "wacc_for_cost_of_equity", "solve_decreasing", "assess_cyclicality", "median",
 ]
 
 
@@ -189,21 +189,30 @@ def dcf_components(
     NOPAT_T × (1+g) × (1 − g/RONIC) con RONIC por defecto = WACC (conservador: el crecimiento
     terminal no crea valor). Sin `nopat_base`, flujo terminal = FCFF_T × (1+g) (legacy; sobrevalora
     el TV ~25 % con g 2,5 %, se marca `terminal_reinvestment_modeled=False`).
+    Transición en el fade (bloque B, B1): con `nopat_base`, en cada año k del fade el flujo es
+    (1 − k/fade)·FCFF + (k/fade)·NOPAT·(1 − g_t/RONIC). En el último año del fade el flujo ya es el
+    del terminal, así que no hay escalón en el año N+1. Antes el flujo caía de golpe un 15–40 % (V 0,60,
+    KO 0,74 del año N): el tipo pasaba del efectivo al marginal y la reinversión de ~0 a g/RONIC en un
+    solo año. Es la "competitive advantage period fade" de Mauboussin: la ventaja se agota poco a poco.
     mid_year=True multiplica por (1+WACC)^0.5 (exacto para Gordon; +4,4 % con WACC 9 %).
     Lanza ValuationInputError si WACC − g < 1pp (nunca recorta g en silencio, EC-76).
     """
     validate_dcf_rates(wacc, terminal_growth)
     pv_explicit, fcf, nopat = 0.0, base_fcf, nopat_base
+    r = ronic if ronic else wacc
     # Camino de crecimiento año a año: stage1 a g1, luego fade lineal (el último año del fade = g).
     growth_path = [g1] * stage1_years + [
         g1 - (g1 - terminal_growth) * fade_t / fade_years for fade_t in range(1, fade_years + 1)]
     for t, g_t in enumerate(growth_path, start=1):
         fcf *= 1 + g_t
+        flow = fcf
         if nopat is not None:
             nopat *= 1 + g_t   # NOPAT crece al mismo ritmo: misma economía, distinta base
-        pv_explicit += fcf / (1 + wacc) ** t
+            if t > stage1_years and fade_years > 0:
+                w = (t - stage1_years) / fade_years   # 1/fade … 1: peso del flujo "de terminal"
+                flow = (1 - w) * fcf + w * nopat * (1 - (g_t / r if r > 0 else 0.0))
+        pv_explicit += flow / (1 + wacc) ** t
     if nopat is not None:
-        r = ronic if ronic else wacc
         # g = tasa de reinversión × RONIC → reinversión = g/RONIC. Con g=0 no hay reinversión.
         reinvestment_rate = terminal_growth / r if r > 0 else 0.0
         terminal_flow = nopat * (1 + terminal_growth) * (1 - reinvestment_rate)
@@ -286,6 +295,37 @@ def compute_wacc(
     )
 
 
+def wacc_for_cost_of_equity(cost_of_equity: float, w: Optional[WaccBreakdown]) -> float:
+    """WACC con la Ke sustituida y los MISMOS pesos y Kd·(1−t) que el WACC de mercado (bloque B, B1).
+
+    Sirve para preguntar "¿qué valor tiene la empresa para quien exige X % a su capital?": la deuda
+    cuesta lo mismo; solo cambia lo que exige el accionista. Sin desglose (sin market cap) → la Ke sola.
+    Los pesos se fijan a precio de mercado: aproximación aceptada (cambian poco con el precio).
+    """
+    if w is None:
+        return cost_of_equity
+    return w.equity_weight * cost_of_equity + w.debt_weight * w.after_tax_cost_of_debt
+
+
+def solve_decreasing(fn, target: float, lo: float, hi: float, iters: int = 80) -> tuple[Optional[float], str]:
+    """Tasa r en [lo, hi] con fn(r) = target, para fn DECRECIENTE en r (un valor presente).
+
+    Devuelve (r, "ok"); (None, "above") si incluso con `hi` el valor supera el objetivo (la rentabilidad
+    es mayor que hi); (None, "below") si con `lo` el valor ya no llega (rentabilidad menor que lo).
+    """
+    if fn(hi) > target:
+        return None, "above"
+    if fn(lo) < target:
+        return None, "below"
+    for _ in range(iters):
+        mid = (lo + hi) / 2
+        if fn(mid) > target:
+            lo = mid
+        else:
+            hi = mid
+    return round((lo + hi) / 2, 5), "ok"
+
+
 def describe_wacc(w: WaccBreakdown) -> str:
     """Desglose legible del WACC para checkpoint 2, CLI, archiver y Value Expert (una sola redacción).
 
@@ -327,21 +367,33 @@ def assess_cyclicality(op_margins: list[tuple[str, float]]) -> CyclicalityAssess
     ¿Es cíclica? `op_margins` = [(periodo, margen operativo)] con el más reciente primero.
 
     Cíclica si, con ≥ 5 ejercicios (se usan hasta 10), el mejor margen supera la mediana en
-    ≥ 8 pp Y es ≥ 1,75× la mediana. Con mediana ≤ 0 basta el exceso de 8 pp (picos sobre un
-    nivel normal de pérdidas son ciclo puro). Función pura: el llamador alinea por periodo.
+    ≥ 8 pp Y es ≥ 1,75× la mediana. Función pura: el llamador alinea por periodo.
+
+    Bloque B (B1):
+      - Mediana ≤ 0 → `loss_making`, no cíclica. Antes bastaba el exceso de 8 pp y PATH o PLUG
+        (pérdidas con mucha varianza) salían "cíclicas": crecimiento = terminal y margen exigido 60 %.
+      - Menos de 5 años → `assessed=False`, visible en la decisión (antes era un "no" silencioso).
+      - Se probó y se descartó un test de valles ("≥ 2 años a 8 pp de la mediana"): con datos reales
+        del 2026-10-17 marcaba BBW (COVID), PRDO (giro de 2016–17) y MSFT (2017–18) y seguía sin
+        detectar XOM, DE ni CAT, cuyos márgenes de 10 años varían menos de lo que sugiere el sector.
     """
     window = op_margins[:CYCLICAL_MAX_YEARS]
     if len(window) < CYCLICAL_MIN_YEARS:
         return CyclicalityAssessment(
             is_cyclical=False, years=len(window), median_margin=None, peak_margin=None, peak_period=None,
-            evidence=f"insufficient history ({len(window)} years < {CYCLICAL_MIN_YEARS}) — not assessed")
+            evidence=f"insufficient history ({len(window)} years < {CYCLICAL_MIN_YEARS}) — not assessed",
+            assessed=False)
     med = median([m for _, m in window])
     peak_period, peak = max(window, key=lambda pm: pm[1])
+    if med <= 0:
+        return CyclicalityAssessment(
+            is_cyclical=False, years=len(window), median_margin=med, peak_margin=peak, peak_period=peak_period,
+            evidence=(f"loss-making: {len(window)}y median operating margin {med:.1%} ≤ 0 — no normal "
+                      f"earning power to normalize, not treated as a cycle"),
+            loss_making=True)
     excess = peak - med
-    ratio_ok = med <= 0 or peak >= CYCLICAL_PEAK_RATIO * med
-    is_cyclical = excess >= CYCLICAL_PEAK_EXCESS and ratio_ok
-    ratio_txt = f"{peak / med:.1f}x" if med > 0 else "n/m (median ≤ 0)"
+    is_cyclical = excess >= CYCLICAL_PEAK_EXCESS and peak >= CYCLICAL_PEAK_RATIO * med
     evidence = (f"peak operating margin {peak:.1%} ({peak_period}) vs {len(window)}y median {med:.1%}: "
-                f"+{excess * 100:.1f} pp, {ratio_txt}")
+                f"+{excess * 100:.1f} pp, {peak / med:.1f}x")
     return CyclicalityAssessment(is_cyclical=is_cyclical, years=len(window), median_margin=med,
                                  peak_margin=peak, peak_period=peak_period, evidence=evidence)

@@ -151,12 +151,28 @@ def test_dcf_zero_growth_equals_perpetuity_without_reinvestment_model():
 
 def test_dcf_terminal_reinvestment_example_a():
     # Explícito: 210 × anualidad(9 %, 10) = 210 × 6.417658 = 1 347.708
+    # Transición en el fade (bloque B): en el año 5+k el flujo es (1 − k/5)·210 + (k/5)·225 (g = 0 → sin
+    # reinversión) = 210 + 3k → extra Σ 3k / 1.09^(5+k), k = 1..5 = 21.449
     # Terminal: NOPAT 225 × (1+0) × (1 − 0/0.09) / 0.09 = 2 500 → PV = 2 500 × 0.4224108 = 1 056.027
-    # EV = 1 347.708 + 1 056.027 = 2 403.735
+    # EV = 1 347.708 + 21.449 + 1 056.027 = 2 425.184
     c = dcf_components(210e6, 0.0, 0.0, 0.09, stage1_years=5, fade_years=5, nopat_base=225e6)
-    assert c.enterprise_value == pytest.approx(2_403.735e6, rel=1e-5)
-    assert c.terminal_value_share == pytest.approx(1_056.027 / 2_403.735, rel=1e-4)
+    assert c.enterprise_value == pytest.approx(2_425.184e6, rel=1e-5)
+    assert c.terminal_value_share == pytest.approx(1_056.027 / 2_425.184, rel=1e-4)
     assert c.terminal_reinvestment_modeled is True
+
+
+def test_fade_transition_removes_the_cliff_at_the_terminal_year():
+    # Bloque B: el flujo del último año del fade ya es el del terminal → flujo N+1 / flujo N = 1 + g.
+    # FCFF 100 (reinversión ~0) frente a NOPAT 100 con g 2,5 % y RONIC = WACC 9 %.
+    wacc, g = 0.09, 0.025
+    c = dcf_components(100.0, 0.05, g, wacc, stage1_years=5, fade_years=5, nopat_base=100.0)
+    path = [0.05] * 5 + [0.05 - (0.05 - g) * k / 5 for k in range(1, 6)]
+    growth = 1.0
+    for x in path:
+        growth *= 1 + x
+    flow_n = 100.0 * growth * (1 - g / wacc)                  # último año del fade: peso 1 del flujo terminal
+    flow_terminal = c.pv_terminal * (wacc - g) * (1 + wacc) ** 10
+    assert flow_terminal / flow_n == pytest.approx(1 + g, rel=1e-9)
 
 
 def test_dcf_terminal_reinvestment_reduces_tv_when_growth_positive():

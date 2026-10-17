@@ -2,8 +2,8 @@
 Tests para valuation_agent y las funciones de cálculo DCF.
 
 Qué se testea:
-    - _two_stage_dcf(): aritmética correcta en casos base y edge cases.
-    - _reverse_dcf(): convergencia y coherencia con _two_stage_dcf.
+    - _three_stage_dcf(): aritmética correcta en casos base y edge cases.
+    - _reverse_dcf(): convergencia y coherencia con _three_stage_dcf.
     - _sensitivity_table(): forma y claves correctas.
     - valuation_agent(): nodo LangGraph completo con estado real (fixture AAPL FY2025).
     - Degraded mode: agent corre sin market data o sin financials.
@@ -23,10 +23,9 @@ from pathlib import Path
 
 from due_diligence.agents.valuation import (
     valuation_agent,
-    _two_stage_dcf,
+    _three_stage_dcf,
     _reverse_dcf,
     _sensitivity_table,
-    _fcf_cagr,
     _fcf_cagr_with_window,
 )
 from due_diligence.schemas.reports import ValuationReport, MarketReport
@@ -51,31 +50,31 @@ def _build_market_report(market_cap: float = 2_800_000_000_000.0) -> MarketRepor
 
 
 # ---------------------------------------------------------------------------
-# Tests: _two_stage_dcf
+# Tests: _three_stage_dcf
 # ---------------------------------------------------------------------------
 
 def test_dcf_positive_fcf_returns_positive_value():
-    val = _two_stage_dcf(
+    val = _three_stage_dcf(
         base_fcf=100e9,
-        near_term_growth=0.10,
+        g1=0.10,
         terminal_growth=0.025,
         wacc=0.09,
-        years=10,
+        stage1_years=10,
     )
     assert val > 0
 
 
 def test_dcf_higher_growth_gives_higher_value():
     """A igualdad de WACC, más crecimiento → más valor."""
-    low = _two_stage_dcf(100e9, 0.05, 0.025, 0.09, 10)
-    high = _two_stage_dcf(100e9, 0.15, 0.025, 0.09, 10)
+    low = _three_stage_dcf(100e9, 0.05, 0.025, 0.09, 10)
+    high = _three_stage_dcf(100e9, 0.15, 0.025, 0.09, 10)
     assert high > low
 
 
 def test_dcf_higher_wacc_gives_lower_value():
     """A igualdad de growth, más WACC → menos valor (más descuento)."""
-    low_wacc = _two_stage_dcf(100e9, 0.10, 0.025, 0.08, 10)
-    high_wacc = _two_stage_dcf(100e9, 0.10, 0.025, 0.12, 10)
+    low_wacc = _three_stage_dcf(100e9, 0.10, 0.025, 0.08, 10)
+    high_wacc = _three_stage_dcf(100e9, 0.10, 0.025, 0.12, 10)
     assert low_wacc > high_wacc
 
 
@@ -84,7 +83,7 @@ def test_dcf_wacc_leq_terminal_growth_raises():
     y el TV salía ~200× el FCF; ahora ValuationInputError y el agente lo convierte en error visible."""
     from due_diligence.agents.valuation_math import ValuationInputError
     with pytest.raises(ValuationInputError):
-        _two_stage_dcf(100e9, 0.10, 0.09, 0.09, 10)  # wacc == terminal_growth
+        _three_stage_dcf(100e9, 0.10, 0.09, 0.09, 10)  # wacc == terminal_growth
 
 
 def test_sensitivity_invalid_cell_none_but_valid_neighbours():
@@ -95,7 +94,7 @@ def test_sensitivity_invalid_cell_none_but_valid_neighbours():
 
 
 def test_dcf_zero_fcf_returns_zero():
-    val = _two_stage_dcf(0.0, 0.10, 0.025, 0.09, 10)
+    val = _three_stage_dcf(0.0, 0.10, 0.025, 0.09, 10)
     assert val == 0.0
 
 
@@ -107,7 +106,7 @@ def test_reverse_dcf_round_trips():
     """reverse_dcf(base_fcf, dcf(g), ...) debe devolver g (aprox)."""
     base_fcf = 100e9
     g = 0.10
-    val = _two_stage_dcf(base_fcf, g, 0.025, 0.09, 10)
+    val = _three_stage_dcf(base_fcf, g, 0.025, 0.09, 10)
     implied_g = _reverse_dcf(base_fcf, val, 0.025, 0.09, 10)
     assert implied_g is not None
     assert abs(implied_g - g) < 0.001  # precisión < 0.1%
@@ -153,11 +152,11 @@ def test_sensitivity_table_higher_growth_row_has_higher_values():
     # table[0] = growth_center + 0.05 (mayor), table[2] = growth_center - 0.05 (menor)
     high_row_values = list(table[0]["values"].values())
     low_row_values = list(table[2]["values"].values())
-    assert all(h > l for h, l in zip(high_row_values, low_row_values))
+    assert all(hi > lo for hi, lo in zip(high_row_values, low_row_values))
 
 
 # ---------------------------------------------------------------------------
-# Tests: _fcf_cagr
+# Tests: _fcf_cagr_with_window (CAGR)
 # ---------------------------------------------------------------------------
 
 def test_fcf_cagr_two_points():
@@ -165,14 +164,14 @@ def test_fcf_cagr_two_points():
         MetricValue(value=121e9, unit="USD", period="FY2025", source="calculated"),
         MetricValue(value=100e9, unit="USD", period="FY2024", source="calculated"),
     ]
-    cagr = _fcf_cagr(series)
+    cagr = _fcf_cagr_with_window(series)[0]
     assert cagr is not None
     assert abs(cagr - 0.21) < 0.001  # 21% crecimiento
 
 
 def test_fcf_cagr_single_point_returns_none():
     series = [MetricValue(value=100e9, unit="USD", period="FY2025", source="calculated")]
-    assert _fcf_cagr(series) is None
+    assert _fcf_cagr_with_window(series)[0] is None
 
 
 def test_fcf_cagr_negative_oldest_returns_none():
@@ -180,7 +179,7 @@ def test_fcf_cagr_negative_oldest_returns_none():
         MetricValue(value=100e9, unit="USD", period="FY2025", source="calculated"),
         MetricValue(value=-10e9, unit="USD", period="FY2024", source="calculated"),
     ]
-    assert _fcf_cagr(series) is None
+    assert _fcf_cagr_with_window(series)[0] is None
 
 
 # ---------------------------------------------------------------------------
@@ -195,7 +194,7 @@ class TestFcfCagrWithWindow:
     """
 
     def test_all_positive_uses_full_window(self):
-        """Serie completamente positiva → misma ventana que _fcf_cagr."""
+        """Serie completamente positiva → ventana completa."""
         series = [
             MetricValue(value=523e6, unit="USD", period="FY2026", source="calculated"),
             MetricValue(value=421e6, unit="USD", period="FY2025", source="calculated"),
@@ -235,17 +234,6 @@ class TestFcfCagrWithWindow:
         cagr, n = _fcf_cagr_with_window(series)
         assert cagr is None
         assert n == 0
-
-    def test_backward_compat_fcf_cagr_wrapper(self):
-        """_fcf_cagr sigue funcionando como wrapper (no rompe tests existentes)."""
-        series = [
-            MetricValue(value=121e9, unit="USD", period="FY2025", source="calculated"),
-            MetricValue(value=100e9, unit="USD", period="FY2024", source="calculated"),
-        ]
-        cagr_old = _fcf_cagr(series)
-        cagr_new, _ = _fcf_cagr_with_window(series)
-        assert cagr_old == cagr_new
-
 
 # ---------------------------------------------------------------------------
 # Tests: valuation_agent nodo LangGraph
@@ -601,24 +589,25 @@ def test_valuation_agent_contradiction_flag_when_large_spread():
     Cuando forward growth >> reverse implied growth (>5pp), dcf_reliability_note
     debe incluir el warning de contradicción.
 
-    Escenario: FCF=$50M, market_cap=$400M, revenue CAGR=25%.
-    → near_term_growth = 25% (de revenue CAGR)
-    → reverse_dcf con mkt_cap tan pequeño relativo al DCF da implied_growth << 25%
-    → spread > 5pp → flag activado.
+    Escenario: base FCFF de unos 97 000 M$ y precio de 60 $ (el EV de mercado sale de precio × acciones,
+    no de market_cap: EC-63) → el reverse DCF implica un crecimiento muy por debajo del 8,2 % de la
+    tendencia de ventas → spread > 5 pp → aviso.
     """
     financials = _build_financials()
     financials.free_cash_flow = [
         MetricValue(value=50_000_000, unit="USD", period="FY2025", source="calculated"),
         MetricValue(value=40_000_000, unit="USD", period="FY2024", source="calculated"),
     ]
+    market = _build_market_report()
+    market.price_current = MetricValue(value=60.0, unit="USD", period="2026-04-21", source="Polygon")
     state = {
         "ticker": "FAKE",
         "financials": financials,
-        "market": _build_market_report(market_cap=400_000_000),
-        "historical_cagr_5y": 0.25,  # revenue CAGR 25% → near_term_growth capped a 25%
+        "market": market,
+        "historical_cagr_5y": 0.25,
     }
     report = valuation_agent(state)["valuation"]
-    # DCF@25% >> $400M → implied growth << 25% → spread > 5pp → flag
+    assert report.near_term_growth_used_pct - report.reverse_dcf_implied_growth > 0.05
     assert report.dcf_reliability_note is not None
     assert "spread note" in report.dcf_reliability_note.lower()
 
@@ -1084,25 +1073,27 @@ def _levered_state():
 
 def test_fcff_dcf_subtracts_net_debt_example_a():
     # Ejemplo A con valor terminal con reinversión (NOPAT 225, g=0 → TV = 225/0.09):
-    # explícito 210 × 6.417658 = 1 347.708; TV PV 2 500 × 0.4224108 = 1 056.027; EV 2 403.735
-    # equity = 2 403.735 − 450 = 1 953.735 → $195.37; upside 195.37/150 − 1 = +30.2 %
+    # explícito 210 × 6.417658 = 1 347.708; transición del fade (bloque B) Σ 3k/1.09^(5+k) = 21.449;
+    # TV PV 2 500 × 0.4224108 = 1 056.027; EV 2 425.184
+    # equity = 2 425.184 − 450 = 1 975.184 → $197.52; upside 197.52/150 − 1 = +31.7 %
     # (el método antiguo daba $222.22 sin bridge; el DCF sin reinversión terminal daría $188.33)
     r = valuation_agent(_levered_state())["valuation"]
     assert r.fcff_base.value == pytest.approx(210e6)
-    assert r.enterprise_value_dcf.value == pytest.approx(2_403.735e6, rel=1e-5)
+    assert r.enterprise_value_dcf.value == pytest.approx(2_425.184e6, rel=1e-5)
     assert r.equity_bridge.net_claims == pytest.approx(450e6)
-    assert r.dcf_intrinsic_per_share.value == pytest.approx(195.37, abs=0.01)
-    assert r.dcf_upside_pct == pytest.approx(30.2, abs=0.05)
+    assert r.dcf_intrinsic_per_share.value == pytest.approx(197.52, abs=0.01)
+    assert r.dcf_upside_pct == pytest.approx(31.7, abs=0.05)
     assert r.tax_rate_used == pytest.approx(0.25)
     assert r.valuation_basis.startswith("FCFF")
-    assert r.terminal_value_share == pytest.approx(1_056.027 / 2_403.735, rel=1e-4)
-    assert r.dcf_intrinsic_value.value == pytest.approx(1_953.735e6, rel=1e-5)   # equity tras el bridge
+    assert r.terminal_value_share == pytest.approx(1_056.027 / 2_425.184, rel=1e-4)
+    assert r.dcf_intrinsic_value.value == pytest.approx(1_975.184e6, rel=1e-5)   # equity tras el bridge
     assert r.share_count_used == pytest.approx(10e6)
     assert r.fcff_breakdown.after_tax_interest_addback == pytest.approx(30e6)
 
 
 def test_upside_none_when_price_missing():
-    st = _levered_state(); st["market"] = st["market"].model_copy(update={"price_current": None})
+    st = _levered_state()
+    st["market"] = st["market"].model_copy(update={"price_current": None})
     r = valuation_agent(st)["valuation"]
     assert r.dcf_upside_pct is None and "price unavailable" in r.dcf_reliability_note
 
@@ -1113,7 +1104,8 @@ def test_sti_subtracted_exactly_once_end_to_end():
         "cash_and_equivalents": _mv(50e6),
         "short_term_investments": _mv(30e6),
     })
-    st = _levered_state(); st["financials"] = fin
+    st = _levered_state()
+    st["financials"] = fin
     r = valuation_agent(st)["valuation"]
     assert r.equity_bridge.cash == pytest.approx(50e6)
     assert r.equity_bridge.short_term_investments == pytest.approx(30e6)
@@ -1142,16 +1134,18 @@ def test_parse_financials_to_valuation_agent_sti_once_integration():
 
 
 def test_valuation_agent_returns_error_report_instead_of_crashing_on_bad_rates():
-    st = _levered_state(); st["checkpoint2_user_input"].update({"wacc_pct": 3.0, "terminal_growth_pct": 2.5})
+    st = _levered_state()
+    st["checkpoint2_user_input"].update({"wacc_pct": 3.0, "terminal_growth_pct": 2.5})
     r = valuation_agent(st)["valuation"]
     assert r.stub is True and r.error.startswith("ValuationInputError") and r.dcf_intrinsic_per_share is None
 
 
 def test_valuation_date_capitalization_from_fiscal_year_end():
     # 10 meses (304 días: 2025-12-31 → 2026-10-31) desde el cierre: EV × 1.09^(304/365) ≈ ×1.0744 (revisión M5)
-    st = _levered_state(); st["checkpoint2_user_input"]["valuation_date"] = "2026-10-31"
+    st = _levered_state()
+    st["checkpoint2_user_input"]["valuation_date"] = "2026-10-31"
     r = valuation_agent(st)["valuation"]
-    assert r.enterprise_value_dcf.value == pytest.approx(2_403.735e6 * 1.09 ** (304 / 365), rel=1e-4)
+    assert r.enterprise_value_dcf.value == pytest.approx(2_425.184e6 * 1.09 ** (304 / 365), rel=1e-4)
     assert "capitalized" in r.dcf_reliability_note
 
 
@@ -1165,7 +1159,8 @@ def test_normalized_fcff_base_uses_median_margin_when_three_years():
     })
     # FCFF por año: 260+30−60−20 = 210 (10.5 %), 200+30−50−18 = 162 (9.0 %), 150+30−40−16 = 124 (7.75 %)
     # → mediana 9.0 % × 2 000 = 180
-    st = _levered_state(); st["financials"] = fin
+    st = _levered_state()
+    st["financials"] = fin
     r = valuation_agent(st)["valuation"]
     assert r.fcff_base.value == pytest.approx(180e6)
     assert "median FCFF margin (3y)" in r.fcff_base.source
@@ -1188,7 +1183,8 @@ def test_no_share_count_yields_none_per_share_with_note():
 
 
 def test_valuation_input_defaults_mid_year_false_when_absent():
-    st = _levered_state(); st["checkpoint2_user_input"].pop("mid_year_convention")
+    st = _levered_state()
+    st["checkpoint2_user_input"].pop("mid_year_convention")
     r = valuation_agent(st)["valuation"]
     assert r.mid_year_convention_used is False
 
@@ -1196,7 +1192,8 @@ def test_valuation_input_defaults_mid_year_false_when_absent():
 def test_valuation_agent_default_wacc_is_suggested_real_wacc_with_market():
     """Sin WACC del usuario y con market cap: default = suggest_wacc (no 9.0 fijo)."""
     from due_diligence.agents.valuation import suggest_wacc
-    st = _levered_state(); st["checkpoint2_user_input"].pop("wacc_pct")
+    st = _levered_state()
+    st["checkpoint2_user_input"].pop("wacc_pct")
     r = valuation_agent(st)["valuation"]
     expected = round(suggest_wacc(st["financials"], 1_500e6).wacc * 100, 1)   # 7.8 (ver test_checkpoint_socratic)
     assert r.assumptions.wacc_pct == expected == 7.8
@@ -1284,7 +1281,8 @@ def test_epv_classifier_symmetric_band():
 
 
 def test_convergence_historical_is_revenue_cagr():
-    st = _levered_state(); st["historical_cagr_5y"] = 0.04
+    st = _levered_state()
+    st["historical_cagr_5y"] = 0.04
     r = valuation_agent(st)["valuation"]
     assert "historical 4.0%" in r.valuation_methods_summary[2]["display_upside"]
 
@@ -1299,7 +1297,8 @@ def test_reverse_dcf_reports_ten_year_equivalent():
 
 def test_reverse_classification_uses_ten_year_equivalent():
     # Ejemplo A: el reverse da g1 implícito < 0; con historical revenue CAGR 4 % → "cheap"
-    st = _levered_state(); st["historical_cagr_5y"] = 0.04
+    st = _levered_state()
+    st["historical_cagr_5y"] = 0.04
     r = valuation_agent(st)["valuation"]
     row = r.valuation_methods_summary[2]
     assert r.reverse_dcf_10y_equivalent is not None
@@ -1308,12 +1307,12 @@ def test_reverse_classification_uses_ten_year_equivalent():
 
 def test_sensitivity_per_share_and_tv_share():
     # Centro (WACC 9 %, g1 0 %) = el DCF del titular: misma base FCFF 210, misma reinversión
-    # terminal con NOPAT 225 → (2 403.735 − 450) / 10 = $195.37. (El plan fijaba 188.33, que es el
+    # terminal con NOPAT 225 → (2 425.184 − 450) / 10 = $197.52. (El plan fijaba 188.33, que es el
     # DCF SIN reinversión terminal; la revisión adversarial manda: la tabla debe reproducir el titular.)
     r = valuation_agent(_levered_state())["valuation"]
     assert r.sensitivity_unit == "USD/share"
     center = r.sensitivity_table[1]["values"]["wacc_9.0pct"]
-    assert center == pytest.approx(195.37, abs=0.01) == r.dcf_intrinsic_per_share.value
+    assert center == pytest.approx(197.52, abs=0.01) == r.dcf_intrinsic_per_share.value
     assert 0 < r.terminal_value_share < 1
 
 

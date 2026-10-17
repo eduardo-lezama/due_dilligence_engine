@@ -107,6 +107,10 @@ class FilingsRAGReport(LLMAgentReport):
     # se verificó; None = no determinado. El Value Expert topa la confianza a 0.6 si alguno es True.
     active_sec_investigation: Optional[bool] = None  # Investigación SEC activa contra la empresa
     material_weakness: Optional[bool] = None         # Material weakness en ICFR declarada
+    # EC-106: qué secciones del 10-K no se encontraron o llegaron recortadas al LLM (fail loud:
+    # el Expert y el informe lo dicen; antes un apartado vacío solo quedaba en el log).
+    sections_missing: list[str] = Field(default_factory=list)    # p. ej. ["Item 7"]
+    sections_truncated: list[str] = Field(default_factory=list)  # p. ej. ["Item 1A"]
     citations: list[Citation] = Field(default_factory=list)
 
 
@@ -126,6 +130,9 @@ class MarketReport(BaseModel):
     # Tipo sin riesgo vivo (bono a 10 años, FRED DGS10; A5/ADR-043), en %. None → el WACC usa el
     # estático RF_PCT y lo indica en su desglose. Consumidor: suggest_wacc (valuation, checkpoint 2).
     risk_free_rate: Optional[MetricValue] = None
+    # Bloque B (B3): competidores sugeridos (Finnhub, misma industria). El CLI los propone por defecto en
+    # el checkpoint 1; las cifras de cada uno salen de EDGAR + Polygon en peers_node.
+    suggested_peers: list[str] = Field(default_factory=list)
 
 
 class PeerROIC(BaseModel):
@@ -283,6 +290,11 @@ class CyclicalityAssessment(BaseModel):
     peak_margin: Optional[float]        # mejor margen de la ventana
     peak_period: Optional[str]          # ejercicio del mejor margen, p.ej. "FY2025"
     evidence: str                       # explicación legible: por qué sí o por qué no
+    # Bloque B (B1): "no evaluada" ya no se confunde con "no cíclica" (invariante 5). False = menos de
+    # 5 ejercicios con margen operativo (CVX y JNJ no etiquetan el EBIT en XBRL, EC-107).
+    assessed: bool = True
+    # Mediana del margen ≤ 0: no hay beneficio normal que normalizar; no es un ciclo (PATH, PLUG).
+    loss_making: bool = False
 
 
 class DcfScenario(BaseModel):
@@ -292,6 +304,9 @@ class DcfScenario(BaseModel):
     near_term_growth: float            # g1 de la etapa 1 (mín / base / máx de CAGR de ventas 3, 5, 10 años)
     per_share: Optional[float] = None  # valor por acción por el mismo camino que el titular
     upside_pct: Optional[float] = None
+    # Bloque B (B1, ADR-044): rentabilidad anual del accionista comprando hoy si se cumple el escenario.
+    implied_return: Optional[float] = None
+    implied_return_note: Optional[str] = None   # por qué no hay cifra ("below 3.5%…", "above 60%…")
 
 
 class ValuationReport(BaseModel):
@@ -314,6 +329,15 @@ class ValuationReport(BaseModel):
     magic_formula_rank: Optional[int] = None            # Rank según Magic Formula (requiere peer list — None en Phase 1)
     sensitivity_table: list[dict] = Field(default_factory=list)  # Tabla de sensibilidad WACC × growth
     dcf_scenarios: list[DcfScenario] = Field(default_factory=list)  # A3: pesimista/base/optimista (rango)
+    # --- Decisión por rentabilidad frente a un listón (bloque B, B1, ADR-044) — fracciones ---
+    hurdle_rate: Optional[float] = None          # listón del inversor: max(HURDLE_RATE_PCT, Rf + ERP)
+    hurdle_source: Optional[str] = None          # cómo se fijó el listón (legible)
+    risk_free_rate: Optional[float] = None       # Rf usado: suelo del caso pesimista
+    implied_return: Optional[float] = None       # rentabilidad anual del accionista al precio de hoy (caso base)
+    implied_return_note: Optional[str] = None    # p. ej. "above 60%, the search bound" o motivo de None
+    entry_price: Optional[float] = None          # precio máximo: base ≥ listón y pesimista ≥ Rf
+    entry_basis: Optional[str] = None            # qué condición fija la entrada
+    growth_structural_break: Optional[str] = None  # tendencia de 10 años vs CAGR de 5 años > 4 pp (aviso)
     assumptions: Optional[ValuationInput] = None        # Assumptions usadas en el DCF
     dcf_reliability_note: Optional[str] = None          # Warning cuando el DCF puede ser poco fiable
     fcf_quality_warning: Optional[str] = None           # EC-65: FCF inflado por advance payments / project timing
@@ -353,22 +377,23 @@ class ValuationReport(BaseModel):
 
 
 class VerdictDecision(BaseModel):
-    """Parte numérica del veredicto, calculada por código (H2-2, ADR-041).
+    """Parte numérica del veredicto, calculada por código (H2-2 ADR-041; bloque B ADR-044).
 
-    El Value Expert elige la etiqueta y el tipo de negocio; aquí quedan el ancla de valor, el precio de
-    entrada, el margen de seguridad, la confianza y el tamaño, con sus componentes visibles. Ningún número
-    de este modelo lo genera el LLM (invariante 1).
+    El Value Expert elige la etiqueta y el tipo de negocio; aquí quedan el listón, la rentabilidad que
+    da el precio de hoy, el precio de entrada, la confianza y el tamaño, con sus componentes visibles.
+    Ningún número de este modelo lo genera el LLM (invariante 1). Desde el bloque B el tipo de negocio
+    es descriptivo: ya no fija un margen de seguridad (el margen sale del caso pesimista de la empresa).
     """
     verdict: str                                  # final (BUY/WATCHLIST/PASS/SELL), tras reconciliar
     verdict_raw: str                              # el que eligió el modelo
     business_class_llm: str                       # quality_compounder | average | cyclical_or_low_quality
     business_class: str                           # tras endurecer (cíclico o sin moat)
-    required_mos: float                           # fracción exigida (§9.1: 0,30 / 0,50 / 0,60)
-    anchor_value: Optional[float] = None          # valor intrínseco por acción usado
-    anchor_source: str = ""
-    entry_price: Optional[float] = None           # ancla × (1 − MoS exigido)
+    hurdle_rate: Optional[float] = None           # listón (fracción)
+    implied_return: Optional[float] = None        # rentabilidad anual al precio de hoy, caso base
+    implied_return_bear: Optional[float] = None   # ídem, caso pesimista
+    entry_price: Optional[float] = None           # precio máximo: base ≥ listón y pesimista ≥ Rf
+    entry_basis: str = ""                         # qué condición fija la entrada
     price: Optional[float] = None
-    actual_mos: Optional[float] = None            # 1 − precio/ancla
     confidence: float = 0.0                       # compuesta (antes de los topes por huecos de datos/governance)
     sizing_pct: float = 0.0                       # % de cartera (0 si no es BUY)
     confidence_components: dict[str, float] = Field(default_factory=dict)

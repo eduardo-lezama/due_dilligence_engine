@@ -1,6 +1,6 @@
 # ADR-041: Taxonomía de veredicto BUY / WATCHLIST / PASS / SELL con decisión numérica en código
 
-**Status**: Accepted (2026-10-11, H2-2)
+**Status**: Accepted (2026-10-11, H2-2) — **parcialmente sustituido por [ADR-044](ADR-044-decision-by-expected-return-vs-hurdle.md)** (2026-10-17): el margen por tipo de negocio (30/50/60 %) y el ancla mín(DCF, EPV) se sustituyen por la rentabilidad frente a un listón. Siguen vigentes las etiquetas, el reparto LLM/código, el "solo más prudente" y la confianza compuesta.
 **Date**: 2026-10-11
 **Deciders**: Eduardo (AI/Agentic Engineering Lead)
 **Tags**: `value-expert`, `verdict`, `margin-of-safety`, `evals`

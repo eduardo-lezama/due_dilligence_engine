@@ -22,6 +22,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "pyright>=1.1.400",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "pytest-mock>=3.14.0",
@@ -56,3 +57,27 @@ select = ["E4", "E7", "E9", "F"]
 [tool.ruff.lint.per-file-ignores]
 # Los tests agrupan imports por sección (un bloque de imports por grupo de tests): convención aceptada.
 "tests/*" = ["E402"]
+
+[tool.pyright]
+# Bloque C (C6): comprobación de tipos en modo básico sobre los módulos que ya están limpios (la capa de
+# decisión y lo nuevo). Se amplía módulo a módulo: añadir uno solo cuando dé 0 errores, sin "type: ignore"
+# genéricos. Pendientes (2026-10-17, ~170 errores): tools/edgar.py (atributos sin tipar de edgartools),
+# tools/accounting_scores.py y tools/xbrl_extract.py (opcionales que el código ya protege), archiver, cli.
+typeCheckingMode = "basic"
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+include = [
+    "src/due_diligence/agents/valuation.py",
+    "src/due_diligence/agents/valuation_math.py",
+    "src/due_diligence/agents/verdict_policy.py",
+    "src/due_diligence/agents/report_facts.py",
+    "src/due_diligence/agents/peers.py",
+    "src/due_diligence/tools/tenk_sections.py",
+    "src/due_diligence/tools/news_relevance.py",
+    "src/due_diligence/tools/fred.py",
+    "src/due_diligence/evals/outcomes.py",
+    "src/due_diligence/utils/periods.py",
+    "src/due_diligence/validation/citations.py",
+]
+

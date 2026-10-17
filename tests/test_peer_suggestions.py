@@ -40,3 +40,19 @@ def test_relative_section_names_the_source_of_the_peers():
              "peers_source": "auto"}
     rows = dict(relative_section(state).rows)
     assert "suggested automatically" in rows["Peers"]
+
+
+def test_relative_section_reports_excluded_and_cross_industry_peers():
+    from due_diligence.agents.report_facts import relative_section
+    from due_diligence.schemas.reports import PeerValuation
+    pv = [PeerValuation(ticker="A", roic=0.2, period="FY2025", ev_ebit=18.0)]
+    excluded = relative_section({
+        "peer_valuations": pv, "peers_source": "auto",
+        "peers_excluded": ["ENPH"],
+    })
+    assert any("Excluded" in n and "ENPH" in n for n in excluded.notes)
+    cross = relative_section({
+        "peer_valuations": pv, "peers_source": "user",
+        "peers_cross_industry": ["MSFT"],
+    })
+    assert any("Cross-industry" in n and "MSFT" in n for n in cross.notes)

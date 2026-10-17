@@ -32,6 +32,22 @@ from due_diligence.config import settings
 log = structlog.get_logger()
 
 
+def split_adjust_dividends(dividends: list[tuple[str, float]],
+                           splits: list[tuple[str, float]]) -> list[tuple[str, float]]:
+    """Expresa cada dividendo en acciones de HOY: divide por el ratio de los splits posteriores a su ex-fecha.
+
+    `splits` = [(fecha de ejecución ISO, ratio nuevas/antiguas)], p. ej. 10:1 → 10.0. Pura y testeada.
+    """
+    out = []
+    for ex, amount in dividends:
+        factor = 1.0
+        for when, ratio in splits:
+            if when > ex and ratio > 0:
+                factor *= ratio
+        out.append((ex, amount / factor))
+    return out
+
+
 class PolygonAdapter:
     @staticmethod
     def fetch_daily_closes(ticker: str, start: str, end: str) -> dict[str, float]:
@@ -53,6 +69,38 @@ class PolygonAdapter:
                 day = datetime.fromtimestamp(agg.timestamp / 1000, tz=timezone.utc).date().isoformat()
                 out[day] = float(agg.close)
         return out
+
+    @staticmethod
+    def fetch_dividends(ticker: str, start: str, end: str) -> Optional[list[tuple[str, float]]]:
+        """Dividendos en efectivo con ex-fecha en [start, end] → [(ex-fecha ISO, importe por acción)].
+
+        Para la rentabilidad total del informe de resultados (C4). Los cierres de `fetch_daily_closes` están
+        ajustados por TODOS los splits hasta hoy; el `cash_amount` de Polygon no lo está (este cliente no trae
+        un importe ajustado: revisión del bloque C). Se divide cada dividendo por el ratio de los splits
+        posteriores a su ex-fecha (`split_adjust_dividends`); sin esto, un split 10:1 tras el dividendo
+        (NVDA) multiplicaba por 10 su rentabilidad. Sin API key → None ("no disponible", distinto de [] =
+        "no paga"); un error de Polygon se propaga (no se rellena con nada).
+        """
+        if not settings.polygon_api_key:
+            log.warning("polygon_skipped", reason="POLYGON_API_KEY not configured")
+            return None
+        from polygon import RESTClient  # type: ignore[import]
+
+        client = RESTClient(api_key=settings.polygon_api_key)
+        out: list[tuple[str, float]] = []
+        for d in client.list_dividends(ticker, ex_dividend_date_gte=start, ex_dividend_date_lte=end,
+                                       limit=1000):
+            amount = getattr(d, "cash_amount", None)
+            ex = getattr(d, "ex_dividend_date", None)
+            if amount and ex:
+                out.append((str(ex), float(amount)))
+        if not out:
+            return []
+        splits = [(str(sp.execution_date), float(sp.split_to) / float(sp.split_from))
+                  for sp in client.list_splits(ticker=ticker, execution_date_gt=start, limit=1000)
+                  if getattr(sp, "execution_date", None) and getattr(sp, "split_from", None)
+                  and getattr(sp, "split_to", None)]
+        return split_adjust_dividends(sorted(out), splits)
 
     @staticmethod
     def fetch_market_data(ticker: str) -> dict[str, Any]:

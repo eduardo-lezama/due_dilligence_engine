@@ -128,26 +128,28 @@ def _caveats(valuation, class_note: Optional[str], downgrade: Optional[str]) -> 
 def decide(raw_verdict: str, llm_class: str, state, *, llm_adjustment: float,
            verified_citations: int) -> VerdictDecision:
     """Decisión completa a partir del estado del grafo (valoración, mercado, competencia)."""
-    valuation = state.get("valuation")
+    raw_valuation = state.get("valuation")
     market = state.get("market")
     competitive = state.get("competitive")
-    val_ok = valuation is not None and not getattr(valuation, "stub", True)
+    # Una valoración stub (fallida) cuenta como ausente; `val` es None o una valoración utilizable.
+    val = raw_valuation if raw_valuation is not None and not getattr(raw_valuation, "stub", True) else None
     moat = competitive.moat_classification if competitive is not None and not competitive.stub else None
-    cyclicality = getattr(valuation, "cyclicality", None) if val_ok else None
+    cyclicality = val.cyclicality if val is not None else None
     business_class, class_note = effective_business_class(
         llm_class, moat=moat, is_cyclical=getattr(cyclicality, "is_cyclical", None))
 
-    epv_ps = _value(valuation.epv_per_share) if val_ok else None
-    reliable = val_ok and dcf_is_reliable(terminal_value_share=valuation.terminal_value_share,
-                                          growth_source=valuation.near_term_growth_source)
+    epv_ps = _value(val.epv_per_share) if val is not None else None
+    reliable = val is not None and dcf_is_reliable(terminal_value_share=val.terminal_value_share,
+                                                   growth_source=val.near_term_growth_source)
     # Un solo precio para todo (el del mercado, el mismo que guarda el seguimiento prospectivo).
     price = _value(market.price_current) if market is not None else None
-    entry = valuation.entry_price if val_ok else None
-    bear = next((sc.implied_return for sc in valuation.dcf_scenarios if sc.name == "bear"), None) if val_ok else None
-    hurdle = valuation.hurdle_rate if val_ok else None
+    entry = val.entry_price if val is not None else None
+    bear = (next((sc.implied_return for sc in val.dcf_scenarios if sc.name == "bear"), None)
+            if val is not None else None)
+    hurdle = val.hurdle_rate if val is not None else None
 
     verdict, downgrade = reconcile_verdict(raw_verdict, price=price, entry=entry)
-    methods = valuation.valuation_methods_summary if val_ok else []
+    methods = val.valuation_methods_summary if val is not None else []
     cheap = sum(1 for m in methods if m.get("classification") == "cheap")
     expensive = sum(1 for m in methods if m.get("classification") == "expensive")
     confidence, conf_parts = composite_confidence(verdict, cheap=cheap, expensive=expensive, dcf_reliable=reliable,
@@ -155,8 +157,8 @@ def decide(raw_verdict: str, llm_class: str, state, *, llm_adjustment: float,
     size, size_parts = position_size(verdict, bear_return=bear, hurdle=hurdle, price=price, epv_ps=epv_ps)
     return VerdictDecision(
         verdict=verdict, verdict_raw=raw_verdict, business_class_llm=llm_class, business_class=business_class,
-        hurdle_rate=hurdle, implied_return=valuation.implied_return if val_ok else None, implied_return_bear=bear,
-        entry_price=entry, entry_basis=(valuation.entry_basis or "") if val_ok else "no valuation", price=price,
+        hurdle_rate=hurdle, implied_return=val.implied_return if val is not None else None, implied_return_bear=bear,
+        entry_price=entry, entry_basis=(val.entry_basis or "") if val is not None else "no valuation", price=price,
         confidence=confidence, sizing_pct=size, confidence_components=conf_parts, sizing_components=size_parts,
-        caveats=_caveats(valuation if val_ok else None, class_note, downgrade),
+        caveats=_caveats(val, class_note, downgrade),
     )

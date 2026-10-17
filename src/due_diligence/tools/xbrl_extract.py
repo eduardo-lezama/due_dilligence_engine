@@ -458,6 +458,100 @@ def compute_operating_income(inc_df: pd.DataFrame) -> list[dict]:
     return pretax  # [] si tampoco hay pretax
 
 
+# Partidas no operativas que el beneficio antes de impuestos ARRASTRA y que EBIT no debe incluir (EC-107).
+EQUITY_METHOD_INCOME = ("IncomeLossFromEquityMethodInvestments",)
+OTHER_NONOPERATING = ("OtherNonoperatingIncomeExpense",)
+# INTEREST_EXPENSE / INTEREST_INCOME (inputs FCFF) se definen más abajo; se resuelven al llamar.
+
+
+def resolve_operating_income(inc_df: pd.DataFrame, facts: FactsLookup, labels: list[str],
+                             n: int = 10) -> tuple[list[dict], list[str]]:
+    """EBIT año a año: el reportado manda; los años sin él se derivan del beneficio antes de impuestos (EC-107).
+
+    Por qué: filers como CVX (sin `OperatingIncomeLoss` en ningún año) o JNJ (solo 1 año) dejaban la serie
+    vacía/corta → sin EPV, ciclicidad "no evaluada" y NOPAT terminal del último año. Por AÑO (misma
+    etiqueta FY para todos los inputs, nunca se mezclan años — EC-82/EC-87):
+      1. `OperatingIncomeLoss` (vista curada → raw facts, EC-90). Un valor reportado NUNCA se sobrescribe.
+      2. Si falta ese año: EBIT = pretax + gasto por intereses − ingreso por intereses
+         − ingreso de puesta en equivalencia − otros ingresos no operativos.
+         Requiere pretax e interest expense del MISMO año; si falta uno, el año se queda sin EBIT
+         (fail loud: no se inventa).
+      3. Años que siguen vacíos: cadena histórica de `compute_operating_income` (GP−SGA, pretax−interés
+         neto…) año a año, con flag si la serie mezcla definiciones.
+
+    Decisiones medidas contra EBIT reportado (AAPL, KO, PG, PEP, HD, AZO, TGT, ORLY, WMT, GOOGL, MSFT…):
+      - Solo pretax+intereses sobreestima 20–38 % en KO (ingreso por puesta en equivalencia dentro de
+        pretax); restar `IncomeLossFromEquityMethodInvestments` y `OtherNonoperatingIncomeExpense` lo deja
+        en ~0 %. La puesta en equivalencia NO se resta si el pretax elegido es la variante que ya la
+        excluye (PRETAX_CONCEPTS[1]).
+      - Ingreso por intereses ausente: se permite (suele ser < 5 % del EBIT; error medido ~3 % mediano
+        en PEP/COST/MSFT) pero queda en el flag y en `source`: el EBIT puede estar sobreestimado.
+      - Límite conocido: ganancias/pérdidas en inversiones no etiquetadas como "otros no operativos"
+        (WMT, GOOGL) siguen dentro: error de 10–40 % en algunos años. Por eso el flag es visible.
+
+    Devuelve (serie desc por año, flags de calidad de datos).
+    """
+    grid = sorted({c.replace(" ", "") for c in fy_columns(inc_df)} | set(labels),
+                  key=fy_year, reverse=True)[:n]
+
+    def by_label(concepts: tuple[str, ...]) -> dict[str, dict]:
+        return _by_period(merge_annual(concepts, (inc_df,), facts, grid, n))
+
+    by = by_label(("OperatingIncomeLoss",))
+    pretax, int_exp, int_inc = by_label(PRETAX_CONCEPTS), by_label(INTEREST_EXPENSE), by_label(INTEREST_INCOME)
+    equity_inc, other_nonop = by_label(EQUITY_METHOD_INCOME), by_label(OTHER_NONOPERATING)
+
+    derived_years: list[str] = []
+    no_interest_income: list[str] = []
+    for label in grid:
+        if label in by or label not in pretax or label not in int_exp or int_exp[label]["value"] < 0:
+            continue  # reportado (no se toca) o faltan inputs del MISMO año (no se inventa)
+        value = pretax[label]["value"] + int_exp[label]["value"]
+        parts = ["pretax income", "+ interest expense"]
+        if label in int_inc:
+            value -= int_inc[label]["value"]
+            parts.append("- interest income")
+        else:
+            no_interest_income.append(label)
+        # La puesta en equivalencia solo está DENTRO del pretax de la variante 1 (la 2 ya la excluye).
+        pretax_concept = pretax[label]["source"].removeprefix("facts:")
+        if label in equity_inc and pretax_concept == PRETAX_CONCEPTS[0]:
+            value -= equity_inc[label]["value"]
+            parts.append("- equity-method income")
+        if label in other_nonop:
+            value -= other_nonop[label]["value"]
+            parts.append("- other non-operating income")
+        suffix = "" if label in int_inc else " (interest income unavailable, not subtracted)"
+        by[label] = {"value": value, "period": label,
+                     "source": "derived: " + " ".join(parts) + suffix}
+        derived_years.append(label)
+
+    if not by:  # ningún año reportado ni derivable → cadena histórica (EC-21), p. ej. BBW sin tags de interés
+        return backfill_gaps(compute_operating_income(inc_df), facts), []
+    # Años de la rejilla sin reportado ni derivado: la cadena histórica (GP − SG&A, pretax − interés neto…)
+    # año a año. Revisión del bloque C: antes solo se usaba si NINGÚN año salía, y un filer sin
+    # OperatingIncomeLoss con intereses solo en los últimos años perdía toda la historia anterior.
+    legacy_years: list[str] = []
+    for item in backfill_gaps(compute_operating_income(inc_df), facts):
+        if item["period"] in grid and item["period"] not in by and item.get("value") is not None:
+            by[item["period"]] = item
+            legacy_years.append(item["period"])
+    flags = []
+    if derived_years:
+        flags.append(f"operating income (EBIT) derived for {', '.join(derived_years)}: OperatingIncomeLoss not "
+                     "reported; pretax income + interest expense - interest income - equity-method income - "
+                     "other non-operating income (EC-107). Approximation: other non-operating gains/losses "
+                     "stay inside")
+    if legacy_years and (derived_years or len(legacy_years) < len(by)):
+        flags.append(f"operating income (EBIT) for {', '.join(legacy_years)} from the fallback chain "
+                     "(gross profit - SG&A or pretax - net interest): the series mixes definitions (EC-107)")
+    if no_interest_income:
+        flags.append(f"derived EBIT {', '.join(no_interest_income)}: interest income unavailable, not "
+                     "subtracted (EBIT may be overstated)")
+    log.info("operating_income_derived", years=derived_years, no_interest_income=no_interest_income)
+    return _sorted_desc(by), flags
+
+
 # --------------------------------------------------------------------------- #
 # Tipo impositivo canónico (revisión adversarial: UNA sola definición)
 # --------------------------------------------------------------------------- #
@@ -963,6 +1057,8 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
     basic, basic_split_flags = adjust_for_splits(extract_annual(BASIC_W, (inc_df,), facts, labels),
                                                  "basic weighted shares")
     flags += diluted_split_flags + basic_split_flags
+    operating_income, operating_income_flags = resolve_operating_income(inc_df, facts, labels)
+    flags += operating_income_flags
     if flags:
         log.warning("balance_data_quality_flags", ticker=ticker, flags=flags)
 
@@ -1002,7 +1098,7 @@ def build_raw(*, ticker: str, cik: str, period_end: date, inc_df: pd.DataFrame,
         "annual": {
             "revenue": revenue,  # ya rellenado arriba (rejilla de etiquetas)
             "gross_profit": fill(annual_series(inc_df, ("GrossProfit",))),
-            "operating_income": fill(compute_operating_income(inc_df)),
+            "operating_income": operating_income,  # EC-107: reportado por año; huecos derivados de pretax
             "net_income": resolve_net_income(inc_df, facts, labels),  # EC-103: año a año, ProfitLoss
             "operating_cash_flow": merge_annual(OCF_CONCEPTS, (cf_df,), facts, labels),  # EC-90: año a año
             "capex": merge_annual(CAPEX_CONCEPTS, (cf_df,), facts, labels),  # EC-90: año a año

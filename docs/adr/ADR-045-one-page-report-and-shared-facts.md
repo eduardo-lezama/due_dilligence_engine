@@ -41,6 +41,13 @@ Hallazgos de la revisión del 2026-10-17:
    - **Informe:** dice si la lista es automática o del inversor (`peers_source`).
 5. **El Expert ve las mismas secciones.** Los scores y los escenarios llegan por fin a la decisión (regla 25 del prompt).
 
+6. **Filtro por industria de los comparables sugeridos** (bloque C, 2026-10-17).
+   - **Qué se excluye:** un competidor sugerido automáticamente cuyo SIC de 2 dígitos difiere del de la empresa queda fuera de las medianas y del ranking, siempre que queden ≥ 2 de la misma industria.
+   - **Si quedan menos:** se conservan todos y la comparación se marca como de otra industria.
+   - **Competidores que escribe el inversor:** nunca se excluyen, solo se marcan.
+   - **Estado:** `peers_excluded` y `peers_cross_industry`.
+   - **Limitación vista en ACMR:** el SIC de 2 dígitos es grueso. 3559 (maquinaria) frente a 3674 (semiconductores) deja todos los sugeridos "de otra industria", aunque AMKR o FORM son vecinos razonables.
+
 ## Alternatives considered
 
 - **Reescribir de golpe los tres renderizadores** sobre un modelo de secciones completo. Riesgo alto sin cambio que lo pida. Se movió a `report_facts` lo que decide; el detalle estable queda para MCE-42.

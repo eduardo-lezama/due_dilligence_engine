@@ -38,13 +38,14 @@ Por qué no hay LLM aquí:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
-from typing import Optional
+from typing import Optional, TypedDict
 
 import structlog
 
 from due_diligence.graph.state import AnalysisState
-from due_diligence.schemas.base import MetricValue
+from due_diligence.schemas.base import FinancialsReport, MetricValue
 from statistics import quantiles
 
 from due_diligence.schemas.reports import DcfScenario, FcffBreakdown, ValuationInput, ValuationReport, PeerValuation
@@ -74,7 +75,8 @@ from due_diligence.agents.valuation_math import (
     wacc_for_cost_of_equity,
 )
 from due_diligence.config import settings
-from due_diligence.schemas.reports import CyclicalityAssessment
+from due_diligence.schemas.reports import (CyclicalityAssessment, DcfComponents, EquityBridge, MarketReport,
+                                           WaccBreakdown)
 
 log = structlog.get_logger()
 
@@ -1086,6 +1088,8 @@ def _build_fcff(financials, tax_rate: float, *, cyclical: bool = False,
     if financials is None or not financials.operating_cash_flow:
         return None, None, ["operating_cash_flow"], [], "unavailable"
     latest = _fcff_for_year(financials, 0, tax_rate)
+    # Invariante: operating_cash_flow no vacío (guarda de arriba) → el índice 0 existe → hay breakdown.
+    assert latest is not None
     missing = list(latest.missing_inputs)
     latest_gaps = [f"{n} {financials.operating_cash_flow[0].period}" for n in missing]
     margins, year_gaps = _fcff_margin_history(financials, tax_rate, cyclical=cyclical)
@@ -1113,7 +1117,7 @@ class _Returns:
 
 def _implied_returns(base_fcf: float, g1: float, scenarios: list[DcfScenario], *, terminal_growth: float,
                      stage1_years: int, fade_years: int, mid_year: bool, terminal_nopat: Optional[float],
-                     ronic: float, wacc_breakdown, days_since_fye: int, claims_kwargs: dict,
+                     ronic: float, wacc_breakdown, days_since_fye: int, claims_kwargs: _ClaimsKwargs,
                      share_count: float, lease_liabilities: Optional[float], price: Optional[float],
                      hurdle: float, rf: float) -> _Returns:
     """Rentabilidad anual del accionista al precio de hoy y precio de entrada (bloque B, B1, ADR-044).
@@ -1223,20 +1227,148 @@ def valuation_agent(state: AnalysisState) -> dict:
         return {"valuation": ValuationReport(ticker=ticker, stub=True, error=f"ValuationInputError: {e}")}
 
 
-def _run_valuation(state: AnalysisState) -> dict:
-    """Cuerpo de valuation_agent. Puede lanzar ValuationInputError (lo captura el nodo)."""
-    # Import diferido: checkpoint importa valuation (suggest_wacc) dentro de una función;
-    # importarlo aquí a nivel de módulo crearía un ciclo checkpoint ↔ valuation.
-    from due_diligence.agents.checkpoint import CHECKPOINT2_DEFAULTS
+# ---------------------------------------------------------------------------
+# Pasos de _run_valuation (refactor C5)
+#
+# `_run_valuation` era un script de ~650 líneas con secciones numeradas. Cada sección es ahora una
+# función con entradas y salidas explícitas (mismo patrón que valuation_math.py: sin estado oculto,
+# los resultados viajan en dataclasses inmutables). Las NOTAS de fiabilidad (`note_parts`) ya no se
+# mutan desde dentro de los pasos: cada paso DEVUELVE las suyas y el orquestador las concatena en el
+# orden histórico (el orden y el texto son parte del contrato: lo lee el Value Expert, EC-54).
+# ---------------------------------------------------------------------------
 
-    ticker = state["ticker"]
-    financials = state.get("financials")   # type: ignore[typeddict-item]
-    market = state.get("market")           # type: ignore[typeddict-item]
-    user_raw: dict = state.get("checkpoint2_user_input") or {}  # type: ignore[typeddict-item]
 
-    log.info("valuation_agent_start", ticker=ticker)
+class _ClaimsKwargs(TypedDict):
+    """Componentes del puente EV ↔ equity (ADR-033 §5): mismas claves que net_claims / equity_bridge."""
+    total_debt: float
+    cash: float
+    sti: Optional[float]
+    lt_investments: Optional[float]
+    minority_interest: Optional[float]
+    preferred: Optional[float]
 
-    # --- 1. Market cap y precio (antes que las assumptions: el WACC por defecto los necesita) ---
+
+@dataclass(frozen=True)
+class _MarketInputs:
+    """Paso 1: lo que se lee del MarketReport (market cap, precio y fecha de referencia)."""
+    market_cap: Optional[float]
+    price_current: Optional[MetricValue]
+    as_of_date: str
+    price: Optional[float]   # solo si > 0: es el divisor de todos los upsides
+
+
+@dataclass(frozen=True)
+class _ModelParams:
+    """Paso 1b: supuestos resueltos del DCF (usuario > WACC sugerido > defaults únicos)."""
+    assumptions: ValuationInput
+    wacc_suggestion: Optional[WaccBreakdown]
+    wacc: float              # fracción (no %)
+    terminal_growth: float   # fracción (no %)
+    years: int
+    stage1_years: int
+    fade_years: int
+
+
+@dataclass(frozen=True)
+class _FinancialInputs:
+    """Paso 2: métricas escalares del último ejercicio del FinancialsReport."""
+    base_fcf: Optional[float]        # FCF apalancado (OCF − capex): solo growth y flags legacy
+    ebit: Optional[float]
+    net_income: Optional[float]
+    total_debt: Optional[float]
+    cash: Optional[float]
+    fcf_period: str
+    revenue_latest: Optional[float]
+    gross_profit_latest: Optional[float]
+
+
+@dataclass(frozen=True)
+class _EnterprisePlane:
+    """Paso 2b: plano enterprise (ADR-033): impuestos, ciclicidad, FCFF, acciones, derechos y market EV."""
+    tax_rate: float
+    tax_rate_source: str
+    cyclicality: Optional[CyclicalityAssessment]
+    is_cyclical: bool
+    fcff_bd: Optional[FcffBreakdown]
+    fcff_base_value: Optional[float]
+    fcff_missing: list[str]
+    fcff_year_gaps: list[str]
+    fcff_source: str
+    normalized_ebit: Optional[float]
+    normalized_ebit_label: str
+    share_count: Optional[float]
+    share_source: str
+    claims_kwargs: _ClaimsKwargs
+    claims: float
+    equity_mkt: Optional[float]
+    market_ev: Optional[float]
+    days_since_fye: int
+    capitalization: float
+    notes: list[str]
+
+
+@dataclass(frozen=True)
+class _NearTermGrowth:
+    """Paso 4: crecimiento de la etapa 1, su fuente y el CAGR sin acotar (para explicar el techo)."""
+    growth: float
+    source: str
+    raw_cagr: Optional[float]
+    was_capped: bool
+    revenue_cagr: Optional[float]
+    revenue_cagr_years: Optional[int]
+
+
+@dataclass(frozen=True)
+class _DcfBase:
+    """Paso 5a: base del DCF (FCFF o NOPAT proxy) y NOPAT del valor terminal."""
+    value: Optional[float]
+    source: str              # "" si no hay base
+    terminal_nopat: Optional[float]
+    notes: list[str]
+
+
+@dataclass(frozen=True)
+class _DcfResult:
+    """Paso 5b: DCF directo → puente → por acción, más sus notas."""
+    value: Optional[MetricValue]
+    per_share: Optional[MetricValue]
+    upside: Optional[float]
+    ev: Optional[MetricValue]
+    bridge: Optional[EquityBridge]
+    comps: Optional[DcfComponents]
+    notes: list[str]
+
+
+@dataclass(frozen=True)
+class _Multiples:
+    """Paso 7: múltiplos sobre market EV (None = n/m)."""
+    ev_ebit: Optional[MetricValue]
+    ev_fcf: Optional[MetricValue]
+    pe: Optional[MetricValue]
+    earnings_yield: Optional[float]
+
+
+@dataclass(frozen=True)
+class _EpvStep:
+    """Paso 8b: resultado del EPV (Greenwald) y su nota de growth premium."""
+    enterprise: Optional[MetricValue]
+    per_share: Optional[MetricValue]
+    upside_pct: Optional[float]
+    source: Optional[str]
+    growth_premium: Optional[float]
+    notes: list[str]
+
+
+@dataclass(frozen=True)
+class _WaccStep:
+    """Paso 8c: WACC sugerido (en %), su desglose legible y la nota si el usado difiere > 3 pp."""
+    suggested_pct: Optional[float]
+    breakdown: Optional[str]
+    notes: list[str]
+
+
+def _resolve_market_inputs(market: Optional[MarketReport]) -> _MarketInputs:
+    """Paso 1: market cap, precio y fecha de referencia desde el MarketReport (todo opcional)."""
     market_cap: Optional[float] = None
     price_current_mv: Optional[MetricValue] = None
     as_of_date: str = "N/A"
@@ -1249,9 +1381,21 @@ def _run_valuation(state: AnalysisState) -> dict:
     price: Optional[float] = (
         price_current_mv.value if price_current_mv is not None and price_current_mv.value > 0 else None
     )
+    return _MarketInputs(market_cap, price_current_mv, as_of_date, price)
 
-    # --- 1b. Assumptions: checkpoint2_user_input + defaults únicos (CHECKPOINT2_DEFAULTS) ---
-    # WACC por defecto = WACC real sugerido (ADR-033); 9,0 solo sin market cap.
+
+def _resolve_model_params(user_raw: dict, financials: Optional[FinancialsReport],
+                          market: Optional[MarketReport], market_cap: Optional[float]) -> _ModelParams:
+    """
+    Paso 1b: assumptions de checkpoint2_user_input + defaults únicos (CHECKPOINT2_DEFAULTS).
+
+    WACC por defecto = WACC real sugerido (ADR-033); 9,0 solo sin market cap. Valida WACC − g
+    (EC-76, lanza ValuationInputError) y resuelve el split stage1/fade (ADR-029).
+    """
+    # Import diferido: checkpoint importa valuation (suggest_wacc) dentro de una función;
+    # importarlo aquí a nivel de módulo crearía un ciclo checkpoint ↔ valuation.
+    from due_diligence.agents.checkpoint import CHECKPOINT2_DEFAULTS
+
     wacc_suggestion = suggest_wacc(financials, market_cap,
                                    rf=market.risk_free_rate if market is not None else None)
     if user_raw.get("wacc_pct") is not None:
@@ -1286,8 +1430,11 @@ def _run_valuation(state: AnalysisState) -> dict:
     stage1_years, fade_years = _resolve_stages(
         years, assumptions.stage1_years, assumptions.fade_years
     )
+    return _ModelParams(assumptions, wacc_suggestion, wacc, terminal_growth, years, stage1_years, fade_years)
 
-    # --- 2. Extraer métricas del FinancialsReport ---
+
+def _extract_financial_inputs(financials: Optional[FinancialsReport]) -> _FinancialInputs:
+    """Paso 2: extrae las métricas escalares del último ejercicio (todas opcionales)."""
     base_fcf: Optional[float] = None       # FCF apalancado (OCF − capex): solo growth y flags legacy
     ebit: Optional[float] = None
     net_income: Optional[float] = None
@@ -1317,9 +1464,19 @@ def _run_valuation(state: AnalysisState) -> dict:
             revenue_latest = financials.revenue[0].value
         if financials.gross_profit:
             gross_profit_latest = financials.gross_profit[0].value
+    return _FinancialInputs(base_fcf, ebit, net_income, total_debt, cash, fcf_period,
+                            revenue_latest, gross_profit_latest)
 
-    # --- 2b. Plano enterprise (ADR-033): tipo, FCFF, acciones, derechos netos, market EV ---
-    note_parts: list[str] = []
+
+def _build_enterprise_plane(financials: Optional[FinancialsReport], fin: _FinancialInputs,
+                            mkt: _MarketInputs, params: _ModelParams) -> _EnterprisePlane:
+    """
+    Paso 2b: plano enterprise (ADR-033): tipo, ciclicidad, FCFF, acciones, derechos netos, market EV.
+
+    Devuelve además las notas que nacen aquí (ciclicidad, tipo fiscal por defecto, equity-method,
+    net-net), en su orden histórico.
+    """
+    notes: list[str] = []
     tax_rate, tax_rate_source = _canonical_tax_rate(financials)
     # EC-92: ciclicidad ANTES de la base FCFF: si es cíclica, toda la valoración parte del nivel mid-cycle.
     cyclicality = _cyclicality(financials) if financials is not None else None
@@ -1327,22 +1484,22 @@ def _run_valuation(state: AnalysisState) -> dict:
     fcff_bd, fcff_base_value, fcff_missing, fcff_year_gaps, fcff_source = _build_fcff(
         financials, tax_rate, cyclical=is_cyclical)
     normalized_ebit, normalized_ebit_label = _normalized_ebit(financials, cyclicality)
-    if is_cyclical:
-        note_parts.append(
+    if cyclicality is not None and cyclicality.is_cyclical:
+        notes.append(
             f"⚠️ Cyclical business ({cyclicality.evidence}). Valuation uses the mid-cycle level "
             f"(median margins × latest revenue) and stage-1 growth = terminal growth unless overridden. "
             f"Latest-year results are not the normal earning power.")
     elif cyclicality is not None and (not cyclicality.assessed or cyclicality.loss_making):
         # Bloque B (B1): "no evaluada" o "en pérdidas" no equivale a "no cíclica" (invariante 5).
-        note_parts.append(f"⚠️ Cyclicality: {cyclicality.evidence}. The valuation does not normalize a "
-                          f"cycle; read latest-year margins with care.")
+        notes.append(f"⚠️ Cyclicality: {cyclicality.evidence}. The valuation does not normalize a "
+                     f"cycle; read latest-year margins with care.")
     if tax_rate_source.startswith("default"):
-        note_parts.append(f"ℹ️ Tax rate: {tax_rate_source}.")
+        notes.append(f"ℹ️ Tax rate: {tax_rate_source}.")
     share_count, share_source = resolve_share_count(
         _mv_val(financials.shares_outstanding) if financials is not None else None,
         _latest(financials.diluted_shares) if financials is not None else None,
         _mv_val(financials.basic_shares_weighted) if financials is not None else None,
-        market_cap, price,
+        mkt.market_cap, mkt.price,
     )
     lt_inv: Optional[float] = None
     equity_method: Optional[float] = None
@@ -1353,60 +1510,83 @@ def _run_valuation(state: AnalysisState) -> dict:
     # se suman como activo no operativo junto a las LTI (revisión adversarial), con aviso visible.
     if equity_method:
         lt_inv = (lt_inv or 0.0) + equity_method
-        note_parts.append(
+        notes.append(
             f"ℹ️ Equity-method investments ({fmt_usd(equity_method)}) added to the bridge as a "
             f"non-operating asset — verify they do not generate operating income."
         )
-    claims_kwargs = dict(
-        total_debt=total_debt or 0.0, cash=cash or 0.0,
-        sti=_mv_val(financials.short_term_investments) if financials is not None else None,
-        lt_investments=lt_inv,
-        minority_interest=_mv_val(financials.minority_interest) if financials is not None else None,
-        preferred=_mv_val(financials.preferred_stock) if financials is not None else None,
-    )
+    claims_kwargs: _ClaimsKwargs = {
+        "total_debt": fin.total_debt or 0.0, "cash": fin.cash or 0.0,
+        "sti": _mv_val(financials.short_term_investments) if financials is not None else None,
+        "lt_investments": lt_inv,
+        "minority_interest": _mv_val(financials.minority_interest) if financials is not None else None,
+        "preferred": _mv_val(financials.preferred_stock) if financials is not None else None,
+    }
     claims = net_claims(**claims_kwargs)
     # Equity de mercado coherente con el per-share (EC-63): precio × mismas acciones que el DCF.
-    equity_mkt: Optional[float] = price * share_count if (price and share_count) else market_cap
+    equity_mkt: Optional[float] = (mkt.price * share_count if (mkt.price and share_count)
+                                   else mkt.market_cap)
     market_ev: Optional[float] = equity_mkt + claims if equity_mkt is not None else None
     if market_ev is not None and market_ev <= 0:
-        note_parts.append("ℹ️ Net-net: net cash exceeds market equity (market EV ≤ 0); EV multiples n/m.")
+        notes.append("ℹ️ Net-net: net cash exceeds market equity (market EV ≤ 0); EV multiples n/m.")
 
     # Capitalización desde el cierre fiscal (revisión M5): los flujos se descuentan al cierre,
     # pero el precio es de hoy → EV × (1+WACC)^(días/365). Mismo factor para DCF, EPV y reverse.
     days_since_fye = 0
-    if financials is not None and assumptions.valuation_date is not None:
-        days_since_fye = max((assumptions.valuation_date - financials.as_of_date).days, 0)
-    capitalization = (1 + wacc) ** (days_since_fye / 365)
+    if financials is not None and params.assumptions.valuation_date is not None:
+        days_since_fye = max((params.assumptions.valuation_date - financials.as_of_date).days, 0)
+    capitalization = (1 + params.wacc) ** (days_since_fye / 365)
+    return _EnterprisePlane(
+        tax_rate=tax_rate, tax_rate_source=tax_rate_source, cyclicality=cyclicality,
+        is_cyclical=is_cyclical, fcff_bd=fcff_bd, fcff_base_value=fcff_base_value,
+        fcff_missing=fcff_missing, fcff_year_gaps=fcff_year_gaps, fcff_source=fcff_source,
+        normalized_ebit=normalized_ebit, normalized_ebit_label=normalized_ebit_label,
+        share_count=share_count, share_source=share_source, claims_kwargs=claims_kwargs,
+        claims=claims, equity_mkt=equity_mkt, market_ev=market_ev, days_since_fye=days_since_fye,
+        capitalization=capitalization, notes=notes)
 
-    # --- 4. Near-term growth: override > cíclica > CAGR de ventas > CAGR del FCF > 7 % (ADR-043) ---
-    # El CAGR de ventas es coherente con la base "margen FCFF normalizado × ventas": con margen
-    # constante, el FCFF crece como las ventas. Sustituye a mín(CAGR FCF, CAGR ventas) de ADR-022.
-    revenue_cagr: Optional[float] = state.get("historical_cagr_5y")  # type: ignore[assignment]
-    revenue_cagr_years: Optional[int] = state.get("historical_cagr_years")  # type: ignore[assignment]
-    near_term_growth, near_term_growth_source = _compute_near_term_growth(
+
+def _resolve_near_term_growth(financials: Optional[FinancialsReport], params: _ModelParams,
+                              revenue_cagr: Optional[float],
+                              revenue_cagr_years: Optional[int]) -> _NearTermGrowth:
+    """
+    Paso 4: near-term growth: override > cíclica > CAGR de ventas > CAGR del FCF > 7 % (ADR-043).
+
+    El CAGR de ventas es coherente con la base "margen FCFF normalizado × ventas": con margen
+    constante, el FCFF crece como las ventas. Sustituye a mín(CAGR FCF, CAGR ventas) de ADR-022.
+    También recupera el CAGR real antes de acotar, para explicar el techo/suelo en la nota.
+    """
+    growth, source = _compute_near_term_growth(
         financials=financials,
         revenue_cagr=revenue_cagr,
-        user_override_pct=assumptions.revenue_growth_yr1_pct,
-        terminal_growth=terminal_growth,
+        user_override_pct=params.assumptions.revenue_growth_yr1_pct,
+        terminal_growth=params.terminal_growth,
         revenue_cagr_years=revenue_cagr_years,
     )
     # CAGR real antes de acotar, para explicar el techo/suelo en la nota.
     raw_cagr: Optional[float] = None
-    if near_term_growth_source.startswith("revenue_trend_") and financials is not None:
-        raw_cagr = least_squares_growth(financials.revenue)[0]
-    elif near_term_growth_source.startswith("revenue_cagr_"):
+    if source.startswith("revenue_trend_") and financials is not None:
+        trend = least_squares_growth(financials.revenue)
+        # Invariante: la fuente "revenue_trend_*" solo la emite _compute_near_term_growth cuando la
+        # tendencia existe, así que aquí no puede ser None.
+        assert trend is not None
+        raw_cagr = trend[0]
+    elif source.startswith("revenue_cagr_"):
         raw_cagr = revenue_cagr
-    elif near_term_growth_source.startswith("fcf_cagr_") and financials is not None:
+    elif source.startswith("fcf_cagr_") and financials is not None:
         raw_cagr, _ = _fcf_cagr_with_window(financials.free_cash_flow)
-    growth_was_capped = near_term_growth_source.endswith("_capped") and raw_cagr is not None
+    was_capped = source.endswith("_capped") and raw_cagr is not None
+    return _NearTermGrowth(growth, source, raw_cagr, was_capped, revenue_cagr, revenue_cagr_years)
 
-    # --- Reliability note — se construye SIEMPRE con contexto del growth usado (EC-54) ---
-    # El near_term_growth es el parámetro más sensible del DCF: mover de 8% a 15%
-    # cambia el equity value un 30-50%. El usuario y el Value Expert deben saber siempre
-    # qué valor se usó, de dónde viene, y cuán confiable es esa señal.
-    dcf_reliability_note: Optional[str] = None
 
-    # Línea de contexto del growth — siempre en primer lugar, nivel de alerta según fuente
+def _growth_context_line(g: _NearTermGrowth) -> str:
+    """
+    Línea de contexto del growth — SIEMPRE la primera de la nota de fiabilidad (EC-54).
+
+    El near_term_growth es el parámetro más sensible del DCF: mover de 8% a 15%
+    cambia el equity value un 30-50%. El usuario y el Value Expert deben saber siempre
+    qué valor se usó, de dónde viene, y cuán confiable es esa señal. Nivel de alerta según fuente.
+    """
+    near_term_growth, near_term_growth_source = g.growth, g.source
     if near_term_growth_source == "user_override":
         growth_context = (
             f"Near-term FCF growth: {near_term_growth:.1%} (user-specified override)."
@@ -1446,57 +1626,77 @@ def _run_valuation(state: AnalysisState) -> dict:
         growth_context = (
             f"Near-term FCF growth: {near_term_growth:.1%} (historical FCF CAGR, {n_y} years)."
         )
-    # La línea de growth va primero: es el parámetro más sensible y el lector debe verlo antes.
-    note_parts.insert(0, growth_context)
+    return growth_context
 
-    if growth_was_capped:
-        note_parts.append(
-            f"⚠️ DCF growth bounded to {near_term_growth:.0%} (historical CAGR was {raw_cagr:.0%}). "
-            f"Automatic stage-1 growth is kept within [{_MIN_NEAR_TERM_GROWTH:.0%}, {_MAX_AUTO_GROWTH:.0%}]: "
-            f"sales growth persists weakly (base rates). Override at checkpoint 2 with a thesis if the "
-            f"business can sustain more."
-        )
-        log.warning("valuation_dcf_growth_capped", ticker=ticker, raw_cagr=f"{raw_cagr:.0%}")
 
-    # Ruptura estructural (bloque B, B1): la tendencia de 10 años no ve refranchisings, escisiones ni
-    # adquisiciones grandes. Si se separa > 4 pp del CAGR de 5 años se avisa; g NO cambia (usar el CAGR
-    # de 5 años reintroduciría el rebote post-COVID que A1 corrigió: XOM 13 %).
-    growth_structural_break: Optional[str] = None
+def _growth_cap_notes(ticker: str, g: _NearTermGrowth) -> list[str]:
+    """Nota de crecimiento acotado al techo/suelo automático (vacía si no se acotó)."""
+    if not g.was_capped or g.raw_cagr is None:
+        return []
+    log.warning("valuation_dcf_growth_capped", ticker=ticker, raw_cagr=f"{g.raw_cagr:.0%}")
+    return [
+        f"⚠️ DCF growth bounded to {g.growth:.0%} (historical CAGR was {g.raw_cagr:.0%}). "
+        f"Automatic stage-1 growth is kept within [{_MIN_NEAR_TERM_GROWTH:.0%}, {_MAX_AUTO_GROWTH:.0%}]: "
+        f"sales growth persists weakly (base rates). Override at checkpoint 2 with a thesis if the "
+        f"business can sustain more."
+    ]
+
+
+def _structural_break_note(g: _NearTermGrowth) -> Optional[str]:
+    """
+    Ruptura estructural (bloque B, B1): aviso si la tendencia de 10 años se separa > 4 pp del CAGR de 5.
+
+    La tendencia de 10 años no ve refranchisings, escisiones ni adquisiciones grandes. g NO cambia
+    (usar el CAGR de 5 años reintroduciría el rebote post-COVID que A1 corrigió: XOM 13 %).
+    """
+    raw_cagr, revenue_cagr = g.raw_cagr, g.revenue_cagr
     # Si las dos cifras quedan fuera de [−15 %, 15 %] por el mismo lado, el g usado es el límite en ambos
     # casos y el aviso solo añade ruido (ACMR 2026-10-17: tendencia 50 % frente a CAGR 42 %).
     both_beyond_bounds = raw_cagr is not None and revenue_cagr is not None and (
         min(raw_cagr, revenue_cagr) > _MAX_AUTO_GROWTH or max(raw_cagr, revenue_cagr) < _MIN_NEAR_TERM_GROWTH)
-    if (near_term_growth_source.startswith("revenue_trend_") and revenue_cagr is not None
+    if (g.source.startswith("revenue_trend_") and revenue_cagr is not None
             and raw_cagr is not None and abs(raw_cagr - revenue_cagr) > _STRUCTURAL_BREAK_PP
             and not both_beyond_bounds):
-        growth_structural_break = (
-            f"⚠️ Possible structural break: the {near_term_growth_source.split('_')[2]} revenue trend "
-            f"({raw_cagr:.1%}) and the {revenue_cagr_years or 5}y revenue CAGR ({revenue_cagr:.1%}) differ by "
+        return (
+            f"⚠️ Possible structural break: the {g.source.split('_')[2]} revenue trend "
+            f"({raw_cagr:.1%}) and the {g.revenue_cagr_years or 5}y revenue CAGR ({revenue_cagr:.1%}) differ by "
             f"{abs(raw_cagr - revenue_cagr) * 100:.1f} pp (refranchising, spin-off or large M&A?). Stage-1 "
             f"growth uses the trend; check the bear/bull scenarios and override at checkpoint 2 if the "
             f"business changed.")
-        note_parts.append(growth_structural_break)
+    return None
 
-    # EC-65: FCF quality flag — detecta FCF inflado por advance payments o project timing.
-    # No modifica el DCF; solo añade advertencia cuando FCF margin >> gross margin.
-    fcf_quality_warning: Optional[str] = None
+
+def _fcf_quality_note(ticker: str, fin: _FinancialInputs) -> Optional[str]:
+    """
+    EC-65: FCF quality flag — detecta FCF inflado por advance payments o project timing.
+
+    No modifica el DCF; solo devuelve la advertencia cuando FCF margin >> gross margin.
+    """
+    base_fcf, revenue_latest = fin.base_fcf, fin.revenue_latest
     if base_fcf is not None and base_fcf > 0 and revenue_latest is not None and revenue_latest > 0:
-        fcf_quality_warning = _fcf_quality_flag(base_fcf, revenue_latest, gross_profit_latest)
-        if fcf_quality_warning:
-            note_parts.append(fcf_quality_warning)
+        warning = _fcf_quality_flag(base_fcf, revenue_latest, fin.gross_profit_latest)
+        if warning:
             log.warning("valuation_fcf_quality_flag", ticker=ticker,
                         fcf_margin=f"{base_fcf/revenue_latest:.0%}")
+        return warning
+    return None
 
-    # --- P5: Cyclical peak base qualifier ---
-    # Si el revenue más reciente supera la mediana histórica en >15%, el CAGR está
-    # anclado a un año boom. Ejemplo: CGNX FY2022 (pico de automatización post-COVID)
-    # → CAGR 5y aparece -0.4%, pero desde trough es +9%. El LLM y el usuario deben
-    # saber que las proyecciones parten de una base potencialmente elevada.
+
+def _cyclical_peak_notes(ticker: str, financials: Optional[FinancialsReport], params: _ModelParams,
+                         is_cyclical: bool) -> list[str]:
+    """
+    P5: Cyclical peak base qualifier.
+
+    Si el revenue más reciente supera la mediana histórica en >15%, el CAGR está
+    anclado a un año boom. Ejemplo: CGNX FY2022 (pico de automatización post-COVID)
+    → CAGR 5y aparece -0.4%, pero desde trough es +9%. El LLM y el usuario deben
+    saber que las proyecciones parten de una base potencialmente elevada.
+    """
     if (
         financials is not None
         and financials.revenue is not None
         and len(financials.revenue) >= 3
-        and assumptions.revenue_growth_yr1_pct is None  # no si el usuario ya overrideó
+        and params.assumptions.revenue_growth_yr1_pct is None  # no si el usuario ya overrideó
         and not is_cyclical  # EC-92: la nota de ciclicidad ya lo explica y normaliza la base
     ):
         # Ventana de 5 años (T7): con periods=10 la mediana de 10 años cambiaría el aviso en silencio.
@@ -1506,13 +1706,6 @@ def _run_valuation(state: AnalysisState) -> dict:
             rev_latest = rev_values[0]
             if rev_median > 0 and rev_latest > rev_median * 1.15:
                 peak_ratio = rev_latest / rev_median
-                note_parts.append(
-                    f"⚠️ Cyclical peak base: current revenue is {peak_ratio:.1f}x the "
-                    f"historical median of the last {len(rev_values)} years. "
-                    f"The CAGR-derived growth rate may be anchored to a boom year — "
-                    f"forward DCF could overstate sustainable growth. "
-                    f"Consider using a normalized (mid-cycle) revenue base for projections."
-                )
                 log.info(
                     "valuation_cyclical_peak_base_detected",
                     ticker=ticker,
@@ -1520,116 +1713,146 @@ def _run_valuation(state: AnalysisState) -> dict:
                     rev_median=fmt_usd(rev_median),
                     ratio=f"{peak_ratio:.2f}",
                 )
+                return [
+                    f"⚠️ Cyclical peak base: current revenue is {peak_ratio:.1f}x the "
+                    f"historical median of the last {len(rev_values)} years. "
+                    f"The CAGR-derived growth rate may be anchored to a boom year — "
+                    f"forward DCF could overstate sustainable growth. "
+                    f"Consider using a normalized (mid-cycle) revenue base for projections."
+                ]
+    return []
 
-    log.info(
-        "valuation_agent_assumptions",
-        ticker=ticker,
-        wacc_pct=assumptions.wacc_pct,
-        near_term_growth_pct=round(near_term_growth * 100, 1),
-        terminal_growth_pct=assumptions.terminal_growth_pct,
-        years=years,
-    )
 
-    # --- 5. DCF sobre FCFF; fallback NOPAT (ya unlevered → misma base, EC-13) ---
-    # NOPAT normalizado con el tipo canónico: ancla del valor terminal con reinversión (Damodaran/Koller)
-    # y fallback del DCF cuando el FCFF es negativo (trough / reinversión fuerte). Base = margen EBIT
-    # mediano × ventas actuales (mid-cycle en cíclicas, EC-92; 5 años en el resto, bloque B): la misma
-    # normalización que el FCFF. Sin márgenes suficientes, el EBIT del último año.
-    ebit_for_value = normalized_ebit if normalized_ebit is not None else ebit
-    nopat_base: Optional[float] = ebit_for_value * (1 - tax_rate) if ebit_for_value is not None else None
+def _select_dcf_base(ticker: str, fin: _FinancialInputs, plane: _EnterprisePlane) -> _DcfBase:
+    """
+    Paso 5a: base del DCF sobre FCFF; fallback NOPAT (ya unlevered → misma base, EC-13).
+
+    NOPAT normalizado con el tipo canónico: ancla del valor terminal con reinversión (Damodaran/Koller)
+    y fallback del DCF cuando el FCFF es negativo (trough / reinversión fuerte). Base = margen EBIT
+    mediano × ventas actuales (mid-cycle en cíclicas, EC-92; 5 años en el resto, bloque B): la misma
+    normalización que el FCFF. Sin márgenes suficientes, el EBIT del último año.
+    """
+    ebit_for_value = plane.normalized_ebit if plane.normalized_ebit is not None else fin.ebit
+    nopat_base: Optional[float] = (ebit_for_value * (1 - plane.tax_rate)
+                                   if ebit_for_value is not None else None)
     # El valor terminal es perpetuidad: ahí el efectivo converge al MARGINAL (Damodaran; ADR-033).
     # Usar el efectivo de un año con créditos fiscales (10 %) inflaba el TV (revisión final H1, #3).
     # El fallback del DCF (NOPAT proxy) sigue con el efectivo: describe el año observado.
     terminal_nopat = (ebit_for_value * (1 - MARGINAL_TAX_RATE)
                       if ebit_for_value is not None and ebit_for_value > 0 else None)
+    notes: list[str] = []
     dcf_base: Optional[float] = None
     dcf_base_source: str = ""  # etiqueta para `MetricValue.source` y reliability note
-    if fcff_base_value is not None and fcff_base_value > 0:
-        dcf_base, dcf_base_source = fcff_base_value, f"FCFF ({fcff_source})"
+    if plane.fcff_base_value is not None and plane.fcff_base_value > 0:
+        dcf_base, dcf_base_source = plane.fcff_base_value, f"FCFF ({plane.fcff_source})"
     elif nopat_base is not None and nopat_base > 0:
         dcf_base, dcf_base_source = nopat_base, "NOPAT proxy (EBIT × (1-t))"
     else:
-        note_parts.append("⚠️ DCF not computed: no positive FCFF or NOPAT (loss-making or data gap).")
-        log.warning("valuation_agent_no_dcf_base", ticker=ticker, fcff=fcff_base_value, ebit=ebit)
+        notes.append("⚠️ DCF not computed: no positive FCFF or NOPAT (loss-making or data gap).")
+        log.warning("valuation_agent_no_dcf_base", ticker=ticker, fcff=plane.fcff_base_value, ebit=fin.ebit)
+    return _DcfBase(dcf_base, dcf_base_source, terminal_nopat, notes)
 
+
+def _run_dcf(financials: Optional[FinancialsReport], fin: _FinancialInputs, plane: _EnterprisePlane,
+             params: _ModelParams, base: _DcfBase, near_term_growth: float,
+             price: Optional[float]) -> _DcfResult:
+    """
+    Paso 5b: DCF de 3 etapas → capitalización → equity bridge → valor por acción y upside.
+
+    Sin base (`base.value is None`) devuelve todo None sin notas (la nota ya la dio _select_dcf_base).
+    """
+    notes: list[str] = []
     dcf_value: Optional[MetricValue] = None
     dcf_per_share: Optional[MetricValue] = None
     dcf_upside: Optional[float] = None
     ev_dcf_mv: Optional[MetricValue] = None
-    bridge = None
-    comps = None
-    if dcf_base is not None:
-        comps = dcf_components(dcf_base, near_term_growth, terminal_growth, wacc, stage1_years, fade_years,
-                               mid_year=assumptions.mid_year_convention, nopat_base=terminal_nopat)
-        ev = comps.enterprise_value * capitalization
-        if days_since_fye > 0:
-            note_parts.append(f"ℹ️ EV capitalized {days_since_fye} days from fiscal year-end to valuation date.")
+    bridge: Optional[EquityBridge] = None
+    comps: Optional[DcfComponents] = None
+    if base.value is not None:
+        comps = dcf_components(base.value, near_term_growth, params.terminal_growth, params.wacc,
+                               params.stage1_years, params.fade_years,
+                               mid_year=params.assumptions.mid_year_convention,
+                               nopat_base=base.terminal_nopat)
+        ev = comps.enterprise_value * plane.capitalization
+        if plane.days_since_fye > 0:
+            notes.append(f"ℹ️ EV capitalized {plane.days_since_fye} days from fiscal year-end to valuation date.")
         bridge = equity_bridge(
-            ev, **claims_kwargs,
+            ev, **plane.claims_kwargs,
             lease_liabilities=_mv_val(financials.operating_lease_liabilities) if financials is not None else None,
         )
-        ev_dcf_mv = MetricValue(value=round(ev), unit="USD", period=fcf_period,
-                                source=f"calculated ({dcf_base_source} at WACC)")
-        dcf_value = MetricValue(value=round(bridge.equity_value), unit="USD", period=fcf_period,
-                                source=f"calculated ({dcf_base_source}, EV − net claims)")
-        if share_count:
-            ps = per_share(bridge.equity_value, share_count)
-            dcf_per_share = MetricValue(value=round(ps, 2), unit="USD/share", period=fcf_period,
-                                        source=f"calculated ({dcf_base_source}, bridge)")
+        ev_dcf_mv = MetricValue(value=round(ev), unit="USD", period=fin.fcf_period,
+                                source=f"calculated ({base.source} at WACC)")
+        dcf_value = MetricValue(value=round(bridge.equity_value), unit="USD", period=fin.fcf_period,
+                                source=f"calculated ({base.source}, EV − net claims)")
+        if plane.share_count:
+            ps = per_share(bridge.equity_value, plane.share_count)
+            dcf_per_share = MetricValue(value=round(ps, 2), unit="USD/share", period=fin.fcf_period,
+                                        source=f"calculated ({base.source}, bridge)")
             dcf_upside = _upside_pct(dcf_per_share.value, price)
             if dcf_upside is None:
-                note_parts.append("⚠️ Upside not computed: price unavailable.")
+                notes.append("⚠️ Upside not computed: price unavailable.")
         else:
-            note_parts.append("⚠️ Per-share value not computed: share count unavailable.")
+            notes.append("⚠️ Per-share value not computed: share count unavailable.")
         if bridge.equity_value < 0:
-            note_parts.append("⚠️ Equity value negative: net claims exceed DCF enterprise value.")
+            notes.append("⚠️ Equity value negative: net claims exceed DCF enterprise value.")
         if comps.terminal_value_share and comps.terminal_value_share > 0.75:
-            note_parts.append(f"⚠️ {comps.terminal_value_share:.0%} of value comes from the terminal value.")
+            notes.append(f"⚠️ {comps.terminal_value_share:.0%} of value comes from the terminal value.")
+    return _DcfResult(dcf_value, dcf_per_share, dcf_upside, ev_dcf_mv, bridge, comps, notes)
 
-    # Notas obligatorias de inputs (ADR-033): lo ausente se dice, no se maquilla.
-    if fcff_year_gaps:
-        note_parts.append(f"ℹ️ FCFF inputs absent for specific years (counted as 0): {', '.join(fcff_year_gaps)}.")
-    if "sbc" in fcff_missing:
-        note_parts.append("⚠️ SBC unavailable: FCFF may be overstated (stock comp not charged).")
-    if "interest_expense" in fcff_missing and (total_debt or 0) > 0:
-        note_parts.append("⚠️ Interest expense unavailable: after-tax interest not added back (FCFF understated).")
-    if "interest_income" in fcff_missing and bridge is not None and bridge.enterprise_value > 0:
-        liquid = (cash or 0.0) + (claims_kwargs["sti"] or 0.0)
+
+def _input_gap_notes(fin: _FinancialInputs, plane: _EnterprisePlane,
+                     bridge: Optional[EquityBridge]) -> list[str]:
+    """Notas obligatorias de inputs (ADR-033): lo ausente se dice, no se maquilla."""
+    notes: list[str] = []
+    if plane.fcff_year_gaps:
+        notes.append(f"ℹ️ FCFF inputs absent for specific years (counted as 0): {', '.join(plane.fcff_year_gaps)}.")
+    if "sbc" in plane.fcff_missing:
+        notes.append("⚠️ SBC unavailable: FCFF may be overstated (stock comp not charged).")
+    if "interest_expense" in plane.fcff_missing and (fin.total_debt or 0) > 0:
+        notes.append("⚠️ Interest expense unavailable: after-tax interest not added back (FCFF understated).")
+    if "interest_income" in plane.fcff_missing and bridge is not None and bridge.enterprise_value > 0:
+        liquid = (fin.cash or 0.0) + (plane.claims_kwargs["sti"] or 0.0)
         if liquid > 0.10 * bridge.enterprise_value:
-            note_parts.append("⚠️ Interest income unavailable while cash+STI > 10% of EV: "
-                              "possible double count of cash yield (in FCFF and in the bridge).")
+            notes.append("⚠️ Interest income unavailable while cash+STI > 10% of EV: "
+                         "possible double count of cash yield (in FCFF and in the bridge).")
     if bridge is not None and bridge.components_missing:
-        note_parts.append(f"ℹ️ Bridge components unavailable (treated as 0): {', '.join(bridge.components_missing)}.")
-    if share_count and any(k in share_source for k in ("dilution not applied", "approximation", "overstates")):
-        note_parts.append(f"ℹ️ Share count: {share_source}.")
+        notes.append(f"ℹ️ Bridge components unavailable (treated as 0): {', '.join(bridge.components_missing)}.")
+    if plane.share_count and any(k in plane.share_source
+                                 for k in ("dilution not applied", "approximation", "overstates")):
+        notes.append(f"ℹ️ Share count: {plane.share_source}.")
+    return notes
 
-    # --- 6. Reverse DCF — objetivo = MARKET EV (EC-74), misma función y base que el directo ---
-    # El market EV es de hoy; el modelo produce EV a fecha de cierre → se deshace la
-    # capitalización para comparar en la misma fecha. Market EV ≤ 0 (net-net) → None.
-    reverse_growth: Optional[float] = None
-    if dcf_base is not None and market_ev is not None and market_ev > 0:
-        reverse_growth = _reverse_dcf(dcf_base, market_ev / capitalization, terminal_growth, wacc, years,
-                                       stage1_years=stage1_years, fade_years=fade_years,
-                                       mid_year=assumptions.mid_year_convention, nopat_base=terminal_nopat)
 
-    # DCF spread note (Fix C / EC-16): si el forward DCF asume un growth >5pp
-    # por encima del implied growth, el upside existe solo por assumptions que el
-    # mercado no está pagando. Añadir a la nota de fiabilidad.
+def _solve_reverse_growth(base: _DcfBase, plane: _EnterprisePlane, params: _ModelParams) -> Optional[float]:
+    """
+    Paso 6: Reverse DCF — objetivo = MARKET EV (EC-74), misma función y base que el directo.
+
+    El market EV es de hoy; el modelo produce EV a fecha de cierre → se deshace la
+    capitalización para comparar en la misma fecha. Market EV ≤ 0 (net-net) → None.
+    """
+    if base.value is not None and plane.market_ev is not None and plane.market_ev > 0:
+        return _reverse_dcf(base.value, plane.market_ev / plane.capitalization, params.terminal_growth,
+                            params.wacc, params.years,
+                            stage1_years=params.stage1_years, fade_years=params.fade_years,
+                            mid_year=params.assumptions.mid_year_convention, nopat_base=base.terminal_nopat)
+    return None
+
+
+def _dcf_spread_notes(ticker: str, near_term_growth: float, reverse_growth: Optional[float],
+                      params: _ModelParams) -> list[str]:
+    """
+    DCF spread note (Fix C / EC-16): forward DCF con growth > 5 pp por encima del implícito.
+
+    Si el forward DCF asume un growth >5pp por encima del implied growth, el upside existe solo por
+    assumptions que el mercado no está pagando. Va a la nota de fiabilidad (solo sin override).
+    """
     _CONTRADICTION_THRESHOLD = 0.05
     if (
         reverse_growth is not None
         and (near_term_growth - reverse_growth) > _CONTRADICTION_THRESHOLD
-        and assumptions.revenue_growth_yr1_pct is None  # solo si no hay override del usuario
+        and params.assumptions.revenue_growth_yr1_pct is None  # solo si no hay override del usuario
     ):
         spread_pp = (near_term_growth - reverse_growth) * 100
-        note_parts.append(
-            f"⚠️ DCF spread note: forward DCF uses {near_term_growth:.1%} near-term growth "
-            f"(historical CAGR) but the market currently prices only {reverse_growth:.1%} "
-            f"(spread: {spread_pp:.0f}pp). The DCF upside is conditional on the analyst's "
-            f"growth assumption being correct vs what the market discounts — not a free margin "
-            f"of safety. The expected return at today's price and the bear case are the decision "
-            f"figures; the DCF upside is not."
-        )
         log.warning(
             "valuation_dcf_spread",
             ticker=ticker,
@@ -1637,296 +1860,446 @@ def _run_valuation(state: AnalysisState) -> dict:
             implied_growth=f"{reverse_growth:.1%}",
             spread_pp=f"{spread_pp:.0f}",
         )
+        return [
+            f"⚠️ DCF spread note: forward DCF uses {near_term_growth:.1%} near-term growth "
+            f"(historical CAGR) but the market currently prices only {reverse_growth:.1%} "
+            f"(spread: {spread_pp:.0f}pp). The DCF upside is conditional on the analyst's "
+            f"growth assumption being correct vs what the market discounts — not a free margin "
+            f"of safety. The expected return at today's price and the bear case are the decision "
+            f"figures; the DCF upside is not."
+        ]
+    return []
 
-    # Nota EC-13: cuando usamos NOPAT proxy en lugar de FCFF, documentarlo explícitamente.
-    # El lector debe saber que la valoración es directional, no point estimate.
-    if dcf_base_source.startswith("NOPAT") and dcf_base is not None and fcff_base_value is not None:
-        note_parts.append(
-            f"⚠️ DCF computed on NORMALIZED NOPAT ({fmt_usd(dcf_base)} = EBIT × (1-tax)) "
-            f"because FCFF was negative ({fmt_usd(fcff_base_value)} in {fcf_period}). "
-            f"This is appropriate for cyclical troughs or heavy reinvestment but ignores "
-            f"working capital and maintenance vs growth capex split — treat as directional, "
-            f"not point estimate. Reverse DCF implied growth uses same NOPAT base."
-        )
+
+def _nopat_fallback_notes(ticker: str, fin: _FinancialInputs, plane: _EnterprisePlane,
+                          base: _DcfBase) -> list[str]:
+    """
+    Nota EC-13: cuando usamos NOPAT proxy en lugar de FCFF, documentarlo explícitamente.
+
+    El lector debe saber que la valoración es directional, no point estimate.
+    """
+    if base.source.startswith("NOPAT") and base.value is not None and plane.fcff_base_value is not None:
         log.info(
             "valuation_dcf_nopat_fallback",
             ticker=ticker,
-            fcff=fcff_base_value,
-            ebit=ebit,
-            nopat_proxy=dcf_base,
+            fcff=plane.fcff_base_value,
+            ebit=fin.ebit,
+            nopat_proxy=base.value,
         )
+        return [
+            f"⚠️ DCF computed on NORMALIZED NOPAT ({fmt_usd(base.value)} = EBIT × (1-tax)) "
+            f"because FCFF was negative ({fmt_usd(plane.fcff_base_value)} in {fin.fcf_period}). "
+            f"This is appropriate for cyclical troughs or heavy reinvestment but ignores "
+            f"working capital and maintenance vs growth capex split — treat as directional, "
+            f"not point estimate. Reverse DCF implied growth uses same NOPAT base."
+        ]
+    return []
 
-    # --- 7. Múltiplos (requieren market cap) ---
+
+def _compute_multiples(fin: _FinancialInputs, plane: _EnterprisePlane, period_label: str) -> _Multiples:
+    """
+    Paso 7: múltiplos (requieren market cap).
+
+    EV de mercado = equity de mercado (precio × acciones) + net claims: la MISMA definición de
+    derechos que el bridge del DCF/EPV (ADR-033 §5). Market EV ≤ 0 (net-net) → múltiplos "n/m".
+    """
+    market_ev, equity_mkt = plane.market_ev, plane.equity_mkt
     ev_ebit_mv: Optional[MetricValue] = None
     ev_fcf_mv: Optional[MetricValue] = None
     pe_mv: Optional[MetricValue] = None
     earnings_yield: Optional[float] = None
 
-    period_label = as_of_date
-    # EV de mercado = equity de mercado (precio × acciones) + net claims: la MISMA definición de
-    # derechos que el bridge del DCF/EPV (ADR-033 §5). Market EV ≤ 0 (net-net) → múltiplos "n/m".
     if market_ev is not None and market_ev > 0:
         # EBIT ≤ 0: EV/EBIT negativo o división por cero no significa nada → "n/m" (revisión final H1, #5)
-        if ebit is not None and ebit > 0:
+        if fin.ebit is not None and fin.ebit > 0:
             ev_ebit_mv = MetricValue(
-                value=round(market_ev / ebit, 2),
+                value=round(market_ev / fin.ebit, 2),
                 unit="x",
                 period=period_label,
                 source="calculated (market EV / EBIT)",
             )
-            earnings_yield = round(ebit / market_ev * 100, 2)  # EBIT/EV × 100
+            earnings_yield = round(fin.ebit / market_ev * 100, 2)  # EBIT/EV × 100
 
         # EV/FCFF (antes EV/FCF apalancado): numerador y denominador en el mismo plano enterprise.
-        if fcff_base_value is not None and fcff_base_value > 0:
+        if plane.fcff_base_value is not None and plane.fcff_base_value > 0:
             ev_fcf_mv = MetricValue(
-                value=round(market_ev / fcff_base_value, 2),
+                value=round(market_ev / plane.fcff_base_value, 2),
                 unit="x",
                 period=period_label,
                 source="calculated (market EV / FCFF)",
             )
 
-    if equity_mkt is not None and equity_mkt > 0 and net_income is not None and net_income > 0:
+    if equity_mkt is not None and equity_mkt > 0 and fin.net_income is not None and fin.net_income > 0:
         pe_mv = MetricValue(
-            value=round(equity_mkt / net_income, 2),
+            value=round(equity_mkt / fin.net_income, 2),
             unit="x",
             period=period_label,
             source="calculated (price × shares / NI)",
         )
+    return _Multiples(ev_ebit_mv, ev_fcf_mv, pe_mv, earnings_yield)
 
-    # --- 8. Sensitivity table — usa dcf_base (FCF o NOPAT proxy según fallback EC-13) ---
-    # Celdas en USD/share por el mismo camino que el titular (bridge + capitalización + reinversión).
+
+def _compute_sensitivity(plane: _EnterprisePlane, params: _ModelParams, base: _DcfBase,
+                         near_term_growth: float) -> tuple[list[dict], list[str]]:
+    """
+    Paso 8: tabla de sensibilidad — usa la base del DCF (FCF o NOPAT proxy según fallback EC-13).
+
+    Celdas en USD/share por el mismo camino que el titular (bridge + capitalización + reinversión).
+    Devuelve (tabla, notas); sin acciones la tabla queda vacía y lo dice.
+    """
     sensitivity: list[dict] = []
-    if dcf_base is not None and dcf_base > 0:
-        if share_count:
+    notes: list[str] = []
+    if base.value is not None and base.value > 0:
+        if plane.share_count:
             sensitivity = _sensitivity_table(
-                dcf_base, terminal_growth, years, wacc, near_term_growth,
-                stage1_years=stage1_years, fade_years=fade_years,
-                net_claims=claims, share_count=share_count,
-                mid_year=assumptions.mid_year_convention, nopat_base=terminal_nopat,
-                days_since_fye=days_since_fye,
+                base.value, params.terminal_growth, params.years, params.wacc, near_term_growth,
+                stage1_years=params.stage1_years, fade_years=params.fade_years,
+                net_claims=plane.claims, share_count=plane.share_count,
+                mid_year=params.assumptions.mid_year_convention, nopat_base=base.terminal_nopat,
+                days_since_fye=plane.days_since_fye,
             )
         else:
-            note_parts.append("⚠️ Sensitivity table not computed: share count unavailable.")
+            notes.append("⚠️ Sensitivity table not computed: share count unavailable.")
+    return sensitivity, notes
 
-    # --- 8a. Escenarios del DCF (A3, ADR-043): rango con supuestos de la propia historia ---
-    # Solo con base FCFF (no con el proxy NOPAT): los márgenes FCFF son la distribución que se resume.
-    dcf_scenarios: list[DcfScenario] = []
-    if (dcf_base is not None and dcf_base_source.startswith("FCFF") and share_count and financials is not None):
-        margins, _ = _fcff_margin_history(financials, tax_rate, cyclical=is_cyclical)
 
-        def _scenario_value(base_fcf: float, g1: float, terminal_scale: float = 1.0
-                            ) -> tuple[Optional[float], Optional[float]]:
-            """Mismo camino que el titular: dcf_components → capitalización → bridge → por acción."""
-            try:
-                ev_s = dcf_components(base_fcf, g1, terminal_growth, wacc, stage1_years, fade_years,
-                                      mid_year=assumptions.mid_year_convention,
-                                      nopat_base=(terminal_nopat * terminal_scale if terminal_nopat is not None
-                                                  else None)).enterprise_value * capitalization
-            except ValuationInputError:
-                return None, None
-            eq = equity_bridge(ev_s, **claims_kwargs,
-                               lease_liabilities=_mv_val(financials.operating_lease_liabilities)).equity_value
-            ps_s = round(per_share(eq, share_count), 2)
-            return ps_s, _upside_pct(ps_s, price)
+def _compute_dcf_scenarios(financials: Optional[FinancialsReport], plane: _EnterprisePlane,
+                           params: _ModelParams, base: _DcfBase, near_term_growth: float,
+                           price: Optional[float]) -> list[DcfScenario]:
+    """
+    Paso 8a: escenarios del DCF (A3, ADR-043): rango con supuestos de la propia historia.
 
-        dcf_scenarios = _dcf_scenarios(margins, financials.revenue, g_base=near_term_growth,
-                                       cyclical=is_cyclical, value_fn=_scenario_value)
+    Solo con base FCFF (no con el proxy NOPAT): los márgenes FCFF son la distribución que se resume.
+    """
+    share_count = plane.share_count
+    if not (base.value is not None and base.source.startswith("FCFF") and share_count
+            and financials is not None):
+        return []
+    margins, _ = _fcff_margin_history(financials, plane.tax_rate, cyclical=plane.is_cyclical)
+    terminal_nopat = base.terminal_nopat
 
-    # --- 8a-bis. Rentabilidad implícita frente al listón y precio de entrada (bloque B, ADR-044) ---
+    def _scenario_value(base_fcf: float, g1: float, terminal_scale: float = 1.0
+                        ) -> tuple[Optional[float], Optional[float]]:
+        """Mismo camino que el titular: dcf_components → capitalización → bridge → por acción."""
+        try:
+            ev_s = dcf_components(base_fcf, g1, params.terminal_growth, params.wacc,
+                                  params.stage1_years, params.fade_years,
+                                  mid_year=params.assumptions.mid_year_convention,
+                                  nopat_base=(terminal_nopat * terminal_scale if terminal_nopat is not None
+                                              else None)).enterprise_value * plane.capitalization
+        except ValuationInputError:
+            return None, None
+        eq = equity_bridge(ev_s, **plane.claims_kwargs,
+                           lease_liabilities=_mv_val(financials.operating_lease_liabilities)).equity_value
+        ps_s = round(per_share(eq, share_count), 2)
+        return ps_s, _upside_pct(ps_s, price)
+
+    return _dcf_scenarios(margins, financials.revenue, g_base=near_term_growth,
+                          cyclical=plane.is_cyclical, value_fn=_scenario_value)
+
+
+def _resolve_hurdle(market: Optional[MarketReport]) -> tuple[float, float, str]:
+    """Paso 8a-bis (1/2): (Rf, listón del inversor, texto de su origen) — bloque B, ADR-044."""
     rf_mv = market.risk_free_rate if market is not None else None
     rf = (rf_mv.value if rf_mv is not None else RF_PCT) / 100
     hurdle = max(settings.hurdle_rate_pct / 100, rf + ERP_PCT / 100)
     hurdle_source = (f"max({settings.hurdle_rate_pct:.1f}% investor hurdle, Rf {rf:.2%} + ERP {ERP_PCT:.1f}%)"
                      f" = {hurdle:.1%}")
-    implied_return: Optional[float] = None
-    implied_return_note: Optional[str] = None
-    entry: Optional[float] = None
-    entry_basis: Optional[str] = None
-    if dcf_base is not None and share_count:
-        returns = _implied_returns(
-            dcf_base, near_term_growth, dcf_scenarios, terminal_growth=terminal_growth,
-            stage1_years=stage1_years, fade_years=fade_years, mid_year=assumptions.mid_year_convention,
-            terminal_nopat=terminal_nopat, ronic=wacc, wacc_breakdown=wacc_suggestion,
-            days_since_fye=days_since_fye, claims_kwargs=claims_kwargs, share_count=share_count,
+    return rf, hurdle, hurdle_source
+
+
+def _compute_implied_returns(financials: Optional[FinancialsReport], plane: _EnterprisePlane,
+                             params: _ModelParams, base: _DcfBase, near_term_growth: float,
+                             scenarios: list[DcfScenario], price: Optional[float], hurdle: float,
+                             rf: float) -> _Returns:
+    """
+    Paso 8a-bis (2/2): rentabilidad implícita frente al listón y precio de entrada (bloque B, ADR-044).
+
+    Sin base de DCF o sin acciones devuelve un _Returns vacío que conserva los escenarios tal cual.
+    """
+    if base.value is not None and plane.share_count:
+        return _implied_returns(
+            base.value, near_term_growth, scenarios, terminal_growth=params.terminal_growth,
+            stage1_years=params.stage1_years, fade_years=params.fade_years,
+            mid_year=params.assumptions.mid_year_convention,
+            terminal_nopat=base.terminal_nopat, ronic=params.wacc, wacc_breakdown=params.wacc_suggestion,
+            days_since_fye=plane.days_since_fye, claims_kwargs=plane.claims_kwargs,
+            share_count=plane.share_count,
             lease_liabilities=_mv_val(financials.operating_lease_liabilities) if financials is not None else None,
             price=price, hurdle=hurdle, rf=rf)
-        implied_return, implied_return_note = returns.base, returns.base_note
-        entry, entry_basis = returns.entry, returns.entry_basis
-        dcf_scenarios = returns.scenarios
+    return _Returns(None, None, None, None, scenarios)
 
-    # --- 8b. EPV (Greenwald) — piso de valor sin crecimiento (ADR-029) ---
-    # Mismo bridge (claims) y misma capitalización a fecha de valoración que el DCF (ADR-033):
-    # antes el DCF no restaba deuda y el EPV sí → la convergencia comparaba planos distintos.
+
+def _compute_epv_step(financials: Optional[FinancialsReport], plane: _EnterprisePlane,
+                      params: _ModelParams, price: Optional[float]) -> _EpvStep:
+    """
+    Paso 8b: EPV (Greenwald) — piso de valor sin crecimiento (ADR-029).
+
+    Mismo bridge (claims) y misma capitalización a fecha de valoración que el DCF (ADR-033):
+    antes el DCF no restaba deuda y el EPV sí → la convergencia comparaba planos distintos.
+    """
     ebit_series = financials.operating_income if financials is not None else []
     epv_ent_mv, epv_ps_mv, epv_upside_pct, epv_source, epv_growth_premium = _compute_epv(
         ebit_series=ebit_series,
-        wacc=wacc,
-        net_claims=claims,
-        shares=share_count,
+        wacc=params.wacc,
+        net_claims=plane.claims,
+        shares=plane.share_count,
         price_current=price,
-        mid_year=assumptions.mid_year_convention,
-        capitalization=capitalization,
-        normalized_ebit=(normalized_ebit, normalized_ebit_label) if normalized_ebit is not None else None,
+        mid_year=params.assumptions.mid_year_convention,
+        capitalization=plane.capitalization,
+        normalized_ebit=((plane.normalized_ebit, plane.normalized_ebit_label)
+                         if plane.normalized_ebit is not None else None),
     )
+    notes: list[str] = []
     if epv_growth_premium is not None:
         # Lectura de Greenwald: el EPV no es "caro/barato" a secas; dice cuánto paga el precio
         # por crecimiento, que solo es valioso si hay moat (ROIC > WACC sostenido).
-        note_parts.append(
+        notes.append(
             f"ℹ️ EPV growth premium: {epv_growth_premium:.0%} of the price pays for growth."
             if epv_growth_premium >= 0 else
             f"ℹ️ EPV growth premium: price is {-epv_growth_premium / (1 - epv_growth_premium):.0%} "
             f"below the no-growth value (EPV)."
         )
+    return _EpvStep(epv_ent_mv, epv_ps_mv, epv_upside_pct, epv_source, epv_growth_premium, notes)
 
-    # --- 8c. WACC sugerido (ADR-033): WACC real con su desglose ---
+
+def _wacc_step(params: _ModelParams) -> _WaccStep:
+    """
+    Paso 8c: WACC sugerido (ADR-033) con su desglose y la nota si el usado difiere > 3 pp (EC-64).
+
+    El sugerido usa β=1 sin company-specific risk — para empresas de alto riesgo
+    (concentración de clientes, SEC investigation, restatements) la diferencia puede
+    ser estructural. La sensitivity table (±2%) cubre el rango relevante.
+    """
+    wacc_suggestion, assumptions = params.wacc_suggestion, params.assumptions
     suggested_wacc: Optional[float] = round(wacc_suggestion.wacc * 100, 1) if wacc_suggestion else None
     wacc_breakdown_str: Optional[str] = describe_wacc(wacc_suggestion) if wacc_suggestion else None
-
-    # EC-64: si el WACC usado difiere >3pp del sugerido, añadir nota visible al analista.
-    # El sugerido usa β=1 sin company-specific risk — para empresas de alto riesgo
-    # (concentración de clientes, SEC investigation, restatements) la diferencia puede
-    # ser estructural. La sensitivity table (±2%) cubre el rango relevante.
+    notes: list[str] = []
     if suggested_wacc is not None:
         wacc_delta_pp = round(assumptions.wacc_pct - suggested_wacc, 1)
         if abs(wacc_delta_pp) > 3.0:
             direction = "above" if wacc_delta_pp > 0 else "below"
-            note_parts.append(
+            notes.append(
                 f"WACC used ({assumptions.wacc_pct}%) is {abs(wacc_delta_pp):.1f}pp {direction} "
                 f"suggested real WACC ({suggested_wacc}%). The suggestion uses β=1.0 (no company-specific "
                 f"risk). For high-risk profiles (customer concentration >50%, active SEC investigation, "
                 f"restatements), consider adding 2-5pp. Sensitivity table covers "
                 f"{assumptions.wacc_pct - 2:.1f}%–{assumptions.wacc_pct + 2:.1f}%."
             )
+    return _WaccStep(suggested_wacc, wacc_breakdown_str, notes)
 
-    if note_parts:
-        dcf_reliability_note = " ".join(note_parts)
 
-    # --- 9. Magic Formula rank (MCE-18) ---
-    # peer_valuations populated by peers_node; mf_rank=None there, computed here.
-    peer_valuations_raw: list[PeerValuation] = list(
-        state.get("peer_valuations") or []  # type: ignore[typeddict-item]
-    )
-    subject_roic_for_mf: Optional[float] = None
-    if financials is not None and financials.roic_series:
-        subject_roic_for_mf = financials.roic_series[0].value
-
-    mf_rank, updated_peer_valuations = _compute_magic_formula_rank(
-        subject_ticker=ticker,
-        subject_earnings_yield=earnings_yield,
-        subject_roic=subject_roic_for_mf,
-        peer_valuations=peer_valuations_raw,
-    )
-
-    # --- 9b. Convergence table (ADR-030) ---
-    # Peer EV/EBIT median para la clasificación relativa
-    peer_ev_ebit_values = [
-        pv.ev_ebit for pv in peer_valuations_raw
+def _peer_ev_ebit_median(peers: list[PeerValuation]) -> Optional[float]:
+    """Mediana del EV/EBIT de los peers con dato de mercado y múltiplo positivo (None si no hay)."""
+    values = [
+        pv.ev_ebit for pv in peers
         if pv.ev_ebit is not None and not pv.no_market_data and pv.ev_ebit > 0
     ]
-    peer_ev_ebit_median: Optional[float] = None
-    if peer_ev_ebit_values:
-        sv = sorted(peer_ev_ebit_values)
-        n = len(sv)
-        peer_ev_ebit_median = sv[n // 2] if n % 2 == 1 else (sv[n // 2 - 1] + sv[n // 2]) / 2
+    if not values:
+        return None
+    sv = sorted(values)
+    n = len(sv)
+    return sv[n // 2] if n % 2 == 1 else (sv[n // 2 - 1] + sv[n // 2]) / 2
 
-    # Histórico de convergencia = CAGR de INGRESOS (ADR-033 §9, EC-75). Antes era
-    # near_term_growth, que ya es el input del DCF directo: comparar el reverse contra él era
-    # circular (el "histórico" salía del mismo FCF CAGR que alimentaba el modelo).
-    historical_cagr_for_conv = revenue_cagr
-    historical_years_for_conv = revenue_cagr_years or (5 if revenue_cagr is not None else None)
+
+def _convergence_history(financials: Optional[FinancialsReport], is_cyclical: bool,
+                         revenue_cagr: Optional[float],
+                         revenue_cagr_years: Optional[int]) -> tuple[Optional[float], Optional[int]]:
+    """
+    Histórico de convergencia = CAGR de INGRESOS (ADR-033 §9, EC-75) y su ventana en años.
+
+    Antes era near_term_growth, que ya es el input del DCF directo: comparar el reverse contra él era
+    circular (el "histórico" salía del mismo FCF CAGR que alimentaba el modelo).
+    """
+    historical_cagr: Optional[float] = revenue_cagr
+    historical_years: Optional[int] = revenue_cagr_years or (5 if revenue_cagr is not None else None)
     if is_cyclical and financials is not None:
         # EC-92: el CAGR de 5 años de una cíclica depende de los extremos (CALM 16,6 % por la gripe
         # aviar). Se compara con el de toda la ventana (hasta 10 años), menos sensible al pico.
         full = cagr_by_fiscal_years(financials.revenue, max_years=10)
         if full:
-            historical_cagr_for_conv, historical_years_for_conv = full
+            historical_cagr, historical_years = full
+    return historical_cagr, historical_years
+
+
+def _run_valuation(state: AnalysisState) -> dict:
+    """
+    Cuerpo de valuation_agent. Puede lanzar ValuationInputError (lo captura el nodo).
+
+    Orquestador: cada paso numerado es una función `_…` de arriba con entradas y salidas explícitas.
+    Las notas de fiabilidad se acumulan aquí, en el orden histórico (el texto es contrato, EC-54).
+    """
+    ticker = state["ticker"]
+    financials = state.get("financials")
+    market = state.get("market")
+    user_raw: dict = state.get("checkpoint2_user_input") or {}
+
+    log.info("valuation_agent_start", ticker=ticker)
+
+    # --- 1. Market cap y precio (antes que las assumptions: el WACC por defecto los necesita) ---
+    mkt = _resolve_market_inputs(market)
+    # --- 1b. Assumptions: checkpoint2_user_input + defaults únicos (CHECKPOINT2_DEFAULTS) ---
+    params = _resolve_model_params(user_raw, financials, market, mkt.market_cap)
+    # --- 2. Métricas del FinancialsReport y 2b. plano enterprise (ADR-033) ---
+    fin = _extract_financial_inputs(financials)
+    plane = _build_enterprise_plane(financials, fin, mkt, params)
+    note_parts: list[str] = list(plane.notes)
+
+    # --- 4. Near-term growth (ADR-043) y notas de fiabilidad que dependen de él (EC-54) ---
+    growth = _resolve_near_term_growth(financials, params, state.get("historical_cagr_5y"),
+                                      state.get("historical_cagr_years"))
+    # La línea de growth va primero: es el parámetro más sensible y el lector debe verlo antes.
+    note_parts.insert(0, _growth_context_line(growth))
+    note_parts.extend(_growth_cap_notes(ticker, growth))
+    growth_structural_break = _structural_break_note(growth)
+    if growth_structural_break is not None:
+        note_parts.append(growth_structural_break)
+    fcf_quality_warning = _fcf_quality_note(ticker, fin)
+    if fcf_quality_warning:
+        note_parts.append(fcf_quality_warning)
+    note_parts.extend(_cyclical_peak_notes(ticker, financials, params, plane.is_cyclical))
+    near_term_growth = growth.growth
+
+    log.info(
+        "valuation_agent_assumptions",
+        ticker=ticker,
+        wacc_pct=params.assumptions.wacc_pct,
+        near_term_growth_pct=round(near_term_growth * 100, 1),
+        terminal_growth_pct=params.assumptions.terminal_growth_pct,
+        years=params.years,
+    )
+
+    # --- 5. DCF sobre FCFF (fallback NOPAT, EC-13) → bridge → por acción, y notas de inputs ---
+    base = _select_dcf_base(ticker, fin, plane)
+    note_parts.extend(base.notes)
+    dcf = _run_dcf(financials, fin, plane, params, base, near_term_growth, mkt.price)
+    note_parts.extend(dcf.notes)
+    note_parts.extend(_input_gap_notes(fin, plane, dcf.bridge))
+
+    # --- 6. Reverse DCF (objetivo = MARKET EV, EC-74), nota de spread (EC-16) y de fallback NOPAT (EC-13) ---
+    reverse_growth = _solve_reverse_growth(base, plane, params)
+    note_parts.extend(_dcf_spread_notes(ticker, near_term_growth, reverse_growth, params))
+    note_parts.extend(_nopat_fallback_notes(ticker, fin, plane, base))
+
+    # --- 7. Múltiplos (requieren market cap) ---
+    multiples = _compute_multiples(fin, plane, period_label=mkt.as_of_date)
+
+    # --- 8. Sensibilidad, escenarios (A3), rentabilidad implícita (ADR-044), EPV (ADR-029), WACC (ADR-033) ---
+    sensitivity, sensitivity_notes = _compute_sensitivity(plane, params, base, near_term_growth)
+    note_parts.extend(sensitivity_notes)
+    dcf_scenarios = _compute_dcf_scenarios(financials, plane, params, base, near_term_growth, mkt.price)
+    rf, hurdle, hurdle_source = _resolve_hurdle(market)
+    returns = _compute_implied_returns(financials, plane, params, base, near_term_growth,
+                                       dcf_scenarios, mkt.price, hurdle, rf)
+    epv = _compute_epv_step(financials, plane, params, mkt.price)
+    note_parts.extend(epv.notes)
+    wacc_step = _wacc_step(params)
+    note_parts.extend(wacc_step.notes)
+    dcf_reliability_note: Optional[str] = " ".join(note_parts) if note_parts else None
+
+    # --- 9. Magic Formula rank (MCE-18): peer_valuations las rellena peers_node con mf_rank=None ---
+    peer_valuations_raw: list[PeerValuation] = list(state.get("peer_valuations") or [])
+    subject_roic_for_mf: Optional[float] = None
+    if financials is not None and financials.roic_series:
+        subject_roic_for_mf = financials.roic_series[0].value
+    mf_rank, updated_peer_valuations = _compute_magic_formula_rank(
+        subject_ticker=ticker,
+        subject_earnings_yield=multiples.earnings_yield,
+        subject_roic=subject_roic_for_mf,
+        peer_valuations=peer_valuations_raw,
+    )
+
+    # --- 9b. Convergence table (ADR-030) ---
+    historical_cagr, historical_years = _convergence_history(
+        financials, plane.is_cyclical, growth.revenue_cagr, growth.revenue_cagr_years)
     # Reverse comparable (revisión M2): CAGR media a 10 años del camino implícito stage1 + fade.
     reverse_10y = (
-        _ten_year_equivalent_cagr(reverse_growth, terminal_growth, stage1_years, fade_years)
+        _ten_year_equivalent_cagr(reverse_growth, params.terminal_growth, params.stage1_years, params.fade_years)
         if reverse_growth is not None else None
     )
     methods_summary = _build_methods_summary(
-        dcf_per_share=dcf_per_share,
-        dcf_upside_pct=dcf_upside,
-        epv_per_share=epv_ps_mv,
-        epv_upside_pct=epv_upside_pct,
+        dcf_per_share=dcf.per_share,
+        dcf_upside_pct=dcf.upside,
+        epv_per_share=epv.per_share,
+        epv_upside_pct=epv.upside_pct,
         reverse_growth=reverse_growth,
-        historical_cagr=historical_cagr_for_conv,
-        ev_ebit=ev_ebit_mv,
-        peer_ev_ebit_median=peer_ev_ebit_median,
+        historical_cagr=historical_cagr,
+        ev_ebit=multiples.ev_ebit,
+        peer_ev_ebit_median=_peer_ev_ebit_median(peer_valuations_raw),
         reverse_10y_equivalent=reverse_10y,
-        historical_years=historical_years_for_conv,
+        historical_years=historical_years,
     )
 
     # --- 10. Construir el report ---
     report = ValuationReport(
         ticker=ticker,
         stub=False,
-        dcf_intrinsic_value=dcf_value,
-        dcf_intrinsic_per_share=dcf_per_share,
-        price_current=price_current_mv,
-        dcf_upside_pct=dcf_upside,
+        dcf_intrinsic_value=dcf.value,
+        dcf_intrinsic_per_share=dcf.per_share,
+        price_current=mkt.price_current,
+        dcf_upside_pct=dcf.upside,
         reverse_dcf_implied_growth=reverse_growth,
         reverse_dcf_10y_equivalent=reverse_10y,
-        ev_ebit_multiple=ev_ebit_mv,
-        ev_fcf_multiple=ev_fcf_mv,
-        pe_multiple=pe_mv,
-        earnings_yield_pct=earnings_yield,
+        ev_ebit_multiple=multiples.ev_ebit,
+        ev_fcf_multiple=multiples.ev_fcf,
+        pe_multiple=multiples.pe,
+        earnings_yield_pct=multiples.earnings_yield,
         magic_formula_rank=mf_rank,
         sensitivity_table=sensitivity,
-        dcf_scenarios=dcf_scenarios,
+        dcf_scenarios=returns.scenarios,
         hurdle_rate=hurdle,
         hurdle_source=hurdle_source,
         risk_free_rate=rf,
-        implied_return=implied_return,
-        implied_return_note=implied_return_note,
-        entry_price=entry,
-        entry_basis=entry_basis,
+        implied_return=returns.base,
+        implied_return_note=returns.base_note,
+        entry_price=returns.entry,
+        entry_basis=returns.entry_basis,
         growth_structural_break=growth_structural_break,
-        assumptions=assumptions,
+        assumptions=params.assumptions,
         dcf_reliability_note=dcf_reliability_note,
         near_term_growth_used_pct=near_term_growth,
-        near_term_growth_source=near_term_growth_source,
-        cyclicality=cyclicality,
-        stage1_years_used=stage1_years,
-        fade_years_used=fade_years,
-        epv_enterprise=epv_ent_mv,
-        epv_per_share=epv_ps_mv,
-        epv_upside_pct=epv_upside_pct,
-        epv_source=epv_source,
-        epv_growth_premium=epv_growth_premium,
-        suggested_wacc_pct=suggested_wacc,
-        suggested_wacc_breakdown=wacc_breakdown_str,
-        wacc_breakdown=wacc_suggestion,
+        near_term_growth_source=growth.source,
+        cyclicality=plane.cyclicality,
+        stage1_years_used=params.stage1_years,
+        fade_years_used=params.fade_years,
+        epv_enterprise=epv.enterprise,
+        epv_per_share=epv.per_share,
+        epv_upside_pct=epv.upside_pct,
+        epv_source=epv.source,
+        epv_growth_premium=epv.growth_premium,
+        suggested_wacc_pct=wacc_step.suggested_pct,
+        suggested_wacc_breakdown=wacc_step.breakdown,
+        wacc_breakdown=params.wacc_suggestion,
         valuation_methods_summary=methods_summary,
         fcf_quality_warning=fcf_quality_warning,
         # --- Plano enterprise (ADR-033) ---
         valuation_basis="FCFF discounted at WACC → EV → equity bridge → per share (ADR-033)",
-        fcff_base=(MetricValue(value=round(fcff_base_value), unit="USD", period=fcf_period, source=fcff_source)
-                   if fcff_base_value is not None else None),
-        fcff_breakdown=fcff_bd,
-        dcf_base_source=dcf_base_source or None,
-        tax_rate_used=tax_rate,
-        tax_rate_source=tax_rate_source,
-        enterprise_value_dcf=ev_dcf_mv,
-        equity_bridge=bridge,
-        market_enterprise_value=(MetricValue(value=round(market_ev), unit="USD", period=as_of_date,
+        fcff_base=(MetricValue(value=round(plane.fcff_base_value), unit="USD", period=fin.fcf_period,
+                               source=plane.fcff_source)
+                   if plane.fcff_base_value is not None else None),
+        fcff_breakdown=plane.fcff_bd,
+        dcf_base_source=base.source or None,
+        tax_rate_used=plane.tax_rate,
+        tax_rate_source=plane.tax_rate_source,
+        enterprise_value_dcf=dcf.ev,
+        equity_bridge=dcf.bridge,
+        market_enterprise_value=(MetricValue(value=round(plane.market_ev), unit="USD", period=mkt.as_of_date,
                                              source="price × shares + net claims")
-                                 if market_ev is not None else None),
-        share_count_used=share_count,
-        share_count_source=share_source,
-        terminal_value_share=comps.terminal_value_share if comps is not None else None,
-        mid_year_convention_used=assumptions.mid_year_convention,
+                                 if plane.market_ev is not None else None),
+        share_count_used=plane.share_count,
+        share_count_source=plane.share_source,
+        terminal_value_share=dcf.comps.terminal_value_share if dcf.comps is not None else None,
+        mid_year_convention_used=params.assumptions.mid_year_convention,
         sensitivity_unit="USD/share" if sensitivity else None,
     )
 
     log.info(
         "valuation_agent_complete",
         ticker=ticker,
-        dcf_upside_pct=dcf_upside,
+        dcf_upside_pct=dcf.upside,
         reverse_implied_growth=reverse_growth,
-        ev_ebit=ev_ebit_mv.value if ev_ebit_mv else None,
-        pe=pe_mv.value if pe_mv else None,
+        ev_ebit=multiples.ev_ebit.value if multiples.ev_ebit else None,
+        pe=multiples.pe.value if multiples.pe else None,
     )
 
     result: dict = {"valuation": report}

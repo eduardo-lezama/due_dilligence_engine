@@ -248,15 +248,21 @@ class FinnhubAdapter:
         return results
 
 
-def format_news_for_prompt(articles: list[dict[str, Any]], max_articles: int = 5) -> str:
+def format_news_for_prompt(
+    articles: list[dict[str, Any]], max_articles: int = 5, filtered_out: int = 0
+) -> str:
     """
     Formatea noticias de Finnhub como texto estructurado para el market_agent.
 
     Incluye headline + fuente + primer párrafo del summary.
     Limitado a max_articles para no saturar el context window.
+    `filtered_out` = noticias descartadas antes por el filtro de relevancia (EC-111,
+    tools/news_relevance.py); se imprime para que el descarte sea visible en el informe.
     """
+    note = f"({filtered_out} unrelated items filtered out)" if filtered_out else ""
     if not articles:
-        return "No recent company news available."
+        base = "No recent company news available." if not filtered_out else "No relevant company news after filtering."
+        return f"{base} {note}".strip()
 
     lines = [f"Recent news (last 30 days, {min(len(articles), max_articles)} articles):"]
     for i, a in enumerate(articles[:max_articles], 1):
@@ -264,5 +270,7 @@ def format_news_for_prompt(articles: list[dict[str, Any]], max_articles: int = 5
         lines.append(f"\n[{i}] {a['headline']}")
         lines.append(f"    Source: {a['source']} | URL: {a['url']}")
         lines.append(f"    {summary_preview}")
+    if note:
+        lines.append(f"\n{note}")
 
     return "\n".join(lines)

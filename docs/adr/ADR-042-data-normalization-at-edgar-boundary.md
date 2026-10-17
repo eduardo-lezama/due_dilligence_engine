@@ -44,6 +44,15 @@ Eduardo pidió que cada arreglo sirviera para analizar cualquier empresa, sin se
    - leer siempre del 10-K movía a las empresas de una sola clase;
    - la rejilla del beneficio neto recortaba años a PFE.
 
+## Ampliación (bloques B y C, 2026-10-17)
+
+La misma regla, normalizar en la frontera y dejar un flag visible, se aplica a dos datos más:
+- **Acciones tras un split (EC-112):** `adjust_for_splits` reexpresa los años anteriores de las series ponderadas.
+- **EBIT sin etiquetar (EC-107):** `resolve_operating_income` trabaja año a año.
+  - Si el EBIT está reportado, se usa.
+  - Si no, se deriva desde el beneficio antes de impuestos, verificado frente al reportado en 12 empresas.
+  - Lo que siga vacío se rellena con la cadena histórica.
+
 ## Alternatives considered
 
 - **Copiar la nueva regla de etiquetas FY de edgartools 5.59.** Rechazada: depende del tag `fy` del filing, que es justo lo que colisiona. Además, la regla ya cambió una vez entre versiones y volvería a divergir.

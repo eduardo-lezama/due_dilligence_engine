@@ -58,6 +58,7 @@ class AnalysisState(TypedDict):
 
     # --- Lo escribe el Supervisor (primer nodo) ---
     cik: NotRequired[str]                # Central Index Key de la SEC, ej: "0000320193"
+    company_name: NotRequired[str]       # nombre legal de EDGAR (supervisor; EC-111: búsquedas y filtro de noticias)
     as_of_date: NotRequired[str]         # ISO date "YYYY-MM-DD" — string para serializar a SQLite
     run_id: NotRequired[str]             # UUID del análisis — thread ID del checkpointer
 
@@ -76,6 +77,8 @@ class AnalysisState(TypedDict):
     peer_financials: NotRequired[list[FinancialsReport]]
     peers_attempted_no_roic: NotRequired[list[str]]  # peers fetched pero sin ROIC calculable
     peer_sic_mismatches: NotRequired[list[str]]  # peers con SIC distinto al subject (EC-42)
+    peers_excluded: NotRequired[list[str]]       # bloque C: auto-sugeridos de otra industria, fuera de las medianas
+    peers_cross_industry: NotRequired[list[str]]  # bloque C: de otra industria pero dentro (pocos o del inversor)
     peer_valuations: NotRequired[list[PeerValuation]]  # Valuation multiples per peer (MCE-18)
 
     # --- Quarterly XBRL snapshot (EC-44/MCE-24) ---

@@ -182,18 +182,27 @@ class TavilyAdapter:
         return aggregated
 
 
-def format_tavily_for_prompt(results: list[dict[str, Any]], max_chars_per_result: int = 800) -> str:
+def format_tavily_for_prompt(
+    results: list[dict[str, Any]], max_chars_per_result: int = 800, filtered_out: int = 0
+) -> str:
     """
     Convierte resultados de Tavily a texto estructurado para inyectar en un prompt.
 
     Trunca el contenido de cada resultado para no exceder el context window del LLM.
+    `filtered_out` = resultados descartados antes por el filtro de relevancia (EC-111,
+    tools/news_relevance.py: Tavily casaba la PALABRA "calm" para CALM); se imprime la cifra
+    para que el descarte sea visible donde se renderiza la sección.
     """
+    note = f"({filtered_out} unrelated items filtered out)" if filtered_out else ""
     if not results:
-        return "No web search results available."
+        base = "No web search results available." if not filtered_out else "No relevant web search results after filtering."
+        return f"{base} {note}".strip()
 
     lines = []
     for i, r in enumerate(results, 1):
         content = r["content"][:max_chars_per_result]
         lines.append(f"[{i}] {r['title']}\nURL: {r['url']}\n{content}\n")
+    if note:
+        lines.append(note)
 
     return "\n".join(lines)

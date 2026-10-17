@@ -25,6 +25,7 @@ def test_supervisor_resolves_cik(mocker):
     """Resuelve ticker a CIK con formato 10 dígitos (zfill)."""
     mock_company = mocker.MagicMock()
     mock_company.cik = 320193                          # entero — como lo devuelve edgartools
+    mock_company.name = "Apple Inc."
     mock_latest = mocker.MagicMock()
     mock_latest.period_of_report = "2024-09-28"
     mock_company.get_filings.return_value.latest.return_value = mock_latest
@@ -35,6 +36,7 @@ def test_supervisor_resolves_cik(mocker):
     result = supervisor_node({"ticker": "AAPL"})
 
     assert result["cik"] == "0000320193"               # zfill(10): 320193 → "0000320193"
+    assert result["company_name"] == "Apple Inc."      # EC-111: lo usan búsquedas y filtro de noticias
     assert result["as_of_date"] == "2024-09-28"
     assert "run_id" in result
     assert len(result["run_id"]) > 0

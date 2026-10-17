@@ -832,5 +832,34 @@ Formato corto desde el bloque B: síntoma → causa → fix. El commit se locali
 
 ## Conocidos — pendientes (bloque B)
 
-- **EC-107 — Empresas sin EBIT etiquetado en XBRL (CVX, JNJ)**: `OperatingIncomeLoss` no existe en su XBRL (JNJ: un solo año). Sin EBIT no hay EPV, la ciclicidad sale "no evaluada" (ahora visible) y el NOPAT terminal cae al último año disponible. Fix candidato: EBIT = resultado antes de impuestos + intereses, derivado y etiquetado como tal; requiere verificarlo con datos reales (lección de EC-104).
-- **EC-111 — Ruido en las noticias por coincidencia de palabras (Tavily)**: CALM traía "Everybody Calm Down About GameStop" y SERV un menú de navegación de Yahoo. La búsqueda extendida usa el nombre corto de la empresa. Fix candidato: consulta con ticker + nombre legal y filtro por mención del ticker. Desde el bloque B las noticias están en el apéndice del informe, no en la primera página.
+(ninguno abierto: EC-107 y EC-111 resueltos en el bloque C)
+
+
+## Bloque C (2026-10-17)
+
+### EC-107 — EBIT ausente o de un solo año obsoleto (CVX, JNJ)
+- **Síntoma**: CVX no etiqueta `OperatingIncomeLoss` en ningún año; JNJ solo en FY2014. Sin EBIT no había EPV, la ciclicidad salía "no evaluada" y el NOPAT terminal caía al último año disponible. JNJ calculaba su EPV con el EBIT de **2014**.
+- **Causa**: `compute_operating_income` trabajaba con la serie completa: con un solo año reportado devolvía solo ese año, y sus fallbacks (GP − SG&A, pretax ± intereses) también eran de serie completa.
+- **Fix**: `xbrl_extract.resolve_operating_income`, año a año.
+  - **Valor reportado:** se respeta siempre.
+  - **Años sin él:** EBIT derivado = beneficio antes de impuestos + gasto por intereses − ingreso por intereses − puesta en equivalencia (solo si el pretax la incluye) − otros resultados no operativos, todo del mismo ejercicio. Va marcado como "derived" en la fuente y en los flags.
+  - **Verificado con 12 empresas que sí publican EBIT:** el 91 % de los años queda dentro del 10 % (KO 0 %). WMT, GOOGL y MSFT FY2017 se desvían por plusvalías de inversiones sin etiquetar, por eso el flag se muestra siempre.
+  - **Resultado:** CVX pasa a 10 años de EBIT (EPV calculable, ciclicidad evaluada) y JNJ a 10 años actuales.
+  - **Años que siguen vacíos:** la cadena histórica (GP − SG&A, pretax − interés neto) los rellena año a año, con un flag si la serie mezcla definiciones. Una revisión de código vio que, si no, un filer con intereses solo en los últimos años perdía la historia anterior.
+  - **Diagnóstico de 33 empresas:**
+    - XOM pasa a cíclica: su "EBIT" anterior era el proxy del pretax.
+    - PFE pasa de un EPV del 0,11 al 0,55 del precio (margen EBIT mediano del 25,5 % y EV/EBIT ~14×; antes arrastraba el valle de 2023).
+    - CVX y JNJ, con EPV y ciclicidad evaluada.
+    - El resto, sin cambios materiales (ADP, DE y NUE ≤ 3 %).
+  - **Límite:** "otros resultados no operativos" puede incluir cargos recurrentes (deterioros y reestructuraciones de PFE). Restarlos devuelve esos cargos al EBIT, que puede quedar algo alto. Va marcado como "derived".
+
+### EC-111 — Noticias de otras empresas en "Market & News" (CALM, SERV, AAPL)
+- **Síntoma**: CALM traía "Everybody Calm Down About GameStop" y "Relative Calm"; SERV, un menú de Yahoo volcado; AAPL, "Dow gainers and losers". El Expert razonaba sobre ese ruido.
+- **Causa**:
+  1. Ningún nodo escribía `company_name` en el estado: market, management y competitive buscaban con el ticker ("CALM stock decline…", "ACMR ACMR competitors…").
+  2. No había filtro de relevancia.
+- **Fix**:
+  - el supervisor escribe el nombre legal de EDGAR (`company_name`);
+  - `tools/news_relevance.py` filtra de forma determinista: el ticker como token sensible a mayúsculas, o el nombre de la empresa (con mayúscula si es de una palabra); descarta volcados de menú;
+  - el recuento descartado se loguea y se muestra ("N unrelated items filtered out").
+  - Tests con cadenas reales de los informes: CALM 9 → 3 noticias de Tavily, AAPL 5 → 2.

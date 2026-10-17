@@ -50,7 +50,7 @@ def test_peers_node_handles_empty_peer_list():
 
     result = peers_node({"ticker": "AAPL", "peers": []})
 
-    assert result == {"peer_financials": []}
+    assert result == {"peer_financials": [], "peers_excluded": [], "peers_cross_industry": []}
 
 
 def test_peers_node_handles_missing_peers_key():
@@ -59,7 +59,7 @@ def test_peers_node_handles_missing_peers_key():
 
     result = peers_node({"ticker": "AAPL"})
 
-    assert result == {"peer_financials": []}
+    assert result == {"peer_financials": [], "peers_excluded": [], "peers_cross_industry": []}
 
 
 def test_peers_node_logs_and_skips_failing_peer(mocker):
@@ -474,3 +474,68 @@ def test_build_peer_valuations_subtracts_sti_once_via_net_claims(mocker):
     pv = _build_peer_valuations([fake_rep])[0]
     # EV = 1 000 + 300 − 50 − 100 = 1 150 → EV/EBIT = 11.5 (antes 1 250 → 12.5: STI ignorada)
     assert pv.ev_ebit == pytest.approx(11.5)
+
+
+def _sic_node(mocker, sics: dict, state: dict):
+    """Ejecuta peers_node con SIC simulados y sin red; devuelve (resultado, tickers descargados)."""
+    from due_diligence.agents.peers import peers_node
+
+    mocker.patch("due_diligence.agents.peers._get_sic", side_effect=lambda t: sics.get(t, (None, None)))
+    fetched: list[str] = []
+
+    def fake_raw(t):
+        fetched.append(t)
+        return {"ticker": t}
+
+    def fake_parse(raw):
+        rep = MagicMock()
+        rep.ticker = raw["ticker"]
+        rep.roic_series = []
+        return rep
+
+    mocker.patch("due_diligence.agents.peers.EdgarAdapter.fetch_raw", side_effect=fake_raw)
+    mocker.patch("due_diligence.agents.peers.EdgarAdapter.parse_financials", side_effect=fake_parse)
+    return peers_node(state), fetched
+
+
+
+def test_auto_peers_of_other_industry_are_excluded_when_two_same_industry_remain(mocker):
+    sics = {"SUBJ": ("3559", "Machinery"), "A": ("3559", "Machinery"), "B": ("3550", "Machinery"),
+            "C": ("7372", "Software")}
+    result, fetched = _sic_node(mocker, sics, {"ticker": "SUBJ", "peers": ["A", "B", "C"], "peers_source": "auto"})
+    assert fetched == ["A", "B"]                       # C ni se descarga: no entra en medianas/ranking
+    assert result["peers_excluded"] == ["C"] and result["peers_cross_industry"] == []
+    assert result["peer_sic_mismatches"][0].startswith("C (")
+
+
+def test_auto_peers_all_kept_and_flagged_cross_industry_when_fewer_than_two_remain(mocker):
+    sics = {"SUBJ": ("3559", "Machinery"), "A": ("3559", "Machinery"), "C": ("7372", "Software"),
+            "D": ("7370", "Software")}
+    result, fetched = _sic_node(mocker, sics, {"ticker": "SUBJ", "peers": ["A", "C", "D"], "peers_source": "auto"})
+    assert fetched == ["A", "C", "D"]
+    assert result["peers_excluded"] == [] and result["peers_cross_industry"] == ["C", "D"]
+
+
+def test_user_chosen_peers_are_never_excluded_only_flagged(mocker):
+    sics = {"SUBJ": ("3559", "Machinery"), "A": ("3559", "Machinery"), "B": ("3550", "Machinery"),
+            "C": ("7372", "Software")}
+    result, fetched = _sic_node(mocker, sics, {"ticker": "SUBJ", "peers": ["A", "B", "C"], "peers_source": "user"})
+    assert fetched == ["A", "B", "C"]
+    assert result["peers_excluded"] == [] and result["peers_cross_industry"] == ["C"]
+
+
+def test_unknown_peer_sic_is_not_a_mismatch(mocker):
+    sics = {"SUBJ": ("3559", "Machinery"), "A": ("3559", "Machinery")}   # B, C sin SIC
+    result, fetched = _sic_node(mocker, sics, {"ticker": "SUBJ", "peers": ["A", "B", "C"], "peers_source": "auto"})
+    assert fetched == ["A", "B", "C"]
+    assert "peer_sic_mismatches" not in result
+
+
+def test_unknown_sic_does_not_count_as_same_industry_for_exclusion(mocker):
+    # Revisión del bloque C: 1 confirmado + 1 desconocido no bastan para descartar a los de otra industria.
+    sics = {"SUBJ": ("3559", "Machinery"), "A": ("3559", "Machinery"), "C": ("7372", "Software"),
+            "D": ("7370", "Software")}                       # B sin SIC
+    result, fetched = _sic_node(mocker, sics, {"ticker": "SUBJ", "peers": ["A", "B", "C", "D"],
+                                               "peers_source": "auto"})
+    assert fetched == ["A", "B", "C", "D"] and result["peers_excluded"] == []
+    assert result["peers_cross_industry"] == ["C", "D"]

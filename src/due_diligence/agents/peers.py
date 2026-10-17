@@ -34,6 +34,11 @@ from due_diligence.tools.polygon import PolygonAdapter
 
 log = structlog.get_logger()
 
+# Mínimo de peers de la misma industria para poder descartar los de otra (con menos, una mediana
+# no es una comparación y se conservan todos marcados como cross-industry).
+MIN_SAME_INDUSTRY_PEERS = 2
+
+
 
 def _opt_value(rep, field: str) -> float | None:
     """Valor de un campo Optional[MetricValue] del FinancialsReport del peer, o None.
@@ -170,7 +175,7 @@ def peers_node(state: AnalysisState) -> dict:
 
     if not peers:
         log.info("peers_node_skipped", reason="no peers provided")
-        return {"peer_financials": []}
+        return {"peer_financials": [], "peers_excluded": [], "peers_cross_industry": []}
 
     # SIC validation (EC-42): comparar industria del subject vs cada peer.
     # Si los 2 primeros dígitos del SIC difieren, los negocios pertenecen a
@@ -180,24 +185,46 @@ def peers_node(state: AnalysisState) -> dict:
     subject_sic, subject_industry = _get_sic(subject_ticker) if subject_ticker else (None, None)
     sic_mismatches: list[str] = []
 
+    # Primera pasada: SIC de cada peer. Un SIC desconocido (None) NO cuenta como discrepancia:
+    # sin dato no se puede afirmar que sea de otra industria.
+    sics = {p: _get_sic(p) for p in peers}
+    mismatched = [
+        p for p in peers
+        if subject_sic and sics[p][0] and len(subject_sic) >= 2 and len(sics[p][0]) >= 2  # type: ignore[arg-type]
+        and subject_sic[:2] != sics[p][0][:2]  # type: ignore[index]
+    ]
+    same_industry = [p for p in peers if p not in mismatched]
+    # Para EXCLUIR hace falta confirmar la misma industria: un SIC desconocido no cuenta como "mismo"
+    # (revisión del bloque C: 1 confirmado + 1 desconocido bastaban para descartar a 3).
+    confirmed_same = [p for p in same_industry
+                      if subject_sic and sics[p][0] and sics[p][0][:2] == subject_sic[:2]]  # type: ignore[index]
+
+    # Política de exclusión (revisión ACMR: Finnhub sugirió AMKR, ENPH... y el 5-peer set mezclaba
+    # industrias). Solo se EXCLUYEN peers sugeridos automáticamente (peers_source="auto"): el
+    # inversor aceptó con Enter sin juzgarlos uno a uno. Un peer escrito por él es su criterio
+    # (puede querer una comparación cross-industry a propósito) → se mantiene y solo se marca.
+    # Y solo si quedan >= MIN_SAME_INDUSTRY_PEERS: con 0-1 peers una mediana no es comparación,
+    # así que se mantienen todos y la comparación se etiqueta cross-industry (no dejar al
+    # inversor sin nada).
+    auto = (state.get("peers_source") or "user") == "auto"  # type: ignore[typeddict-item]
+    exclude = auto and bool(mismatched) and len(confirmed_same) >= MIN_SAME_INDUSTRY_PEERS
+    for p in mismatched:
+        peer_sic, peer_industry = sics[p]
+        sic_mismatches.append(
+            f"{p} (SIC {peer_sic} — {peer_industry}) vs "
+            f"{subject_ticker} (SIC {subject_sic} — {subject_industry}): "
+            f"diferente industria — peer no apples-to-apples"
+            + ("; excluded from the peer medians" if exclude else "; kept (cross-industry comparison)")
+        )
+        log.warning("peers_sic_mismatch", peer=p, peer_sic=peer_sic, subject_sic=subject_sic,
+                    excluded=exclude)
+    if exclude:
+        # Los excluidos no se descargan: ni medianas, ni ranking Magic Formula (valuation.py solo ve
+        # peer_valuations), ni comparación de ROIC. Quedan trazados en peer_sic_mismatches.
+        peers = same_industry
+
     reports = []
     for peer_ticker in peers:
-        # Validar SIC match (EC-42) — fetch SIC primero para diagnóstico, luego raw para datos
-        peer_sic, peer_industry = _get_sic(peer_ticker)
-        if subject_sic and peer_sic and len(subject_sic) >= 2 and len(peer_sic) >= 2:
-            if subject_sic[:2] != peer_sic[:2]:
-                sic_mismatches.append(
-                    f"{peer_ticker} (SIC {peer_sic} — {peer_industry}) vs "
-                    f"{subject_ticker} (SIC {subject_sic} — {subject_industry}): "
-                    f"diferente industria — peer no apples-to-apples"
-                )
-                log.warning(
-                    "peers_sic_mismatch",
-                    peer=peer_ticker,
-                    peer_sic=peer_sic,
-                    subject_sic=subject_sic,
-                )
-
         try:
             raw = EdgarAdapter.fetch_raw(peer_ticker)
             rep = EdgarAdapter.parse_financials(raw)
@@ -213,6 +240,10 @@ def peers_node(state: AnalysisState) -> dict:
     out: dict = {"peer_financials": reports}
     if sic_mismatches:
         out["peer_sic_mismatches"] = sic_mismatches
+    # Estado estructurado para el informe (report_facts.relative_section): quién se excluyó por
+    # industria y quién sigue en una comparación cross-industry. Antes eran marcas de texto.
+    out["peers_excluded"] = mismatched if exclude else []
+    out["peers_cross_industry"] = [] if exclude else mismatched
 
     # Construir peer_roic_comparison desde los peers fetched con éxito.
     peer_roic: list[PeerROIC] = []

@@ -1,4 +1,4 @@
-# CI mínima (bloque B, B0): en cada push a main y en cada PR corren la suite completa y ruff.
+# CI mínima (bloque B, B0; tipos en el bloque C): en cada push a main y en cada PR corren ruff, pyright y la suite.
 # La suite es hermética (conftest bloquea la red y mockea los adaptadores): no necesita API keys.
 # El SEC_USER_AGENT de prueba lo pone conftest.py; aquí se fija igualmente por si un import lo pide antes.
 name: ci
@@ -22,6 +22,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --extra dev --python 3.12   # --locked: falla si uv.lock no cuadra con pyproject
       - name: Lint (ruff)
-        run: uv run --extra dev ruff check src tests
+        run: uv run --extra dev ruff check src tests scripts
+      # El paquete pyright de PyPI descarga Node la primera vez: este paso necesita red en la CI.
+      - name: Types (pyright, modules listed in pyproject [tool.pyright])
+        run: uv run --extra dev pyright
       - name: Tests
         run: uv run --extra dev pytest -q

@@ -127,6 +127,10 @@ def supervisor_node(state: AnalysisState) -> dict:
         "cik": cik,
         "as_of_date": as_of_date,
         "run_id": run_id,
+        # EC-111: el nombre legal de EDGAR. Antes ningún nodo lo escribía y market, management y
+        # competitive caían al ticker: las búsquedas eran "ACMR ACMR competitors…" o "CALM stock
+        # decline", que casaba con la palabra "calm". Lo consume también el filtro de relevancia.
+        "company_name": str(getattr(company, "name", "") or "") or ticker,
         # Inicializar listas cross-cutting una sola vez aquí,
         # para que los agentes LLM puedan hacer append sin comprobar None
         "citations": [],

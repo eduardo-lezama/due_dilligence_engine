@@ -259,7 +259,16 @@ def relative_section(state) -> Section:
         sec.notes.append("No peer multiples (no peers available or none with market data).")
         return sec
     names = ", ".join(pv.ticker for pv in peers)
-    sec.rows.append(("Peers", f"{names} ({'suggested automatically (Finnhub, same industry)' if source == 'auto' else 'chosen by the investor'})"))
+    sec.rows.append(("Peers", f"{names} ({'suggested automatically (Finnhub)' if source == 'auto' else 'chosen by the investor'})"))
+    # Peers de otra industria (SIC de 2 dígitos distinto), decididos por peers_node (bloque C).
+    dropped = state.get("peers_excluded") or []
+    cross = state.get("peers_cross_industry") or []
+    if dropped:
+        sec.notes.append(f"Excluded from the medians and the Magic Formula ranking because they belong to a "
+                         f"different industry (SIC): {', '.join(dropped)}. Same-industry peers remain.")
+    if cross:
+        sec.notes.append(f"Cross-industry comparison: the medians and the Magic Formula rank include "
+                         f"{', '.join(cross)} (different industry from the company) — read them with caution.")
     ev_ebits = [pv.ev_ebit for pv in peers if pv.ev_ebit is not None]
     if ev_ebits and valuation is not None and not valuation.stub and valuation.ev_ebit_multiple is not None:
         med = statistics.median(ev_ebits)

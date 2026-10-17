@@ -646,7 +646,9 @@ def _render_markdown(state: AnalysisState, run_stats=None, previous=_NOT_QUERIED
     elif competitive and not competitive.stub:
         # Distinguir entre skip explícito y intento fallido
         attempted_no_roic = state.get("peers_attempted_no_roic", [])  # type: ignore[typeddict-item]
-        peers_provided = state.get("peers", []) or []                  # type: ignore[typeddict-item]
+        # Los excluidos por industria (bloque C) no se intentaron descargar: no cuentan como fallidos.
+        excluded = set(state.get("peers_excluded") or [])              # type: ignore[typeddict-item]
+        peers_provided = [p for p in (state.get("peers", []) or []) if p not in excluded]  # type: ignore[typeddict-item]
         if attempted_no_roic:
             tickers_str = ", ".join(attempted_no_roic)
             lines += [

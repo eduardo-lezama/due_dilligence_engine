@@ -819,3 +819,128 @@ def test_split_adjustment_leaves_normal_series_and_handles_reverse_splits():
     assert adjust_for_splits(normal, "diluted") == (normal, [])
     out, flags = adjust_for_splits(_shares([10e6, 100e6]), "diluted")  # contrasplit 1:10
     assert "1:10" in flags[0] and out[1]["value"] == pytest.approx(10e6)
+
+
+# --------------------------------------------------------------------------- #
+# EC-107 — EBIT derivado año a año cuando el filer no etiqueta OperatingIncomeLoss
+# --------------------------------------------------------------------------- #
+
+_PRETAX_1 = xe.PRETAX_CONCEPTS[0]   # variante que INCLUYE la puesta en equivalencia
+_PRETAX_2 = xe.PRETAX_CONCEPTS[1]   # variante que ya la excluye
+
+
+def test_operating_income_derived_from_pretax_for_filer_without_tag():
+    """CVX-like: ningún año con OperatingIncomeLoss → EBIT = pretax + interest expense − interest income."""
+    inc = make_df({"Revenues": {"FY 2025": 1000.0, "FY 2024": 900.0},
+                   _PRETAX_1: {"FY 2025": 100.0, "FY 2024": 80.0},
+                   "InterestExpense": {"FY 2025": 10.0, "FY 2024": 12.0},
+                   "InvestmentIncomeInterest": {"FY 2025": 4.0, "FY 2024": 2.0}})
+    series, flags = xe.resolve_operating_income(inc, FakeFacts(), ["FY2025", "FY2024"])
+    assert [(i["period"], i["value"]) for i in series] == [("FY2025", 106.0), ("FY2024", 90.0)]
+    assert all(i["source"].startswith("derived: pretax income + interest expense - interest income")
+               for i in series)
+    assert len(flags) == 1 and "FY2025, FY2024" in flags[0] and "EC-107" in flags[0]
+
+
+def test_operating_income_never_overrides_reported_year_and_fills_only_gaps():
+    """JNJ-like: un año reportado se conserva intacto; los demás se derivan con inputs de SU año."""
+    inc = make_df({"Revenues": {"FY 2025": 1000.0, "FY 2024": 900.0},
+                   "OperatingIncomeLoss": {"FY 2025": 150.0, "FY 2024": NaN},
+                   _PRETAX_1: {"FY 2025": 100.0, "FY 2024": 80.0},
+                   "InterestExpense": {"FY 2025": 10.0, "FY 2024": 12.0},
+                   "InvestmentIncomeInterest": {"FY 2025": 4.0, "FY 2024": 2.0}})
+    series, flags = xe.resolve_operating_income(inc, FakeFacts(), ["FY2025", "FY2024"])
+    by = {i["period"]: i for i in series}
+    assert by["FY2025"] == {"value": 150.0, "period": "FY2025", "source": "OperatingIncomeLoss"}  # no se pisa
+    assert by["FY2024"]["value"] == 90.0 and by["FY2024"]["source"].startswith("derived:")
+    assert "FY2024" in flags[0] and "FY2025" not in flags[0]
+
+
+def test_operating_income_does_not_mix_years():
+    """Si falta el interest expense de un año, ese año se queda sin EBIT (no se usa el de otro año)."""
+    inc = make_df({"Revenues": {"FY 2025": 1000.0, "FY 2024": 900.0},
+                   _PRETAX_1: {"FY 2025": 100.0, "FY 2024": 80.0},
+                   "InterestExpense": {"FY 2025": 10.0, "FY 2024": NaN},
+                   "InvestmentIncomeInterest": {"FY 2025": 4.0, "FY 2024": 2.0}})
+    series, flags = xe.resolve_operating_income(inc, FakeFacts(), ["FY2025", "FY2024"])
+    by = {i["period"]: i for i in series}
+    # FY2024 no se deriva con el interés de FY2025 (80 + 10): sale de la cadena histórica con SU pretax.
+    assert by["FY2024"]["value"] == 80.0 and not by["FY2024"]["source"].startswith("derived:")
+    assert any("fallback chain" in f and "FY2024" in f for f in flags)
+
+
+def test_derived_years_do_not_switch_off_the_fallback_for_other_years():
+    """Revisión del bloque C: sin OperatingIncomeLoss, con GP y SG&A todos los años e intereses solo en el
+    último, antes se perdían los años anteriores (la cadena histórica solo corría si no salía ningún año)."""
+    years = ("FY 2025", "FY 2024", "FY 2023", "FY 2022", "FY 2021")
+    inc = make_df({"Revenues": {y: 2000.0 for y in years},
+                   "GrossProfit": {y: 1000.0 for y in years},
+                   "SellingGeneralAndAdministrativeExpense": {y: 400.0 for y in years},
+                   _PRETAX_1: {y: 300.0 for y in years},
+                   "InterestExpense": {"FY 2025": 5.0, **{y: NaN for y in years[1:]}}})
+    series, _ = xe.resolve_operating_income(inc, FakeFacts(), [y.replace(" ", "") for y in years])
+    assert len(series) == 5 and series[0]["source"].startswith("derived:")
+
+
+def test_operating_income_missing_interest_income_is_allowed_but_flagged():
+    inc = make_df({"Revenues": {"FY 2025": 1000.0},
+                   _PRETAX_1: {"FY 2025": 100.0},
+                   "InterestExpense": {"FY 2025": 10.0}})
+    series, flags = xe.resolve_operating_income(inc, FakeFacts(), ["FY2025"])
+    assert series[0]["value"] == 110.0
+    assert "interest income unavailable" in series[0]["source"]
+    assert any("interest income unavailable" in f and "FY2025" in f for f in flags)
+
+
+def test_operating_income_removes_equity_method_and_other_nonoperating_income():
+    """KO-like: la puesta en equivalencia va DENTRO del pretax variante 1 → se resta (sin ello, +20–38 %)."""
+    inc = make_df({"Revenues": {"FY 2025": 1000.0},
+                   _PRETAX_1: {"FY 2025": 200.0},
+                   "InterestExpense": {"FY 2025": 10.0},
+                   "InvestmentIncomeInterest": {"FY 2025": 5.0},
+                   "IncomeLossFromEquityMethodInvestments": {"FY 2025": 30.0},
+                   "OtherNonoperatingIncomeExpense": {"FY 2025": 7.0}})
+    series, _ = xe.resolve_operating_income(inc, FakeFacts(), ["FY2025"])
+    assert series[0]["value"] == 200.0 + 10.0 - 5.0 - 30.0 - 7.0
+
+
+def test_operating_income_keeps_equity_method_when_pretax_variant_already_excludes_it():
+    inc = make_df({"Revenues": {"FY 2025": 1000.0},
+                   _PRETAX_2: {"FY 2025": 200.0},
+                   "InterestExpense": {"FY 2025": 10.0},
+                   "InvestmentIncomeInterest": {"FY 2025": 5.0},
+                   "IncomeLossFromEquityMethodInvestments": {"FY 2025": 30.0}})
+    series, _ = xe.resolve_operating_income(inc, FakeFacts(), ["FY2025"])
+    assert series[0]["value"] == 205.0   # no se resta dos veces
+
+
+def test_operating_income_unchanged_when_all_years_reported():
+    inc = make_df({"Revenues": {"FY 2025": 1000.0, "FY 2024": 900.0},
+                   "OperatingIncomeLoss": {"FY 2025": 150.0, "FY 2024": 120.0},
+                   _PRETAX_1: {"FY 2025": 100.0, "FY 2024": 80.0},
+                   "InterestExpense": {"FY 2025": 10.0, "FY 2024": 12.0}})
+    series, flags = xe.resolve_operating_income(inc, FakeFacts(), ["FY2025", "FY2024"])
+    assert [(i["value"], i["source"]) for i in series] == [(150.0, "OperatingIncomeLoss"),
+                                                           (120.0, "OperatingIncomeLoss")]
+    assert flags == []
+
+
+def test_operating_income_falls_back_to_legacy_chain_without_interest_tags():
+    """BBW-like: sin interest expense no hay derivación por pretax → cadena histórica GP − SG&A (EC-21)."""
+    inc = make_df({"Revenues": {"FY 2025": 1000.0},
+                   "GrossProfit": {"FY 2025": 400.0},
+                   "SellingGeneralAndAdministrativeExpense": {"FY 2025": 300.0}})
+    series, flags = xe.resolve_operating_income(inc, FakeFacts(), ["FY2025"])
+    assert series[0]["value"] == 100.0 and series[0]["source"].startswith("derived:")
+    assert flags == []
+
+
+def test_build_raw_surfaces_derived_ebit_flag():
+    inc, bs, cf = _min_frames()
+    inc = inc.drop(index="OperatingIncomeLoss")
+    inc.loc[_PRETAX_1] = ["pretax", False, 90.0, 80.0]
+    inc.loc["InterestExpense"] = ["int", False, 10.0, 10.0]
+    raw = xe.build_raw(ticker="x", cik="1", period_end=date(2025, 9, 27), inc_df=inc, bs_df=bs,
+                       cf_df=cf, facts=FakeFacts(), shares_outstanding=10.0)
+    assert [i["value"] for i in raw["annual"]["operating_income"]] == [100.0, 90.0]
+    assert any("EC-107" in f for f in raw["data_quality_flags"])

@@ -45,6 +45,7 @@ from due_diligence.schemas.reports import MarketReport
 from due_diligence.tools.edgar import EdgarEventsAdapter
 from due_diligence.tools.finnhub import FinnhubAdapter, format_news_for_prompt
 from due_diligence.tools.fred import FredAdapter
+from due_diligence.tools.news_relevance import filter_relevant_news
 from due_diligence.tools.polygon import PolygonAdapter
 from due_diligence.tools.tavily import TavilyAdapter, format_tavily_for_prompt
 
@@ -73,14 +74,26 @@ def market_agent(state: AnalysisState) -> dict:
     market_cap = _to_mv(market_data.get("market_cap"), "USD", as_of)
 
     # --- 2. Noticias recientes desde Finnhub ---
+    # EC-111: nombre legal para el filtro de relevancia y las queries Tavily. `company_name` NO
+    # lo escribe ningún nodo en el state, así que antes caía siempre al ticker ("CALM stock
+    # decline…" casaba la palabra "calm"). Orden: state → nombre de Polygon → ticker.
+    company_name = (
+        state.get("company_name")  # type: ignore[typeddict-item]
+        or market_data.get("company_name")
+        or ticker
+    )
+    name_for_filter = None if company_name == ticker else company_name
+
     news_articles = FinnhubAdapter.fetch_company_news(ticker)
-    recent_news_summary = format_news_for_prompt(news_articles)
+    news_articles, news_filtered = filter_relevant_news(
+        news_articles, ticker, name_for_filter, title_key="headline", body_key="summary"
+    )
+    recent_news_summary = format_news_for_prompt(news_articles, filtered_out=news_filtered)
 
     # --- 2b. Cobertura extendida con Tavily si stock en drawdown (MCE-19) ---
     # Finnhub limita a 30 días. Para stocks con drawdown >30% desde 52w high, el catalizador
     # típico (tariff hit, profit warning, guidance cut) suele estar fuera de esa ventana.
     # Tavily complementa con queries targeting sin filtro temporal estricto.
-    company_name = state.get("company_name", ticker)  # type: ignore[typeddict-item]
     drawdown_news = _fetch_drawdown_context_news(
         ticker=ticker,
         company_name=company_name,
@@ -129,10 +142,9 @@ def market_agent(state: AnalysisState) -> dict:
     # Si el press release no se encontró o tiene < 500 chars (HTML parsing fallido, filing
     # no publicado todavía, etc.), buscar earnings recientes via Tavily como último recurso.
     if (not quarterly_earnings_text or len(quarterly_earnings_text.strip()) < 500) and settings.market_news_include_tavily:
-        company_name_for_fallback = state.get("company_name", ticker)  # type: ignore[typeddict-item]
         quarterly_earnings_text = _fetch_quarterly_earnings_tavily(
             ticker=ticker,
-            company_name=company_name_for_fallback,
+            company_name=company_name,
             existing_text=quarterly_earnings_text,
         )
 
@@ -281,7 +293,12 @@ def _fetch_drawdown_context_news(
     ]
     try:
         results = TavilyAdapter.search(queries)
-        return format_tavily_for_prompt(results, max_chars_per_result=600)
+        # EC-111: descartar lo que no menciona a la empresa (palabras sueltas, menús, noticias genéricas).
+        results, filtered = filter_relevant_news(
+            results, ticker, None if company_name == ticker else company_name,
+            title_key="title", body_key="content",
+        )
+        return format_tavily_for_prompt(results, max_chars_per_result=600, filtered_out=filtered)
     except Exception as e:
         log.warning("market_tavily_drawdown_failed", ticker=ticker, error=str(e))
         return ""
